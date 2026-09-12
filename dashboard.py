@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import psycopg2
 import plotly.express as px
@@ -29,6 +30,153 @@ def load_data():
     return df
 
 
+def get_room_metrics(df_all, room_name, ac1_kw, ac2_kw, unit_rate):
+    df_room = df_all[df_all["room_name"] == room_name].sort_values("timestamp").reset_index(drop=True)
+    latest = df_room.iloc[-1]
+    any_ac_on = latest["ac1_status"] == "ON" or latest["ac2_status"] == "ON"
+    is_waste = latest["room_status"] == "EMPTY" and any_ac_on
+
+    cond_all = (df_room["room_status"] == "EMPTY") & ((df_room["ac1_status"] == "ON") | (df_room["ac2_status"] == "ON"))
+
+    current_waste_seconds = 0
+    if is_waste:
+        false_idxs = df_room.index[~cond_all]
+        prior_false = false_idxs[false_idxs < df_room.index[-1]]
+        start_idx = (prior_false[-1] + 1) if len(prior_false) > 0 else 0
+        waste_start_time = df_room.loc[start_idx, "timestamp"]
+        current_waste_seconds = (latest["timestamp"] - waste_start_time).total_seconds()
+
+    waste_rows = df_room[cond_all]
+    if is_waste:
+        streak_days = 0
+    elif len(waste_rows) > 0:
+        streak_days = (latest["timestamp"] - waste_rows["timestamp"].max()).days
+    else:
+        streak_days = (latest["timestamp"] - df_room["timestamp"].min()).days
+
+    if len(df_room) > 1:
+        gap_hours = df_room["timestamp"].diff().dt.total_seconds().median() / 3600
+    else:
+        gap_hours = 30 / 3600
+
+    df_room["month"] = df_room["timestamp"].dt.to_period("M")
+    waste_by_month = df_room[cond_all].groupby("month").apply(
+        lambda g: ((g["ac1_status"] == "ON").sum() * ac1_kw + (g["ac2_status"] == "ON").sum() * ac2_kw) * gap_hours * unit_rate
+    )
+    months_sorted = sorted(waste_by_month.index) if len(waste_by_month) > 0 else []
+    this_month_cost = float(waste_by_month.get(months_sorted[-1], 0)) if months_sorted else 0.0
+    last_month_cost = float(waste_by_month.get(months_sorted[-2], 0)) if len(months_sorted) > 1 else None
+
+    return {
+        "is_waste": is_waste,
+        "room_status": latest["room_status"],
+        "ac1_status": latest["ac1_status"],
+        "ac2_status": latest["ac2_status"],
+        "current_waste_seconds": current_waste_seconds,
+        "streak_days": streak_days,
+        "this_month_cost": this_month_cost,
+        "last_month_cost": last_month_cost,
+    }
+
+
+def render_room_card(room_name, m, ac1_kw, ac2_kw, unit_rate):
+    is_waste = m["is_waste"]
+    active_kw = 0.0
+    if m["ac1_status"] == "ON":
+        active_kw += ac1_kw
+    if m["ac2_status"] == "ON":
+        active_kw += ac2_kw
+    rate_per_sec = (active_kw * unit_rate) / 3600
+    seconds = int(m["current_waste_seconds"])
+    cost_now = seconds * rate_per_sec
+
+    if is_waste:
+        pill_text = "Empty, AC on"
+        pill_bg, pill_color = "var(--bg-danger, #FCEBEB)", "var(--text-danger, #A32D2D)"
+    elif m["room_status"] == "OCCUPIED":
+        pill_text = "Occupied"
+        pill_bg, pill_color = "var(--bg-success, #EAF3DE)", "var(--text-success, #3B6D11)"
+    else:
+        pill_text = "Empty, AC off"
+        pill_bg, pill_color = "var(--bg-warning, #FAEEDA)", "var(--text-warning, #854F0B)"
+
+    if m["last_month_cost"] is not None:
+        compare_html = f"""
+        <div style="border-top: 0.5px solid #ddd; padding-top: 12px; margin-bottom: 12px;">
+          <p style="font-size: 12px; color: #777; margin: 0 0 8px;">This month vs last month (actual waste cost)</p>
+          <div style="display: flex; align-items: flex-end; gap: 16px; height: 60px;">
+            <div style="flex:1; text-align:center;">
+              <p style="font-size: 12px; color: #777; margin: 0;">Last month</p>
+              <p style="font-size: 15px; font-weight: 500; margin: 2px 0 0;">Rs {m['last_month_cost']:,.0f}</p>
+            </div>
+            <div style="flex:1; text-align:center;">
+              <p style="font-size: 12px; color: #777; margin: 0;">This month</p>
+              <p style="font-size: 15px; font-weight: 500; margin: 2px 0 0;">Rs {m['this_month_cost']:,.0f}</p>
+            </div>
+          </div>
+        </div>
+        """
+    else:
+        compare_html = ""
+
+    html = f"""
+    <div id="card-{room_name}" style="font-family: sans-serif; background: #fff; border-radius: 12px; border: 0.5px solid #ddd; padding: 1.1rem; max-width: 420px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <p style="font-weight: 600; font-size: 16px; margin: 0; color:#222;">{room_name}</p>
+        <span style="background: {pill_bg}; color: {pill_color}; font-size: 12px; padding: 3px 10px; border-radius: 6px;">{pill_text}</span>
+      </div>
+
+      <div style="background: #f7f7f5; border-radius: 8px; padding: 12px; text-align: center; margin-bottom: 12px;">
+        <p style="font-size: 12px; color: #777; margin: 0;">Wasting energy for</p>
+        <p id="timer-{room_name}" style="font-size: 28px; font-weight: 600; margin: 4px 0 0; color:#222;">00:00:00</p>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 12px;">
+        <div style="background: #f7f7f5; border-radius: 8px; padding: 10px; text-align: center;">
+          <p style="font-size: 12px; color: #777; margin: 0;">AC1</p>
+          <p style="font-size: 13px; font-weight: 600; margin: 2px 0 0; color:{'#A32D2D' if m['ac1_status']=='ON' else '#333'};">{m['ac1_status']}</p>
+        </div>
+        <div style="background: #f7f7f5; border-radius: 8px; padding: 10px; text-align: center;">
+          <p style="font-size: 12px; color: #777; margin: 0;">AC2</p>
+          <p style="font-size: 13px; font-weight: 600; margin: 2px 0 0; color:{'#A32D2D' if m['ac2_status']=='ON' else '#333'};">{m['ac2_status']}</p>
+        </div>
+      </div>
+
+      <div style="background: #EAF3DE; border-radius: 8px; padding: 8px 12px; margin-bottom: 12px;">
+        <p style="font-size: 13px; color: #3B6D11; margin: 0;">{m['streak_days']}-day waste-free streak</p>
+      </div>
+
+      {compare_html}
+
+      <p style="font-size: 12px; color: #777; margin: 0;">Cost ticking now</p>
+      <p id="cost-{room_name}" style="font-size: 18px; font-weight: 600; margin: 2px 0 0; color:#A32D2D;">Rs 0.00</p>
+    </div>
+    <script>
+    (function() {{
+      let seconds = {seconds};
+      const rate = {rate_per_sec};
+      const isWaste = {str(is_waste).lower()};
+      function fmt(s) {{
+        const h = String(Math.floor(s/3600)).padStart(2,'0');
+        const m = String(Math.floor((s%3600)/60)).padStart(2,'0');
+        const sec = String(s%60).padStart(2,'0');
+        return h+':'+m+':'+sec;
+      }}
+      document.getElementById('timer-{room_name}').textContent = fmt(seconds);
+      document.getElementById('cost-{room_name}').textContent = 'Rs ' + (seconds*rate).toFixed(2);
+      if (isWaste) {{
+        setInterval(() => {{
+          seconds += 1;
+          document.getElementById('timer-{room_name}').textContent = fmt(seconds);
+          document.getElementById('cost-{room_name}').textContent = 'Rs ' + (seconds*rate).toFixed(2);
+        }}, 1000);
+      }}
+    }})();
+    </script>
+    """
+    components.html(html, height=440 if compare_html else 340)
+
+
 df_all = load_data()
 
 st.title("HFM Energy Saving Detection Dashboard")
@@ -38,25 +186,15 @@ if len(df_all) == 0:
     st.stop()
 
 st.subheader("Live Status")
-latest_per_room = df_all.sort_values("timestamp").groupby("room_name").tail(1)
-
-live_cols = st.columns(len(latest_per_room))
-for i, (_, row) in enumerate(latest_per_room.iterrows()):
+rooms = sorted(df_all["room_name"].unique().tolist())
+live_cols = st.columns(len(rooms))
+for i, room_name in enumerate(rooms):
     with live_cols[i]:
-        any_ac_on = row["ac1_status"] == "ON" or row["ac2_status"] == "ON"
-        is_waste = row["room_status"] == "EMPTY" and any_ac_on
-        status_line = f"AC1: {row['ac1_status']} | AC2: {row['ac2_status']}"
-        if is_waste:
-            st.error(f"**{row['room_name']}**\n\nEMPTY + AC ON (Waste!)\n\n{status_line}")
-        elif row["room_status"] == "OCCUPIED":
-            st.success(f"**{row['room_name']}**\n\nOCCUPIED\n\n{status_line}")
-        else:
-            st.info(f"**{row['room_name']}**\n\nEMPTY\n\n{status_line}")
-        st.caption(f"Last update: {row['timestamp'].strftime('%H:%M:%S')} | Phones: {row['phone_count']}")
+        metrics = get_room_metrics(df_all, room_name, AC1_KW, AC2_KW, UNIT_RATE)
+        render_room_card(room_name, metrics, AC1_KW, AC2_KW, UNIT_RATE)
 
 st.divider()
 
-rooms = sorted(df_all["room_name"].unique().tolist())
 selected_room = st.selectbox("Room Select Karein (Detail View Ke Liye)", ["All Rooms"] + rooms)
 
 if selected_room == "All Rooms":
