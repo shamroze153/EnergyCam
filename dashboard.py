@@ -6,12 +6,13 @@ import plotly.express as px
 from streamlit_autorefresh import st_autorefresh
 import os
 
-st.set_page_config(page_title="HFM Energy Saving Dashboard", layout="wide")
+st.set_page_config(page_title="HFM Energy Saving Dashboard", layout="wide", page_icon="❄️")
 st_autorefresh(interval=5000, key="datarefresh")
 
 AC1_KW = 1.2
 AC2_KW = 1.2
 UNIT_RATE = 55
+CO2_FACTOR_KG_PER_KWH = 0.45
 
 try:
     DATABASE_URL = st.secrets["DATABASE_URL"]
@@ -67,15 +68,21 @@ def get_room_metrics(df_all, room_name, ac1_kw, ac2_kw, unit_rate):
     this_month_cost = float(waste_by_month.get(months_sorted[-1], 0)) if months_sorted else 0.0
     last_month_cost = float(waste_by_month.get(months_sorted[-2], 0)) if len(months_sorted) > 1 else None
 
+    person_count_val = latest["person_count"] if "person_count" in df_room.columns else 0
+    if pd.isna(person_count_val):
+        person_count_val = 0
+
     return {
         "is_waste": is_waste,
         "room_status": latest["room_status"],
         "ac1_status": latest["ac1_status"],
         "ac2_status": latest["ac2_status"],
+        "person_count": int(person_count_val),
         "current_waste_seconds": current_waste_seconds,
         "streak_days": streak_days,
         "this_month_cost": this_month_cost,
         "last_month_cost": last_month_cost,
+        "last_updated": latest["timestamp"],
     }
 
 
@@ -88,30 +95,31 @@ def render_room_card(room_name, m, ac1_kw, ac2_kw, unit_rate):
         active_kw += ac2_kw
     rate_per_sec = (active_kw * unit_rate) / 3600
     seconds = int(m["current_waste_seconds"])
-    cost_now = seconds * rate_per_sec
 
     if is_waste:
         pill_text = "Empty, AC on"
-        pill_bg, pill_color = "var(--bg-danger, #FCEBEB)", "var(--text-danger, #A32D2D)"
+        pill_bg, pill_color = "#FCEBEB", "#A32D2D"
     elif m["room_status"] == "OCCUPIED":
         pill_text = "Occupied"
-        pill_bg, pill_color = "var(--bg-success, #EAF3DE)", "var(--text-success, #3B6D11)"
+        pill_bg, pill_color = "#EAF3DE", "#3B6D11"
     else:
         pill_text = "Empty, AC off"
-        pill_bg, pill_color = "var(--bg-warning, #FAEEDA)", "var(--text-warning, #854F0B)"
+        pill_bg, pill_color = "#FAEEDA", "#854F0B"
+
+    last_updated_str = m["last_updated"].strftime("%H:%M:%S")
 
     if m["last_month_cost"] is not None:
         compare_html = f"""
-        <div style="border-top: 0.5px solid #ddd; padding-top: 12px; margin-bottom: 12px;">
-          <p style="font-size: 12px; color: #777; margin: 0 0 8px;">This month vs last month (actual waste cost)</p>
+        <div style="border-top: 1px solid #eee; padding-top: 12px; margin-bottom: 12px;">
+          <p style="font-size: 12px; color: #888; margin: 0 0 8px;">This month vs last month (actual waste cost)</p>
           <div style="display: flex; align-items: flex-end; gap: 16px; height: 60px;">
             <div style="flex:1; text-align:center;">
-              <p style="font-size: 12px; color: #777; margin: 0;">Last month</p>
-              <p style="font-size: 15px; font-weight: 500; margin: 2px 0 0;">Rs {m['last_month_cost']:,.0f}</p>
+              <p style="font-size: 12px; color: #888; margin: 0;">Last month</p>
+              <p style="font-size: 15px; font-weight: 600; margin: 2px 0 0; color:#333;">Rs {m['last_month_cost']:,.0f}</p>
             </div>
             <div style="flex:1; text-align:center;">
-              <p style="font-size: 12px; color: #777; margin: 0;">This month</p>
-              <p style="font-size: 15px; font-weight: 500; margin: 2px 0 0;">Rs {m['this_month_cost']:,.0f}</p>
+              <p style="font-size: 12px; color: #888; margin: 0;">This month</p>
+              <p style="font-size: 15px; font-weight: 600; margin: 2px 0 0; color:#333;">Rs {m['this_month_cost']:,.0f}</p>
             </div>
           </div>
         </div>
@@ -120,36 +128,47 @@ def render_room_card(room_name, m, ac1_kw, ac2_kw, unit_rate):
         compare_html = ""
 
     html = f"""
-    <div id="card-{room_name}" style="font-family: sans-serif; background: #fff; border-radius: 12px; border: 0.5px solid #ddd; padding: 1.1rem; max-width: 420px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-        <p style="font-weight: 600; font-size: 16px; margin: 0; color:#222;">{room_name}</p>
-        <span style="background: {pill_bg}; color: {pill_color}; font-size: 12px; padding: 3px 10px; border-radius: 6px;">{pill_text}</span>
+    <div id="card-{room_name}" style="font-family: -apple-system, 'Segoe UI', sans-serif; background: #fff; border-radius: 14px; border: 1px solid #e8e8e8; box-shadow: 0 2px 10px rgba(0,0,0,0.05); padding: 1.25rem; max-width: 420px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+        <p style="font-weight: 700; font-size: 17px; margin: 0; color:#1a1a1a;">{room_name}</p>
+        <span style="background: {pill_bg}; color: {pill_color}; font-size: 12px; font-weight: 600; padding: 4px 11px; border-radius: 20px;">{pill_text}</span>
+      </div>
+      <p style="font-size: 11px; color: #aaa; margin: 0 0 14px;">Last updated {last_updated_str}</p>
+
+      <div style="background: linear-gradient(135deg, #f9f9f8, #f2f2f0); border-radius: 10px; padding: 14px; text-align: center; margin-bottom: 12px;">
+        <p style="font-size: 12px; color: #888; margin: 0;">Wasting energy for</p>
+        <p id="timer-{room_name}" style="font-size: 30px; font-weight: 700; margin: 4px 0 0; color:#1a1a1a; font-variant-numeric: tabular-nums;">00:00:00</p>
       </div>
 
-      <div style="background: #f7f7f5; border-radius: 8px; padding: 12px; text-align: center; margin-bottom: 12px;">
-        <p style="font-size: 12px; color: #777; margin: 0;">Wasting energy for</p>
-        <p id="timer-{room_name}" style="font-size: 28px; font-weight: 600; margin: 4px 0 0; color:#222;">00:00:00</p>
-      </div>
-
-      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 12px;">
-        <div style="background: #f7f7f5; border-radius: 8px; padding: 10px; text-align: center;">
-          <p style="font-size: 12px; color: #777; margin: 0;">AC1</p>
-          <p style="font-size: 13px; font-weight: 600; margin: 2px 0 0; color:{'#A32D2D' if m['ac1_status']=='ON' else '#333'};">{m['ac1_status']}</p>
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px;">
+        <div style="background: #f7f7f5; border-radius: 10px; padding: 10px; text-align: center;">
+          <p style="font-size: 17px; margin: 0;">👥</p>
+          <p style="font-size: 11px; color: #888; margin: 2px 0 0;">People</p>
+          <p style="font-size: 14px; font-weight: 700; margin: 1px 0 0; color:#333;">{m['person_count']}</p>
         </div>
-        <div style="background: #f7f7f5; border-radius: 8px; padding: 10px; text-align: center;">
-          <p style="font-size: 12px; color: #777; margin: 0;">AC2</p>
-          <p style="font-size: 13px; font-weight: 600; margin: 2px 0 0; color:{'#A32D2D' if m['ac2_status']=='ON' else '#333'};">{m['ac2_status']}</p>
+        <div style="background: #f7f7f5; border-radius: 10px; padding: 10px; text-align: center;">
+          <p style="font-size: 17px; margin: 0;">❄️</p>
+          <p style="font-size: 11px; color: #888; margin: 2px 0 0;">AC1</p>
+          <p style="font-size: 14px; font-weight: 700; margin: 1px 0 0; color:{'#A32D2D' if m['ac1_status']=='ON' else '#333'};">{m['ac1_status']}</p>
+        </div>
+        <div style="background: #f7f7f5; border-radius: 10px; padding: 10px; text-align: center;">
+          <p style="font-size: 17px; margin: 0;">❄️</p>
+          <p style="font-size: 11px; color: #888; margin: 2px 0 0;">AC2</p>
+          <p style="font-size: 14px; font-weight: 700; margin: 1px 0 0; color:{'#A32D2D' if m['ac2_status']=='ON' else '#333'};">{m['ac2_status']}</p>
         </div>
       </div>
 
-      <div style="background: #EAF3DE; border-radius: 8px; padding: 8px 12px; margin-bottom: 12px;">
-        <p style="font-size: 13px; color: #3B6D11; margin: 0;">{m['streak_days']}-day waste-free streak</p>
+      <div style="background: #EAF3DE; border-radius: 10px; padding: 9px 13px; margin-bottom: 12px; display:flex; align-items:center; gap:8px;">
+        <span style="font-size:14px;">🔥</span>
+        <p style="font-size: 13px; color: #3B6D11; margin: 0; font-weight: 500;">{m['streak_days']}-day waste-free streak</p>
       </div>
 
       {compare_html}
 
-      <p style="font-size: 12px; color: #777; margin: 0;">Cost ticking now</p>
-      <p id="cost-{room_name}" style="font-size: 18px; font-weight: 600; margin: 2px 0 0; color:#A32D2D;">Rs 0.00</p>
+      <div style="display:flex; justify-content:space-between; align-items:baseline;">
+        <p style="font-size: 12px; color: #888; margin: 0;">Cost ticking now</p>
+        <p id="cost-{room_name}" style="font-size: 19px; font-weight: 700; margin: 0; color:#A32D2D;">Rs 0.00</p>
+      </div>
     </div>
     <script>
     (function() {{
@@ -174,12 +193,17 @@ def render_room_card(room_name, m, ac1_kw, ac2_kw, unit_rate):
     }})();
     </script>
     """
-    components.html(html, height=440 if compare_html else 340)
+    components.html(html, height=470 if compare_html else 370)
 
 
 df_all = load_data()
 
-st.title("HFM Energy Saving Detection Dashboard")
+st.markdown("""
+<div style="background: linear-gradient(90deg, #1a3c34, #2d5a4f); border-radius: 14px; padding: 24px 30px; margin-bottom: 8px;">
+  <p style="color: #fff; font-size: 26px; font-weight: 700; margin: 0;">❄️ HFM Energy Saving Detection</p>
+  <p style="color: #d0e0da; font-size: 14px; margin: 4px 0 0;">Real-time occupancy & AC monitoring — powered by computer vision</p>
+</div>
+""", unsafe_allow_html=True)
 
 if len(df_all) == 0:
     st.warning("Abhi koi data nahi hai. Pehle unified_system.py chalayein.")
@@ -218,12 +242,15 @@ ac2_waste_hours = (waste_rows["ac2_status"] == "ON").sum() * avg_gap_hours
 
 estimated_cost = (ac1_waste_hours * AC1_KW + ac2_waste_hours * AC2_KW) * UNIT_RATE
 total_waste_hours = ac1_waste_hours + ac2_waste_hours
+total_waste_kwh = ac1_waste_hours * AC1_KW + ac2_waste_hours * AC2_KW
+co2_saved_kg = total_waste_kwh * CO2_FACTOR_KG_PER_KWH
 
-col1, col2, col3, col4 = st.columns(4)
+col1, col2, col3, col4, col5 = st.columns(5)
 col1.metric("Total Energy-Waste Alerts", total_alerts)
 col2.metric("Room Occupancy %", f"{occupied_pct:.1f}%")
 col3.metric("Estimated Wasted Hours (AC-hours)", f"{total_waste_hours:.2f} hrs")
 col4.metric("Estimated Cost Wasted", f"Rs. {estimated_cost:,.0f}")
+col5.metric("CO2 Impact", f"{co2_saved_kg:.1f} kg")
 
 st.divider()
 

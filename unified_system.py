@@ -1,5 +1,6 @@
 from ultralytics import YOLO
 import cv2
+from ac_config import check_ac_status
 import numpy as np
 import smtplib
 from email.mime.multipart import MIMEMultipart
@@ -23,14 +24,6 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 model = YOLO("yolov8n.pt")
 
 ROOM_NAME = "Demo Room"
-
-AC1_LX1, AC1_LY1, AC1_LX2, AC1_LY2 = 880, 418, 898, 432
-AC1_THRESHOLD = 11
-AC1_KW = 1.2
-
-AC2_LX1, AC2_LY1, AC2_LX2, AC2_LY2 = 1965, 695, 2000, 715
-AC2_THRESHOLD = 13
-AC2_KW = 1.2
 
 UNIT_RATE = 55
 
@@ -61,6 +54,7 @@ def setup_database():
             ac1_status TEXT,
             ac2_status TEXT,
             phone_count INTEGER,
+            person_count INTEGER,
             alert_sent INTEGER
         )
     """)
@@ -75,14 +69,14 @@ def setup_database():
     conn.close()
 
 
-def log_to_db(room_name, room_status, ac1_status, ac2_status, phone_count, alert_sent):
+def log_to_db(room_name, room_status, ac1_status, ac2_status, phone_count, person_count, alert_sent):
     try:
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO logs (timestamp, room_name, room_status, ac1_status, ac2_status, phone_count, alert_sent)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-        """, (datetime.now(), room_name, room_status, ac1_status, ac2_status, phone_count, alert_sent))
+            INSERT INTO logs (timestamp, room_name, room_status, ac1_status, ac2_status, phone_count, person_count, alert_sent)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """, (datetime.now(), room_name, room_status, ac1_status, ac2_status, phone_count, person_count, alert_sent))
         conn.commit()
         cursor.close()
         conn.close()
@@ -100,12 +94,6 @@ def log_heartbeat():
         conn.close()
     except Exception as e:
         print(f">> Heartbeat log failed: {e}")
-
-
-def blue_score(frame, x1, y1, x2, y2):
-    roi = frame[y1:y2, x1:x2]
-    b, g, r = cv2.split(roi)
-    return np.mean(cv2.subtract(b, r))
 
 
 def smoothed_status(history, raw_reading, maxlen):
@@ -202,8 +190,10 @@ def main():
             person_present = smoothed_status(person_history, person_present_raw, 4)
             room_empty = not person_present
 
-            ac1_raw = blue_score(frame, AC1_LX1, AC1_LY1, AC1_LX2, AC1_LY2) > AC1_THRESHOLD
-            ac2_raw = blue_score(frame, AC2_LX1, AC2_LY1, AC2_LX2, AC2_LY2) > AC2_THRESHOLD
+            ac1_result = check_ac_status(frame, "left_ac")
+            ac2_result = check_ac_status(frame, "right_ac")
+            ac1_raw = ac1_result["status"] == "ON"
+            ac2_raw = ac2_result["status"] == "ON"
             ac1_on = smoothed_status(ac1_history, ac1_raw, 4)
             ac2_on = smoothed_status(ac2_history, ac2_raw, 4)
             ac_on = ac1_on or ac2_on
@@ -255,9 +245,9 @@ def main():
 
         if current_time - last_log_time >= LOG_INTERVAL_SECONDS:
             room_status = "EMPTY" if room_empty else "OCCUPIED"
-            log_to_db(ROOM_NAME, room_status, "ON" if ac1_on else "OFF", "ON" if ac2_on else "OFF", phone_count, int(alert_just_fired))
+            log_to_db(ROOM_NAME, room_status, "ON" if ac1_on else "OFF", "ON" if ac2_on else "OFF", phone_count, person_count, int(alert_just_fired))
             last_log_time = current_time
-            print(f">> LOGGED: t={current_time:.0f}s | {room_status} | AC1={'ON' if ac1_on else 'OFF'} AC2={'ON' if ac2_on else 'OFF'} | Phone={phone_count} | EmailSentNow={alert_just_fired}")
+            print(f">> LOGGED: t={current_time:.0f}s | {room_status} | AC1={'ON' if ac1_on else 'OFF'} AC2={'ON' if ac2_on else 'OFF'} | Phone={phone_count} | People={person_count} | EmailSentNow={alert_just_fired}")
 
         if current_time - last_heartbeat_time >= HEARTBEAT_INTERVAL_SECONDS:
             log_heartbeat()
