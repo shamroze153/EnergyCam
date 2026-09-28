@@ -531,3 +531,25 @@ table.fit td a { font-weight: 600; }
 .founder .mark.photo::before { display: none; }
 .founder .mark.photo img { width: 100%; height: 100%; object-fit: cover; }
 .founder cite strong { color: var(--ink); font-weight: 600; }
+
+/* projects */
+.proj-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.proj { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
+.proj .media { position: relative; aspect-ratio: 16 / 10; background: var(--paper-2); border-bottom: 1px solid var(--line); overflow: hidden; }
+.proj .media img { width: 100%; height: 100%; object-fit: cover; }
+.proj .in { padding: 24px 26px 28px; display: flex; flex-direction: column; gap: 14px; flex: 1; }
+.proj .meta { font-family: var(--mono); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--green); }
+.proj h3 { font-size: 26px; }
+.proj p { margin-top: 0; }
+.proj .checklist li { font-size: 15.5px; }
+.proj .links { display: flex; flex-wrap: wrap; gap: 10px 22px; margin-top: auto; padding-top: 6px; }
+@media (max-width: 760px) { .proj-grid { grid-template-columns: 1fr; } }
+
+@media (max-width: 1200px) and (min-width: 981px) {
+  .header-cta .btn-ghost { display: none; }
+  .nav > a, .nav-drop > button { padding: 10px 9px; font-size: 14.5px; }
+  .site-header .container { gap: 16px; }
+}
+
+.contact-card .k, .contact-card .v { display: block; }
+.contact-card > span:not(.ic) { min-width: 0; }

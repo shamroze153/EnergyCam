@@ -25,11 +25,14 @@ export default {
   title: '',
   description: SITE.description,
   three: true,
-  jsonld: {
+  jsonld: [{
     '@context': 'https://schema.org', '@type': 'Organization', name: 'Mimar AI', slogan: SITE.tagline, email: SITE.email,
     telephone: '+' + SITE.whatsapp, address: { '@type': 'PostalAddress', addressLocality: 'Karachi', addressCountry: 'PK' },
     knowsAbout: SERVICES.map((s) => s.name), founder: { '@type': 'Person', name: 'Shamroze Nasir', jobTitle: 'Founder' },
-  },
+  }, {
+    '@context': 'https://schema.org', '@type': 'FAQPage',
+    mainEntity: faq.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
+  }],
   body: (r) => `
 <section class="hero blueprint">
   <div class="container">
@@ -163,7 +166,7 @@ export default {
       </ul>
       <div class="hero-actions">
         <a class="btn btn-primary" href="${r}services/computer-vision.html">See how EnergyCam works ${I.arrow}</a>
-        <a class="btn btn-ghost" href="${r}logs.html">Read the build log</a>
+        <a class="btn btn-ghost" href="${r}projects.html">See all projects</a>
       </div>
     </div>
     <div data-reveal>
@@ -199,7 +202,7 @@ export default {
         <span class="eyebrow">About Mimar AI</span>
         <blockquote style="margin-top:18px">“Mimar means architect. After years inside plant rooms and on site walks, the same problems kept coming back. Mimar AI builds the tools I wished I had.”</blockquote>
         <cite><strong>Shamroze Nasir</strong> · Founder, Mimar AI · Facility engineer, Karachi</cite>
-        <div class="hero-actions" style="margin-top:24px"><a class="btn btn-ghost" href="${r}about.html">Our story ${I.arrow}</a></div>
+        <div class="hero-actions" style="margin-top:24px"><a class="btn btn-ghost" href="${r}about.html">Our story ${I.arrow}</a><a class="btn btn-ghost" href="https://shamroze.vercel.app/" target="_blank" rel="noopener">Shamroze’s portfolio ${I.arrow}</a></div>
       </div>
     </div>
   </div>

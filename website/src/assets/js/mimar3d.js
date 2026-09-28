@@ -670,6 +670,11 @@
       frame(T, tm);
     };
     return {
+      /* used to record the promo film: exact frame with captions, driven by an external clock */
+      film: function (i, mode, tm, since, T) {
+        if (i !== state.i) { list[state.i].S.g.visible = false; state.i = i; list[i].S.g.visible = true; }
+        st.frameFn = null; state.tour = false; state.mode = mode; renderUI(); state.now = T; state.svcStart = T - since; st.resize(); frame(T, tm);
+      },
       /* used by our poster renderer: draw one exact frame with no UI */
       still: function (i, mode, tm) {
         el.classList.add('m3-clean'); st.resize();

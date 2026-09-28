@@ -7,13 +7,14 @@ import { SITE } from './src/site.mjs';
 import home from './src/pages/home.mjs';
 import services from './src/pages/services.mjs';
 import other from './src/pages/other.mjs';
+import projects from './src/pages/projects.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const out = join(root, 'dist');
 if (existsSync(out)) rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });
 
-const pages = [home, ...services, ...other];
+const pages = [home, ...services, projects, ...other];
 for (const p of pages) {
   const file = join(out, p.path);
   mkdirSync(dirname(file), { recursive: true });
@@ -31,6 +32,7 @@ writeFileSync(join(out, 'site.webmanifest'), JSON.stringify({
   ],
 }, null, 2));
 
+writeFileSync(join(out, '_headers'), `/assets/*\n  Cache-Control: public, max-age=604800\n/*\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: strict-origin-when-cross-origin\n`);
 writeFileSync(join(out, 'robots.txt'), `User-agent: *\nAllow: /\n${SITE.url ? `Sitemap: ${SITE.url}/sitemap.xml\n` : ''}`);
 if (SITE.url) {
   const urls = pages.filter((p) => p.path !== '404.html').map((p) => `  <url><loc>${SITE.url}/${p.path.replace(/index\.html$/, '')}</loc></url>`).join('\n');

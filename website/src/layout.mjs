@@ -26,6 +26,7 @@ function header(active, r) {
       <a href="${r}experience.html"${cur('experience')}>3D experience</a>
       <a href="${r}index.html#industries">Industries</a>
       <a href="${r}about.html"${cur('about')}>About</a>
+      <a href="${r}projects.html"${cur('projects')}>Projects</a>
       <a href="${r}logs.html"${cur('logs')}>Build logs</a>
     </nav>
     <div class="header-cta">
@@ -43,6 +44,7 @@ function header(active, r) {
     <a href="${r}experience.html">3D experience</a>
     <a href="${r}index.html#industries">Industries</a>
     <a href="${r}about.html">About</a>
+    <a href="${r}projects.html">Projects</a>
     <a href="${r}logs.html">Build logs</a>
     <a href="${r}contact.html">Contact</a>
   </nav>
@@ -78,23 +80,23 @@ function footer(r) {
         <span class="hash">#AIforBuildings</span>
       </div>
       <div><h4>Services</h4><ul>${SERVICES.map((s) => `<li><a href="${r}services/${s.slug}.html">${s.name}</a></li>`).join('')}</ul></div>
-      <div><h4>Company</h4><ul><li><a href="${r}about.html">About</a></li><li><a href="${r}experience.html">3D experience</a></li><li><a href="${r}logs.html">Build logs</a></li><li><a href="${r}contact.html">Contact</a></li></ul></div>
-      <div><h4>Explore</h4><ul><li><a href="${r}services.html">All services</a></li><li><a href="${r}index.html#industries">Industries</a></li><li><a href="${r}index.html#process">How we work</a></li><li><a href="${r}privacy.html">Privacy</a></li></ul></div>
+      <div><h4>Company</h4><ul><li><a href="${r}about.html">About</a></li><li><a href="${r}projects.html">Projects</a></li><li><a href="${r}experience.html">3D experience</a></li><li><a href="${r}logs.html">Build logs</a></li><li><a href="https://shamroze.vercel.app/" target="_blank" rel="noopener">Founder portfolio</a></li><li><a href="${r}contact.html">Contact</a></li></ul></div>
+      <div><h4>Explore</h4><ul><li><a href="${r}services.html">All services</a></li><li><a href="${r}index.html#industries">Industries</a></li><li><a href="${r}index.html#process">How we work</a></li><li><a href="${r}privacy.html">Privacy</a></li><li><a href="${r}terms.html">Terms</a></li></ul></div>
       <div><h4>Contact</h4><ul>
         <li><a href="${wa()}" target="_blank" rel="noopener">WhatsApp ${SITE.whatsappDisplay}</a></li>
         <li><a href="mailto:${SITE.email}">${SITE.email}</a></li>
         <li><span style="color:#DCE6E2;font-size:15px">${SITE.city}</span></li>
       </ul></div>
     </div>
-    <div class="bottom"><span>© <span data-year>2026</span> Mimar AI. All rights reserved.</span><span><a href="${r}privacy.html">Privacy</a></span></div>
+    <div class="bottom"><span>© <span data-year>2026</span> Mimar AI. All rights reserved.</span><span><a href="${r}privacy.html">Privacy</a> · <a href="${r}terms.html">Terms</a></span></div>
   </div>
 </footer>
 <a class="wa-float" href="${wa()}" target="_blank" rel="noopener" aria-label="Chat with Mimar AI on WhatsApp"><span class="dot">${I.chat}</span><span class="lbl">Chat with us</span></a>`;
 }
 
-export function page({ path, title, description, active = '', body, three = false, jsonld = null }) {
+export function page({ path, title, description, active = '', body, three = false, jsonld = null, root = null }) {
   const depth = path.split('/').length - 1;
-  const r = '../'.repeat(depth);
+  const r = root !== null ? root : '../'.repeat(depth);
   const fullTitle = title ? `${title} · Mimar AI` : 'Mimar AI · AI for the buildings you already run';
   const desc = description || SITE.description;
   const canonical = SITE.url ? `<link rel="canonical" href="${SITE.url}/${path.replace(/index\.html$/, '')}">` : '';
@@ -122,7 +124,7 @@ ${canonical}
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@500;700;800&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="${r}assets/css/site.css">
-${jsonld ? `<script type="application/ld+json">${JSON.stringify(jsonld)}</script>` : ''}
+${(Array.isArray(jsonld) ? jsonld : jsonld ? [jsonld] : []).map((j) => `<script type="application/ld+json">${JSON.stringify(j)}</script>`).join('\n')}
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>

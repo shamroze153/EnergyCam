@@ -35,6 +35,10 @@ cd website
 node build.mjs
 ```
 
+## Add a new project
+
+Open `src/projects.mjs`, copy an entry, change the title, summary, points, tags and links, add a cover image under `src/assets/img/projects/`, and run `node build.mjs`. It appears on the Projects page automatically.
+
 ## Preview locally
 
 ```bash
@@ -46,14 +50,14 @@ python3 -m http.server 8080
 ## Deploy (pick one)
 
 - **Netlify (easiest):** go to app.netlify.com/drop and drag the `website/dist` folder onto the page.
-- **Vercel or Cloudflare Pages:** import this repository, set the root directory to `website`, the build command to `node build.mjs`, and the output directory to `dist`.
+- **Vercel:** push this folder to a GitHub repository and import it in Vercel. `vercel.json` already sets the build command (`node build.mjs`) and output directory (`dist`), so you can accept the defaults. If the site sits in a subfolder of a bigger repository, set Vercel's Root Directory to that folder.
+- **Cloudflare Pages:** build command `node build.mjs`, output directory `dist`.
 - **GitHub Pages:** publish the contents of `website/dist` (for example with a Pages workflow, or by copying `dist` to a `gh-pages` branch).
 
 Once you have a domain, set `url` in `src/site.mjs` (for example `https://mimar.ai`) and rebuild. That adds canonical links, an absolute social-share image URL and a `sitemap.xml`.
 
 ## Before launch
 
-- Add the founder's name and photo on the About page and the homepage founder block (`src/pages/other.mjs`, `src/pages/home.mjs`).
 - Add real client logos or results once you have permission to show them.
 - Add LinkedIn and X links to the footer in `src/layout.mjs`.
 - The contact form opens WhatsApp or the visitor's email app with the message filled in. To receive form submissions directly, connect a form service such as Formspree and point the form at it.

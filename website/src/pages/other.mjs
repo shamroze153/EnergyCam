@@ -71,7 +71,7 @@ const about = {
     <div class="stack-lg" style="gap:18px">
       <span class="eyebrow">Our story</span>
       <h2 class="h2" style="font-size:clamp(28px,3.2vw,42px)">Founded by a facility engineer, <span class="accent">built from site walks.</span></h2>
-      <p style="font-weight:600;color:var(--ink)">Shamroze Nasir · Founder, Mimar AI</p>
+      <p style="font-weight:600;color:var(--ink)">Shamroze Nasir · Founder, Mimar AI · <a href="https://shamroze.vercel.app/" target="_blank" rel="noopener">View portfolio →</a></p>
       <p class="lede" style="font-size:18px">After years inside plant rooms and on site walks, the same problems kept coming back: ACs cooling empty rooms, drawings nobody could find, quotations nobody had time to check, and maintenance that lived on sticky notes.</p>
       <p class="lede" style="font-size:18px">None of them needed a new building. They needed someone to connect what was already there. That is what Mimar AI does.</p>
     </div>
@@ -242,6 +242,7 @@ const privacy = {
 /* ---------- 404 ---------- */
 const notFound = {
   path: '404.html',
+  root: '/',
   title: 'Page not found',
   description: 'This page does not exist.',
   body: (r) => `
@@ -256,4 +257,33 @@ const notFound = {
 `,
 };
 
-export default [experience, about, logs, contact, privacy, notFound];
+const terms = {
+  path: 'terms.html',
+  title: 'Terms',
+  description: 'Terms of use for the Mimar AI website.',
+  body: (r) => `
+<section class="page-hero blueprint">
+  <div class="container">
+    <div class="crumbs"><a href="${r}index.html">Home</a><span>/</span><span>Terms</span></div>
+    <h1 class="display" style="font-size:clamp(40px,5vw,64px)">Terms of use</h1>
+    <p class="lede">Last updated 28 September 2026.</p>
+  </div>
+</section>
+<section class="section">
+  <div class="container article">
+    <h2 style="margin-top:0">Using this website</h2>
+    <p>This website describes the services of Mimar AI, based in ${SITE.city}. You may browse it, share its pages and contact us through it.</p>
+    <h2>Information on this site</h2>
+    <p>We keep the content accurate and up to date, but it is general information, not a quote or a contract. The 3D scenes and the figures shown in them are illustrations. Every project is agreed separately in writing, with its own scope, price and terms.</p>
+    <h2>Brand and content</h2>
+    <p>The Mimar AI name, the Tower M logo, the 3D scenes, videos and text on this site belong to Mimar AI. Please ask before reusing them.</p>
+    <h2>Links</h2>
+    <p>Links to other websites, such as WhatsApp, open services that have their own terms.</p>
+    <h2>Contact</h2>
+    <p>Questions about these terms: <a href="mailto:${SITE.email}">${SITE.email}</a> or WhatsApp ${SITE.whatsappDisplay}.</p>
+  </div>
+</section>
+`,
+};
+
+export default [experience, about, logs, contact, privacy, terms, notFound];
