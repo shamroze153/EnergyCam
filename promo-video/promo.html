@@ -1,0 +1,299 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Mimar AI Promo</title>
+<link rel="stylesheet" href="fonts/local.css">
+<style>html,body{margin:0;background:#0b1310}canvas{display:block}</style>
+</head><body><canvas id="c"></canvas>
+<script>
+const W=1080,H=1350,FPS=30,DUR=33.5;
+const cv=document.getElementById('c');cv.width=W;cv.height=H;const g=cv.getContext('2d');
+const C={bg:'#0b1310',green:'#4fe3a1',wire:'#86ecc8',amber:'#f0b93a',text:'#eef3f0',muted:'#8b9892',
+  chip:'#141c18',chipB:'#28342e',card:'#0e1713',cardB:'#1f2b25',red:'#ff7a66',dark:'#0b1310'};
+const HEAD="700 66px Archivo",MONO=w=>`600 ${w}px 'IBM Plex Mono'`;
+const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x)),lerp=(a,b,t)=>a+(b-a)*t;
+const ease=t=>{t=clamp(t);return t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2};
+const easeOut=t=>1-Math.pow(1-clamp(t),3);
+const prog=(t,a,b)=>clamp((t-a)/(b-a));
+const D=Math.PI/180;
+const rgba=(hex,a)=>{const n=parseInt(hex.slice(1),16);return `rgba(${n>>16},${n>>8&255},${n&255},${a})`};
+
+// ---------- building data (clinic ground floor, metres) ----------
+const BW=24,BD=14,WALL_H=3;
+const walls=[];
+function run(x1,y1,x2,y2,gaps,ext){const hz=y1===y2;let s=hz?x1:y1;const e=hz?x2:y2;
+  const add=(a,b)=>walls.push(hz?{a:[a,y1],b:[b,y1],ext}:{a:[x1,a],b:[x1,b],ext});
+  for(const[g0,g1]of gaps){add(s,g0);s=g1}add(s,e);}
+run(0,0,24,0,[[2.5,4.5]],1);run(24,0,24,14,[],1);run(24,14,0,14,[],1);run(0,14,0,0,[],1);
+run(0,6,24,6,[[2,5],[9,10.2],[14.4,15.6],[20,21.2]]);
+run(0,8.5,24,8.5,[[1.5,2.6],[7,8.1],[12,13.2],[17,18.1],[21.4,22.5]]);
+for(const x of[7,13,18])run(x,0,x,6,[]);
+for(const x of[5,10,16,20])run(x,8.5,x,14,[]);
+const doors=[[3.5,0,1,2.0],[3.5,6,0,3],[9.6,6,0,1.2],[15,6,0,1.2],[20.6,6,0,1.2],[2.05,8.5,0,1.1],[7.55,8.5,0,1.1],[12.6,8.5,0,1.2],[17.55,8.5,0,1.1],[21.95,8.5,0,1.1]];
+const rooms=[
+ {n:'RECEPTION',r:[0,0,7,6]},{n:'WAITING',r:[7,0,13,6]},{n:'PHARMACY',r:[13,0,18,6]},{n:'LAB',r:[18,0,24,6]},
+ {n:'CORRIDOR',r:[0,6,24,8.5],hide:1},
+ {n:'OPD 1',r:[0,8.5,5,14]},{n:'OPD 2',r:[5,8.5,10,14]},{n:'X-RAY',r:[10,8.5,16,14]},{n:'STORE',r:[16,8.5,20,14]},{n:'WC',r:[20,8.5,24,14]}];
+const roomAt=(x,y)=>{if(y<0)return'ENTRANCE';for(const r of rooms){const[a,b,c,d]=r.r;if(x>=a&&x<=c&&y>=b&&y<=d)return r.n}return'OUTSIDE'};
+const assets=[
+ {id:'AC-02',k:'ac',b:[4.9,0,2.25,6.3,0.28,2.65]},
+ {id:'AC-04',k:'ac',b:[9.3,0,2.25,10.7,0.28,2.65]},
+ {id:'AC-05',k:'ac',b:[20.3,0,2.25,21.7,0.28,2.65]},
+ {id:'AC-06',k:'ac',b:[1.8,13.72,2.25,3.2,14,2.65]},
+ {id:'AC-07',k:'ac',b:[6.8,13.72,2.25,8.2,14,2.65],key:1},
+ {id:'AC-08',k:'ac',b:[12.3,13.72,2.25,13.7,14,2.65]},
+ {id:'FE-03',k:'fe',b:[6.3,6.02,0.05,6.62,6.3,0.8]},
+ {id:'FE-04',k:'fe',b:[15.9,8.2,0.05,16.22,8.48,0.8]},
+ {id:'DB-02',k:'db',b:[18.7,8.32,1.1,19.5,8.48,2.0]},
+ {id:'CAM-04',k:'cam',b:[11.8,7.05,2.7,12.25,7.45,2.95]}];
+const AK={ac:C.green,fe:C.red,db:C.amber,cam:C.wire};
+
+// ---------- camera ----------
+function mkCam(s,cx,cy){const{yaw,pitch,d,F}=s;const cy_=Math.cos(yaw),sy=Math.sin(yaw),cp=Math.cos(pitch),sp=Math.sin(pitch);
+  const f=[cp*cy_,cp*sy,sp],r=[sy,-cy_,0],u=[r[1]*f[2]-r[2]*f[1],r[2]*f[0]-r[0]*f[2],r[0]*f[1]-r[1]*f[0]];
+  const pos=[s.t[0]-f[0]*d,s.t[1]-f[1]*d,s.t[2]-f[2]*d];return{pos,f,r,u,F,cx,cy};}
+const toCam=(c,p)=>{const d0=p[0]-c.pos[0],d1=p[1]-c.pos[1],d2=p[2]-c.pos[2];
+  return[d0*c.r[0]+d1*c.r[1]+d2*c.r[2],d0*c.u[0]+d1*c.u[1]+d2*c.u[2],d0*c.f[0]+d1*c.f[1]+d2*c.f[2]]};
+const pj=(c,q)=>[c.cx+c.F*q[0]/q[2],c.cy-c.F*q[1]/q[2]];
+const NEAR=0.06;
+function clipPoly(ps){const o=[];for(let i=0;i<ps.length;i++){const a=ps[i],b=ps[(i+1)%ps.length],ai=a[2]>NEAR,bi=b[2]>NEAR;
+  if(ai)o.push(a);if(ai!==bi){const t=(NEAR-a[2])/(b[2]-a[2]);o.push([lerp(a[0],b[0],t),lerp(a[1],b[1],t),NEAR])}}return o}
+function clipSeg(a,b){if(a[2]<=NEAR&&b[2]<=NEAR)return null;if(a[2]>NEAR&&b[2]>NEAR)return[a,b];
+  const t=(NEAR-a[2])/(b[2]-a[2]),m=[lerp(a[0],b[0],t),lerp(a[1],b[1],t),NEAR];return a[2]>NEAR?[a,m]:[m,b]}
+function line3(c,a,b){const s=clipSeg(toCam(c,a),toCam(c,b));if(!s)return;const p=pj(c,s[0]),q=pj(c,s[1]);g.moveTo(p[0],p[1]);g.lineTo(q[0],q[1])}
+function poly3(c,pts){const q=clipPoly(pts.map(p=>toCam(c,p)));if(q.length<3)return false;q.forEach((v,i)=>{const p=pj(c,v);i?g.lineTo(p[0],p[1]):g.moveTo(p[0],p[1])});g.closePath();return true}
+function pt(c,p){const q=toCam(c,p);if(q[2]<=NEAR)return null;const s=pj(c,q);s.z=q[2];return s}
+function lerpCam(a,b,t){return{t:[0,1,2].map(i=>lerp(a.t[i],b.t[i],t)),d:Math.exp(lerp(Math.log(a.d),Math.log(b.d),t)),yaw:lerp(a.yaw,b.yaw,t),pitch:lerp(a.pitch,b.pitch,t),F:lerp(a.F,b.F,t)}}
+const fpCam=(x,y,yaw,pitch,F=560)=>{const cp=Math.cos(pitch);return{t:[x+cp*Math.cos(yaw),y+cp*Math.sin(yaw),1.6+Math.sin(pitch)],d:1,yaw,pitch,F}};
+
+const CAM_PLAN={t:[12.4,6.4,0],d:40,yaw:90*D,pitch:-89.9*D,F:1270};
+const CAM_ISO={t:[12.4,6.6,0.8],d:36,yaw:52*D,pitch:-36*D,F:880};
+const CAM_OV={t:[12.4,6.2,0],d:34,yaw:38*D,pitch:-50*D,F:900};
+
+// ---------- walk path ----------
+const WK=[[0,3.5,-3.5,90,-4],[1.3,3.5,3.2,90,-4],[2.1,4.2,6.9,25,-2],[3.0,6.0,7.05,8,0],[3.8,7.55,7.5,78,3],[4.6,7.55,9.3,90,7]];
+function cr(p0,p1,p2,p3,u){const u2=u*u,u3=u2*u;return .5*((2*p1)+(-p0+p2)*u+(2*p0-5*p1+4*p2-p3)*u2+(-p0+3*p1-3*p2+p3)*u3)}
+function walkPose(w){const T=WK[WK.length-1][0];const wt=ease(clamp(w/T))*T;let i=0;while(i<WK.length-2&&wt>WK[i+1][0])i++;
+  const u=clamp((wt-WK[i][0])/(WK[i+1][0]-WK[i][0]));const k=j=>WK[clamp(j,0,WK.length-1)];
+  const v=idx=>cr(k(i-1)[idx],k(i)[idx],k(i+1)[idx],k(i+2)[idx],u);return{x:v(1),y:v(2),yaw:v(3)*D,pitch:v(4)*D}}
+
+// ---------- drawing helpers ----------
+function rr(x,y,w,h,r){g.beginPath();g.roundRect(x,y,w,h,r)}
+function chip(x,y,txt,o={}){const fs=o.fs||22,px=o.px||18,h=o.h||52;g.font=MONO(fs);g.letterSpacing=(o.ls||0)+'px';
+  const w=g.measureText(txt).width+px*2;const X=o.right?x-w:o.center?x-w/2:x;
+  rr(X,y,w,h,o.r??h/2);g.fillStyle=o.bg||C.chip;g.fill();if(!o.bg||o.border){g.strokeStyle=o.border||C.chipB;g.lineWidth=2;g.stroke()}
+  g.fillStyle=o.fg||'#e7ede9';g.textBaseline='middle';g.fillText(txt,X+px,y+h/2+1);g.textBaseline='alphabetic';g.letterSpacing='0px';return{x:X,w,h}}
+function tag(x,y,txt,col){return chip(x,y,txt,{bg:col,fg:C.dark,fs:22,ls:3,r:8,h:48,px:16})}
+function label(x,y,txt,col=C.green,fs=19){return chip(x,y,txt,{bg:col,fg:C.dark,fs,ls:1.5,r:6,h:fs*1.9,px:12})}
+function rich(parts,x,y,font=HEAD){g.font=font;let cx=x;for(const[s,c]of parts){g.fillStyle=c;g.fillText(s,cx,y);cx+=g.measureText(s).width}}
+function isoBuilding(x,y,s,a=1){g.save();g.globalAlpha*=a;const h=s*.62;
+  const T=[[x,y-s*.5],[x+s*.5,y-s*.25],[x,y],[x-s*.5,y-s*.25]];
+  const face=(pts,f)=>{g.beginPath();pts.forEach((p,i)=>i?g.lineTo(...p):g.moveTo(...p));g.closePath();g.fillStyle=f;g.fill();g.strokeStyle=C.wire;g.lineWidth=Math.max(1,s/60);g.stroke()};
+  face([T[3],T[2],[T[2][0],T[2][1]+h],[T[3][0],T[3][1]+h]],'#1c6b4f');
+  face([T[2],T[1],[T[1][0],T[1][1]+h],[T[2][0],T[2][1]+h]],'#145640');
+  face(T,'#3ccf8e');
+  g.fillStyle=C.amber;for(let r=0;r<3;r++)for(let c=0;c<3;c++){const u=(c+.5)/3.2,v=(r+.6)/3.4;
+    const lx=lerp(T[3][0],T[2][0],u),ly=lerp(T[3][1],T[2][1],u)+h*v;g.fillRect(lx-s*.03,ly-s*.02,s*.06,s*.07);
+    const rx=lerp(T[2][0],T[1][0],u),ry=lerp(T[2][1],T[1][1],u)+h*v;if((r+c)%2==0)g.fillRect(rx-s*.03,ry-s*.02,s*.06,s*.07)}
+  g.restore()}
+function brand(x,y,a=1){g.save();g.globalAlpha*=a;isoBuilding(x+12,y+10,22);g.font=MONO(20);g.letterSpacing='3px';g.fillStyle='#dfe7e3';g.fillText('MIMAR AI',x+36,y+14);g.restore()}
+function cursor(x,y,press){g.save();g.translate(x,y);g.scale(1.5-press*.15,1.5-press*.15);g.beginPath();
+  [[0,0],[0,22],[6,16.5],[10,25],[13.5,23.5],[9.6,15.4],[17,15.4]].forEach((p,i)=>i?g.lineTo(...p):g.moveTo(...p));g.closePath();
+  g.fillStyle='#fff';g.fill();g.strokeStyle='#0b1310';g.lineWidth=1.6;g.stroke();g.restore()}
+
+// ---------- layout ----------
+const CARD={x:48,y:150,w:984,h:660};
+const SC=[ // scene windows
+ {a:0,b:4},{a:4,b:10.5},{a:10.5,b:15.5},{a:15.5,b:24.5},{a:24.5,b:28.5},{a:28.5,b:DUR}];
+const TXT=[
+ {tag:null,l1:[['Your floor plan PDF,',C.text]],l2:[['now walkable in 3D.',C.green]],chips:['PDF in','3D out','Any browser'],sub:'From a flat drawing to a building you can walk through.'},
+ {tag:['STEP 1 · READ THE PDF',C.green],l1:[['AI reads every wall,',C.text]],l2:[['door and room.',C.green]],chips:['Scanned PDFs','CAD exports','Photos'],sub:'No CAD file? A scanned drawing is enough.'},
+ {tag:['STEP 2 · BUILD IN 3D',C.amber],l1:[['Flat lines turn into',C.text]],l2:[['real 3D space.',C.green]],chips:['True scale','Door openings','Multi-floor'],sub:'Measured from the drawing, not guessed.'},
+ {tag:['STEP 3 · WALK INSIDE',C.green],l1:[['Walk through it.',C.text]],l2:[['Click ',C.text],['any asset.',C.green]],chips:['Walk mode','Clickable assets','Service log'],sub:'Every AC, DB panel and extinguisher, one click away.'},
+ {tag:['ASSET REGISTER',C.amber],l1:[['Every asset,',C.text]],l2:[['pinned in place.',C.green]],chips:['AC units','Fire safety','DB panels'],sub:'Your asset list, finally on a map.'}];
+
+function sceneText(t,i){const s=SC[i],T=TXT[i],L=t-s.a;const out=1-prog(t,s.b-.35,s.b);
+  const A=d=>easeOut(prog(L,d,d+.5))*out,Y=d=>(1-easeOut(prog(L,d,d+.5)))*22;
+  if(T.tag){g.save();g.globalAlpha=A(.05);tag(48,72+Y(.05),...T.tag);g.restore()}
+  else{g.save();g.globalAlpha=A(.05);brand(48,78+Y(.05));g.restore()}
+  g.save();g.globalAlpha=A(.15);rich(T.l1,48,900+Y(.15));g.restore();
+  g.save();g.globalAlpha=A(.28);rich(T.l2,48,976+Y(.28));g.restore();
+  let x=48;T.chips.forEach((c,k)=>{g.save();g.globalAlpha=A(.45+k*.12);const r=chip(x,1040+Y(.45+k*.12),c,{fs:22,h:56,px:20});x+=r.w+14;g.restore()});
+  g.save();g.globalAlpha=A(.8);g.font="400 28px Archivo";g.fillStyle=C.muted;g.fillText(T.sub,48,1162+Y(.8));g.restore();}
+
+function background(t){g.fillStyle=C.bg;g.fillRect(0,0,W,H);g.strokeStyle='rgba(140,210,180,0.045)';g.lineWidth=1;g.beginPath();
+  for(let x=0;x<=W;x+=36){g.moveTo(x+.5,0);g.lineTo(x+.5,H)}for(let y=0;y<=H;y+=36){g.moveTo(0,y+.5);g.lineTo(W,y+.5)}g.stroke();
+  const rg=g.createRadialGradient(540,420,20,540,420,700);rg.addColorStop(0,'rgba(79,227,161,0.07)');rg.addColorStop(1,'rgba(79,227,161,0)');g.fillStyle=rg;g.fillRect(0,0,W,H)}
+
+// ---------- 3D scene ----------
+function scene3D(t,cam,o){
+  const c=mkCam(cam,CARD.x+CARD.w/2,CARD.y+CARD.h/2+(o.cyOff||0));
+  // floor
+  g.beginPath();if(poly3(c,[[0,0,0],[BW,0,0],[BW,BD,0],[0,BD,0]])){g.fillStyle=rgba(C.green,o.floorA??.04);g.fill()}
+  if(o.gridA>0){g.beginPath();for(let x=1;x<BW;x++)line3(c,[x,0,0],[x,BD,0]);for(let y=1;y<BD;y++)line3(c,[0,y,0],[BW,y,0]);g.strokeStyle=rgba(C.wire,.07*o.gridA);g.lineWidth=1;g.stroke()}
+  // room fills (detection)
+  if(o.roomFill)rooms.forEach((r,i)=>{const a=o.roomFill(i);if(a<=0)return;const[x0,y0,x1,y1]=r.r;g.beginPath();
+    if(poly3(c,[[x0+.15,y0+.15,.01],[x1-.15,y0+.15,.01],[x1-.15,y1-.15,.01],[x0+.15,y1-.15,.01]])){g.fillStyle=rgba(r.hl?C.amber:C.green,.10*a);g.fill();g.strokeStyle=rgba(C.green,.35*a);g.lineWidth=1.5;g.setLineDash([6,6]);g.stroke();g.setLineDash([])}});
+  // plan linework (drawn progressively)
+  if(o.planA>0){let total=0;walls.forEach(w=>total+=Math.hypot(w.b[0]-w.a[0],w.b[1]-w.a[1]));let left=o.planDraw*total;
+    g.save();g.globalAlpha=o.planA;g.strokeStyle=C.wire;g.lineWidth=2.2;g.shadowColor=C.green;g.shadowBlur=8;g.beginPath();
+    for(const w of walls){const L=Math.hypot(w.b[0]-w.a[0],w.b[1]-w.a[1]);if(left<=0)break;const f=Math.min(1,left/L);left-=L;
+      const e=[lerp(w.a[0],w.b[0],f),lerp(w.a[1],w.b[1],f)];const nx=-(w.b[1]-w.a[1])/L*.12,ny=(w.b[0]-w.a[0])/L*.12;
+      line3(c,[w.a[0]+nx,w.a[1]+ny,0],[e[0]+nx,e[1]+ny,0]);line3(c,[w.a[0]-nx,w.a[1]-ny,0],[e[0]-nx,e[1]-ny,0])}
+    g.stroke();g.shadowBlur=0;
+    // door swings
+    const da=o.doorA??0;if(da>0){g.strokeStyle=rgba(C.wire,.55*da);g.lineWidth=1.4;g.setLineDash([5,5]);g.beginPath();
+      for(const[dx,dy,,wd]of doors){const r=Math.min(wd,1.1),x0=dx-r/2;line3(c,[x0,dy,0],[x0,dy+(dy===0?r:r),0]);
+        for(let k=0;k<12;k++){const a0=k/12*Math.PI/2,a1=(k+1)/12*Math.PI/2;line3(c,[x0+Math.cos(a0)*r,dy+Math.sin(a0)*r,0],[x0+Math.cos(a1)*r,dy+Math.sin(a1)*r,0])}}
+      g.stroke();g.setLineDash([])}
+    // dimensions
+    const dm=o.dimA??0;if(dm>0){g.strokeStyle=rgba(C.amber,.8*dm);g.lineWidth=1.5;g.beginPath();line3(c,[0,-1.2,0],[BW,-1.2,0]);line3(c,[0,-.9,0],[0,-1.5,0]);line3(c,[BW,-.9,0],[BW,-1.5,0]);
+      line3(c,[BW+1.2,0,0],[BW+1.2,BD,0]);line3(c,[BW+.9,0,0],[BW+1.5,0,0]);line3(c,[BW+.9,BD,0],[BW+1.5,BD,0]);g.stroke();
+      g.font=MONO(18);g.fillStyle=rgba(C.amber,dm);g.textAlign='center';let p=pt(c,[BW/2,-1.2,0]);if(p){g.fillStyle=C.card;g.fillRect(p[0]-52,p[1]-13,104,26);g.fillStyle=rgba(C.amber,dm);g.fillText('24.00 m',p[0],p[1]+6)}
+      p=pt(c,[BW+1.2,BD/2,0]);if(p){g.save();g.translate(p[0],p[1]);g.rotate(-Math.PI/2);g.fillStyle=C.card;g.fillRect(-52,-13,104,26);g.fillStyle=rgba(C.amber,dm);g.fillText('14.00 m',0,6);g.restore()}g.textAlign='left'}
+    g.restore()}
+  // extruded walls + asset boxes, painter-sorted
+  const h=o.h||0;const polys=[];
+  if(h>0.01){for(const w of walls){const L=Math.hypot(w.b[0]-w.a[0],w.b[1]-w.a[1]),n=Math.max(1,Math.ceil(L/.6));
+      for(let i=0;i<n;i++){const A=[lerp(w.a[0],w.b[0],i/n),lerp(w.a[1],w.b[1],i/n)],B=[lerp(w.a[0],w.b[0],(i+1)/n),lerp(w.a[1],w.b[1],(i+1)/n)];
+        polys.push({P:[[A[0],A[1],0],[B[0],B[1],0],[B[0],B[1],h],[A[0],A[1],h]],k:'w',shade:w.a[1]===w.b[1]?1:.72,s0:i===0,s1:i===n-1})}}}
+  if(o.assetA>0)for(const a of assets){const[x0,y0,z0,x1,y1,z1]=a.b;const zz=z=>Math.min(z,Math.max(h,.001)*1)+0;const Z0=Math.min(z0,h),Z1=Math.min(z1,h);if(Z1-Z0<.02)continue;
+    const v=[[x0,y0,Z0],[x1,y0,Z0],[x1,y1,Z0],[x0,y1,Z0],[x0,y0,Z1],[x1,y0,Z1],[x1,y1,Z1],[x0,y1,Z1]];
+    for(const f of[[0,1,5,4],[1,2,6,5],[2,3,7,6],[3,0,4,7],[4,5,6,7],[0,1,2,3]])polys.push({P:f.map(i=>v[i]),k:'a',a})}
+  for(const p of polys){let s=0,n=0;for(const v of p.P){const q=toCam(c,v);s+=q[2];n++}p.z=s/n}
+  polys.sort((a,b)=>b.z-a.z);
+  const solid=o.solid||0;
+  for(const p of polys){g.beginPath();if(!poly3(c,p.P))continue;
+    if(p.k==='w'){const s=p.shade;const fc=`rgba(${Math.round(18*s+6)},${Math.round(52*s+12)},${Math.round(40*s+10)},${lerp(.08,1,solid)})`;g.fillStyle=fc;g.fill();
+      if(solid>.5){g.strokeStyle=fc;g.lineWidth=1.2;g.stroke()}
+      const P=p.P;g.beginPath();line3(c,P[0],P[1]);line3(c,P[3],P[2]);if(p.s0)line3(c,P[0],P[3]);if(p.s1)line3(c,P[1],P[2]);
+      g.strokeStyle=rgba(C.wire,lerp(.75,.95,solid));g.lineWidth=lerp(1.6,2,solid);g.stroke()}
+    else{const col=AK[p.a.k],hl=o.hl===p.a.id?o.hlA:0;g.fillStyle=rgba(col,(.35+.45*hl)*o.assetA);g.fill();g.strokeStyle=rgba(col,o.assetA);g.lineWidth=1.5+hl*1.5;
+      if(hl){g.shadowColor=col;g.shadowBlur=18*hl}g.stroke();g.shadowBlur=0}}
+  return c}
+
+function pins(c,t,alphaFor,labelFor){for(const a of assets){const A=alphaFor(a);if(A<=0)continue;const[x0,y0,,x1,y1,z1]=a.b;
+  const base=pt(c,[(x0+x1)/2,(y0+y1)/2,z1]),top=pt(c,[(x0+x1)/2,(y0+y1)/2,z1+1.1]);if(!base||!top)continue;
+  if(top[0]<CARD.x+10||top[0]>CARD.x+CARD.w-10||top[1]<CARD.y+10||top[1]>CARD.y+CARD.h-10)continue;
+  const col=AK[a.k];g.save();g.globalAlpha=A;g.strokeStyle=col;g.lineWidth=1.5;g.beginPath();g.moveTo(base[0],base[1]);g.lineTo(top[0],top[1]);g.stroke();
+  const pr=(t*1.1+(a.b[0]*.13))%1;g.beginPath();g.arc(top[0],top[1],7+pr*16,0,7);g.strokeStyle=rgba(col,(1-pr)*.8);g.stroke();
+  g.beginPath();g.arc(top[0],top[1],7*easeOut(A),0,7);g.fillStyle=col;g.fill();
+  if(labelFor&&labelFor(a))label(top[0]+14,top[1]-17,a.id,col,17);g.restore()}}
+
+function minimap(x,y,px,py,yaw,a){const s=8.4,w=BW*s,h=BD*s;g.save();g.globalAlpha=a;rr(x-10,y-10,w+20,h+20,10);g.fillStyle='rgba(10,18,15,0.9)';g.fill();g.strokeStyle=C.cardB;g.lineWidth=1.5;g.stroke();
+  const M=(X,Y)=>[x+X*s,y+h-Y*s];g.strokeStyle=rgba(C.wire,.8);g.lineWidth=1.3;g.beginPath();for(const w0 of walls){const p=M(...w0.a),q=M(...w0.b);g.moveTo(...p);g.lineTo(...q)}g.stroke();
+  const p=M(px,py);g.beginPath();g.moveTo(...p);g.arc(p[0],p[1],34,-yaw-.5,-yaw+.5);g.closePath();g.fillStyle=rgba(C.green,.22);g.fill();
+  g.beginPath();g.arc(p[0],p[1],5,0,7);g.fillStyle=C.green;g.fill();g.restore()}
+
+function infoPanel(a){if(a<=0)return;const x=CARD.x+CARD.w-24-330+(1-easeOut(a))*40,y=CARD.y+84,w=330,h=372;g.save();g.globalAlpha=easeOut(a);
+  rr(x,y,w,h,16);g.fillStyle='rgba(9,16,13,0.94)';g.fill();g.strokeStyle=rgba(C.green,.7);g.lineWidth=2;g.stroke();
+  g.font=MONO(30);g.fillStyle=C.green;g.fillText('AC-07',x+24,y+50);g.font="600 22px Archivo";g.fillStyle=C.text;g.fillText('Split AC · 2.0 Ton',x+24,y+84);
+  const rows=[['ROOM','OPD 2'],['STATUS','● Running'],['LAST SERVICE','12 Sep 2026'],['NEXT DUE','12 Dec 2026'],['kWh TODAY','14.2']];
+  rows.forEach(([k,v],i)=>{const yy=y+128+i*40;g.font=MONO(16);g.fillStyle=C.muted;g.fillText(k,x+24,yy);g.font="600 20px Archivo";g.fillStyle=k==='STATUS'?C.green:C.text;g.textAlign='right';g.fillText(v,x+w-24,yy);g.textAlign='left';
+    g.strokeStyle='rgba(255,255,255,0.06)';g.beginPath();g.moveTo(x+24,yy+14);g.lineTo(x+w-24,yy+14);g.stroke()});
+  rr(x+24,y+h-66,w-48,46,23);g.fillStyle=C.green;g.fill();g.font=MONO(18);g.fillStyle=C.dark;g.textAlign='center';g.fillText('OPEN WORK ORDER  →',x+w/2,y+h-37);g.textAlign='left';g.restore()}
+
+// ---------- PDF page (scene 1) ----------
+function pdfPage(t,a){if(a<=0)return;const k=easeOut(prog(t,.1,1.0));const pw=340,ph=430,px=540-pw/2,py=CARD.y+CARD.h/2-ph/2-20+(1-k)*60;
+  g.save();g.globalAlpha=a*k;g.translate(540,py+ph/2);g.rotate((1-k)*-.06);g.translate(-540,-(py+ph/2));
+  g.beginPath();g.moveTo(px,py);g.lineTo(px+pw-56,py);g.lineTo(px+pw,py+56);g.lineTo(px+pw,py+ph);g.lineTo(px,py+ph);g.closePath();
+  g.fillStyle='#e9efe9';g.fill();g.beginPath();g.moveTo(px+pw-56,py);g.lineTo(px+pw-56,py+56);g.lineTo(px+pw,py+56);g.closePath();g.fillStyle='#c5cec7';g.fill();
+  // plan thumbnail in black ink
+  const s=11.7,ox=px+30,oy=py+70+BD*s;g.strokeStyle='#23302a';g.lineWidth=2.4;g.beginPath();for(const w of walls){g.moveTo(ox+w.a[0]*s,oy-w.a[1]*s);g.lineTo(ox+w.b[0]*s,oy-w.b[1]*s)}g.stroke();
+  g.font="600 9px 'IBM Plex Mono'";g.fillStyle='#4a5750';rooms.forEach(r=>{if(r.hide)return;const[x0,y0,x1,y1]=r.r;g.textAlign='center';g.fillText(r.n,ox+(x0+x1)/2*s,oy-(y0+y1)/2*s+3)});g.textAlign='left';
+  // title block
+  g.strokeStyle='#23302a';g.lineWidth=1.2;g.strokeRect(px+30,py+ph-110,pw-60,84);g.beginPath();g.moveTo(px+pw-140,py+ph-110);g.lineTo(px+pw-140,py+ph-26);g.stroke();
+  g.font="700 15px 'IBM Plex Mono'";g.fillStyle='#23302a';g.fillText('CITY CLINIC',px+42,py+ph-82);g.font="500 12px 'IBM Plex Mono'";g.fillText('GROUND FLOOR PLAN',px+42,py+ph-60);g.fillText('SCALE 1:100',px+42,py+ph-40);
+  g.font="700 26px 'IBM Plex Mono'";g.fillText('A-102',px+pw-128,py+ph-58);
+  g.restore();
+  g.save();g.globalAlpha=a*easeOut(prog(t,.5,1.1));label(px-18,py+18,'PDF',C.red,20);g.restore();
+  g.save();g.globalAlpha=a*easeOut(prog(t,.8,1.4));g.font=MONO(20);g.fillStyle=C.muted;g.textAlign='center';g.fillText('A-102_clinic_ground_floor.pdf · 1.4 MB',540,py+ph+70);g.textAlign='left';g.restore();
+  // scan brackets + sweep
+  const b=easeOut(prog(t,2.0,2.6));if(b>0){g.save();g.globalAlpha=a*b;g.strokeStyle=C.green;g.lineWidth=4;const m=28+(1-b)*30,L=46;
+    for(const[sx,sy]of[[-1,-1],[1,-1],[1,1],[-1,1]]){const X=sx<0?px-m:px+pw+m,Y=sy<0?py-m:py+ph+m;g.beginPath();g.moveTo(X,Y-sy*-L);g.lineTo(X,Y);g.lineTo(X-sx*L,Y);g.stroke()}
+    const sw=prog(t,2.5,3.7);if(sw>0&&sw<1){const yy=py+sw*ph;const gr=g.createLinearGradient(0,yy-60,0,yy);gr.addColorStop(0,'rgba(79,227,161,0)');gr.addColorStop(1,'rgba(79,227,161,0.35)');g.fillStyle=gr;g.fillRect(px,yy-60,pw,60);g.fillStyle=C.green;g.fillRect(px-10,yy-1.5,pw+20,3)}
+    g.restore()}}
+
+// ---------- master render ----------
+function render(t){
+  background(t);
+  const cardA=1-prog(t,28.4,28.9);
+  if(cardA>0){g.save();g.globalAlpha=cardA;rr(CARD.x,CARD.y,CARD.w,CARD.h,24);g.fillStyle=C.card;g.fill();g.strokeStyle=C.cardB;g.lineWidth=2;g.stroke();
+    rr(CARD.x,CARD.y,CARD.w,CARD.h,24);g.clip();
+    const rg=g.createRadialGradient(540,CARD.y+CARD.h*.55,10,540,CARD.y+CARD.h*.55,560);rg.addColorStop(0,'rgba(79,227,161,0.08)');rg.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=rg;g.fillRect(CARD.x,CARD.y,CARD.w,CARD.h);
+    cardContent(t);g.restore()}
+  // text
+  for(let i=0;i<5;i++)if(t>=SC[i].a&&t<SC[i].b)sceneText(t,i);
+  if(t>=SC[5].a)outro(t-SC[5].a);
+  // global fade in/out
+  const fi=1-prog(t,0,.35),fo=prog(t,DUR-.5,DUR);if(fi>0||fo>0){g.fillStyle=`rgba(11,19,16,${Math.max(fi,fo)})`;g.fillRect(0,0,W,H)}
+}
+
+function cardContent(t){
+  // Scene 1: PDF page
+  if(t<5)pdfPage(t,1-easeOut(prog(t,4.0,4.6)));
+  if(t<4)return;
+  // camera
+  let cam,o={};
+  if(t<10.5){cam=CARD_PLAN(t);const L=t-4;
+    o={planA:easeOut(prog(L,.3,.8)),planDraw:ease(prog(L,.4,2.8)),doorA:prog(L,2.6,3.2),dimA:prog(L,2.8,3.4),
+      roomFill:i=>{const r=rooms[i];if(r.hide)return 0;const cxm=(r.r[0]+r.r[2])/2;return easeOut(prog(L,3.4+cxm/24*1.6,3.7+cxm/24*1.6))}};}
+  else if(t<15.5){const L=t-10.5;cam=lerpCam(CAM_PLAN,CAM_ISO,ease(prog(L,0,1.9)));cam.yaw+=prog(L,1.9,5)*7*D;
+    o={planA:1-prog(L,.8,1.8),planDraw:1,doorA:1-prog(L,0,.8),dimA:1-prog(L,0,.6),h:WALL_H*ease(prog(L,1.0,3.0)),solid:0,floorA:.05,
+      roomFill:i=>rooms[i].hide?0:(1-prog(L,.5,1.5))};}
+  else if(t<24.5){const L=t-15.5;const iso={...CAM_ISO,yaw:CAM_ISO.yaw+7*D};const w=L-1.6;const p=walkPose(Math.max(0,w));
+    const fp=fpCam(p.x,p.y,p.yaw,p.pitch);cam=L<1.6?lerpCam(iso,fp,ease(L/1.6)):fp;
+    const hlA=easeOut(prog(L,7.0,7.3));
+    o={h:WALL_H,solid:ease(prog(L,.5,1.4)),floorA:.07,gridA:ease(prog(L,.6,1.6)),assetA:1,hl:'AC-07',hlA:hlA*(.75+.25*Math.sin(L*8))};
+    const c=scene3D(t,cam,o);
+    // door signs
+    if(L>1.4){g.save();for(const[dx,dy,side,wd]of doors){if(dy===0)continue;const rm=roomAt(dx,dy+(dy===6?-1:1));const q=pt(c,[dx,dy,2.35]);if(!q||q.z>11)continue;
+      g.globalAlpha=clamp((11-q.z)/3)*prog(L,1.4,2)*(1-prog(L,4.6,5.0));const fs=clamp(34/q.z*3,12,22);label(q[0],q[1]-fs,rm,C.green,fs).x;}g.restore()}
+    pins(c,t,a=>a.key?prog(L,5.4,6.0):0);
+    // HUD
+    g.save();g.globalAlpha=prog(L,1.2,1.7);const room=L<1.6?'ENTRANCE':roomAt(p.x,p.y);label(CARD.x+24,CARD.y+24,'WALK MODE · '+room,C.green,19);
+    chip(CARD.x+CARD.w-24,CARD.y+CARD.h-68,'W A S D  move · drag  look',{right:1,fs:16,h:40,px:14});
+    minimap(CARD.x+34,CARD.y+CARD.h-34-BD*8.4,p.x,p.y,p.yaw,1);g.restore();
+    // cursor + click
+    const ac=assets.find(a=>a.key);const tp=pt(c,[(ac.b[0]+ac.b[3])/2,(ac.b[1]+ac.b[4])/2,(ac.b[2]+ac.b[5])/2]);
+    const cu=prog(L,5.8,6.8);if(cu>0&&tp){const e=ease(cu);const sx=lerp(CARD.x+CARD.w-120,tp[0]-4,e),sy=lerp(CARD.y+CARD.h-40,tp[1]-2,e);
+      const clk=prog(L,6.85,7.5);if(clk>0&&clk<1){g.beginPath();g.arc(tp[0],tp[1],10+clk*46,0,7);g.strokeStyle=rgba(C.green,1-clk);g.lineWidth=3;g.stroke()}
+      g.save();g.globalAlpha=1-prog(L,8.3,8.6);cursor(sx,sy,L>6.8&&L<7.05?1:0);g.restore()}
+    infoPanel(prog(L,7.05,7.5)*(1-prog(L,8.65,9)));
+    return}
+  else{const L=t-24.5;const p=walkPose(99);const fp=fpCam(p.x,p.y,p.yaw,p.pitch);cam=lerpCam(fp,CAM_OV,ease(prog(L,0,1.7)));cam.yaw+=prog(L,1.5,4)*8*D;
+    o={h:WALL_H,solid:(1-ease(prog(L,.3,1.5))),floorA:.06,gridA:1-prog(L,0,1.2),assetA:1};
+    const c=scene3D(t,cam,o);
+    const order=assets.map((a,i)=>i);pins(c,t,a=>easeOut(prog(L,1.3+assets.indexOf(a)*.14,1.6+assets.indexOf(a)*.14)),a=>['AC-07','FE-03','DB-02','CAM-04','AC-02'].includes(a.id));
+    const n=Math.round(clamp((L-1.3)/(assets.length*.14))*assets.length);g.save();g.globalAlpha=prog(L,1.2,1.6);label(CARD.x+24,CARD.y+24,`ASSETS TAGGED · ${n}   ROOMS · 10`,C.amber,19);g.restore();
+    return}
+  scene3D(t,cam,o);
+  // scene-2 overlays
+  if(t<10.5){const L=t-4;g.save();g.globalAlpha=prog(L,.3,.8);
+    const found=L>5.3;label(CARD.x+24,CARD.y+24,found?'10 ROOMS · 10 DOORS · FOUND':'A-102 · CLINIC GROUND FLOOR.PDF',found?C.green:C.amber,19);g.restore();
+    // scan line across plan
+    const c=mkCam(cam,CARD.x+CARD.w/2,CARD.y+CARD.h/2);const sw=prog(L,3.3,5.0);
+    if(sw>0&&sw<1){const x=sw*BW;const a=pt(c,[x,-.5,0]),b=pt(c,[x,BD+.5,0]);g.save();const gr=g.createLinearGradient(a[0]-80,0,a[0],0);gr.addColorStop(0,'rgba(79,227,161,0)');gr.addColorStop(1,'rgba(79,227,161,0.25)');
+      g.fillStyle=gr;g.fillRect(a[0]-80,b[1],80,a[1]-b[1]);g.fillStyle=C.green;g.shadowColor=C.green;g.shadowBlur=14;g.fillRect(a[0]-1.5,b[1],3,a[1]-b[1]);g.restore()}
+    rooms.forEach(r=>{if(r.hide)return;const cxm=(r.r[0]+r.r[2])/2,cym=(r.r[1]+r.r[3])/2;const a=easeOut(prog(L,3.4+cxm/24*1.6,3.7+cxm/24*1.6));if(a<=0)return;const p=pt(c,[cxm,cym,0]);
+      g.save();g.globalAlpha=a*(1-prog(t,10.3,10.9));g.font=MONO(18);const w=g.measureText(r.n).width+22;label(p[0]-w/2,p[1]-18+(1-a)*10,r.n,C.green,17);g.restore()});}
+  if(t>=10.5){const L=t-10.5;g.save();g.globalAlpha=prog(L,2.6,3.1);label(CARD.x+24,CARD.y+24,'3D TWIN · GROUND FLOOR · 3.0 m WALLS',C.green,19);g.restore();
+    const c=mkCam(cam,CARD.x+CARD.w/2,CARD.y+CARD.h/2);const q=pt(c,[3.5,-.4,0]);if(q){g.save();g.globalAlpha=prog(L,3.2,3.7);g.strokeStyle=C.amber;g.lineWidth=3;g.setLineDash([8,7]);g.beginPath();
+      const P=[[3.5,-2.5],[3.5,7.25],[7.55,7.25],[7.55,11]];P.forEach((pp,i)=>{const s=pt(c,[pp[0],pp[1],.05]);i?g.lineTo(s[0],s[1]):g.moveTo(s[0],s[1])});g.lineDashOffset=-L*30;g.stroke();g.setLineDash([]);
+      const e=pt(c,[3.5,-2.5,.05]);label(e[0]-60,e[1]+14,'START WALK →',C.amber,17);g.restore()}}
+}
+function CARD_PLAN(t){const L=t-4;const c={...CAM_PLAN};c.d=lerp(48,40,easeOut(prog(L,0,3)));c.t=CAM_PLAN.t;return c}
+
+function outro(L){const A=d=>easeOut(prog(L,d,d+.6)),Y=d=>(1-A(d))*24;
+  g.save();g.globalAlpha=A(.2);rich([['Send us a PDF plan.',C.text]],48,470+Y(.2),"700 74px Archivo");g.restore();
+  g.save();g.globalAlpha=A(.4);rich([['Walk it in ',C.text],['3D.',C.green]],48,556+Y(.4),"700 74px Archivo");g.restore();
+  g.save();g.globalAlpha=A(.7);g.font="400 30px Archivo";g.fillStyle=C.muted;g.fillText('Delivered as a link. Opens in any browser.',48,630+Y(.7));g.restore();
+  g.save();g.globalAlpha=A(1.0);chip(48,680+Y(1.0),'#AIforBuildings',{bg:C.green,fg:C.dark,fs:24,h:56,px:20});g.restore();
+  // logo block
+  g.save();g.globalAlpha=A(1.4);const cx=150,cy=1010+Y(1.4);g.beginPath();g.arc(cx,cy,78,0,7);g.fillStyle='#0f1d18';g.fill();
+  g.strokeStyle=rgba(C.wire,.2);g.lineWidth=1;g.stroke();const sp=L*.8;g.strokeStyle=C.green;g.lineWidth=6;g.lineCap='round';
+  for(let k=0;k<3;k++){g.beginPath();g.arc(cx,cy,78,sp+k*2.1,sp+k*2.1+.8);g.stroke()}g.lineCap='butt';
+  isoBuilding(cx,cy+8,74);g.font="700 64px Archivo";rich([['Mimar ',C.text],['AI',C.green]],270,1010+Y(1.4),"700 64px Archivo");
+  g.font="400 26px Archivo";g.fillStyle=C.muted;g.fillText('Founded by a facility engineer',272,1052+Y(1.4));g.fillText('in Karachi.',272,1086+Y(1.4));g.restore()}
+
+window.render=render;window.DUR=DUR;window.FPS=FPS;
+const q=new URLSearchParams(location.search);document.fonts.ready.then(()=>render(parseFloat(q.get('t')||'0')));
+</script></body></html>
