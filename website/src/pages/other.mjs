@@ -54,7 +54,7 @@ ${ctaBand(r)}
 const about = {
   path: 'about.html',
   title: 'About',
-  description: 'Mimar AI was founded by a facility engineer in Karachi to build practical AI for the buildings people already run.',
+  description: 'Mimar AI was founded by Shamroze Nasir, a facility engineer in Karachi, to build practical AI for the buildings people already run.',
   active: 'about',
   body: (r) => `
 <section class="page-hero blueprint">
@@ -67,10 +67,11 @@ const about = {
 </section>
 <section class="section">
   <div class="container founder" data-reveal>
-    <div class="mark">${LOGO(160, true)}</div>
+    <div class="mark photo"><img src="${r}assets/img/shamroze-nasir.jpg" alt="Shamroze Nasir, founder of Mimar AI" width="720" height="720" loading="lazy"></div>
     <div class="stack-lg" style="gap:18px">
       <span class="eyebrow">Our story</span>
       <h2 class="h2" style="font-size:clamp(28px,3.2vw,42px)">Founded by a facility engineer, <span class="accent">built from site walks.</span></h2>
+      <p style="font-weight:600;color:var(--ink)">Shamroze Nasir · Founder, Mimar AI</p>
       <p class="lede" style="font-size:18px">After years inside plant rooms and on site walks, the same problems kept coming back: ACs cooling empty rooms, drawings nobody could find, quotations nobody had time to check, and maintenance that lived on sticky notes.</p>
       <p class="lede" style="font-size:18px">None of them needed a new building. They needed someone to connect what was already there. That is what Mimar AI does.</p>
     </div>

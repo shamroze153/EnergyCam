@@ -74,7 +74,7 @@ function footer(r) {
     <div class="top">
       <div>
         <a class="brand" href="${r}index.html">${LOGO(38)}<span>Mimar <b>AI</b></span></a>
-        <p class="about">AI for the buildings you already run. Founded by a facility engineer in ${SITE.city.split(',')[0]}.</p>
+        <p class="about">AI for the buildings you already run. Founded by Shamroze Nasir, a facility engineer in ${SITE.city.split(',')[0]}.</p>
         <span class="hash">#AIforBuildings</span>
       </div>
       <div><h4>Services</h4><ul>${SERVICES.map((s) => `<li><a href="${r}services/${s.slug}.html">${s.name}</a></li>`).join('')}</ul></div>

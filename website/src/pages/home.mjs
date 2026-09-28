@@ -17,7 +17,7 @@ const faq = [
   { q: 'How does a project start?', a: 'With a short site walk and a conversation about what costs you most. Then we run a small pilot on one floor, one building or one plant room, so you see results before rolling it out.' },
   { q: 'How is pricing worked out?', a: 'Every building is different, so we scope each project after the site walk and send you a clear quote.' },
   { q: 'Where do you work?', a: 'We are based in Karachi and work with buildings across Pakistan. Message us on WhatsApp to talk about your site.' },
-  { q: 'Who is behind Mimar AI?', a: 'Mimar AI was founded by a facility engineer who spent years running buildings. Everything we build comes from problems we saw on site.' },
+  { q: 'Who is behind Mimar AI?', a: 'Mimar AI was founded by Shamroze Nasir, a facility engineer who spent years running buildings. Everything we build comes from problems he saw on site.' },
 ];
 
 export default {
@@ -28,7 +28,7 @@ export default {
   jsonld: {
     '@context': 'https://schema.org', '@type': 'Organization', name: 'Mimar AI', slogan: SITE.tagline, email: SITE.email,
     telephone: '+' + SITE.whatsapp, address: { '@type': 'PostalAddress', addressLocality: 'Karachi', addressCountry: 'PK' },
-    knowsAbout: SERVICES.map((s) => s.name),
+    knowsAbout: SERVICES.map((s) => s.name), founder: { '@type': 'Person', name: 'Shamroze Nasir', jobTitle: 'Founder' },
   },
   body: (r) => `
 <section class="hero blueprint">
@@ -101,8 +101,8 @@ export default {
 <section class="band-night section">
   <div class="container stack-lg">
     <div class="section-head">
-      <span class="eyebrow on-dark">Why Mimar AI</span>
-      <h2 class="h2">Built on what’s already <span style="color:var(--mint)">in your building.</span></h2>
+      <span class="eyebrow">Why Mimar AI</span>
+      <h2 class="h2">Built on what’s already <span class="accent">in your building.</span></h2>
       <p class="lede">No rip-and-replace. We start from your cameras, drawings, bills and processes, and add intelligence on top.</p>
     </div>
     <div class="stats" data-reveal>
@@ -194,11 +194,11 @@ export default {
 <section class="section">
   <div class="container">
     <div class="founder" data-reveal>
-      <div class="mark">${LOGO(160, true)}</div>
+      <div class="mark photo"><img src="${r}assets/img/shamroze-nasir.jpg" alt="Shamroze Nasir, founder of Mimar AI" width="720" height="720" loading="lazy"></div>
       <div>
         <span class="eyebrow">About Mimar AI</span>
         <blockquote style="margin-top:18px">“Mimar means architect. After years inside plant rooms and on site walks, the same problems kept coming back. Mimar AI builds the tools I wished I had.”</blockquote>
-        <cite>Founder, Mimar AI · Facility engineer, Karachi</cite>
+        <cite><strong>Shamroze Nasir</strong> · Founder, Mimar AI · Facility engineer, Karachi</cite>
         <div class="hero-actions" style="margin-top:24px"><a class="btn btn-ghost" href="${r}about.html">Our story ${I.arrow}</a></div>
       </div>
     </div>
