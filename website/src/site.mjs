@@ -1,0 +1,227 @@
+// Site-wide settings and content. Edit contact details and service copy here, then run `node build.mjs`.
+
+export const SITE = {
+  name: 'Mimar AI',
+  tagline: 'AI for the buildings you already run.',
+  description: 'Mimar AI builds computer vision, 3D digital twins, AI agents, facility portals and energy audits for buildings in Pakistan. Built by a facility engineer in Karachi.',
+  whatsapp: '923352634093',
+  whatsappDisplay: '+92 335 2634093',
+  email: 'shamroze341@gmail.com',
+  city: 'Karachi, Pakistan',
+  // Set this to your domain (for example 'https://mimar.ai') to add canonical links and a sitemap.
+  url: '',
+};
+
+export const wa = (text = "Hi Mimar AI, I'd like to talk about my building.") =>
+  `https://wa.me/${SITE.whatsapp}?text=${encodeURIComponent(text)}`;
+
+/* ---------- icons (inline SVG, stroke style) ---------- */
+const s = (d, extra = '') => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"${extra}>${d}</svg>`;
+export const I = {
+  camera: s('<rect x="2.5" y="7" width="13" height="8.5" rx="2"/><path d="M15.5 10.2 21 8v7.5l-5.5-2.2"/><path d="M7 15.5V19h5"/>'),
+  cube: s('<path d="M12 2.8 20.5 7.5v9L12 21.2 3.5 16.5v-9z"/><path d="M3.5 7.5 12 12.2l8.5-4.7M12 12.2v9"/>'),
+  doc: s('<path d="M6 2.8h8.5L19 7.3V21H6z"/><path d="M14.5 2.8v4.5H19"/><path d="m9 14 2 2 4-4.5"/>'),
+  qr: s('<rect x="3.5" y="3.5" width="6" height="6" rx="1"/><rect x="14.5" y="3.5" width="6" height="6" rx="1"/><rect x="3.5" y="14.5" width="6" height="6" rx="1"/><path d="M14.5 14.5h2.5v2.5M20.5 14.5v6h-6M17 20.5v-1"/>'),
+  sun: s('<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/>'),
+  check: s('<path d="m5 12.5 4.5 4.5L19 7.5"/>'),
+  checkCircle: s('<circle cx="12" cy="12" r="9.2"/><path d="m8 12.3 2.8 2.8L16.3 9.5"/>'),
+  arrow: s('<path d="M5 12h14M13 6l6 6-6 6"/>'),
+  chevron: s('<path d="m6 9 6 6 6-6"/>'),
+  plus: s('<path d="M12 5v14M5 12h14"/>'),
+  chat: s('<path d="M20.5 11.6a8.4 8.4 0 0 1-12.3 7.5L3.5 20.5l1.4-4.5A8.4 8.4 0 1 1 20.5 11.6z"/><path d="M9 9.2c.3 2.1 2.4 4.3 4.8 4.9l1.2-1.1 1.9.9-.5 1.6c-3.4.4-8.2-4-7.9-7.8l1.6-.5.9 1.9z"/>'),
+  mail: s('<rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="m3.5 6.5 8.5 6.5 8.5-6.5"/>'),
+  pin: s('<path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>'),
+  menu: s('<path d="M4 7h16M4 12h16M4 17h11"/>'),
+  close: s('<path d="M6 6l12 12M18 6 6 18"/>'),
+  play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5v14l12-7z" fill="currentColor"/></svg>',
+  office: s('<rect x="4" y="3" width="11" height="18" rx="1"/><path d="M15 9h5v12h-5M7.5 7h1M11 7h1M7.5 11h1M11 11h1M7.5 15h1M11 15h1M9 21v-3h1v3"/>'),
+  bank: s('<path d="M3 9.5 12 4l9 5.5M4.5 10v8M9 10v8M15 10v8M19.5 10v8M3 20h18"/>'),
+  hospital: s('<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M12 8v8M8 12h8"/>'),
+  school: s('<path d="M2.5 9 12 4.5 21.5 9 12 13.5z"/><path d="M6.5 11v5c1.5 1.6 3.5 2.5 5.5 2.5s4-.9 5.5-2.5v-5M21.5 9v5"/>'),
+  factory: s('<path d="M3 20V10l5 3V10l5 3V10l5 3V5h3v15z"/><path d="M7 17h2M12 17h2M17 17h2"/>'),
+  hotel: s('<path d="M3 20V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14"/><path d="M3 20h18M9 20v-4h6v4M8 8h2M14 8h2M8 12h2M14 12h2"/>'),
+  shield: s('<path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.4 7.5 9.5 4.3-1.1 7.5-4.9 7.5-9.5V6z"/><path d="m8.8 12 2.2 2.2 4.2-4.4"/>'),
+  eyeOff: s('<path d="M3 3l18 18M10.6 6.2A9.8 9.8 0 0 1 12 6c5 0 8.5 4.2 9.5 6-.5.9-1.6 2.4-3.1 3.7M6.4 7.9C4.6 9.2 3.2 11 2.5 12c1 1.8 4.5 6 9.5 6 1.4 0 2.7-.3 3.9-.9"/><path d="M9.9 10a3 3 0 0 0 4.1 4.1"/>'),
+  server: s('<rect x="3.5" y="4" width="17" height="6.5" rx="1.5"/><rect x="3.5" y="13.5" width="17" height="6.5" rx="1.5"/><path d="M7 7.3h.01M7 16.8h.01M11 7.3h6M11 16.8h6"/>'),
+  userCheck: s('<circle cx="9.5" cy="8" r="3.8"/><path d="M2.8 20c.6-3.6 3.4-5.8 6.7-5.8s6.1 2.2 6.7 5.8"/><path d="m15.5 11 2 2 4-4"/>'),
+  bolt: s('<path d="M13 2.5 4.5 13.5H11l-1 8 8.5-11H12z"/>'),
+  clock: s('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
+  layers: s('<path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/>'),
+  eye: s('<path d="M2.5 12S6 5.8 12 5.8 21.5 12 21.5 12 18 18.2 12 18.2 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/>'),
+  wrench: s('<path d="M14.7 6.3a4 4 0 0 0-5.3 5.3L3.8 17.2a1.8 1.8 0 0 0 2.6 2.6l5.6-5.6a4 4 0 0 0 5.3-5.3l-2.4 2.4-2.6-.6-.6-2.6z"/>'),
+  chart: s('<path d="M4 20V10M10 20V4M16 20v-7M21.5 20h-19"/>'),
+  copy: s('<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>'),
+};
+
+export const LOGO = (size = 38, dark = false) => `<svg width="${size}" height="${size}" viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" rx="12" fill="#45D099"/><path d="M10 38V12l14 12 14-12v26h-7V25.5l-7 6-7-6V38z" fill="${dark ? '#0A1311' : '#0B1A16'}"/><rect x="12" y="28" width="3" height="3" rx=".5" fill="#45D099"/><rect x="12" y="33" width="3" height="3" rx=".5" fill="#45D099"/><rect x="33" y="28" width="3" height="3" rx=".5" fill="#45D099"/><rect x="33" y="33" width="3" height="3" rx=".5" fill="#F2B84B"/></svg>`;
+
+/* ---------- services ---------- */
+export const SERVICES = [
+  {
+    key: 'vision', slug: 'computer-vision', num: '01', name: 'Computer vision', lc: 'computer vision', product: 'EnergyCam', icon: 'camera',
+    short: 'CCTV that catches ACs running in empty rooms.',
+    menu: 'EnergyCam on the cameras you already have',
+    title: 'CCTV that catches ACs running in', accent: 'empty rooms.',
+    lede: 'EnergyCam turns the cameras you already have into an energy watchdog. It counts people, checks every AC in view, and alerts your team the moment cooling runs in an empty room.',
+    outcomes: ['Alert 10 seconds after a room empties', 'No new sensors or hardware', 'Waste shown in rupees, live'],
+    problem: { t: 'People leave. The AC stays on.', d: 'Rooms empty out at 6 pm and the cooling keeps running for hours. Nobody sees it until the bill arrives.' },
+    solution: { t: 'Your CCTV catches it in seconds.', d: 'EnergyCam sees the empty room, emails your team a snapshot, and logs the moment the AC goes off.' },
+    steps: [
+      { t: 'Connect your cameras', d: 'We read the RTSP stream from your existing IP cameras. No new sensors.' },
+      { t: 'Detect people and ACs', d: 'YOLOv8 counts people every frame and checks whether each AC is on.' },
+      { t: 'Confirm, then alert', d: 'Readings are smoothed over several frames. After 10 seconds of an empty room with an AC on, your team gets an email with a snapshot.' },
+      { t: 'Log and report', d: 'Every event is logged. A live dashboard shows the waste in rupees, month on month.' },
+    ],
+    features: [
+      { t: 'People counting', d: 'Knows whether a room is occupied, frame by frame.', i: 'eye' },
+      { t: 'AC status per unit', d: 'Tracks two or more ACs in the same room separately.', i: 'bolt' },
+      { t: 'Snapshot alerts', d: 'An email with the camera frame attached, so your team sees the room.', i: 'mail' },
+      { t: 'Auto-resolve', d: 'A second email confirms when someone returns or the AC goes off, and how long the waste lasted.', i: 'checkCircle' },
+      { t: 'Cost in rupees', d: 'A live cost ticker per room and a month-on-month comparison.', i: 'chart' },
+      { t: 'Self-healing stream', d: 'Reconnects to the camera by itself and logs a heartbeat every 30 minutes.', i: 'server' },
+    ],
+    bestFor: ['Offices', 'Bank branches', 'Schools', 'Hospitals', 'Hotels'],
+    start: { t: 'Start with a pilot on one floor.', d: 'We connect EnergyCam to a few of your cameras, send alerts to your team and share the dashboard. You see real results before you roll it out.' },
+    faq: [
+      { q: 'Do we need new cameras?', a: 'No. EnergyCam works with the stream from IP cameras you already have, as long as the AC is in view.' },
+      { q: 'Does it identify people?', a: "No. It counts people in a room. It doesn't recognise who they are. Alert emails include one snapshot so your team can see the room." },
+      { q: 'What about false alarms?', a: 'Readings are smoothed over several frames, and the room has to stay empty for 10 seconds before an alert goes out.' },
+      { q: 'Where does it run?', a: 'On a computer on your site that can see the camera stream. Your team opens the dashboard in a browser.' },
+    ],
+  },
+  {
+    key: 'twin', slug: 'digital-twins', num: '02', name: 'Digital twins', lc: 'digital twins', product: '3D twin', icon: 'cube',
+    short: 'Your building in 3D, from its PDF drawings.',
+    menu: 'Your PDFs, rebuilt as a live 3D model',
+    title: 'Your building in 3D, from its', accent: 'PDF drawings.',
+    lede: 'We turn the floor plans you already have into a live 3D model. Anyone on your team can find a room, trace an exit route or plan the roof, from a link.',
+    outcomes: ['Search any room in seconds', 'Exit routes on every floor', 'Opens in any browser'],
+    problem: { t: 'Drawings nobody can find in time.', d: 'Floor plans live in PDFs, binders and old emails. In an emergency, nobody can say where Room 204 is or how to get out.' },
+    solution: { t: 'One model anyone can use.', d: 'Every floor, room and exit in one 3D model. Search a room, trace the route to the stairs and see how much roof is free for solar.' },
+    steps: [
+      { t: 'Send your drawings', d: 'Architectural PDFs for each floor. Clear scans work too.' },
+      { t: 'We trace every floor', d: 'Walls, rooms, doors, stairs and exits are mapped and named.' },
+      { t: 'We build the twin', d: 'Floors stack into one 3D model, with routes and roof areas.' },
+      { t: 'You share a link', d: 'It opens in any browser. There is no software to install.' },
+    ],
+    features: [
+      { t: 'Room search', d: 'Type a room name or number and go straight to it.', i: 'eye' },
+      { t: 'Exit routes', d: 'The shortest path to the nearest stair and assembly point.', i: 'arrow' },
+      { t: 'Roof planning', d: 'Measure free roof area and lay out solar panels.', i: 'sun' },
+      { t: 'Exploded floors', d: 'Pull floors apart to see every level at once.', i: 'layers' },
+      { t: 'Asset pins', d: 'Mark ACs, panels and pumps on the model, linked to your facility portal.', i: 'pin' },
+      { t: 'Share by link', d: 'Guards, contractors and managers see the same model.', i: 'userCheck' },
+    ],
+    bestFor: ['Multi-floor offices', 'Hospitals', 'Campuses', 'Malls'],
+    start: { t: 'Start with one building.', d: 'Send the drawings for one building. We send back a working 3D twin with rooms, exits and roof area mapped.' },
+    faq: [
+      { q: 'We only have scanned drawings. Is that enough?', a: "Clear scans usually work. If a floor is missing or out of date, we'll talk through a short site survey." },
+      { q: 'Who can see the model?', a: 'Only the people you share it with.' },
+      { q: 'What happens when we renovate?', a: 'Send the updated drawing and we update that floor.' },
+    ],
+  },
+  {
+    key: 'agents', slug: 'ai-agents', num: '03', name: 'AI agents', lc: 'AI agents', product: 'Quotation checker', icon: 'doc',
+    short: 'AI that checks every quotation, line by line.',
+    menu: 'Every quotation checked before you pay',
+    title: 'AI that checks every quotation,', accent: 'line by line.',
+    lede: 'An AI agent reads each vendor quotation, compares every rate with your past orders and flags anything unusual. A person still approves every spend.',
+    outcomes: ['Every line compared with past rates', 'Plain-English reason for each flag', 'A person approves every spend'],
+    problem: { t: 'Forty quotations. No time to check.', d: 'Checking every line by hand takes days, so overpriced items slip through and get approved.' },
+    solution: { t: 'Every line checked. A person approves.', d: 'The agent reads each quotation, compares rates with past orders and explains every flag in one sentence. Your team makes the final call.' },
+    steps: [
+      { t: 'Forward a quotation', d: 'Email it, upload a PDF or drop in a spreadsheet.' },
+      { t: 'It reads every line', d: 'Items, quantities, units and rates are pulled out and matched.' },
+      { t: 'It checks the history', d: 'Each rate is compared with past orders and other vendors.' },
+      { t: 'A person approves', d: 'Flagged lines come with a reason. Nothing is paid automatically.' },
+    ],
+    features: [
+      { t: 'Rate checks', d: 'Every line compared with what you paid before.', i: 'chart' },
+      { t: 'Duplicate spotting', d: 'Catches the same item quoted twice or across vendors.', i: 'copy' },
+      { t: 'Plain reasons', d: 'Each flag says why, in one sentence your team can check.', i: 'doc' },
+      { t: 'Human approval', d: 'The agent recommends. A person always signs off.', i: 'userCheck' },
+      { t: 'Works with email', d: 'Forward quotations to one address. No new software.', i: 'mail' },
+      { t: 'Monthly summary', d: 'What was checked, flagged and saved, for management.', i: 'layers' },
+    ],
+    bestFor: ['Facility teams', 'Procurement', 'Property managers'],
+    start: { t: 'Start with ten past quotations.', d: "Send ten quotations you've already paid. We run them through the agent and walk you through every flag." },
+    faq: [
+      { q: 'Does the AI approve payments?', a: 'No. It checks and flags. A person on your team approves or rejects every quotation.' },
+      { q: 'Where do the past rates come from?', a: 'From your own purchase history. The more past orders you share, the sharper the checks.' },
+      { q: 'Is our pricing data shared?', a: 'No. Your data is used for your checks only and is never shared with vendors.' },
+    ],
+  },
+  {
+    key: 'portal', slug: 'facility-portals', num: '04', name: 'Facility portals', lc: 'facility portals', product: 'Asset portal', icon: 'qr',
+    short: 'QR tags, work orders and reminders on every phone.',
+    menu: 'QR tags, work orders and maintenance reminders',
+    title: 'Scan the tag.', accent: 'The job is logged.',
+    lede: 'Every asset gets a QR tag. Technicians scan it to open a work order, attach a photo and get reminders for the next service, on their own phones.',
+    outcomes: ['A QR tag on every asset', 'Photo proof on every job', 'Reminders before a service is due'],
+    problem: { t: 'Maintenance on sticky notes.', d: 'Service history lives on paper and in chat threads. Jobs get missed until something leaks or breaks.' },
+    solution: { t: 'Every asset tagged and tracked.', d: 'A scan opens the work order. Photos prove the fix. Reminders go out before the next service is due.' },
+    steps: [
+      { t: 'We tag your assets', d: 'ACs, pumps, panels, chillers and lifts each get a durable QR tag.' },
+      { t: 'Scan to report', d: 'Anyone can scan a tag and report a fault from their phone.' },
+      { t: 'Fix with proof', d: 'Technicians close each job with a photo and a note.' },
+      { t: 'Never miss a service', d: 'Maintenance reminders go out on schedule.' },
+    ],
+    features: [
+      { t: 'Asset register', d: 'Every asset with its location, model and full service history.', i: 'layers' },
+      { t: 'Work orders', d: 'Open, assign, track and close jobs from any phone.', i: 'wrench' },
+      { t: 'Maintenance schedules', d: 'Monthly, quarterly and yearly checks, with reminders.', i: 'clock' },
+      { t: 'Photo proof', d: 'Before and after photos on every closed job.', i: 'camera' },
+      { t: 'Manager view', d: 'Open jobs, overdue services and response times at a glance.', i: 'chart' },
+      { t: 'Works on any phone', d: 'The QR code opens a page in the phone’s browser.', i: 'qr' },
+    ],
+    bestFor: ['Plant rooms', 'Hospitals', 'Factories', 'Multi-site portfolios'],
+    start: { t: 'Start with one plant room.', d: 'We tag the assets, load their history and train your technicians on site.' },
+    faq: [
+      { q: 'Do technicians need to install an app?', a: "No. The QR code opens a page in the phone's browser." },
+      { q: 'Can we import our existing asset list?', a: 'Yes. Send the spreadsheet you use today and we load it for you.' },
+      { q: 'Does it connect to the 3D twin?', a: "Yes. Tagged assets can be pinned on your building's digital twin." },
+    ],
+  },
+  {
+    key: 'energy', slug: 'energy-solar', num: '05', name: 'Energy + solar', lc: 'energy + solar', product: 'Audit + PV design', icon: 'sun',
+    short: 'HVAC and BMS energy audits, plus rooftop solar.',
+    menu: 'HVAC and BMS audits, rooftop solar design',
+    title: 'Tune the HVAC.', accent: 'Put the sun to work.',
+    lede: 'We audit your HVAC and BMS to find where energy is lost, then design rooftop solar sized to your real daytime load.',
+    outcomes: ['HVAC and BMS audit on site', 'Fixes ranked by saving', 'Solar sized to your real load'],
+    problem: { t: 'Paying the grid to fight the sun.', d: 'Chillers work hardest at noon, when power costs the most. The roof sits empty and nobody knows which system is wasting energy.' },
+    solution: { t: 'Tuned systems, powered by the roof.', d: "Audit fixes cut the waste first. Then solar, sized to your daytime load, covers what's left at the hours it costs most." },
+    steps: [
+      { t: 'Survey and bills', d: 'We walk the site and read 12 months of electricity bills.' },
+      { t: 'Measure the big loads', d: 'Chillers, AHUs, pumps and BMS settings are logged and checked.' },
+      { t: 'Ranked fix list', d: 'A report of fixes, ordered by saving and cost to do.' },
+      { t: 'Solar design', d: 'Panel layout, system size and payback, based on the audited load.' },
+    ],
+    features: [
+      { t: 'Chiller and AHU audit', d: 'Efficiency, run hours and set points, checked on site.', i: 'wrench' },
+      { t: 'BMS review', d: 'Schedules and settings that run plant when nobody needs it.', i: 'server' },
+      { t: 'Tariff analysis', d: 'Peak and off-peak use from your bills, in rupees.', i: 'chart' },
+      { t: 'Rooftop PV layout', d: 'Panels placed around rooftop units, with shading checked.', i: 'sun' },
+      { t: 'Payback estimate', d: 'Cost, saving and payback years for each option.', i: 'clock' },
+      { t: 'Independent advice', d: 'We design the system. You choose who installs it.', i: 'shield' },
+    ],
+    bestFor: ['Commercial buildings', 'Factories', 'Hospitals', 'Hotels'],
+    start: { t: 'Start with your bills.', d: "Send 12 months of electricity bills. We'll tell you whether an audit is worth it before we start." },
+    faq: [
+      { q: 'Why audit before solar?', a: 'Fixing waste first means a smaller solar system covers more of your load, so it pays back sooner.' },
+      { q: 'Do you install the panels?', a: 'We design the system and can coordinate with the installer you choose.' },
+      { q: 'Will the audit disrupt operations?', a: 'No. Measurements run alongside normal operation.' },
+    ],
+  },
+];
+
+export const INDUSTRIES = [
+  { t: 'Offices and HQs', i: 'office', d: 'Meeting rooms cooled with nobody in them, and quotations nobody has time to check.', uses: ['vision', 'agents'] },
+  { t: 'Banks and branch networks', i: 'bank', d: 'Dozens of branches cooled after hours. EnergyCam watches them all from existing CCTV.', uses: ['vision', 'portal'] },
+  { t: 'Hospitals and clinics', i: 'hospital', d: "Plant rooms that can't fail. Tagged assets, scheduled maintenance and proof of every job.", uses: ['portal', 'twin'] },
+  { t: 'Schools and universities', i: 'school', d: 'Classrooms empty by mid-afternoon, and campus maps nobody can read in a hurry.', uses: ['vision', 'twin'] },
+  { t: 'Factories and warehouses', i: 'factory', d: 'Big roofs and big loads. Audit the HVAC first, then put solar on the roof.', uses: ['energy', 'portal'] },
+  { t: 'Hotels and malls', i: 'hotel', d: 'Many floors and many visitors. Exit routes in 3D and cooling that follows occupancy.', uses: ['twin', 'energy'] },
+];
+
+export const svcByKey = Object.fromEntries(SERVICES.map((x) => [x.key, x]));
