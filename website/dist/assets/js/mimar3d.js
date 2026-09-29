@@ -652,7 +652,7 @@
       var az = c.az + st.dAz + (opt.still ? 0 : Math.sin(T * .16) * .09) + lerp(-.18, 0, arrive), elv = clamp(c.el + st.dEl + (opt.still ? 0 : Math.sin(T * .11) * .02), .08, 1.2);
       tgt.set(c.t[0], c.t[1], c.t[2]);
       var wide = !el.classList.contains('m3-narrow') && !opt.still;
-      st.setView(az, elv, r, tgt, wide ? [compact ? -.1 : -.12, compact ? 0 : .02] : null);
+      st.setView(az, elv, r, tgt, opt.offset !== undefined ? opt.offset : (wide ? [compact ? -.1 : -.12, compact ? 0 : .02] : null));
       st.renderer.render(st.scene, st.camera); st.applyLabels(); st.ready();
       var m = it.S.metric || { k: '', v: '', n: '' };
       if (mV.textContent !== m.v) mV.textContent = m.v; mV.className = 'v ' + (m.tone || ''); if (mK.textContent !== m.k) mK.textContent = m.k; if (mN.textContent !== m.n) mN.textContent = m.n;
@@ -671,9 +671,10 @@
     };
     return {
       /* used to record the promo film: exact frame with captions, driven by an external clock */
-      film: function (i, mode, tm, since, T) {
+      film: function (i, mode, tm, since, T, o) {
+        o = o || {}; if (o.zoom) st.zoom = o.zoom;
         if (i !== state.i) { list[state.i].S.g.visible = false; state.i = i; list[i].S.g.visible = true; }
-        st.frameFn = null; state.tour = false; state.mode = mode; renderUI(); state.now = T; state.svcStart = T - since; st.resize(); frame(T, tm);
+        st.frameFn = null; state.tour = false; state.mode = mode; renderUI(); state.now = T; state.svcStart = T - since; st.resize(); frame(T, tm, o.offset !== undefined ? { offset: o.offset } : {});
       },
       /* used by our poster renderer: draw one exact frame with no UI */
       still: function (i, mode, tm) {
