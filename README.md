@@ -52,8 +52,10 @@ All times on the dashboard are Pakistan time (PKT).
 - `blur_preview.py` - live preview of the privacy blur
 - `generate_report.py` - PDF summary report
 - `watchdog.py` - emails if the main system stops sending heartbeats
-- `retention_cleanup.gs` - Google Apps Script for the alert receiver's Gmail:
-  deletes old HFM alert emails daily
+- `retention_cleanup.gs` - Google Apps Script for the sender's and receiver's
+  Gmail: deletes old HFM alert emails daily
+- `diagnose_live.py` - prints what the camera/AI sees per frame (confidences,
+  DAY/NIGHT numbers, AC values) to tune settings
 - `.github/workflows/keepalive.yml` - pings Supabase every 3 days so the free
   project is not auto-paused (needs the `DATABASE_URL` GitHub secret)
 
@@ -64,4 +66,5 @@ All times on the dashboard are Pakistan time (PKT).
 | `EMPTY_THRESHOLD_SECONDS` | 10 | room must be empty this long (AC on) before an alert |
 | `RETENTION_DAYS` | 90 | DB rows older than this are deleted daily |
 | `AFTER_HOURS_START` / `END` | 19:00 / 08:00 | alerts in this window get `[AFTER-HOURS]` in the subject |
-| `DELETE_SENT_COPIES` | True | delete sent alerts from the sender's Gmail Sent + Trash |
+| `DELETE_SENT_COPIES` | True | delete sent alerts from the sender's Gmail Sent + Trash (turns itself off if IMAP is disabled) |
+| `BACKGROUND_PIXELATE` (`privacy_blur.py`) | True | strict privacy: lightly pixelate the whole snapshot except the ACs |

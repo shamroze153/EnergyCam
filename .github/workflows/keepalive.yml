@@ -32,7 +32,7 @@ jobs:
           if not url:
               sys.exit("DATABASE_URL secret is not set (Settings > Secrets and variables > Actions).")
           try:
-              conn = psycopg2.connect(url, connect_timeout=20)
+              conn = psycopg2.connect(url, sslmode="require", connect_timeout=20)
               cur = conn.cursor()
               cur.execute("SELECT COUNT(*) FROM logs")
               count = cur.fetchone()[0]

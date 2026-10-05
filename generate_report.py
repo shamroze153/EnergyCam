@@ -8,12 +8,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
+DB_SSLMODE = os.getenv("DB_SSLMODE", "require")   # encrypted connection
 
 AC1_KW = 1.2
 AC2_KW = 1.2
 UNIT_RATE = 55
 
-conn = psycopg2.connect(DATABASE_URL)
+conn = psycopg2.connect(DATABASE_URL, sslmode=DB_SSLMODE)
 df = pd.read_sql_query("SELECT * FROM logs ORDER BY timestamp", conn)
 conn.close()
 df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True).dt.tz_convert("Asia/Karachi").dt.tz_localize(None)  # Pakistan time

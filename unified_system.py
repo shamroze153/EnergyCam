@@ -26,6 +26,8 @@ APP_PASSWORD = os.getenv("APP_PASSWORD")
 RECEIVER_EMAIL = os.getenv("RECEIVER_EMAIL")
 rtsp_url = os.getenv("RTSP_URL")
 DATABASE_URL = os.getenv("DATABASE_URL")
+# Always encrypt the database connection (TLS). Only change for a local test DB.
+DB_SSLMODE = os.getenv("DB_SSLMODE", "require")
 
 model = YOLO("yolov8n.pt")
 
@@ -79,6 +81,7 @@ ac2_history = deque(maxlen=AC_HISTORY_LEN)
 person_history = deque(maxlen=4)
 frame_buffer = deque(maxlen=3)
 light_mode_history = deque(maxlen=10)   # smooths DAY/NIGHT switching
+imap_unavailable = False                # set when Gmail refuses IMAP (e.g. disabled by admin)
 
 
 class LiveCameraReader:
@@ -139,7 +142,7 @@ def is_after_hours(now=None):
 
 
 def get_connection():
-    return psycopg2.connect(DATABASE_URL)
+    return psycopg2.connect(DATABASE_URL, sslmode=DB_SSLMODE)
 
 
 def setup_database():
@@ -298,7 +301,14 @@ def delete_sent_copy(message_id, attempts=4, wait_seconds=5):
                     pass
         print(">> WARNING: Sent-folder copy nahi mili — delete nahi hui.")
     except Exception as e:
-        print(f">> WARNING: Sent-folder copy delete nahi ho saki: {e}")
+        global imap_unavailable
+        reason = str(e)
+        if any(k in reason.lower() for k in ("disabled", "authenticationfailed", "invalid credentials", "not enabled")):
+            imap_unavailable = True
+            print(">> WARNING: Gmail IMAP band hai (admin ne disable kiya ya login fail) — Sent-folder cleanup "
+                  "ab is run mein band. Iske bajaye sender ke Gmail par retention_cleanup.gs install karein.")
+        else:
+            print(f">> WARNING: Sent-folder copy delete nahi ho saki: {reason}")
     return False
 
 
@@ -334,7 +344,7 @@ def send_email(subject, message_text, image_frame=None):
             server.login(SENDER_EMAIL, APP_PASSWORD)
             server.sendmail(SENDER_EMAIL, RECEIVER_EMAIL, msg.as_string())
         print(f">> EMAIL SENT: {subject}")
-        if DELETE_SENT_COPIES:
+        if DELETE_SENT_COPIES and not imap_unavailable:
             threading.Thread(target=delete_sent_copy, args=(message_id,), daemon=True).start()
         return True
     except Exception as e:
