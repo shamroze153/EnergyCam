@@ -1,17 +1,19 @@
 from ultralytics import YOLO
 import cv2
 import threading
-from ac_config import check_ac_status
+from ac_config import check_ac_status, detect_light_mode
 from privacy_blur import anonymize
 import numpy as np
 import smtplib
+import imaplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
+from email.utils import make_msgid, formatdate
 import time
 import os
 import psycopg2
-from datetime import datetime
+from datetime import datetime, time as dtime, timedelta, timezone
 from collections import deque
 from dotenv import load_dotenv
 
@@ -36,11 +38,34 @@ CLOSURE_CONFIRM_SECONDS = 20
 LOG_INTERVAL_SECONDS = 30
 HEARTBEAT_INTERVAL_SECONDS = 1800
 
+# Data retention: logs/heartbeat rows older than this are deleted once a day
+RETENTION_DAYS = 90
+RETENTION_CHECK_INTERVAL_SECONDS = 24 * 3600
+
+# After-hours: alerts in this window get "[AFTER-HOURS]" in the email subject
+AFTER_HOURS_START = dtime(19, 0)   # 7:00 PM
+AFTER_HOURS_END = dtime(8, 0)      # 8:00 AM
+
+# Email copies: delete each sent alert from the sender's Gmail Sent + Trash
+DELETE_SENT_COPIES = True
+
+# Pakistan time for all DB timestamps (needs the "tzdata" package on Windows)
+try:
+    from zoneinfo import ZoneInfo
+    PK_TZ = ZoneInfo("Asia/Karachi")
+except Exception:
+    PK_TZ = timezone(timedelta(hours=5), "PKT")   # Pakistan has no DST
+
 AC_HISTORY_LEN = 6
 AC_STABILITY_RATIO = 0.7
 
 RECONNECT_GRACE_FRAMES = 3
 BLANK_FRAME_STD_THRESHOLD = 5
+# Night/dark frames have low contrast but are still valid. A frame darker than
+# DARK_FRAME_MEAN_MAX only needs std above DARK_FRAME_STD_THRESHOLD; a truly
+# blank/corrupt frame (flat grey/green) has std close to 0.
+DARK_FRAME_MEAN_MAX = 60
+DARK_FRAME_STD_THRESHOLD = 1.5
 MAX_CONSECUTIVE_BAD_FRAMES = 15
 NO_FRAME_TIMEOUT_SECONDS = 8
 COUNT_CONFIDENCE = 0.5
@@ -49,6 +74,7 @@ ac1_history = deque(maxlen=AC_HISTORY_LEN)
 ac2_history = deque(maxlen=AC_HISTORY_LEN)
 person_history = deque(maxlen=4)
 frame_buffer = deque(maxlen=3)
+light_mode_history = deque(maxlen=10)   # smooths DAY/NIGHT switching
 
 
 class LiveCameraReader:
@@ -97,6 +123,17 @@ class LiveCameraReader:
             pass
 
 
+def now_pkt():
+    return datetime.now(PK_TZ)
+
+
+def is_after_hours(now=None):
+    t = (now or now_pkt()).time()
+    if AFTER_HOURS_START <= AFTER_HOURS_END:
+        return AFTER_HOURS_START <= t < AFTER_HOURS_END
+    return t >= AFTER_HOURS_START or t < AFTER_HOURS_END   # window crosses midnight
+
+
 def get_connection():
     return psycopg2.connect(DATABASE_URL)
 
@@ -134,7 +171,7 @@ def log_to_db(room_name, room_status, ac1_status, ac2_status, person_count, aler
         cursor.execute("""
             INSERT INTO logs (timestamp, room_name, room_status, ac1_status, ac2_status, person_count, alert_sent)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
-        """, (datetime.now(), room_name, room_status, ac1_status, ac2_status, person_count, alert_sent))
+        """, (now_pkt(), room_name, room_status, ac1_status, ac2_status, person_count, alert_sent))
         conn.commit()
         cursor.close()
         conn.close()
@@ -146,12 +183,28 @@ def log_heartbeat():
     try:
         conn = get_connection()
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO heartbeat (timestamp) VALUES (%s)", (datetime.now(),))
+        cursor.execute("INSERT INTO heartbeat (timestamp) VALUES (%s)", (now_pkt(),))
         conn.commit()
         cursor.close()
         conn.close()
     except Exception as e:
         print(f">> Heartbeat log failed: {e}")
+
+
+def cleanup_old_rows():
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM logs WHERE timestamp < NOW() - make_interval(days => %s)", (RETENTION_DAYS,))
+        logs_deleted = cursor.rowcount
+        cursor.execute("DELETE FROM heartbeat WHERE timestamp < NOW() - make_interval(days => %s)", (RETENTION_DAYS,))
+        hb_deleted = cursor.rowcount
+        conn.commit()
+        cursor.close()
+        conn.close()
+        print(f">> Retention: {RETENTION_DAYS} din se purani rows delete — logs={logs_deleted}, heartbeat={hb_deleted}")
+    except Exception as e:
+        print(f">> Retention cleanup failed: {e}")
 
 
 def smoothed_status(history, raw_reading, maxlen, threshold_ratio=0.5):
@@ -164,15 +217,85 @@ def is_frame_usable(frame):
     if frame is None:
         return False
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    return np.std(gray) > BLANK_FRAME_STD_THRESHOLD
+    std = np.std(gray)
+    if std > BLANK_FRAME_STD_THRESHOLD:
+        return True
+    # dark night frame: low contrast is normal, only reject if completely flat
+    return gray.mean() < DARK_FRAME_MEAN_MAX and std > DARK_FRAME_STD_THRESHOLD
 
 
 def pick_clean_frame(buffer, fallback):
     for f in reversed(buffer):
-        gray = cv2.cvtColor(f, cv2.COLOR_BGR2GRAY)
-        if np.std(gray) > BLANK_FRAME_STD_THRESHOLD:
+        if is_frame_usable(f):
             return f
     return fallback
+
+
+def smoothed_light_mode(frame):
+    light_mode_history.append(detect_light_mode(frame))
+    return "NIGHT" if light_mode_history.count("NIGHT") > len(light_mode_history) / 2 else "DAY"
+
+
+def _imap_find_folders(imap):
+    """Gmail's Sent and Trash folder names (they differ by account language)."""
+    sent, trash = '"[Gmail]/Sent Mail"', '"[Gmail]/Trash"'
+    typ, folders = imap.list()
+    if typ == "OK":
+        for raw in folders:
+            line = raw.decode(errors="ignore") if isinstance(raw, bytes) else str(raw)
+            name = line.split(' "/" ')[-1].strip()
+            if "\\Sent" in line:
+                sent = name
+            elif "\\Trash" in line:
+                trash = name
+    return sent, trash
+
+
+def _imap_search(imap, message_id):
+    try:
+        typ, data = imap.uid("SEARCH", "X-GM-RAW", f'"rfc822msgid:{message_id}"')
+    except imaplib.IMAP4.error:
+        typ = "NO"
+    if typ != "OK":
+        typ, data = imap.uid("SEARCH", "HEADER", "Message-ID", message_id)
+    return data[0].split() if typ == "OK" and data and data[0] else []
+
+
+def delete_sent_copy(message_id, attempts=4, wait_seconds=5):
+    """Moves the sent email to Trash, then deletes it from Trash for good.
+    Runs in a background thread; any failure only prints a warning."""
+    try:
+        for attempt in range(attempts):
+            time.sleep(wait_seconds)   # Gmail takes a few seconds to file it in Sent
+            imap = imaplib.IMAP4_SSL("imap.gmail.com", 993, timeout=20)
+            try:
+                imap.login(SENDER_EMAIL, APP_PASSWORD)
+                sent_folder, trash_folder = _imap_find_folders(imap)
+
+                imap.select(sent_folder)
+                uids = _imap_search(imap, message_id)
+                if not uids:
+                    continue
+                for uid in uids:
+                    imap.uid("COPY", uid, trash_folder)   # Gmail: copy to Trash = move to Trash
+                    imap.uid("STORE", uid, "+FLAGS", "(\\Deleted)")
+                imap.expunge()
+
+                imap.select(trash_folder)
+                for uid in _imap_search(imap, message_id):
+                    imap.uid("STORE", uid, "+FLAGS", "(\\Deleted)")
+                imap.expunge()
+                print(">> Sent-folder copy delete ho gayi (Sent + Trash).")
+                return True
+            finally:
+                try:
+                    imap.logout()
+                except Exception:
+                    pass
+        print(">> WARNING: Sent-folder copy nahi mili — delete nahi hui.")
+    except Exception as e:
+        print(f">> WARNING: Sent-folder copy delete nahi ho saki: {e}")
+    return False
 
 
 def send_email(subject, message_text, image_frame=None):
@@ -180,6 +303,9 @@ def send_email(subject, message_text, image_frame=None):
     msg["Subject"] = subject
     msg["From"] = SENDER_EMAIL
     msg["To"] = RECEIVER_EMAIL
+    msg["Date"] = formatdate(localtime=True)
+    message_id = make_msgid(domain="hfm.alert")
+    msg["Message-ID"] = message_id
     msg.attach(MIMEText(message_text))
 
     if image_frame is not None:
@@ -204,6 +330,8 @@ def send_email(subject, message_text, image_frame=None):
             server.login(SENDER_EMAIL, APP_PASSWORD)
             server.sendmail(SENDER_EMAIL, RECEIVER_EMAIL, msg.as_string())
         print(f">> EMAIL SENT: {subject}")
+        if DELETE_SENT_COPIES:
+            threading.Thread(target=delete_sent_copy, args=(message_id,), daemon=True).start()
         return True
     except Exception as e:
         print(f">> EMAIL FAILED: {e}")
@@ -226,10 +354,12 @@ def main():
     alert_fired_time = None
     closure_pending_since = None
     last_log_time = -999
-    last_heartbeat_time = -999
+    last_heartbeat_time = -HEARTBEAT_INTERVAL_SECONDS   # heartbeat right at startup
+    last_retention_time = -RETENTION_CHECK_INTERVAL_SECONDS   # retention check at startup
     frames_since_reconnect = RECONNECT_GRACE_FRAMES
     consecutive_bad_frames = 0
     last_processed_seq = -1
+    alert_pending_log = False   # alert sent since the last DB log row
 
     print("System chal raha hai... (Ctrl+C se rokein)")
 
@@ -279,10 +409,13 @@ def main():
 
         frame_buffer.append(frame)
         current_time = time.time() - start_time
-        alert_just_fired = False
+
+        light_mode = smoothed_light_mode(frame)
 
         try:
-            results = model(frame, classes=[0], imgsz=640, verbose=False)  # persons only
+            # Persons only. Presence stays sensitive (any detection counts).
+            # NOTE: night (IR) accuracy must be verified in testing with lights off.
+            results = model(frame, classes=[0], imgsz=640, verbose=False)
             boxes = results[0].boxes
             class_ids = boxes.cls.tolist() if len(boxes) > 0 else []
             confs = boxes.conf.tolist() if len(boxes) > 0 else []
@@ -293,8 +426,8 @@ def main():
             person_present = smoothed_status(person_history, person_present_raw, 4)
             room_empty = not person_present
 
-            ac1_result = check_ac_status(frame, "left_ac")
-            ac2_result = check_ac_status(frame, "right_ac")
+            ac1_result = check_ac_status(frame, "left_ac", light_mode)
+            ac2_result = check_ac_status(frame, "right_ac", light_mode)
             ac1_raw = ac1_result["status"] == "ON"
             ac2_raw = ac2_result["status"] == "ON"
             ac1_on = smoothed_status(ac1_history, ac1_raw, AC_HISTORY_LEN, AC_STABILITY_RATIO)
@@ -337,30 +470,38 @@ def main():
         if should_alert and not alert_sent_this_cycle:
             clean_frame = pick_clean_frame(frame_buffer, frame)
             print(">> Alert trigger — blur + email bhej raha hai...")
+            subject = f"HFM Energy Alert: {ROOM_NAME} Empty but AC ON"
+            if is_after_hours():
+                subject = "[AFTER-HOURS] " + subject
             sent_ok = send_email(
-                f"HFM Energy Alert: {ROOM_NAME} Empty but AC ON",
+                subject,
                 f"{ROOM_NAME} khaali hai lekin AC ON hai (AC1={ac1_on}, AC2={ac2_on}) — energy waste ho raha hai.\nSnapshot attached.",
                 image_frame=clean_frame
             )
             alert_sent_this_cycle = True
-            alert_just_fired = sent_ok
+            alert_pending_log = alert_pending_log or sent_ok
             if sent_ok:
                 alert_active = True
                 alert_fired_time = current_time
 
         if current_time - last_log_time >= LOG_INTERVAL_SECONDS:
             room_status = "EMPTY" if room_empty else "OCCUPIED"
-            log_to_db(ROOM_NAME, room_status, "ON" if ac1_on else "OFF", "ON" if ac2_on else "OFF", person_count, int(alert_just_fired))
+            log_to_db(ROOM_NAME, room_status, "ON" if ac1_on else "OFF", "ON" if ac2_on else "OFF", person_count, int(alert_pending_log))
             last_log_time = current_time
-            print(f">> LOGGED: t={current_time:.0f}s | {room_status} | AC1={'ON' if ac1_on else 'OFF'} AC2={'ON' if ac2_on else 'OFF'} | People={person_count} | EmailSentNow={alert_just_fired}")
+            print(f">> LOGGED: t={current_time:.0f}s | {light_mode} | {room_status} | AC1={'ON' if ac1_on else 'OFF'} AC2={'ON' if ac2_on else 'OFF'} | People={person_count} | EmailSentNow={alert_pending_log}")
+            alert_pending_log = False
 
         if current_time - last_heartbeat_time >= HEARTBEAT_INTERVAL_SECONDS:
             log_heartbeat()
             last_heartbeat_time = current_time
             print(">> Heartbeat logged.")
 
+        if current_time - last_retention_time >= RETENTION_CHECK_INTERVAL_SECONDS:
+            cleanup_old_rows()
+            last_retention_time = current_time
+
     cap.release()
 
 
 if __name__ == "__main__":
-    main()
+    main()

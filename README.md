@@ -35,11 +35,33 @@ packages (ultralytics/torch, opencv) make the Streamlit Cloud build slow or fail
 
 All times on the dashboard are Pakistan time (PKT).
 
+## One-time upgrade (old version -> this version)
+
+1. Stop the old `unified_system.py`.
+2. `pip install -r requirements-local.txt` (adds `tzdata` for Pakistan time).
+3. Run `sql/one_time_upgrade.sql` **once** in Supabase SQL Editor (fixes old
+   rows saved 5 hours ahead, drops the unused `phone_count` column).
+4. Start the new version.
+
 ## Tools
 
+- `calibrate_ac.py` - prints LED/flap thresholds for `ac_config.py` from an
+  "AC off" and an "AC on" image (`--mode day` or `--mode night`)
 - `zone_picker.py` - draw fixed blur zones on a camera frame, prints a
   `FIXED_ZONES = [...]` line for `privacy_blur.py`
+- `blur_preview.py` - live preview of the privacy blur
+- `generate_report.py` - PDF summary report
+- `watchdog.py` - emails if the main system stops sending heartbeats
 - `retention_cleanup.gs` - Google Apps Script for the alert receiver's Gmail:
   deletes old HFM alert emails daily
 - `.github/workflows/keepalive.yml` - pings Supabase every 3 days so the free
   project is not auto-paused (needs the `DATABASE_URL` GitHub secret)
+
+## Main settings (top of `unified_system.py`)
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `EMPTY_THRESHOLD_SECONDS` | 10 | room must be empty this long (AC on) before an alert |
+| `RETENTION_DAYS` | 90 | DB rows older than this are deleted daily |
+| `AFTER_HOURS_START` / `END` | 19:00 / 08:00 | alerts in this window get `[AFTER-HOURS]` in the subject |
+| `DELETE_SENT_COPIES` | True | delete sent alerts from the sender's Gmail Sent + Trash |

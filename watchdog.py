@@ -1,6 +1,6 @@
 import psycopg2
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import smtplib
 from email.mime.text import MIMEText
 import os
@@ -15,6 +15,7 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 
 CHECK_INTERVAL_SECONDS = 1800
 MAX_SILENCE_HOURS = 2
+PK_TZ = timezone(timedelta(hours=5), "PKT")   # display in Pakistan time
 
 
 def send_alert():
@@ -50,7 +51,8 @@ while True:
             else:
                 now = datetime.now()
             silence = now - last_beat
-            print(f">> Last heartbeat: {last_beat}, silence: {silence}")
+            shown = last_beat.astimezone(PK_TZ) if last_beat.tzinfo is not None else last_beat
+            print(f">> Last heartbeat: {shown:%Y-%m-%d %H:%M:%S} PKT, silence: {str(silence).split('.')[0]}")
             if silence > timedelta(hours=MAX_SILENCE_HOURS):
                 if not already_alerted:
                     send_alert()
