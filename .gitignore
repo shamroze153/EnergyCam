@@ -1,11 +1,23 @@
+# secrets
 .env
+.streamlit/secrets.toml
+
+# model weights, local database
+*.pt
 *.db
+
+# camera media (never store footage in the repo)
+*.mp4
+*.avi
 *.jpg
 *.jpeg
 *.png
-*.mp4
-*.avi
-*.pt
+
+# generated reports
+*.pdf
+hfm_energy_report*.csv
+reports/
+
+# python
 __pycache__/
 *.pyc
-.streamlit/secrets.toml

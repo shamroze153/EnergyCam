@@ -1,0 +1,12 @@
+# Camera system (on-prem laptop/server). Install with:
+#   pip install -r requirements-local.txt
+# Includes the dashboard packages too, so the dashboard also runs locally.
+-r requirements.txt
+
+ultralytics
+opencv-python
+numpy
+fpdf2
+matplotlib
+# Time zone data for Asia/Karachi (Windows has no built-in tz database)
+tzdata

@@ -27,7 +27,8 @@ def load_data():
     conn = psycopg2.connect(DATABASE_URL)
     df = pd.read_sql_query("SELECT * FROM logs ORDER BY timestamp", conn)
     conn.close()
-    df["timestamp"] = pd.to_datetime(df["timestamp"])
+    # DB stores timestamptz (UTC); show everything in Pakistan time (PKT)
+    df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True).dt.tz_convert("Asia/Karachi").dt.tz_localize(None)
     return df
 
 
@@ -226,7 +227,7 @@ if selected_room == "All Rooms":
 else:
     df = df_all[df_all["room_name"] == selected_room].copy()
 
-st.caption(f"Data range: {df['timestamp'].min()} to {df['timestamp'].max()} | Records: {len(df)}")
+st.caption(f"Data range (PKT): {df['timestamp'].min()} to {df['timestamp'].max()} | Records: {len(df)}")
 
 total_alerts = int(df["alert_sent"].sum())
 occupied_pct = (df["room_status"] == "OCCUPIED").mean() * 100 if len(df) > 0 else 0

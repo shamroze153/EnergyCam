@@ -1,0 +1,45 @@
+name: Supabase keep-alive
+
+# Free Supabase projects pause after ~7 days without activity.
+# This pings the database every 3 days (and on demand from the Actions tab).
+on:
+  schedule:
+    - cron: "17 4 */3 * *"   # 04:17 UTC (09:17 PKT) every 3rd day
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install psycopg2
+        run: pip install psycopg2-binary==2.9.13
+
+      - name: Ping database
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          python - <<'PY'
+          import os, sys, psycopg2
+          url = os.environ.get("DATABASE_URL")
+          if not url:
+              sys.exit("DATABASE_URL secret is not set (Settings > Secrets and variables > Actions).")
+          try:
+              conn = psycopg2.connect(url, connect_timeout=20)
+              cur = conn.cursor()
+              cur.execute("SELECT COUNT(*) FROM logs")
+              count = cur.fetchone()[0]
+              conn.close()
+          except Exception as e:
+              # The repo is public, so its logs are too: print only the error
+              # type, never the message (it can contain host/user names).
+              sys.exit(f"Keep-alive FAILED: {type(e).__name__}")
+          print(f"Keep-alive OK: logs table has {count} rows")
+          PY

@@ -16,7 +16,7 @@ UNIT_RATE = 55
 conn = psycopg2.connect(DATABASE_URL)
 df = pd.read_sql_query("SELECT * FROM logs ORDER BY timestamp", conn)
 conn.close()
-df["timestamp"] = pd.to_datetime(df["timestamp"])
+df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True).dt.tz_convert("Asia/Karachi").dt.tz_localize(None)  # Pakistan time
 
 if len(df) == 0:
     print("Abhi koi data nahi hai. Pehle unified_system.py chalayein.")
