@@ -1,0 +1,11 @@
+.env
+*.db
+*.jpg
+*.jpeg
+*.png
+*.mp4
+*.avi
+*.pt
+__pycache__/
+*.pyc
+.streamlit/secrets.toml
