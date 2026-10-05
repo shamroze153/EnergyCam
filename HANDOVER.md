@@ -49,13 +49,15 @@ flowchart LR
 
 | Control | How |
 |---|---|
-| Blurring | People, TV/monitors, laptops and phones are pixelated before any snapshot is emailed. Extra fixed areas can be added (`zone_picker.py` → `FIXED_ZONES` in `privacy_blur.py`). If blurring fails, the email is sent **without** an image. |
+| Blurring | People, TV/monitors, laptops, keyboards and phones are strongly pixelated before any snapshot is emailed (sensitive detection at high resolution, so small/far screens are caught). **Strict mode:** the rest of the picture is also lightly pixelated, so text on any screen, whiteboard or paper the AI misses is unreadable; only the AC units stay sharp. Extra fixed areas can be added (`zone_picker.py` → `FIXED_ZONES` in `privacy_blur.py`). If blurring fails, the email is sent **without** an image. |
 | No identity | No face recognition and no identification of any person. Only a head-count. |
 | No phone tracking | Phone detection and the phone count were removed from detection and logging. |
 | No stored footage | Frames live only in memory. Nothing is written to disk. |
 | Retention | Log and heartbeat rows older than **90 days** are deleted automatically once a day (`RETENTION_DAYS` in `unified_system.py`). |
-| Email copies | After sending, the system deletes its own copy from the sender's Gmail Sent folder and Trash. The receiver's inbox is cleaned daily by `retention_cleanup.gs` (deletes HFM alerts older than 1 day). |
+| Email copies | `retention_cleanup.gs` runs daily on the sender's and the receiver's Gmail and permanently deletes HFM alerts older than 1 day. Where Gmail IMAP is allowed, the system also deletes its sent copy immediately. (IMAP is currently disabled for the company domain; the script covers it.) |
 | Secrets | Passwords and URLs live only in `.env` on the HFM computer (git-ignored), in Streamlit secrets and in a GitHub Actions secret. Never in the code. |
+| Database security | Password-protected Postgres (Supabase). Every connection is forced to use TLS (`sslmode=require`); Supabase encrypts stored data at rest. Access: only the project owner's Supabase account and holders of the connection string (HFM computer, dashboard, keep-alive job). |
+| Dashboard access | Streamlit app should be set to *Only specific people can view* (app Settings → Sharing) so occupancy data is not public. |
 
 ## 4. Server requirements (24/7 host)
 

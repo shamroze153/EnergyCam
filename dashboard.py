@@ -20,11 +20,12 @@ except Exception:
     from dotenv import load_dotenv
     load_dotenv()
     DATABASE_URL = os.getenv("DATABASE_URL")
+DB_SSLMODE = os.getenv("DB_SSLMODE", "require")   # encrypted connection
 
 
 @st.cache_data(ttl=5)
 def load_data():
-    conn = psycopg2.connect(DATABASE_URL)
+    conn = psycopg2.connect(DATABASE_URL, sslmode=DB_SSLMODE)
     df = pd.read_sql_query("SELECT * FROM logs ORDER BY timestamp", conn)
     conn.close()
     # DB stores timestamptz (UTC); show everything in Pakistan time (PKT)

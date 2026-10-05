@@ -12,6 +12,7 @@ SENDER_EMAIL = os.getenv("SENDER_EMAIL")
 APP_PASSWORD = os.getenv("APP_PASSWORD")
 RECEIVER_EMAIL = os.getenv("RECEIVER_EMAIL")
 DATABASE_URL = os.getenv("DATABASE_URL")
+DB_SSLMODE = os.getenv("DB_SSLMODE", "require")   # encrypted connection
 
 CHECK_INTERVAL_SECONDS = 1800
 MAX_SILENCE_HOURS = 2
@@ -37,7 +38,7 @@ already_alerted = False
 
 while True:
     try:
-        conn = psycopg2.connect(DATABASE_URL)
+        conn = psycopg2.connect(DATABASE_URL, sslmode=DB_SSLMODE)
         cursor = conn.cursor()
         cursor.execute("SELECT timestamp FROM heartbeat ORDER BY id DESC LIMIT 1")
         row = cursor.fetchone()

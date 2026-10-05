@@ -1,15 +1,19 @@
 /**
- * HFM alert email cleanup (for the RECEIVER's Gmail account)
- * -----------------------------------------------------------
+ * HFM alert email cleanup (install on BOTH Gmail accounts)
+ * --------------------------------------------------------
  * Permanently deletes HFM alert emails (which carry blurred snapshots)
  * older than 1 day. Runs once a day by itself.
+ *   - RECEIVER account: cleans the inbox.
+ *   - SENDER account: cleans the Sent folder. Needed when the company has
+ *     disabled IMAP (then unified_system.py cannot delete sent copies itself).
+ * In both accounts HFM_SENDER is the SENDER's address.
  *
  * Only deletes an email when BOTH are true:
  *   1. it was sent FROM the alert sender address (HFM_SENDER below), and
  *   2. its subject starts with "HFM" or "[AFTER-HOURS] HFM".
  * So normal work emails that happen to mention HFM are never touched.
  *
- * SETUP (one time, ~5 minutes, logged in as the receiver):
+ * SETUP (one time, ~5 minutes, in each account):
  *   1. Open https://script.google.com -> "New project".
  *   2. Delete the sample code, paste this whole file, and set HFM_SENDER
  *      below to the alert sender's email address (SENDER_EMAIL in .env).
