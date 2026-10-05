@@ -67,4 +67,4 @@ All times on the dashboard are Pakistan time (PKT).
 | `RETENTION_DAYS` | 90 | DB rows older than this are deleted daily |
 | `AFTER_HOURS_START` / `END` | 19:00 / 08:00 | alerts in this window get `[AFTER-HOURS]` in the subject |
 | `DELETE_SENT_COPIES` | True | delete sent alerts from the sender's Gmail Sent + Trash (turns itself off if IMAP is disabled) |
-| `BACKGROUND_PIXELATE` (`privacy_blur.py`) | True | strict privacy: lightly pixelate the whole snapshot except the ACs |
+| `BACKGROUND_PIXELATE` (`privacy_blur.py`) | False | optional strict privacy: lightly pixelate the whole snapshot except the ACs |

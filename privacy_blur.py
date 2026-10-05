@@ -10,9 +10,7 @@ KEYBOARD = 66
 CELL_PHONE = 67
 BLUR_CLASSES = [PERSON, TV_MONITOR, LAPTOP, KEYBOARD, CELL_PHONE]
 
-# Detection for blurring is deliberately MORE sensitive than for counting:
-# blurring a chair by mistake is fine, missing a screen is not.
-DETECT_CONF = 0.15     # low = blur more
+DETECT_CONF = 0.25     # lower = blur more (but more false boxes)
 DETECT_IMGSZ = 1280    # high resolution catches small/far screens (snapshots are rare, so speed is fine)
 
 # Fixed areas to ALWAYS blur (x1, y1, x2, y2) in full-resolution pixels.
@@ -22,11 +20,10 @@ FIXED_ZONES = []
 PADDING = 15        # box ke charon taraf thoda extra blur
 BLOCKS_ACROSS = 8   # jitna kam number, utna strong blur
 
-# STRICT PRIVACY: after the strong blur above, pixelate the WHOLE picture lightly
-# so text on any screen/whiteboard/paper the AI missed is unreadable. The room
-# layout stays visible (enough to see it is empty) and the AC units stay sharp
-# so the receiver can see the AC is on.
-BACKGROUND_PIXELATE = True
+# OPTIONAL strict privacy: also pixelate the WHOLE picture lightly so text on any
+# screen/whiteboard the AI missed is unreadable (AC units stay sharp). Off by
+# default because the snapshot becomes hard to read; use FIXED_ZONES instead.
+BACKGROUND_PIXELATE = False
 BACKGROUND_BLOCKS_ACROSS = 96   # lower = blurrier picture
 KEEP_AC_SHARP = True
 AC_SHARP_PADDING = 40
@@ -63,14 +60,28 @@ def _ac_zones(frame):
     return zones
 
 
+def _mostly_inside_ac(x1, y1, x2, y2, ac_zones, ratio=0.5):
+    area = max(1, (x2 - x1) * (y2 - y1))
+    for (ax1, ay1, ax2, ay2) in ac_zones:
+        ix = max(0, min(x2, ax2) - max(x1, ax1))
+        iy = max(0, min(y2, ay2) - max(y1, ay1))
+        if ix * iy / area >= ratio:
+            return True
+    return False
+
+
 def anonymize(frame, model, conf=None):
     """Returns a COPY of the frame with people, screens, keyboards, phones and
-    fixed zones strongly blurred, and (strict mode) everything else lightly
-    pixelated except the AC units."""
+    fixed zones blurred. The rest of the room stays clear."""
     out = frame.copy()
     results = model(out, classes=BLUR_CLASSES, conf=conf or DETECT_CONF, imgsz=DETECT_IMGSZ, verbose=False)
-    for box in results[0].boxes.xyxy.tolist():
+    ac_zones = _ac_zones(out)
+    for box, cls in zip(results[0].boxes.xyxy.tolist(), results[0].boxes.cls.tolist()):
         x1, y1, x2, y2 = map(int, box)
+        # The AI sometimes mistakes an AC unit for a TV/monitor. Never blur an AC
+        # because of a non-person box; people are always blurred.
+        if int(cls) != PERSON and _mostly_inside_ac(x1, y1, x2, y2, ac_zones):
+            continue
         _blur_region(out, x1, y1, x2, y2)
     for (x1, y1, x2, y2) in FIXED_ZONES:
         _blur_region(out, x1, y1, x2, y2)
@@ -79,6 +90,6 @@ def anonymize(frame, model, conf=None):
         return out
     final = _pixelate(out, BACKGROUND_BLOCKS_ACROSS)
     if KEEP_AC_SHARP:
-        for (x1, y1, x2, y2) in _ac_zones(out):
+        for (x1, y1, x2, y2) in ac_zones:
             final[y1:y2, x1:x2] = out[y1:y2, x1:x2]   # people over an AC stay strongly blurred
     return final
