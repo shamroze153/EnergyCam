@@ -267,11 +267,6 @@ with st.expander("Detailed Charts (click to expand)", expanded=False):
     fig_ac = px.line(df, x="timestamp", y=["ac1_flag", "ac2_flag"], title="1 = ON, 0 = OFF")
     st.plotly_chart(fig_ac, use_container_width=True)
 
-    st.subheader("Phone Usage Per Day")
-    phone_by_day = df.groupby([df["timestamp"].dt.date, "room_name"])["phone_count"].sum().reset_index()
-    phone_by_day.columns = ["date", "room_name", "phone_count"]
-    fig3 = px.bar(phone_by_day, x="date", y="phone_count", color="room_name", barmode="group")
-    st.plotly_chart(fig3, use_container_width=True)
 
 with st.expander("Raw Data & Export", expanded=False):
     st.dataframe(df.sort_values("timestamp", ascending=False).head(100), use_container_width=True)
