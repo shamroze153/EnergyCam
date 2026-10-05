@@ -1,6 +1,6 @@
-streamlit
-streamlit-autorefresh
-plotly
-pandas
-psycopg2-binary
-python-dotenv
+streamlit==1.65.0
+streamlit-autorefresh==1.0.1
+plotly==7.1.0
+pandas==3.0.6
+psycopg2-binary==2.9.13
+python-dotenv==1.2.4
