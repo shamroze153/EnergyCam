@@ -23,7 +23,7 @@ from ultralytics import YOLO
 from ac_config import AC_UNITS, NIGHT_BRIGHTNESS_MAX, NIGHT_CHANNEL_DIFF_MAX, check_ac_status, detect_light_mode
 
 FRAMES = 20
-PRESENCE_CONF = 0.25   # YOLO default: what unified_system uses for "someone is there"
+PRESENCE_CONF = 0.5    # PRESENCE_CONFIDENCE in unified_system: makes the room OCCUPIED
 COUNT_CONF = 0.5       # COUNT_CONFIDENCE in unified_system: what gets counted as People
 
 

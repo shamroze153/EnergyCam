@@ -69,6 +69,10 @@ DARK_FRAME_STD_THRESHOLD = 1.5
 MAX_CONSECUTIVE_BAD_FRAMES = 15
 NO_FRAME_TIMEOUT_SECONDS = 8
 COUNT_CONFIDENCE = 0.5
+# A person must be at least this confident for the room to count as OCCUPIED.
+# Lower (e.g. 0.35) if real people are missed at night; raise if chairs/
+# reflections still make an empty room OCCUPIED.
+PRESENCE_CONFIDENCE = 0.5
 
 ac1_history = deque(maxlen=AC_HISTORY_LEN)
 ac2_history = deque(maxlen=AC_HISTORY_LEN)
@@ -413,16 +417,17 @@ def main():
         light_mode = smoothed_light_mode(frame)
 
         try:
-            # Persons only. Presence stays sensitive (any detection counts).
+            # Persons only. Presence uses PRESENCE_CONFIDENCE (see top of file).
             # NOTE: night (IR) accuracy must be verified in testing with lights off.
             results = model(frame, classes=[0], imgsz=640, verbose=False)
             boxes = results[0].boxes
             class_ids = boxes.cls.tolist() if len(boxes) > 0 else []
             confs = boxes.conf.tolist() if len(boxes) > 0 else []
-            # Presence: any person detection (sensitive, so real people aren't missed)
-            person_present_raw = 0.0 in class_ids
             # Counting: only confident detections (avoids chairs/reflections being counted)
             person_count = sum(1 for c, cf in zip(class_ids, confs) if c == 0.0 and cf >= COUNT_CONFIDENCE)
+            # Presence: only confident detections, so low-confidence ghosts (chairs,
+            # reflections) don't keep an empty room OCCUPIED and block the alert
+            person_present_raw = any(c == 0.0 and cf >= PRESENCE_CONFIDENCE for c, cf in zip(class_ids, confs))
             person_present = smoothed_status(person_history, person_present_raw, 4)
             room_empty = not person_present
 
