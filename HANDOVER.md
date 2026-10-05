@@ -49,7 +49,7 @@ flowchart LR
 
 | Control | How |
 |---|---|
-| Blurring | People, TV/monitors, laptops, keyboards and phones are strongly pixelated before any snapshot is emailed (sensitive detection at high resolution, so small/far screens are caught). **Strict mode:** the rest of the picture is also lightly pixelated, so text on any screen, whiteboard or paper the AI misses is unreadable; only the AC units stay sharp. Extra fixed areas can be added (`zone_picker.py` → `FIXED_ZONES` in `privacy_blur.py`). If blurring fails, the email is sent **without** an image. |
+| Blurring | People, TV/monitors, laptops, keyboards and phones are pixelated before any snapshot is emailed (detection at high resolution, so small/far screens are caught); the rest of the room stays clear so the empty room and AC are visible. Optional strict mode (`BACKGROUND_PIXELATE`) also lightly pixelates the whole picture except the ACs. Extra fixed areas can be added (`zone_picker.py` → `FIXED_ZONES` in `privacy_blur.py`). If blurring fails, the email is sent **without** an image. |
 | No identity | No face recognition and no identification of any person. Only a head-count. |
 | No phone tracking | Phone detection and the phone count were removed from detection and logging. |
 | No stored footage | Frames live only in memory. Nothing is written to disk. |
