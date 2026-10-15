@@ -13,6 +13,16 @@ AC1_KW = 1.2
 AC2_KW = 1.2
 UNIT_RATE = 55
 CO2_FACTOR_KG_PER_KWH = 0.45
+RED_AFTER_MINUTES = 30       # empty + AC on: Amber until this, then Red
+OFFLINE_AFTER_MINUTES = 3    # camera system logs every 30 s; no row for this long = Offline
+
+# Exception view: Red first, Offline next (needs a check), then Amber, Green last
+LEVELS = {
+    "RED":     {"label": "Red",     "text": "Empty, AC on {mins} min", "bg": "#FCEBEB", "fg": "#A32D2D", "order": 0},
+    "OFFLINE": {"label": "Offline", "text": "No data {mins} min",      "bg": "#EDEDED", "fg": "#555555", "order": 1},
+    "AMBER":   {"label": "Amber",   "text": "Empty, AC on {mins} min", "bg": "#FAEEDA", "fg": "#854F0B", "order": 2},
+    "GREEN":   {"label": "Green",   "text": "{green}",                 "bg": "#EAF3DE", "fg": "#3B6D11", "order": 3},
+}
 
 try:
     DATABASE_URL = st.secrets["DATABASE_URL"]
@@ -74,7 +84,17 @@ def get_room_metrics(df_all, room_name, ac1_kw, ac2_kw, unit_rate):
     if pd.isna(person_count_val):
         person_count_val = 0
 
+    stale_minutes = (pd.Timestamp.now(tz="Asia/Karachi").tz_localize(None) - latest["timestamp"]).total_seconds() / 60
+    if stale_minutes >= OFFLINE_AFTER_MINUTES:
+        level = "OFFLINE"
+    elif is_waste:
+        level = "RED" if current_waste_seconds >= RED_AFTER_MINUTES * 60 else "AMBER"
+    else:
+        level = "GREEN"
+
     return {
+        "level": level,
+        "stale_minutes": stale_minutes,
         "is_waste": is_waste,
         "room_status": latest["room_status"],
         "ac1_status": latest["ac1_status"],
@@ -98,15 +118,11 @@ def render_room_card(room_name, m, ac1_kw, ac2_kw, unit_rate):
     rate_per_sec = (active_kw * unit_rate) / 3600
     seconds = int(m["current_waste_seconds"])
 
-    if is_waste:
-        pill_text = "Empty, AC on"
-        pill_bg, pill_color = "#FCEBEB", "#A32D2D"
-    elif m["room_status"] == "OCCUPIED":
-        pill_text = "Occupied"
-        pill_bg, pill_color = "#EAF3DE", "#3B6D11"
-    else:
-        pill_text = "Empty, AC off"
-        pill_bg, pill_color = "#FAEEDA", "#854F0B"
+    lv = LEVELS[m["level"]]
+    mins = int(m["stale_minutes"] if m["level"] == "OFFLINE" else seconds // 60)
+    green = "Occupied" if m["room_status"] == "OCCUPIED" else "Empty, AC off"
+    pill_text = lv["text"].format(mins=mins, green=green)
+    pill_bg, pill_color = lv["bg"], lv["fg"]
 
     last_updated_str = m["last_updated"].strftime("%H:%M:%S")
 
@@ -130,7 +146,7 @@ def render_room_card(room_name, m, ac1_kw, ac2_kw, unit_rate):
         compare_html = ""
 
     html = f"""
-    <div id="card-{room_name}" style="font-family: -apple-system, 'Segoe UI', sans-serif; background: #fff; border-radius: 14px; border: 1px solid #e8e8e8; box-shadow: 0 2px 10px rgba(0,0,0,0.05); padding: 1.25rem; max-width: 420px;">
+    <div id="card-{room_name}" style="font-family: -apple-system, 'Segoe UI', sans-serif; background: #fff; border-radius: 14px; border: 1px solid #e8e8e8; border-top: 5px solid {pill_color}; box-shadow: 0 2px 10px rgba(0,0,0,0.05); padding: 1.25rem; max-width: 420px;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
         <p style="font-weight: 700; font-size: 17px; margin: 0; color:#1a1a1a;">{room_name}</p>
         <span style="background: {pill_bg}; color: {pill_color}; font-size: 12px; font-weight: 600; padding: 4px 11px; border-radius: 20px;">{pill_text}</span>
@@ -176,7 +192,7 @@ def render_room_card(room_name, m, ac1_kw, ac2_kw, unit_rate):
     (function() {{
       let seconds = {seconds};
       const rate = {rate_per_sec};
-      const isWaste = {str(is_waste).lower()};
+      const isWaste = {str(is_waste and m["level"] != "OFFLINE").lower()};   // no live ticking without fresh data
       function fmt(s) {{
         const h = String(Math.floor(s/3600)).padStart(2,'0');
         const m = String(Math.floor((s%3600)/60)).padStart(2,'0');
@@ -213,11 +229,25 @@ if len(df_all) == 0:
 
 st.subheader("Live Status")
 rooms = sorted(df_all["room_name"].unique().tolist())
-live_cols = st.columns(len(rooms))
-for i, room_name in enumerate(rooms):
-    with live_cols[i]:
-        metrics = get_room_metrics(df_all, room_name, AC1_KW, AC2_KW, UNIT_RATE)
-        render_room_card(room_name, metrics, AC1_KW, AC2_KW, UNIT_RATE)
+room_metrics = {r: get_room_metrics(df_all, r, AC1_KW, AC2_KW, UNIT_RATE) for r in rooms}
+
+counts = {k: sum(1 for m in room_metrics.values() if m["level"] == k) for k in LEVELS}
+chips = "".join(
+    f'<span style="background:{LEVELS[k]["bg"]}; color:{LEVELS[k]["fg"]}; font-weight:700; font-size:15px; '
+    f'padding:8px 16px; border-radius:20px; margin-right:8px;">{LEVELS[k]["label"]}: {counts[k]}</span>'
+    for k in ("RED", "AMBER", "GREEN", "OFFLINE") if k != "OFFLINE" or counts[k]
+)
+st.markdown(f'<div style="margin: 4px 0 6px;">{chips}</div>', unsafe_allow_html=True)
+st.caption(f"Green: room in use or AC off · Amber: empty with AC on · Red: empty with AC on for {RED_AFTER_MINUTES}+ min · "
+           f"Offline: no data for {OFFLINE_AFTER_MINUTES}+ min")
+
+# exception-first: rooms that need action come first, three cards per row
+ordered = sorted(rooms, key=lambda r: (LEVELS[room_metrics[r]["level"]]["order"], -room_metrics[r]["current_waste_seconds"], r))
+for row_start in range(0, len(ordered), 3):
+    live_cols = st.columns(3)
+    for col, room_name in zip(live_cols, ordered[row_start:row_start + 3]):
+        with col:
+            render_room_card(room_name, room_metrics[room_name], AC1_KW, AC2_KW, UNIT_RATE)
 
 st.divider()
 
