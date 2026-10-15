@@ -33,11 +33,18 @@ except Exception:
 DB_SSLMODE = os.getenv("DB_SSLMODE", "require")   # encrypted connection
 
 
+LOAD_DAYS = 62   # enough for "this month vs last month"; keeps each refresh light
+
+
 @st.cache_data(ttl=5)
 def load_data():
-    conn = psycopg2.connect(DATABASE_URL, sslmode=DB_SSLMODE)
-    df = pd.read_sql_query("SELECT * FROM logs ORDER BY timestamp", conn)
-    conn.close()
+    # connect_timeout: fail with a visible error instead of hanging the app forever
+    conn = psycopg2.connect(DATABASE_URL, sslmode=DB_SSLMODE, connect_timeout=10)
+    try:
+        df = pd.read_sql_query(
+            f"SELECT * FROM logs WHERE timestamp >= now() - interval '{LOAD_DAYS} days' ORDER BY timestamp", conn)
+    finally:
+        conn.close()
     # DB stores timestamptz (UTC); show everything in Pakistan time (PKT)
     df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True).dt.tz_convert("Asia/Karachi").dt.tz_localize(None)
     return df
@@ -214,7 +221,12 @@ def render_room_card(room_name, m, ac1_kw, ac2_kw, unit_rate):
     components.html(html, height=470 if compare_html else 370)
 
 
-df_all = load_data()
+try:
+    df_all = load_data()
+except Exception as e:
+    st.error(f"Database se connect nahi ho saka: {type(e).__name__}. Supabase project 'Healthy' hai aur "
+             "Streamlit secret DATABASE_URL (Session pooler URL) sahi hai, yeh check karein.")
+    st.stop()
 
 st.markdown("""
 <div style="background: linear-gradient(90deg, #1a3c34, #2d5a4f); border-radius: 14px; padding: 24px 30px; margin-bottom: 8px;">
