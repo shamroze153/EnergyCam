@@ -22,7 +22,7 @@ flowchart LR
         CAM["CCTV camera<br/>(RTSP)"] -->|"video stream, LAN only"| PC["HFM computer<br/>unified_system.py"]
         PC --> AI["Person detection +<br/>AC LED/flap check"]
         AI --> BLUR["Blur people, screens,<br/>laptops, phones"]
-        WD["watchdog.py"]
+        WD["heartbeat_watchdog.py"]
     end
     BLUR -->|"alert email + blurred snapshot<br/>(TLS, port 465)"| GMAIL["Gmail"]
     AI -->|"text-only log rows<br/>(TLS)"| DB[("Supabase Postgres<br/>logs, heartbeat")]
@@ -98,7 +98,7 @@ Start it at boot with **Task Scheduler**:
    *Start in*: `C:\hfm_energy_project`.
 5. Settings: untick *Stop the task if it runs longer than…*.
 
-Repeat for the watchdog with a `run_watchdog.bat` that runs `python watchdog.py`.
+Repeat for the watchdog with a `run_heartbeat_watchdog.bat` that runs `python heartbeat_watchdog.py`.
 
 ### Linux (systemd example)
 `/etc/systemd/system/hfm.service`:
@@ -118,13 +118,13 @@ RestartSec=5
 [Install]
 WantedBy=multi-user.target
 ```
-Create `hfm-watchdog.service` the same way with `watchdog.py`, then:
+Create `hfm-watchdog.service` the same way with `heartbeat_watchdog.py`, then:
 `sudo systemctl enable --now hfm hfm-watchdog`.
 `.env` must be in `WorkingDirectory` and readable only by the `hfm` user
 (`chmod 600 .env`).
 
 ### Watchdog
-`watchdog.py` checks every 30 minutes that the main program wrote a
+`heartbeat_watchdog.py` checks every 30 minutes that the main program wrote a
 heartbeat in the last 2 hours, and emails "WARNING: HFM System Down" if not.
 **Best practice:** run the watchdog on a *different* machine than the main
 program, so it can still alert you if the HFM computer itself is off.
