@@ -59,6 +59,17 @@ All times on the dashboard are Pakistan time (PKT).
 - `.github/workflows/keepalive.yml` - pings Supabase every 3 days so the free
   project is not auto-paused (needs the `DATABASE_URL` GitHub secret)
 
+## Dashboard room colours (top of `dashboard.py`)
+
+| Colour | Meaning |
+|---|---|
+| Green | room in use, or AC off |
+| Amber | room empty, AC on, less than `RED_AFTER_MINUTES` (30) |
+| Red | room empty, AC on for 30+ minutes |
+| Offline | no data from that room for `OFFLINE_AFTER_MINUTES` (3) - check the camera system |
+
+Rooms needing action are listed first.
+
 ## Main settings (top of `unified_system.py`)
 
 | Setting | Default | Meaning |
