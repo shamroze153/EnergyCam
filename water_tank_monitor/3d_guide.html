@@ -176,6 +176,14 @@ header p { margin: 0; color: var(--muted); font-size: 0.9rem; }
   background: var(--brass); color: var(--ink); display: grid; place-items: center; }
 .bar button:focus-visible, .chapters button:focus-visible, #seek:focus-visible { outline: 2px solid var(--water); outline-offset: 3px; }
 .bar button svg { width: 18px; height: 18px; fill: currentColor; }
+.bar button.sec { background: var(--panel); color: var(--text); border: 1px solid var(--line); }
+.bar button.sec.off { color: var(--muted); }
+#start { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 1.2cqw;
+  border: 0; cursor: pointer; background: var(--brass); color: var(--ink); border-radius: 999px; padding: 1.1cqw 2.4cqw 1.1cqw 1.2cqw;
+  font: 800 max(13px, 2.2cqw)/1 var(--f-display); box-shadow: 0 1.5cqw 4cqw rgba(0,0,0,.45); }
+#start .ic { width: max(30px, 4.4cqw); height: max(30px, 4.4cqw); border-radius: 50%; background: var(--ink); color: var(--brass); display: grid; place-items: center; }
+#start svg { width: 45%; height: 45%; fill: currentColor; margin-left: 8%; }
+#start:focus-visible { outline: 3px solid var(--water); outline-offset: 4px; }
 #seek { flex: 1; min-width: 0; accent-color: var(--brass); }
 #time { flex: none; font: 600 0.85rem/1 var(--f-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
 .chapters { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -227,11 +235,14 @@ body.rec .stage { width: 1280px; height: 720px; aspect-ratio: auto; border-radiu
     <div id="caption" hidden></div>
     <div id="fade"></div>
     <div id="loading">3D load ho raha hai…</div>
+    <button id="start" type="button" hidden><span class="ic"><svg viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z"/></svg></span><span>Awaaz ke saath dekhein</span></button>
   </div>
 
+  <audio id="snd" src="guide_audio.mp3" preload="auto"></audio>
   <div class="controls">
     <div class="bar">
       <button id="play" type="button" aria-label="Play"><svg viewBox="0 0 24 24" id="playIcon"><path d="M7 4l13 8-13 8z"/></svg></button>
+      <button id="mute" type="button" aria-label="Awaaz band karein" class="sec"><svg viewBox="0 0 24 24" id="muteIcon"><path d="M4 9h4l5-4v14l-5-4H4zM16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" stroke="currentColor" stroke-width="2" fill="none"/><path d="M4 9h4l5-4v14l-5-4H4z"/></svg></button>
       <input id="seek" type="range" min="0" max="176" step="0.01" value="0" aria-label="Video position">
       <span id="time">0:00 / 2:56</span>
     </div>
@@ -354,7 +365,7 @@ const CHECK = [
 // ---------- renderer ----------
 const canvas = $('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: RECORD });
-renderer.setPixelRatio(RECORD ? 1.5 : Math.min(window.devicePixelRatio || 1, 2));
+renderer.setPixelRatio(RECORD ? (window.devicePixelRatio || 1) : Math.min(window.devicePixelRatio || 1, 2));
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 renderer.shadowMap.enabled = true;
@@ -1137,14 +1148,33 @@ const playBtn = $('play'), seek = $('seek'), timeEl = $('time'), chapBox = $('ch
 const fmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 chapBox.innerHTML = CHAPTERS.map((c, i) => `<button type="button" data-t="${c.t}"><b>${fmt(c.t)}</b>${c.name}</button>`).join('');
 const chapBtns = [...chapBox.children];
+const snd = $('snd'), muteBtn = $('mute');
+let soundOn = true, sndOk = true;
+snd.addEventListener('error', () => { sndOk = false; muteBtn.hidden = true; });
+function syncSound(force) {
+  if (RECORD || !sndOk) return;
+  if (playing && soundOn) {
+    if (force || Math.abs(snd.currentTime - T) > .3) { try { snd.currentTime = T; } catch (e) {} }
+    if (snd.paused) snd.play().catch(() => {});
+  } else if (!snd.paused) snd.pause();
+}
+muteBtn.addEventListener('click', () => {
+  soundOn = !soundOn; muteBtn.classList.toggle('off', !soundOn);
+  muteBtn.setAttribute('aria-label', soundOn ? 'Awaaz band karein' : 'Awaaz chalayein');
+  $('muteIcon').innerHTML = soundOn
+    ? '<path d="M4 9h4l5-4v14l-5-4H4zM16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" stroke="currentColor" stroke-width="2" fill="none"/><path d="M4 9h4l5-4v14l-5-4H4z"/>'
+    : '<path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9l5 6M21 9l-5 6" stroke="currentColor" stroke-width="2"/>';
+  syncSound(true);
+});
 function setPlaying(p) {
-  playing = p; lastNow = performance.now();
+  playing = p; lastNow = performance.now(); $('start').hidden = true; syncSound(true);
   playBtn.setAttribute('aria-label', p ? 'Pause' : 'Play');
   $('playIcon').innerHTML = p ? '<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>' : '<path d="M7 4l13 8-13 8z"/>';
 }
 playBtn.addEventListener('click', () => { if (!playing && T >= DURATION - .05) T = 0; setPlaying(!playing); needs = true; });
-seek.addEventListener('input', () => { T = +seek.value; needs = true; });
-chapBtns.forEach(b => b.addEventListener('click', () => { T = +b.dataset.t + .01; needs = true; if (!playing) setPlaying(true); }));
+seek.addEventListener('input', () => { T = +seek.value; needs = true; syncSound(true); });
+chapBtns.forEach(b => b.addEventListener('click', () => { T = +b.dataset.t + .01; needs = true; if (!playing) setPlaying(true); else syncSound(true); }));
+$('start').addEventListener('click', () => { T = 0; needs = true; setPlaying(true); });
 function syncUI() {
   seek.value = T.toFixed(2); timeEl.textContent = `${fmt(T)} / ${fmt(DURATION)}`;
   const chi = CHAPTERS.reduce((a, c, i) => (T >= c.t ? i : a), 0);
@@ -1153,6 +1183,7 @@ function syncUI() {
 function loop(now) {
   if (playing) { T += Math.min(.1, (now - lastNow) / 1000); lastNow = now; if (T >= DURATION) { T = DURATION - .001; setPlaying(false); } needs = true; }
   if (needs) { renderAt(T); syncUI(); needs = false; }
+  if (playing) syncSound(false);
   requestAnimationFrame(loop);
 }
 
@@ -1164,9 +1195,8 @@ async function start() {
   if (RECORD) {
     window.renderAt = renderAt; renderAt(0); window.__ready = true;
   } else {
-    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (reduce) T = 96;
-    setPlaying(!reduce);
+    // open paused on the title frame; the big button starts playback with sound (browsers need a click for audio)
+    T = 4; setPlaying(false); $('start').hidden = false;
     requestAnimationFrame(loop);
   }
 }
