@@ -3,19 +3,30 @@
 // The ESP32 serves a web page with every tank's level: open http://<ESP32 IP>/
 // on any phone, PC or TV connected to the same WiFi. No server, app or internet.
 //
-// Arduino IDE + "esp32" board package (by Espressif). No extra libraries needed.
-// Board: "ESP32 Dev Module". See README.md for wiring.
+// Also runs on a NodeMCU (ESP8266) for a 1-sensor prototype: pick the board in
+// Arduino IDE and the right pins and libraries are used automatically.
+//
+// Arduino IDE + "esp32" (Espressif) or "esp8266" (ESP8266 Community) board package.
+// No extra libraries needed. Board: "ESP32 Dev Module" or "NodeMCU 1.0 (ESP-12E Module)".
+// See README.md for wiring.
 
+#ifdef ESP8266
+#include <ESP8266WiFi.h>
+#include <ESP8266WebServer.h>
+#include <ESP8266mDNS.h>
+typedef ESP8266WebServer WebServer;
+#else
 #include <WiFi.h>
 #include <WebServer.h>
 #include <ESPmDNS.h>
+#endif
 #include "page.h"
 
 // ---------------- 1. WiFi (change these) ----------------
 const char* WIFI_NAME     = "Office_WiFi";
 const char* WIFI_PASSWORD = "wifi_password";
 
-// If office WiFi is not reachable, the ESP32 makes its own WiFi network.
+// If office WiFi is not reachable, the board makes its own WiFi network.
 // Connect a phone to it and open http://192.168.4.1/
 const char* OWN_WIFI_NAME     = "Tank-Monitor";
 const char* OWN_WIFI_PASSWORD = "12345678";  // at least 8 characters
@@ -35,6 +46,13 @@ struct Tank {
   int percent;  // filled in by the code, -1 = no reading (sensor/wiring problem)
 };
 
+#ifdef ESP8266
+// NodeMCU prototype: one sensor. Trig on D1, Echo (through the 1k/2k resistors) on D2.
+Tank tanks[] = {
+  // name           TRIG ECHO emptyCm fullCm liters
+  {"Test Tank",     D1,  D2,  150,    30,    1000},
+};
+#else
 Tank tanks[] = {
   // name           TRIG ECHO emptyCm fullCm liters
   {"Overhead 1",    13,  34,  150,    30,    1000},
@@ -45,6 +63,7 @@ Tank tanks[] = {
   {"Overhead 6",    27,  33,  150,    30,    1000},
   {"Underground",    4,  25,  250,    30,    10000},
 };
+#endif
 const int TANK_COUNT = sizeof(tanks) / sizeof(tanks[0]);
 
 const unsigned long READ_EVERY_MS = 1000;  // one tank per second, all 7 in ~7 s
@@ -135,6 +154,9 @@ void setup() {
 
 void loop() {
   server.handleClient();
+#ifdef ESP8266
+  MDNS.update();
+#endif
 
   static unsigned long lastRead = 0;
   static int next = 0;

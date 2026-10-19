@@ -111,6 +111,24 @@ Misal: tank 150 cm gehra hai aur sensor ke 30 cm neeche overflow hai. To:
 {"Overhead 1", 13, 34, 150, 30, 1000},
 ```
 
+## NodeMCU (ESP8266) se 1 sensor ka prototype
+
+Agar aapke paas NodeMCU (ESP8266, board par "ESP-12E" likha hota hai) hai to 1 tank
+ka test bilkul isi code se ho jaayega. Arduino IDE mein board **NodeMCU 1.0
+(ESP-12E Module)** chunein (Boards Manager se "esp8266" package install karein).
+Code khud NodeMCU wale pins le lega.
+
+| Sensor pin | NodeMCU |
+|---|---|
+| 5V | VIN |
+| GND | G |
+| Trig | D1 |
+| Echo | 1k resistor → D2, aur D2 se 2k resistor → G |
+
+- Agar 1k aur 2k nahi hain to **ek hi value ke 3 resistor** lein (jaise teeno 1k ya
+  teeno 10k): 1 resistor Echo se D2 tak, aur 2 resistor series mein D2 se G tak.
+- NodeMCU ke pins ESP32 se kam hain, is liye saare 7 tanks ke liye ESP32 hi lein.
+
 ## 6. Masle aur hal
 
 | Masla | Hal |
