@@ -160,13 +160,17 @@ header p { margin: 0; color: var(--muted); font-size: 0.9rem; }
 #end p { margin: 0 0 0.6cqw; font: 600 max(10px, 1.6cqw)/1.4 var(--f-body); text-shadow: 0 0.2cqw 1.2cqw rgba(0,0,0,.7); }
 #end code { font: 700 max(9px, 1.4cqw)/1 var(--f-mono); color: var(--ink); background: var(--brass); padding: 0.3cqw 0.6cqw; border-radius: 0.4cqw; }
 
-#brandEnd { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 1.2cqw;
-  background: radial-gradient(60% 60% at 50% 50%, rgba(7,17,20,.82), rgba(4,10,12,.96)); }
-#brandEnd .glow { position: absolute; left: 50%; top: 50%; width: 46cqw; height: 46cqw; transform: translate(-50%, -50%);
-  background: radial-gradient(circle, rgba(67,184,234,.28), transparent 65%); }
-#brandEnd .mark { position: relative; display: flex; gap: 1.6cqw; align-items: baseline; font: 800 max(28px, 9cqw)/1 var(--f-display); color: #fff; }
-#brandEnd .m2 { color: var(--ink); background: var(--brass); padding: 0 1.6cqw; border-radius: 1.4cqw; }
-#brandEnd .sub { position: relative; font: 700 max(10px, 1.8cqw)/1 var(--f-mono); letter-spacing: .2em; text-transform: uppercase; color: var(--water); }
+#brandEnd { --mint: #45d099; --deep: #0b1a16; --gold: #f2b84b;
+  position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 1.4cqw;
+  background: radial-gradient(60% 60% at 50% 45%, rgba(11,26,22,.86), rgba(5,12,10,.97)); }
+#brandEnd .glow { position: absolute; left: 50%; top: 45%; width: 52cqw; height: 52cqw; transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(69,208,153,.30), transparent 65%); }
+#brandEnd .logo { position: relative; width: 14cqw; height: 14cqw; border-radius: 2.6cqw; box-shadow: 0 1.6cqw 4cqw rgba(0,0,0,.5), 0 0 0 0.3cqw rgba(255,255,255,.08); }
+#brandEnd .mark { position: relative; display: flex; gap: 1.6cqw; align-items: baseline; font: 800 max(28px, 7.6cqw)/1 var(--f-display); color: #fff; }
+#brandEnd .m2 { color: var(--deep); background: var(--mint); padding: 0 1.4cqw; border-radius: 1.2cqw; }
+#brandEnd .sub { position: relative; font: 700 max(10px, 1.7cqw)/1 var(--f-mono); letter-spacing: .2em; text-transform: uppercase; color: var(--gold); }
+#brandEnd .cta { position: relative; margin-top: 1cqw; font: 700 max(10px, 1.5cqw)/1 var(--f-display); color: #fff; background: rgba(69,208,153,.16);
+  border: 1px solid rgba(69,208,153,.5); padding: 0.8cqw 1.8cqw; border-radius: 999px; }
 #brandEnd span { display: inline-block; }
 #loading { position: absolute; inset: 0; display: grid; place-items: center; font: 700 max(11px, 1.6cqw)/1 var(--f-mono); color: var(--muted); background: #061013; }
 
@@ -231,7 +235,7 @@ body.rec .stage { width: 1280px; height: 720px; aspect-ratio: auto; border-radiu
       <p>Code aur poori guide: <code>water_tank_monitor/README.md</code></p>
       <p>Share karein, taake kisi aur ki tanki bhi khaali na rahe.</p>
     </div>
-    <div id="brandEnd" hidden><div class="glow"></div><div class="mark"><span class="m1">Mimar</span><span class="m2">AI</span></div><div class="sub">ki pesh-kash</div></div>
+    <div id="brandEnd" hidden><div class="glow"></div><img class="logo" alt="" hidden><div class="mark"><span class="m1">Mimar</span><span class="m2">AI</span></div><div class="sub">ki pesh-kash</div><div class="cta">Like · Share · Follow</div></div>
     <div id="caption" hidden></div>
     <div id="fade"></div>
     <div id="loading">3D load ho raha hai…</div>
@@ -278,7 +282,7 @@ const WIRE0 = 62, SLOT = 5.5, WIRE_END = WIRE0 + 8 * SLOT, SHIFT = 18;
 const storyTime = T => T < WIRE0 ? T : T < WIRE_END ? WIRE0 + (T - WIRE0) * 26 / (8 * SLOT) : T < WIRE_END + 4 ? 88 + (T - WIRE_END) : T - SHIFT;
 const BRAND = location.search.includes('brand');
 const $ = id => document.getElementById(id);
-if (BRAND) { $('brand').textContent = 'Mimar AI'; document.querySelector('#title .kick').textContent = 'Mimar AI · NodeMCU + Ultrasonic sensor'; }
+if (BRAND) { const lg = document.querySelector('#brandEnd .logo'); lg.src = 'brand/mimar_logo.svg'; lg.hidden = false; $('brand').textContent = 'Mimar AI'; document.querySelector('#title .kick').textContent = 'Mimar AI · NodeMCU + Ultrasonic sensor'; }
 
 // ---------- timing helpers ----------
 const clamp01 = x => Math.min(1, Math.max(0, x));
@@ -924,6 +928,7 @@ const ui = {
   card: $('card'), cardN: $('cardN'), cardName: $('cardName'), cardDesc: $('cardDesc'), cardPrice: $('cardPrice'),
   check: $('check'), checkList: $('checkList'), ide: $('ide'), phone: $('phone'), phoneBody: $('phoneBody'), phoneUpd: $('phoneUpd'),
   end: $('end'), fade: $('fade'), brandEnd: $('brandEnd'), wire: $('wire'),
+  logo: document.querySelector('#brandEnd .logo'), cta: document.querySelector('#brandEnd .cta'),
   m1: document.querySelector('#brandEnd .m1'), m2: document.querySelector('#brandEnd .m2'), bsub: document.querySelector('#brandEnd .sub'), bglow: document.querySelector('#brandEnd .glow'),
 };
 ui.checkList.innerHTML = CHECK.map(([c, s]) => `<li><span class="tick">✓</span><span><i style="background:${c}"></i>${s}</span></li>`).join('');
@@ -1125,7 +1130,10 @@ function renderAt(T) {
   const bo = BRAND ? fadeWin(t, 153.6, 158.5, .5) : 0;
   show(ui.brandEnd, bo);
   if (bo > 0) {
-    const k = easeOut(prog(t, 153.7, 154.6)), k2 = easeOut(prog(t, 154.0, 154.9)), k3 = easeOut(prog(t, 154.5, 155.3));
+    const k0 = prog(t, 153.65, 154.35), pop = k0 < 1 ? easeOut(k0) * (1 + .12 * Math.sin(k0 * Math.PI)) : 1;
+    ui.logo.style.transform = `scale(${.3 + .7 * pop}) rotate(${(1 - easeOut(k0)) * -14}deg)`; ui.logo.style.opacity = easeOut(k0 * 1.4);
+    const k = easeOut(prog(t, 154.1, 154.9)), k2 = easeOut(prog(t, 154.4, 155.2)), k3 = easeOut(prog(t, 154.8, 155.6));
+    const k4 = easeOut(prog(t, 155.3, 156.0)); ui.cta.style.opacity = k4; ui.cta.style.transform = `translateY(${(1 - k4) * 2}cqw)`;
     ui.m1.style.transform = `translateY(${(1 - k) * 4}cqw)`; ui.m1.style.opacity = k;
     ui.m2.style.transform = `scale(${.4 + .6 * k2}) rotate(${(1 - k2) * -12}deg)`; ui.m2.style.opacity = k2;
     ui.bsub.style.opacity = k3; ui.bsub.style.letterSpacing = `${.6 - .4 * k3}em`;
