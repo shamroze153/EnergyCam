@@ -215,12 +215,12 @@ body.rec .stage { width: 1280px; height: 720px; aspect-ratio: auto; border-radiu
     <div class="vignette"></div>
     <div id="labels"></div>
     <div id="title" hidden>
-      <div class="kick">ESP32 + Ultrasonic sensor</div>
+      <div class="kick">NodeMCU + Ultrasonic sensor</div>
       <h2>Pani ki tanki ka level, <span>phone par</span></h2>
-      <p>6 overhead + 1 underground tank. Ek ESP32. Step by step 3D guide.</p>
+      <p>6 overhead + 1 underground tank. Ek chhota sa board. Step by step 3D guide.</p>
     </div>
     <div id="chip" hidden><span class="no" id="chipNo"></span><span class="nm" id="chipName"></span></div>
-    <div id="brand">Tank Monitor · ESP32</div>
+    <div id="brand">Tank Monitor</div>
     <div id="card" hidden><div class="n" id="cardN"></div><h3 id="cardName"></h3><p id="cardDesc"></p><div class="price" id="cardPrice"></div></div>
     <div id="wire" hidden></div>
     <div id="check" hidden><h3>Ek dafa mila lein</h3><ol id="checkList"></ol></div>
@@ -278,7 +278,7 @@ const WIRE0 = 62, SLOT = 5.5, WIRE_END = WIRE0 + 8 * SLOT, SHIFT = 18;
 const storyTime = T => T < WIRE0 ? T : T < WIRE_END ? WIRE0 + (T - WIRE0) * 26 / (8 * SLOT) : T < WIRE_END + 4 ? 88 + (T - WIRE_END) : T - SHIFT;
 const BRAND = location.search.includes('brand');
 const $ = id => document.getElementById(id);
-if (BRAND) { $('brand').textContent = 'Mimar AI'; document.querySelector('#title .kick').textContent = 'Mimar AI · ESP32 + Ultrasonic sensor'; }
+if (BRAND) { $('brand').textContent = 'Mimar AI'; document.querySelector('#title .kick').textContent = 'Mimar AI · NodeMCU + Ultrasonic sensor'; }
 
 // ---------- timing helpers ----------
 const clamp01 = x => Math.min(1, Math.max(0, x));
@@ -302,8 +302,8 @@ const CAPS = [
   [0.4, 4, '6 overhead tanks + 1 underground tank'],
   [4, 7.8, 'Sab ka level <b>ek hi screen</b> par. Chaliye banate hain!'],
   [8.3, 14, 'Pehle saaman dekh lein. Bas ye cheezein chahiye.'],
-  [14, 20, '<b>ESP32 board</b>: system ka dimaagh. WiFi isi mein hai.'],
-  [20, 27, '<b>JSN-SR04T</b>: kaala sensor tank mein, chhota board ESP32 se jurta hai.'],
+  [14, 20, '<b>NodeMCU board</b>: system ka dimaagh. WiFi isi mein hai.'],
+  [20, 27, '<b>JSN-SR04T</b>: kaala sensor tank mein, chhota board NodeMCU se jurta hai.'],
   [27, 32, '<b>Mini breadboard</b>: is par bina soldering ke taar jurte hain.'],
   [32, 38, '<b>Resistors</b>: 1k (brown-black-red) aur 2k (red-black-red).'],
   [38, 44, '<b>Jumper wires</b> female-to-male. USB cable aapke paas hogi.'],
@@ -312,15 +312,15 @@ const CAPS = [
   [52, 57, '<b>1k resistor</b>: C10 se C16 tak lagayein.'],
   [57, 62, '<b>2k resistor</b>: B16 se neeli (–) line tak.'],
   [62, 67, 'Sensor ka <b>5V → laal (+)</b>, <b>GND → neeli (–)</b>.'],
-  [67, 72, 'ESP32 ka <b>VIN → laal (+)</b>, <b>GND → neeli (–)</b>.'],
+  [67, 72, 'NodeMCU ka <b>VIN → laal (+)</b>, <b>GND → neeli (–)</b>.'],
   [72, 76, 'Sensor ka <b>Trig → A26</b>.'],
-  [76, 80, 'ESP32 ka <b>D13 → E26</b>. Ek hi line mein, is liye jur gaye.'],
+  [76, 80, 'NodeMCU ka <b>D1 → E26</b>. Ek hi line mein, is liye jur gaye.'],
   [80, 84, 'Sensor ka <b>Echo → A10</b>.'],
-  [84, 88, 'ESP32 ka <b>D34 → E16</b>.'],
-  [88, 92, 'Dono resistors 5V signal ko <b>3.3V</b> bana dete hain. ESP32 safe!'],
+  [84, 88, 'NodeMCU ka <b>D2 → E16</b>.'],
+  [88, 92, 'Dono resistors 5V signal ko <b>3.3V</b> bana dete hain. NodeMCU safe!'],
   [92, 100, 'Kul <b>8 taar</b> aur <b>2 resistor</b>. Ek dafa mila lein.'],
   [100, 104, 'USB cable lagayein aur <b>Arduino IDE</b> kholein.'],
-  [104, 108, 'WiFi ka naam aur password likhein, phir <b>Upload</b> dabayein.'],
+  [104, 108, 'Board <b>NodeMCU 1.0</b> chunein, WiFi likhein, phir <b>Upload</b>.'],
   [108, 112, 'Serial Monitor mein jo <b>address</b> aaye, wo phone mein kholein.'],
   [112, 118, 'Ab test: sensor ke upar ek <b>kitaab</b> rakhein.'],
   [118, 124, 'Kitaab <b>qareeb</b> = zyada pani. <b>Door</b> = kam pani.'],
@@ -328,18 +328,18 @@ const CAPS = [
   [128.3, 133, 'Ab tank par: dhakkan mein surakh, sensor ka munh <b>neeche</b>.'],
   [133, 138, 'Sensor full pani se <b>kam az kam 25 cm</b> upar ho.'],
   [138, 142, 'Sensor har second pani tak ka <b>faasla</b> naapta hai.'],
-  [142.3, 148, 'Baaqi tanks par bhi yahi. <b>7 sensors, 1 ESP32.</b>'],
+  [142.3, 148, '7 tanks ke liye <b>ESP32</b> lein. Wiring <b>bilkul yahi</b>.'],
   [148, 153.6, 'Aur sab tanks ka level <b>ek screen</b> par. Pasand aaye to <b>share</b> karein!'],
 ];
 const WIRE_CAPS = [
   'Taar 1: Sensor ka <b>5V</b> → <b>laal (+) line</b>',
   'Taar 2: Sensor ka <b>GND</b> → <b>neeli (–) line</b>',
-  'Taar 3: ESP32 ka <b>VIN</b> → <b>laal (+) line</b>',
-  'Taar 4: ESP32 ka <b>GND</b> → <b>neeli (–) line</b>',
+  'Taar 3: NodeMCU ka <b>VIN</b> → <b>laal (+) line</b>',
+  'Taar 4: NodeMCU ka <b>G</b> → <b>neeli (–) line</b>',
   'Taar 5: Sensor ka <b>Trig</b> → <b>A26</b>',
-  'Taar 6: ESP32 ka <b>D13</b> → <b>E26</b> (Trig wali line)',
+  'Taar 6: NodeMCU ka <b>D1</b> → <b>E26</b> (Trig wali line)',
   'Taar 7: Sensor ka <b>Echo</b> → <b>A10</b>',
-  'Taar 8: ESP32 ka <b>D34</b> → <b>E16</b>',
+  'Taar 8: NodeMCU ka <b>D2</b> → <b>E16</b>',
 ];
 const CAPS_T = [
   ...CAPS.filter(c => c[0] < WIRE0),
@@ -348,7 +348,7 @@ const CAPS_T = [
   ...CAPS.filter(c => c[0] >= 92).map(([a, b, x]) => [a + SHIFT, b + SHIFT, x]),
 ];
 const PARTS = [
-  { t0: 14, t1: 20, n: 'Part 1', name: 'ESP32 board', desc: 'DevKit (30 pin). Code isi mein jaata hai aur yahi web page dikhata hai.', price: 'Aapke paas hai' },
+  { t0: 14, t1: 20, n: 'Part 1', name: 'NodeMCU board', desc: 'ESP8266 (ESP-12E). Code isi mein jaata hai aur yahi web page dikhata hai.', price: 'Aapke paas hai' },
   { t0: 20, t1: 27, n: 'Part 2', name: 'JSN-SR04T', desc: 'Waterproof kaala sensor + 2.5 m cable + chhota board (5V, Trig, Echo, GND).', price: 'Rs 1,500 – 2,200' },
   { t0: 27, t1: 32, n: 'Part 3', name: 'Mini breadboard', desc: '400 point. Taar seedha khaanon mein ghus jaate hain.', price: 'Rs 150 – 250' },
   { t0: 32, t1: 38, n: 'Part 4', name: '1k + 2k resistor', desc: '1k: brown, black, red. 2k: red, black, red. (2.2k bhi chalega)', price: 'Rs 20' },
@@ -357,8 +357,8 @@ const PARTS = [
 const CHECK = [
   ['#e5534b', 'Sensor 5V → + line'], ['#2b2b2b', 'Sensor GND → – line'],
   ['#f2c94c', 'Sensor Trig → A26'], ['#35b26b', 'Sensor Echo → A10'],
-  ['#e5534b', 'ESP32 VIN → + line'], ['#2b2b2b', 'ESP32 GND → – line'],
-  ['#f28c28', 'ESP32 D13 → E26'], ['#43b8ea', 'ESP32 D34 → E16'],
+  ['#e5534b', 'NodeMCU VIN → + line'], ['#2b2b2b', 'NodeMCU G → – line'],
+  ['#f28c28', 'NodeMCU D1 → E26'], ['#43b8ea', 'NodeMCU D2 → E16'],
   ['#d8c49a', '1k: C10–C16 · 2k: B16–(–)'],
 ];
 
@@ -501,49 +501,53 @@ const strips = [
 ];
 strips.forEach(s => { s.m.position.copy(s.p); s.m.renderOrder = 4; bench.add(s.m); });
 
-// ESP32 DevKit (pins drawn pointing up so the jumper housings are visible)
+// NodeMCU V3 (ESP8266, ESP-12E), pins drawn pointing up so the jumper housings are visible.
+// Antenna end at -x, USB at +x; the D0..D8 header faces the breadboard.
 const ESP_POS = v3(1.5, 0, 4.6);
-const BACK = ['EN', 'VP', 'VN', 'D34', 'D35', 'D32', 'D33', 'D25', 'D26', 'D27', 'D14', 'D12', 'D13', 'GND', 'VIN'];
-const FRONT = ['D23', 'D22', 'TX0', 'RX0', 'D21', 'D19', 'D18', 'D5', 'TX2', 'RX2', 'D4', 'D2', 'D15', 'GND', '3V3'];
+const BACK = ['D0', 'D1', 'D2', 'D3', 'D4', '3V', 'G', 'D5', 'D6', 'D7', 'D8', 'RX', 'TX', 'G', '3V'];
+const FRONT = ['A0', 'RSV', 'RSV', 'SD3', 'SD2', 'SD1', 'CMD', 'SD0', 'CLK', 'G', '3V', 'EN', 'RST', 'G', 'VIN'];
+const ROW_Z = 1.4;
 const pinX = i => -1.778 + i * 0.254;
-const espPinBase = i => v3(ESP_POS.x + pinX(i), 0.65, ESP_POS.z - 1.15);
+const espPinBase = (i, front) => v3(ESP_POS.x + pinX(i), 0.65, ESP_POS.z + (front ? ROW_Z : -ROW_Z));
 const esp = new THREE.Group(); esp.position.copy(ESP_POS); bench.add(esp);
 let espLed;
 {
-  box(5.2, .16, 2.8, MAT.pcbBlack, esp, 0, .32, 0);
-  for (const z of [-1.15, 1.15]) { box(3.9, .24, .254, MAT.plastic, esp, 0, .12, z); box(3.9, .25, .254, MAT.plastic, esp, 0, .525, z); }
+  box(5.8, .16, 3.1, MAT.pcbBlack, esp, 0, .32, 0);
+  for (const z of [-ROW_Z, ROW_Z]) { box(3.9, .24, .254, MAT.plastic, esp, 0, .12, z); box(3.9, .25, .254, MAT.plastic, esp, 0, .525, z); }
   const pins = new THREE.InstancedMesh(new THREE.BoxGeometry(.064, .6, .064), MAT.gold, 30);
   const dm = new THREE.Matrix4();
-  for (let i = 0; i < 15; i++) { dm.makeTranslation(pinX(i), .95, -1.15); pins.setMatrixAt(i, dm); dm.makeTranslation(pinX(i), .95, 1.15); pins.setMatrixAt(15 + i, dm); }
+  for (let i = 0; i < 15; i++) { dm.makeTranslation(pinX(i), .95, -ROW_Z); pins.setMatrixAt(i, dm); dm.makeTranslation(pinX(i), .95, ROW_Z); pins.setMatrixAt(15 + i, dm); }
   pins.castShadow = true; esp.add(pins);
-  box(2.55, .08, 1.8, MAT.module, esp, -1.3, .44, 0);
-  box(1.75, .3, 1.6, MAT.silver, esp, -1.05, .63, 0);
-  topDecal(1.75, 1.6, canvasTex(700, 640, (g, w, h) => {
+  // ESP-12E module: metal shield + PCB antenna
+  box(2.4, .08, 1.6, MAT.module, esp, -1.65, .44, 0);
+  box(1.7, .28, 1.5, MAT.silver, esp, -1.35, .62, 0);
+  topDecal(1.7, 1.5, canvasTex(680, 600, (g, w, h) => {
     g.fillStyle = 'rgba(40,44,48,.85)'; g.textAlign = 'center';
-    g.font = '800 64px "JetBrains Mono", monospace'; g.fillText('ESP32-WROOM-32', w / 2, h * .42);
-    g.font = '600 40px "JetBrains Mono", monospace'; g.fillText('Wi-Fi  ·  Bluetooth', w / 2, h * .58);
+    g.font = '800 78px "JetBrains Mono", monospace'; g.fillText('ESP8266MOD', w / 2, h * .42);
+    g.font = '600 44px "JetBrains Mono", monospace'; g.fillText('Wi-Fi  ESP-12E', w / 2, h * .6);
     g.strokeStyle = 'rgba(40,44,48,.5)'; g.lineWidth = 6; g.strokeRect(30, 30, w - 60, h - 60);
-  }), esp, .781, -1.05, 0);
-  topDecal(.58, 1.7, canvasTex(116, 340, (g, w, h) => {
+  }), esp, .761, -1.35, 0);
+  topDecal(.6, 1.5, canvasTex(120, 300, (g, w, h) => {
     g.strokeStyle = '#c9a24c'; g.lineWidth = 9; g.beginPath(); g.moveTo(20, 20);
-    for (let k = 0; k < 6; k++) { g.lineTo(w - 20, 20 + k * 52); g.lineTo(w - 20, 46 + k * 52); g.lineTo(20, 46 + k * 52); g.lineTo(20, 72 + k * 52); }
+    for (let k = 0; k < 5; k++) { g.lineTo(w - 20, 20 + k * 52); g.lineTo(w - 20, 46 + k * 52); g.lineTo(20, 46 + k * 52); g.lineTo(20, 72 + k * 52); }
     g.stroke();
-  }), esp, .481, -2.29, 0);
-  box(.62, .28, .78, MAT.silver, esp, 2.42, .54, 0);
-  box(.03, .12, .5, MAT.chip, esp, 2.74, .54, 0);
-  for (const z of [-.55, .55]) { box(.42, .12, .42, MAT.silver, esp, 1.95, .46, z); cyl(.1, .1, .1, MAT.chip, esp, 1.95, .56, z, 16); }
-  box(.5, .08, .5, MAT.chip, esp, .55, .44, 0);
-  box(.65, .16, .35, MAT.chip, esp, 1.2, .48, -.45);
-  box(.65, .03, .2, MAT.silver, esp, 1.2, .42, -.2);
-  for (const [x, z] of [[.1, .5], [.1, -.5], [1.4, .4], [.9, .55]]) box(.14, .08, .08, MAT.tan, esp, x, .44, z);
-  espLed = box(.12, .06, .08, std({ color: 0x5a1010, emissive: 0xff2a2a, emissiveIntensity: 0, roughness: .3 }), esp, 1.55, .43, .05);
-  topDecal(5.2, 2.8, canvasTex(1560, 840, (g, w, h) => {
-    const s = w / 5.2; g.fillStyle = '#e9e9e9'; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.font = `700 ${0.085 * s}px "JetBrains Mono", monospace`;
-    BACK.forEach((n, i) => g.fillText(n, w / 2 + pinX(i) * s, h / 2 - 0.95 * s));
-    FRONT.forEach((n, i) => g.fillText(n, w / 2 + pinX(i) * s, h / 2 + 0.95 * s));
-    g.font = `800 ${0.13 * s}px "JetBrains Mono", monospace`; g.fillText('DEVKIT V1', w / 2 + 1.0 * s, h / 2 + .62 * s);
-    g.font = `700 ${0.09 * s}px "JetBrains Mono", monospace`; g.fillText('EN', w / 2 + 1.95 * s, h / 2 - .28 * s); g.fillText('BOOT', w / 2 + 1.95 * s, h / 2 + .28 * s);
+  }), esp, .481, -2.52, 0);
+  espLed = box(.1, .05, .07, std({ color: 0x0a1a4a, emissive: 0x3a7bff, emissiveIntensity: 0, roughness: .3 }), esp, -.55, .5, .62);
+  // USB, CH340 USB chip, regulator, FLASH / RST buttons
+  box(.62, .28, .78, MAT.silver, esp, 2.6, .54, 0);
+  box(.03, .12, .5, MAT.chip, esp, 2.92, .54, 0);
+  box(1.0, .1, .38, MAT.chip, esp, 1.15, .45, .25);
+  box(.65, .16, .35, MAT.chip, esp, 1.15, .48, -.55);
+  box(.65, .03, .2, MAT.silver, esp, 1.15, .42, -.3);
+  for (const z of [-.95, .95]) { box(.4, .12, .4, MAT.silver, esp, 2.3, .46, z); cyl(.1, .1, .1, MAT.chip, esp, 2.3, .56, z, 16); }
+  for (const [x, z] of [[.15, -.55], [.35, .7], [1.85, .3], [1.85, -.35]]) box(.14, .08, .08, MAT.tan, esp, x, .44, z);
+  topDecal(5.8, 3.1, canvasTex(1740, 930, (g, w, h) => {
+    const s = w / 5.8; g.fillStyle = '#e9e9e9'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = `700 ${0.09 * s}px "JetBrains Mono", monospace`;
+    BACK.forEach((n, i) => g.fillText(n, w / 2 + pinX(i) * s, h / 2 - (ROW_Z - .27) * s));
+    FRONT.forEach((n, i) => g.fillText(n, w / 2 + pinX(i) * s, h / 2 + (ROW_Z - .27) * s));
+    g.font = `800 ${0.12 * s}px "JetBrains Mono", monospace`; g.fillText('NodeMCU V3', w / 2 + .2 * s, h / 2 + .62 * s);
+    g.font = `700 ${0.08 * s}px "JetBrains Mono", monospace`; g.fillText('FLASH', w / 2 + 2.3 * s, h / 2 - .62 * s); g.fillText('RST', w / 2 + 2.3 * s, h / 2 + .62 * s);
   }), esp, .402, 0, 0);
 }
 
@@ -622,12 +626,12 @@ function buildJumper(A, B, color) {
 const JUMPERS = [
   { a: hole(3, '+'), b: sensPinBase(0), c: 'red', la: '+ line', lb: 'Sensor 5V', from: 'Sensor 5V' },
   { a: hole(6, '-'), b: sensPinBase(3), c: 'black', la: '– line', lb: 'Sensor GND', from: 'Sensor GND' },
-  { a: hole(29, '+'), b: espPinBase(14), c: 'red', la: '+ line', lb: 'VIN', from: 'ESP32 VIN' },
-  { a: hole(30, '-'), b: espPinBase(13), c: 'black', la: '– line', lb: 'GND', from: 'ESP32 GND' },
+  { a: hole(29, '+'), b: espPinBase(14, true), c: 'red', la: '+ line', lb: 'VIN', from: 'NodeMCU VIN' },
+  { a: hole(30, '-'), b: espPinBase(13), c: 'black', la: '– line', lb: 'G', from: 'NodeMCU G' },
   { a: hole(26, 'a'), b: sensPinBase(1), c: 'yellow', la: 'A26', lb: 'Trig', from: 'Sensor Trig' },
-  { a: hole(26, 'e'), b: espPinBase(12), c: 'orange', la: 'E26', lb: 'D13', from: 'ESP32 D13' },
+  { a: hole(26, 'e'), b: espPinBase(1), c: 'orange', la: 'E26', lb: 'D1', from: 'NodeMCU D1' },
   { a: hole(10, 'a'), b: sensPinBase(2), c: 'green', la: 'A10', lb: 'Echo', from: 'Sensor Echo' },
-  { a: hole(16, 'e'), b: espPinBase(3), c: 'blue', la: 'E16', lb: 'D34', from: 'ESP32 D34' },
+  { a: hole(16, 'e'), b: espPinBase(2), c: 'blue', la: 'E16', lb: 'D2', from: 'NodeMCU D2' },
 ].map(j => Object.assign(j, buildJumper(j.a, j.b, j.c)));
 
 const tipDot = new THREE.Mesh(new THREE.SphereGeometry(.12, 16, 12), glowMat(0xffffff, 1.6)); tipDot.renderOrder = 9; bench.add(tipDot);
@@ -643,8 +647,8 @@ const bundle = new THREE.Group(); bundle.position.set(-6.4, 0, 6.6); bench.add(b
 
 // USB cable
 const usb = new THREE.Group(); bench.add(usb);
-box(.9, .3, .55, std({ color: 0x2a2d31, roughness: .5 }), usb, ESP_POS.x + 3.12, .54, ESP_POS.z);
-const usbCable = tube([v3(ESP_POS.x + 3.55, .54, ESP_POS.z), v3(ESP_POS.x + 5, .3, ESP_POS.z + .3), v3(ESP_POS.x + 7.5, .14, ESP_POS.z + 1.4), v3(ESP_POS.x + 12, .14, ESP_POS.z + 1.2), v3(ESP_POS.x + 20, .14, ESP_POS.z + 3)], .13, std({ color: 0x1d1f22, roughness: .6 }), usb, 80, 10);
+box(.9, .3, .55, std({ color: 0x2a2d31, roughness: .5 }), usb, ESP_POS.x + 3.36, .54, ESP_POS.z);
+const usbCable = tube([v3(ESP_POS.x + 3.8, .54, ESP_POS.z), v3(ESP_POS.x + 5, .3, ESP_POS.z + .3), v3(ESP_POS.x + 7.5, .14, ESP_POS.z + 1.4), v3(ESP_POS.x + 12, .14, ESP_POS.z + 1.2), v3(ESP_POS.x + 20, .14, ESP_POS.z + 3)], .13, std({ color: 0x1d1f22, roughness: .6 }), usb, 80, 10);
 
 // book used in the test
 const book = new THREE.Group(); bench.add(book);
@@ -939,16 +943,16 @@ function ideHTML(t) {
   const lines = [
     [108.5, 'Connecting to WiFi.....'],
     [109.2, 'Open this on phone/PC/TV:  <span class="ip">http://192.168.1.50/</span>'],
-    [109.9, 'Overhead 1     63%'], [110.3, 'Overhead 2     64%'], [110.7, 'Overhead 3     38%'],
+    [109.9, 'Test Tank       63%'], [110.5, 'Test Tank       62%'], [111.1, 'Test Tank       63%'],
   ].filter(([a]) => t >= a).map(([, s]) => `<div>${s}</div>`).join('');
-  return `<div class="bar"><span class="btn">✓</span><span class="btn up${up ? ' hot' : ''}">→</span><span class="board">ESP32 Dev Module ▾</span></div>
+  return `<div class="bar"><span class="btn">✓</span><span class="btn up${up ? ' hot' : ''}">→</span><span class="board">NodeMCU 1.0 (ESP-12E Module) ▾</span></div>
 <div class="tab">water_tank_monitor.ino</div>
 <pre><span class="ln">13</span><span class="c">// 1. WiFi (change these)</span>
 <span class="${t > 104 && t < 106.4 ? 'hl' : ''}"><span class="ln">14</span><span class="k">const char</span>* WIFI_NAME     = <span class="s">${name}</span>${caretName ? '<span class="caret"></span>' : ''};</span>
 <span class="${t > 104 && t < 106.4 ? 'hl' : ''}"><span class="ln">15</span><span class="k">const char</span>* WIFI_PASSWORD = <span class="s">${pass}</span>${caretPass ? '<span class="caret"></span>' : ''};</span>
 <span class="ln">16</span>
-<span class="ln">17</span><span class="c">// 2. Tanks: name, TRIG, ECHO, emptyCm, fullCm, liters</span>
-<span class="ln">18</span>{<span class="s">"Overhead 1"</span>, 13, 34, 150, 30, 1000},</pre>
+<span class="ln">17</span><span class="c">// NodeMCU prototype: name, TRIG, ECHO, emptyCm, fullCm, liters</span>
+<span class="ln">18</span>{<span class="s">"Test Tank"</span>, D1, D2, 150, 30, 1000},</pre>
 <div class="out">${out}</div>
 ${t > 108.3 ? `<div class="serial"><div class="t">Serial Monitor · 115200 baud</div>${lines}</div>` : ''}`;
 }
@@ -1032,7 +1036,7 @@ function renderAt(T) {
       labels.push({ pos: hole(10, 'a').add(v3(0, .4, 0)), html: '10: A–E jure', o, cls: '' }, { pos: hole(23, 'j').add(v3(0, .4, 0)), html: '23: F–J jure', o: fadeWin(t, 45.3, 48.2), cls: '' });
     }
     if (t > 48.2 && t < 52) { const o = fadeWin(t, 48.2, 52); labels.push({ pos: hole(8, '+').add(v3(0, .35, 0)), html: '+ 5V', o, cls: '' }, { pos: hole(22, '-').add(v3(0, .35, 0)), html: '– GND', o, cls: '' }); }
-    if (t > 88 && t < 92) { const o = fadeWin(t, 88, 92); labels.push({ pos: hole(10, 'c').add(v3(0, .9, 0)), html: '5V', o, cls: 'big' }, { pos: hole(16, 'c').add(v3(.3, .9, 0)), html: '3.3V → D34', o, cls: 'big' }); }
+    if (t > 88 && t < 92) { const o = fadeWin(t, 88, 92); labels.push({ pos: hole(10, 'c').add(v3(0, .9, 0)), html: '5V', o, cls: 'big' }, { pos: hole(16, 'c').add(v3(.3, .9, 0)), html: '3.3V → D2', o, cls: 'big' }); }
     // parts tour labels
     if (t > 32 && t < 38) { const o = fadeWin(t, 32.6, 38); labels.push({ pos: R1.g.position.clone().add(v3(0, .9, 0)), html: '1k', o, cls: 'big' }, { pos: R2.g.position.clone().add(v3(0, .9, 0)), html: '2k', o, cls: 'big' }); }
     if (t > 20 && t < 27) { const o = fadeWin(t, 21, 27); labels.push({ pos: v3(-6.2, PROBE_FACE_Y + .6, -2), html: 'Tank mein', o, cls: 'big' }, { pos: sens.position.clone().add(v3(0, 1.5, 1.2)), html: '5V · Trig · Echo · GND', o, cls: '' }); }
@@ -1043,7 +1047,7 @@ function renderAt(T) {
       const c = j.wire.userData.curve, u = ((t - 92.6) * .45 + k / 3) % 1;
       m.visible = true; m.position.copy(c.getPointAt(1 - u)); m.scale.setScalar(pOn);
     });
-    updateWifi(benchWifi, t, t > 109.3 && t < 128 ? fadeWin(t, 109.3, 128, .5) : 0, v3(ESP_POS.x - 2.3, 1.2, ESP_POS.z), .5, 3.2);
+    updateWifi(benchWifi, t, t > 109.3 && t < 128 ? fadeWin(t, 109.3, 128, .5) : 0, v3(ESP_POS.x - 2.55, 1.2, ESP_POS.z), .5, 3.2);
     // USB + LED
     setGrow(usbCable, prog(t, 100.4, 101.6)); usb.children[0].visible = t > 101.3;
     espLed.material.emissiveIntensity = t > 101.7 ? 3 : 0;
