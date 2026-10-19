@@ -69,7 +69,7 @@ header p { margin: 0; color: var(--muted); font-size: 0.9rem; }
 #chip .no { background: var(--brass); color: var(--ink); padding: 0.55cqw 0.8cqw; border-radius: 0.5cqw; }
 #chip .nm { background: var(--scrim); color: var(--text); padding: 0.55cqw 0.9cqw; border-radius: 0.5cqw; }
 #brand { position: absolute; right: 2.2cqw; top: 2cqw; font: 700 max(8px, 1.05cqw)/1 var(--f-mono);
-  color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
+  color: var(--text); letter-spacing: .08em; text-transform: uppercase; }
 
 #caption { position: absolute; left: 50%; bottom: 3.2cqw; transform: translateX(-50%);
   max-width: 78cqw; text-align: center; text-wrap: balance;
@@ -152,6 +152,14 @@ header p { margin: 0; color: var(--muted); font-size: 0.9rem; }
 #end p { margin: 0 0 0.6cqw; font: 600 max(10px, 1.6cqw)/1.4 var(--f-body); text-shadow: 0 0.2cqw 1.2cqw rgba(0,0,0,.7); }
 #end code { font: 700 max(9px, 1.4cqw)/1 var(--f-mono); color: var(--ink); background: var(--brass); padding: 0.3cqw 0.6cqw; border-radius: 0.4cqw; }
 
+#brandEnd { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 1.2cqw;
+  background: radial-gradient(60% 60% at 50% 50%, rgba(7,17,20,.82), rgba(4,10,12,.96)); }
+#brandEnd .glow { position: absolute; left: 50%; top: 50%; width: 46cqw; height: 46cqw; transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(67,184,234,.28), transparent 65%); }
+#brandEnd .mark { position: relative; display: flex; gap: 1.6cqw; align-items: baseline; font: 800 max(28px, 9cqw)/1 var(--f-display); color: #fff; }
+#brandEnd .m2 { color: var(--ink); background: var(--brass); padding: 0 1.6cqw; border-radius: 1.4cqw; }
+#brandEnd .sub { position: relative; font: 700 max(10px, 1.8cqw)/1 var(--f-mono); letter-spacing: .2em; text-transform: uppercase; color: var(--water); }
+#brandEnd span { display: inline-block; }
 #loading { position: absolute; inset: 0; display: grid; place-items: center; font: 700 max(11px, 1.6cqw)/1 var(--f-mono); color: var(--muted); background: #061013; }
 
 .controls { display: grid; gap: 10px; }
@@ -206,6 +214,7 @@ body.rec .stage { width: 1280px; height: 720px; aspect-ratio: auto; border-radiu
       <p>Code aur poori guide: <code>water_tank_monitor/README.md</code></p>
       <p>Share karein, taake kisi aur ki tanki bhi khaali na rahe.</p>
     </div>
+    <div id="brandEnd" hidden><div class="glow"></div><div class="mark"><span class="m1">Mimar</span><span class="m2">AI</span></div><div class="sub">ki pesh-kash</div></div>
     <div id="caption" hidden></div>
     <div id="fade"></div>
     <div id="loading">3D load ho raha hai…</div>
@@ -214,8 +223,8 @@ body.rec .stage { width: 1280px; height: 720px; aspect-ratio: auto; border-radiu
   <div class="controls">
     <div class="bar">
       <button id="play" type="button" aria-label="Play"><svg viewBox="0 0 24 24" id="playIcon"><path d="M7 4l13 8-13 8z"/></svg></button>
-      <input id="seek" type="range" min="0" max="154" step="0.01" value="0" aria-label="Video position">
-      <span id="time">0:00 / 2:34</span>
+      <input id="seek" type="range" min="0" max="158" step="0.01" value="0" aria-label="Video position">
+      <span id="time">0:00 / 2:38</span>
     </div>
     <div class="chapters" id="chapters"></div>
   </div>
@@ -243,8 +252,10 @@ try {
 } catch (e) {}
 const RECORD = location.search.includes('record');
 if (RECORD) document.body.classList.add('rec');
-const DURATION = 154;
+const DURATION = 158;
+const BRAND = location.search.includes('brand');
 const $ = id => document.getElementById(id);
+if (BRAND) { $('brand').textContent = 'Mimar AI'; document.querySelector('#title .kick').textContent = 'Mimar AI · ESP32 + Ultrasonic sensor'; }
 
 // ---------- timing helpers ----------
 const clamp01 = x => Math.min(1, Math.max(0, x));
@@ -295,7 +306,7 @@ const CAPS = [
   [133, 138, 'Sensor full pani se <b>kam az kam 25 cm</b> upar ho.'],
   [138, 142, 'Sensor har second pani tak ka <b>faasla</b> naapta hai.'],
   [142.3, 148, 'Baaqi tanks par bhi yahi. <b>7 sensors, 1 ESP32.</b>'],
-  [148, 153.6, 'Aur sab tanks ka level <b>ek screen</b> par.'],
+  [148, 153.6, 'Aur sab tanks ka level <b>ek screen</b> par. Pasand aaye to <b>share</b> karein!'],
 ];
 const PARTS = [
   { t0: 14, t1: 20, n: 'Part 1', name: 'ESP32 board', desc: 'DevKit (30 pin). Code isi mein jaata hai aur yahi web page dikhata hai.', price: 'Aapke paas hai' },
@@ -385,7 +396,7 @@ function topDecal(w, d, tex, parent, y, x = 0, z = 0) {
 function tube(points, r, m, parent, segs = 64, radial = 10, tension) {
   const curve = new THREE.CatmullRomCurve3(points, false, tension ? 'catmullrom' : 'centripetal', tension || .5);
   const mesh = addMesh(new THREE.TubeGeometry(curve, segs, r, radial, false), m, parent);
-  mesh.userData.segs = segs; mesh.userData.radial = radial; return mesh;
+  mesh.userData.segs = segs; mesh.userData.radial = radial; mesh.userData.curve = curve; return mesh;
 }
 function setGrow(mesh, k) {
   const n = Math.floor(clamp01(k) * mesh.userData.segs) * mesh.userData.radial * 6;
@@ -625,6 +636,25 @@ function updateWaves(pool, t, active, from, to, r0, r1, dir = 1) {
 }
 const benchWaves = wavePool(bench, 8, .04);
 
+// WiFi arcs (billboards that always face the camera)
+function wifiPool(parent, n) {
+  const geo = new THREE.TorusGeometry(1, .045, 8, 48, Math.PI * .55).rotateZ(Math.PI / 2 - Math.PI * .275);
+  return Array.from({ length: n }, () => { const m = new THREE.Mesh(geo, glowMat(0x7fe7ff, 1.6)); m.renderOrder = 7; parent.add(m); return m; });
+}
+function updateWifi(pool, t, active, origin, s0, s1) {
+  pool.forEach((m, i) => {
+    if (!active) { m.visible = false; return; }
+    const ph = (t * .8 + i / pool.length) % 1;
+    m.visible = true; m.position.copy(origin); m.quaternion.copy(camera.quaternion);
+    m.scale.setScalar(lerp(s0, s1, ph)); m.material.opacity = active * Math.sin(ph * Math.PI) * .9;
+  });
+}
+const benchWifi = wifiPool(bench, 4);
+// current pulses that run along every wire during the check
+const pulseGeo = new THREE.SphereGeometry(.15, 12, 8);
+const pulses = [];
+JUMPERS.forEach(j => { for (let k = 0; k < 3; k++) { const m = new THREE.Mesh(pulseGeo, glowMat(WIRE[j.c] === WIRE.black ? 0x9fb4c0 : WIRE[j.c], 1.8)); m.renderOrder = 8; bench.add(m); pulses.push({ m, j, k }); } });
+
 // ===================== SITE (units: m) =====================
 const SITE = v3(500, 0, 0);
 const site = new THREE.Group(); site.position.copy(SITE); scene.add(site);
@@ -732,6 +762,8 @@ const heroLed = box(.03, .02, .03, glowMat(0x35ff8a, 2), heroSensor, .2, .24, .0
 const fullLine = new THREE.Mesh(new THREE.BoxGeometry(1.1, .01, .01), glowMat(0xffffff, 1.6)); fullLine.position.set(HERO.x, ROOF_Y + .02 + FULL_H, HERO.z + .01); site.add(fullLine);
 const dimLine = new THREE.Mesh(new THREE.BoxGeometry(.012, FACE_Y - (ROOF_Y + .02 + FULL_H), .012), glowMat(0xf0b64a, 2)); dimLine.position.set(HERO.x + .2, (FACE_Y + ROOF_Y + .02 + FULL_H) / 2, HERO.z + .01); site.add(dimLine);
 const siteWaves = wavePool(site, 6, .006);
+const siteWifi = wifiPool(site, 4), ugWifi = wifiPool(site, 4);
+const drillRing = new THREE.Mesh(new THREE.RingGeometry(.03, .045, 32).rotateX(-Math.PI / 2), glowMat(0xffd27a, 2)); drillRing.renderOrder = 7; site.add(drillRing);
 // underground sensor
 box(.22, .1, .16, BOXM, site, 8.6, .28, 1.2);
 cyl(.05, .05, .1, MAT.probe, site, 8.3, .17, 1.2, 24);
@@ -821,7 +853,8 @@ const ui = {
   title: $('title'), chip: $('chip'), chipNo: $('chipNo'), chipName: $('chipName'), caption: $('caption'),
   card: $('card'), cardN: $('cardN'), cardName: $('cardName'), cardDesc: $('cardDesc'), cardPrice: $('cardPrice'),
   check: $('check'), checkList: $('checkList'), ide: $('ide'), phone: $('phone'), phoneBody: $('phoneBody'), phoneUpd: $('phoneUpd'),
-  end: $('end'), fade: $('fade'),
+  end: $('end'), fade: $('fade'), brandEnd: $('brandEnd'),
+  m1: document.querySelector('#brandEnd .m1'), m2: document.querySelector('#brandEnd .m2'), bsub: document.querySelector('#brandEnd .sub'), bglow: document.querySelector('#brandEnd .glow'),
 };
 ui.checkList.innerHTML = CHECK.map(([c, s]) => `<li><span class="tick">✓</span><span><i style="background:${c}"></i>${s}</span></li>`).join('');
 const checkItems = [...ui.checkList.children];
@@ -927,6 +960,14 @@ function renderAt(t) {
     // parts tour labels
     if (t > 32 && t < 38) { const o = fadeWin(t, 32.6, 38); labels.push({ pos: R1.g.position.clone().add(v3(0, .9, 0)), html: '1k', o, cls: 'big' }, { pos: R2.g.position.clone().add(v3(0, .9, 0)), html: '2k', o, cls: 'big' }); }
     if (t > 20 && t < 27) { const o = fadeWin(t, 21, 27); labels.push({ pos: v3(-6.2, PROBE_FACE_Y + .6, -2), html: 'Tank mein', o, cls: 'big' }, { pos: sens.position.clone().add(v3(0, 1.5, 1.2)), html: '5V · Trig · Echo · GND', o, cls: '' }); }
+    // current pulses during the check
+    const pOn = fadeWin(t, 92.6, 99.6, .4);
+    pulses.forEach(({ m, j, k }) => {
+      if (pOn <= 0) { m.visible = false; return; }
+      const c = j.wire.userData.curve, u = ((t - 92.6) * .45 + k / 3) % 1;
+      m.visible = true; m.position.copy(c.getPointAt(1 - u)); m.scale.setScalar(pOn);
+    });
+    updateWifi(benchWifi, t, t > 109.3 && t < 128 ? fadeWin(t, 109.3, 128, .5) : 0, v3(ESP_POS.x - 2.3, 1.2, ESP_POS.z), .5, 3.2);
     // USB + LED
     setGrow(usbCable, prog(t, 100.4, 101.6)); usb.children[0].visible = t > 101.3;
     espLed.material.emissiveIntensity = t > 101.7 ? 3 : 0;
@@ -962,6 +1003,12 @@ function renderAt(t) {
       TANKS.forEach((tk, k) => labels.push({ pos: v3(tk.x, ROOF_Y + (tk.z < -2 ? 2.5 : 1.6), tk.z), html: tankDot(tk.pct ?? hp), o: tankO(k), cls: 'tank' }));
       labels.push({ pos: v3(8, .55, 1.2), html: tankLabel('Underground', UG_PCT), o: tankO(6), cls: 'tank' });
     }
+    const wOn = t >= 142 ? fadeWin(t, 142.8, 153.4, .5) : 0;
+    updateWifi(siteWifi, t, wOn, v3(HERO.x + .12, ROOF_Y + 1.62, HERO.z), .2, 2.2);
+    updateWifi(ugWifi, t + .4, wOn, v3(8.6, .45, 1.2), .2, 2.2);
+    const dr = prog(t, 128.5, 129.6);
+    drillRing.visible = install && dr > 0 && dr < 1;
+    drillRing.position.set(HERO.x, ROOF_Y + 1.415, HERO.z); drillRing.scale.setScalar(1 + dr * 3); drillRing.material.opacity = 1 - dr;
     labels.forEach(L => L.pos.add(SITE));
   }
   drawLabels(labels);
@@ -992,8 +1039,17 @@ function renderAt(t) {
     const hp = Math.round(heroPct(t));
     setHTML(ui.phoneBody, phoneHTML('all', t, [...TANKS.map(tk => [tk.name, tk.pct ?? hp]), ['Underground', UG_PCT]])); setHTML(ui.phoneUpd, 'Updated just now');
   }
-  show(ui.end, fadeWin(t, 148.3, 154, .5));
-  const fadeO = Math.max(1 - t / .6, 1 - Math.abs(t - 8) / .45, 1 - Math.abs(t - 128) / .45, (t - 153.3) / .7);
+  show(ui.end, fadeWin(t, 148.3, BRAND ? 153.8 : 158, .5));
+  const bo = BRAND ? fadeWin(t, 153.6, 158.5, .5) : 0;
+  show(ui.brandEnd, bo);
+  if (bo > 0) {
+    const k = easeOut(prog(t, 153.7, 154.6)), k2 = easeOut(prog(t, 154.0, 154.9)), k3 = easeOut(prog(t, 154.5, 155.3));
+    ui.m1.style.transform = `translateY(${(1 - k) * 4}cqw)`; ui.m1.style.opacity = k;
+    ui.m2.style.transform = `scale(${.4 + .6 * k2}) rotate(${(1 - k2) * -12}deg)`; ui.m2.style.opacity = k2;
+    ui.bsub.style.opacity = k3; ui.bsub.style.letterSpacing = `${.6 - .4 * k3}em`;
+    ui.bglow.style.transform = `translate(-50%, -50%) scale(${.8 + .25 * Math.sin(t * 2)})`;
+  }
+  const fadeO = Math.max(1 - t / .6, 1 - Math.abs(t - 8) / .45, 1 - Math.abs(t - 128) / .45, (t - 157.3) / .7);
   ui.fade.style.opacity = clamp01(fadeO);
 
   composer.render();
