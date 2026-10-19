@@ -9,6 +9,9 @@ Rang ka matlab: **Green** 50% se upar, **Orange** 25–50%, **Red** 25% se kam
 ("Pani kam hai"). Agar kisi sensor ki reading nahi aa rahi to us tank par
 "Sensor check karein" likha aata hai.
 
+**3D video guide:** `3d_guide.html` browser mein kholein. Parts, breadboard
+wiring, code upload, test aur tank par lagana, sab step by step 3D mein hai.
+
 ## 1. Shopping list (andaze ki qeemat, market mein check kar lein)
 
 | Cheez | Tadaad | Approx |

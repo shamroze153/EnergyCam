@@ -1,0 +1,1051 @@
+<title>Tanki Sensor 3D Guide</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=JetBrains+Mono:wght@500;700&family=Manrope:wght@500;700&display=swap">
+<style>
+/* Layout: a 16:9 3D stage that plays like a video, captions and cards overlaid on it, a control strip below */
+:root {
+  --ink: #071114;
+  --panel: #0f2126;
+  --line: #20404a;
+  --text: #e8f3f5;
+  --muted: #8ba7af;
+  --water: #43b8ea;
+  --brass: #f0b64a;
+  --ok: #35b26b;
+  --mid: #e3a21a;
+  --low: #e5534b;
+  --scrim: rgba(4, 12, 15, 0.72);
+  --paper: #f3f6f8;
+  --paper-ink: #17222b;
+  --paper-muted: #66737f;
+  --paper-empty: #e1e7ec;
+  --f-display: "Baloo 2", "Trebuchet MS", system-ui, sans-serif;
+  --f-body: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+html, body { background: var(--ink); color: var(--text); }
+body { margin: 0; }
+[hidden] { display: none !important; }
+body {
+  font-family: var(--f-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 16px 24px;
+}
+.wrap { max-width: 1180px; margin: 0 auto; display: grid; gap: 12px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; }
+header h1 { font-family: var(--f-display); font-weight: 800; font-size: 1.6rem; margin: 0; line-height: 1.1; text-wrap: balance; }
+header p { margin: 0; color: var(--muted); font-size: 0.9rem; }
+
+.stage {
+  position: relative; width: 100%; aspect-ratio: 16 / 9; max-width: 100%;
+  border-radius: 14px; overflow: hidden; background: #061013;
+  container-type: inline-size; isolation: isolate;
+}
+.stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.vignette { position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(120% 90% at 50% 45%, transparent 55%, rgba(0,0,0,.55) 100%); }
+#fade { position: absolute; inset: 0; background: #000; opacity: 0; pointer-events: none; }
+#labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+
+.lbl {
+  position: absolute; left: 0; top: 0; white-space: nowrap;
+  font: 700 max(9px, 1.25cqw)/1 var(--f-mono); color: var(--ink);
+  background: var(--brass); padding: 0.45cqw 0.7cqw; border-radius: 0.5cqw;
+  box-shadow: 0 0.3cqw 1cqw rgba(0,0,0,.35);
+}
+.lbl::after { content: ""; position: absolute; left: 50%; bottom: -0.45cqw; width: 0.9cqw; height: 0.9cqw;
+  background: inherit; transform: translateX(-50%) rotate(45deg); z-index: -1; }
+.lbl.tank { background: var(--paper); color: var(--paper-ink); font-family: var(--f-body); font-size: max(9px, 1.35cqw); display: flex; gap: 0.6cqw; align-items: center; }
+.lbl.tank b { font-family: var(--f-display); font-size: 1.25em; }
+.lbl .dot { width: 0.8cqw; height: 0.8cqw; border-radius: 50%; display: inline-block; }
+.lbl.big { font-size: max(10px, 1.7cqw); }
+
+#chip { position: absolute; left: 2.2cqw; top: 2cqw; display: flex; align-items: center; gap: 0.8cqw;
+  font: 700 max(9px, 1.3cqw)/1 var(--f-mono); letter-spacing: .06em; text-transform: uppercase; }
+#chip .no { background: var(--brass); color: var(--ink); padding: 0.55cqw 0.8cqw; border-radius: 0.5cqw; }
+#chip .nm { background: var(--scrim); color: var(--text); padding: 0.55cqw 0.9cqw; border-radius: 0.5cqw; }
+#brand { position: absolute; right: 2.2cqw; top: 2cqw; font: 700 max(8px, 1.05cqw)/1 var(--f-mono);
+  color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
+
+#caption { position: absolute; left: 50%; bottom: 3.2cqw; transform: translateX(-50%);
+  max-width: 78cqw; text-align: center; text-wrap: balance;
+  font: 700 max(11px, 2.35cqw)/1.25 var(--f-display); color: #fff;
+  background: var(--scrim); padding: 0.8cqw 1.8cqw 0.6cqw; border-radius: 1cqw; }
+#caption b { color: var(--brass); font-weight: 800; }
+
+#title { position: absolute; left: 4.5cqw; top: 50%; transform: translateY(-58%); max-width: 52cqw; }
+#title .kick { font: 700 max(9px, 1.4cqw)/1 var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--water); }
+#title h2 { margin: 1cqw 0 1.2cqw; font: 800 max(20px, 6.2cqw)/0.95 var(--f-display); color: #fff; text-shadow: 0 0.4cqw 2.5cqw rgba(0,0,0,.45); }
+#title h2 span { color: var(--brass); }
+#title p { margin: 0; font: 600 max(10px, 1.7cqw)/1.35 var(--f-body); color: var(--text); text-shadow: 0 0.2cqw 1.2cqw rgba(0,0,0,.6); }
+
+#card { position: absolute; right: 3cqw; top: 50%; transform: translateY(-50%); width: 30cqw;
+  background: var(--scrim); border: 1px solid var(--line); border-radius: 1.2cqw; padding: 1.8cqw 2cqw;
+  display: grid; gap: 0.9cqw; backdrop-filter: blur(6px); }
+#card .n { font: 700 max(9px, 1.2cqw)/1 var(--f-mono); color: var(--brass); letter-spacing: .1em; text-transform: uppercase; }
+#card h3 { margin: 0; font: 800 max(14px, 3.2cqw)/1 var(--f-display); color: #fff; }
+#card p { margin: 0; font: 500 max(10px, 1.5cqw)/1.4 var(--f-body); color: var(--text); }
+#card .price { font: 700 max(10px, 1.5cqw)/1 var(--f-mono); color: var(--water); }
+
+#check { position: absolute; right: 3cqw; top: 50%; transform: translateY(-50%); width: 34cqw;
+  background: var(--scrim); border: 1px solid var(--line); border-radius: 1.2cqw; padding: 1.6cqw 1.8cqw; }
+#check h3 { margin: 0 0 1cqw; font: 800 max(12px, 2.2cqw)/1 var(--f-display); }
+#check ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.55cqw; }
+#check li { display: grid; grid-template-columns: 2cqw 1fr; gap: 0.8cqw; align-items: center;
+  font: 500 max(9px, 1.3cqw)/1.2 var(--f-mono); color: var(--muted); }
+#check li .tick { width: 1.7cqw; height: 1.7cqw; border-radius: 0.4cqw; border: 1px solid var(--line); display: grid; place-items: center;
+  font: 800 max(8px, 1.1cqw)/1 var(--f-body); color: transparent; }
+#check li.on { color: var(--text); }
+#check li.on .tick { background: var(--ok); border-color: var(--ok); color: #fff; }
+#check li i { font-style: normal; display: inline-block; width: 1.2cqw; height: 0.5cqw; border-radius: 0.2cqw; margin-right: 0.6cqw; vertical-align: middle; }
+
+#ide { position: absolute; left: 2.5cqw; top: 8cqw; width: 54cqw; border-radius: 1cqw; overflow: hidden;
+  background: #1e2327; border: 1px solid #2f363b; box-shadow: 0 2cqw 5cqw rgba(0,0,0,.5);
+  font: 500 max(8px, 1.2cqw)/1.55 var(--f-mono); color: #d7dee2; }
+#ide .bar { display: flex; align-items: center; gap: 0.8cqw; background: #171b1e; padding: 0.8cqw 1cqw; }
+#ide .btn { width: 2.4cqw; height: 2.4cqw; border-radius: 50%; display: grid; place-items: center; background: #2c3338; color: #9fb0b8; font-weight: 700; }
+#ide .btn.up.hot { background: #00979c; color: #fff; box-shadow: 0 0 0 0.4cqw rgba(0,151,156,.35); }
+#ide .board { margin-left: 0.6cqw; padding: 0.4cqw 1cqw; border-radius: 0.4cqw; background: #2c3338; color: #e7eef1; }
+#ide .tab { padding: 0.5cqw 1.2cqw; background: #23292d; color: #b8c6cc; border-bottom: 1px solid #2f363b; }
+#ide pre { margin: 0; padding: 0.8cqw 1.2cqw; font: inherit; white-space: pre; }
+#ide .ln { color: #5c6a71; display: inline-block; width: 2.6cqw; }
+#ide .k { color: #c792ea; } #ide .s { color: #c3e88d; } #ide .c { color: #6c7a80; }
+#ide .hl { background: rgba(240,182,74,.16); display: inline-block; width: 100%; }
+#ide .out { background: #111416; border-top: 1px solid #2f363b; padding: 0.8cqw 1.2cqw; min-height: 3cqw; color: #9fb0b8; }
+#ide .out .prog { height: 0.6cqw; background: #2c3338; border-radius: 0.3cqw; overflow: hidden; margin-top: 0.5cqw; }
+#ide .out .prog i { display: block; height: 100%; background: #00979c; }
+#ide .serial { background: #0b0e10; border-top: 1px solid #2f363b; padding: 0.8cqw 1.2cqw; min-height: 9cqw; }
+#ide .serial .t { color: #6c7a80; margin-bottom: 0.4cqw; }
+#ide .serial .ip { color: var(--brass); font-weight: 700; }
+.caret { display: inline-block; width: 0.55em; height: 1.05em; background: var(--brass); vertical-align: -0.15em; }
+
+#phone { position: absolute; right: 4cqw; top: 50%; transform: translateY(-50%); width: 24cqw; aspect-ratio: 9 / 18.5;
+  border-radius: 3.2cqw; background: #0c0f12; padding: 1cqw; box-shadow: 0 2cqw 5cqw rgba(0,0,0,.55), inset 0 0 0 0.25cqw #2a3036; }
+#phone .scr { width: 100%; height: 100%; border-radius: 2.4cqw; background: var(--paper); overflow: hidden;
+  display: flex; flex-direction: column; color: var(--paper-ink); font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+#phone .url { margin: 2.6cqw 1.2cqw 0.6cqw; background: var(--paper-empty); border-radius: 1cqw; padding: 0.5cqw 0.9cqw;
+  font: 600 max(7px, 0.95cqw)/1.2 var(--f-mono); color: var(--paper-muted); }
+#phone .hd { display: flex; justify-content: space-between; align-items: baseline; padding: 0.4cqw 1.2cqw 0.8cqw; }
+#phone .hd b { font-size: max(9px, 1.6cqw); }
+#phone .hd span { font-size: max(6px, 0.8cqw); color: var(--paper-muted); }
+#phone .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6cqw; padding: 0 1.2cqw; }
+#phone .tc { background: #fff; border-radius: 1cqw; padding: 0.6cqw; text-align: center; }
+#phone .tc .nm { font-weight: 700; font-size: max(6px, 0.85cqw); margin-bottom: 0.5cqw; }
+#phone .tc .tk { position: relative; height: 3.6cqw; width: 3.4cqw; margin: 0 auto; border-radius: 0.6cqw; background: var(--paper-empty); overflow: hidden; }
+#phone .tc .tk i { position: absolute; left: 0; right: 0; bottom: 0; }
+#phone .tc .pc { font-weight: 800; font-size: max(8px, 1.5cqw); margin-top: 0.3cqw; }
+#phone .one { padding: 0 1.2cqw; }
+#phone .one .tc { padding: 1.6cqw; }
+#phone .one .tk { height: 18cqw; width: 9cqw; border-radius: 1.2cqw; }
+#phone .one .pc { font-size: max(14px, 3.6cqw); }
+#phone .one .nm { font-size: max(8px, 1.3cqw); }
+#phone .one .ds { font: 600 max(7px, 1.05cqw)/1.2 var(--f-mono); color: var(--paper-muted); margin-top: 0.4cqw; }
+
+#end { position: absolute; left: 3cqw; top: 50%; transform: translateY(-55%); max-width: 52cqw;
+  background: var(--scrim); border: 1px solid var(--line); border-radius: 1.2cqw; padding: 2cqw 2.4cqw 1.4cqw; backdrop-filter: blur(6px); }
+#end h2 { margin: 0 0 1.2cqw; font: 800 max(18px, 4.6cqw)/1 var(--f-display); color: #fff; text-shadow: 0 0.4cqw 2cqw rgba(0,0,0,.5); }
+#end h2 span { color: var(--brass); }
+#end p { margin: 0 0 0.6cqw; font: 600 max(10px, 1.6cqw)/1.4 var(--f-body); text-shadow: 0 0.2cqw 1.2cqw rgba(0,0,0,.7); }
+#end code { font: 700 max(9px, 1.4cqw)/1 var(--f-mono); color: var(--ink); background: var(--brass); padding: 0.3cqw 0.6cqw; border-radius: 0.4cqw; }
+
+#loading { position: absolute; inset: 0; display: grid; place-items: center; font: 700 max(11px, 1.6cqw)/1 var(--f-mono); color: var(--muted); background: #061013; }
+
+.controls { display: grid; gap: 10px; }
+.bar { display: flex; align-items: center; gap: 12px; }
+.bar button { flex: none; width: 44px; height: 44px; border-radius: 50%; border: 0; cursor: pointer;
+  background: var(--brass); color: var(--ink); display: grid; place-items: center; }
+.bar button:focus-visible, .chapters button:focus-visible, #seek:focus-visible { outline: 2px solid var(--water); outline-offset: 3px; }
+.bar button svg { width: 18px; height: 18px; fill: currentColor; }
+#seek { flex: 1; min-width: 0; accent-color: var(--brass); }
+#time { flex: none; font: 600 0.85rem/1 var(--f-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.chapters { display: flex; flex-wrap: wrap; gap: 6px; }
+.chapters button { border: 1px solid var(--line); background: var(--panel); color: var(--muted); cursor: pointer;
+  font: 600 0.8rem/1 var(--f-body); padding: 8px 10px; border-radius: 999px; display: flex; gap: 6px; align-items: center; }
+.chapters button b { font: 700 0.72rem/1 var(--f-mono); color: var(--brass); }
+.chapters button.on { background: var(--brass); color: var(--ink); border-color: var(--brass); }
+.chapters button.on b { color: var(--ink); }
+
+body.rec { padding: 0; overflow: hidden; }
+body.rec .wrap { max-width: none; display: block; }
+body.rec header, body.rec .controls { display: none; }
+body.rec .stage { width: 1280px; height: 720px; aspect-ratio: auto; border-radius: 0; }
+
+@media (max-width: 560px) {
+  header h1 { font-size: 1.3rem; }
+  .stage { border-radius: 10px; }
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Tanki Sensor 3D Guide</h1>
+    <p>Parts, breadboard wiring, code upload, test aur tank par lagana. Step chunein ya Play dabayein.</p>
+  </header>
+
+  <div class="stage" id="stage">
+    <canvas id="c" aria-label="3D animation: water tank level sensor banane ka tareeqa"></canvas>
+    <div class="vignette"></div>
+    <div id="labels"></div>
+    <div id="title" hidden>
+      <div class="kick">ESP32 + Ultrasonic sensor</div>
+      <h2>Pani ki tanki ka level, <span>phone par</span></h2>
+      <p>6 overhead + 1 underground tank. Ek ESP32. Step by step 3D guide.</p>
+    </div>
+    <div id="chip" hidden><span class="no" id="chipNo"></span><span class="nm" id="chipName"></span></div>
+    <div id="brand">Tank Monitor · ESP32</div>
+    <div id="card" hidden><div class="n" id="cardN"></div><h3 id="cardName"></h3><p id="cardDesc"></p><div class="price" id="cardPrice"></div></div>
+    <div id="check" hidden><h3>Ek dafa mila lein</h3><ol id="checkList"></ol></div>
+    <div id="ide" hidden></div>
+    <div id="phone" hidden><div class="scr"><div class="url">http://192.168.1.50/</div><div class="hd"><b>Pani ki Tankiyan</b><span id="phoneUpd">Updated</span></div><div id="phoneBody"></div></div></div>
+    <div id="end" hidden>
+      <h2>7 tanks. <span>1 screen.</span></h2>
+      <p>Code aur poori guide: <code>water_tank_monitor/README.md</code></p>
+      <p>Share karein, taake kisi aur ki tanki bhi khaali na rahe.</p>
+    </div>
+    <div id="caption" hidden></div>
+    <div id="fade"></div>
+    <div id="loading">3D load ho raha hai…</div>
+  </div>
+
+  <div class="controls">
+    <div class="bar">
+      <button id="play" type="button" aria-label="Play"><svg viewBox="0 0 24 24" id="playIcon"><path d="M7 4l13 8-13 8z"/></svg></button>
+      <input id="seek" type="range" min="0" max="154" step="0.01" value="0" aria-label="Video position">
+      <span id="time">0:00 / 2:34</span>
+    </div>
+    <div class="chapters" id="chapters"></div>
+  </div>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+try {
+  await Promise.race([
+    Promise.all(['700 40px "JetBrains Mono"', '800 40px "Baloo 2"', '700 40px "Manrope"'].map(f => document.fonts.load(f))),
+    new Promise(r => setTimeout(r, 3000)),
+  ]);
+} catch (e) {}
+const RECORD = location.search.includes('record');
+if (RECORD) document.body.classList.add('rec');
+const DURATION = 154;
+const $ = id => document.getElementById(id);
+
+// ---------- timing helpers ----------
+const clamp01 = x => Math.min(1, Math.max(0, x));
+const ease = x => { x = clamp01(x); return x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
+const easeOut = x => 1 - Math.pow(1 - clamp01(x), 3);
+const prog = (t, a, b) => clamp01((t - a) / (b - a));
+const lerp = (a, b, k) => a + (b - a) * k;
+const v3 = (x, y, z) => new THREE.Vector3(x, y, z);
+const fadeWin = (t, a, b, f = .3) => Math.min(clamp01((t - a) / f), clamp01((b - t) / f));
+const bell = (t, a, b, f = .8) => ease(Math.min((t - a) / f, (b - t) / f));
+const levelColor = p => p < 25 ? '#e5534b' : p < 50 ? '#e3a21a' : '#35b26b';
+
+// ---------- story ----------
+const CHAPTERS = [
+  { t: 0, name: 'Intro' }, { t: 8, name: 'Saaman' }, { t: 44, name: 'Breadboard' },
+  { t: 52, name: 'Resistors' }, { t: 62, name: 'Power taar' }, { t: 72, name: 'Trig taar' },
+  { t: 80, name: 'Echo taar' }, { t: 92, name: 'Check' }, { t: 100, name: 'Code upload' },
+  { t: 112, name: 'Test' }, { t: 128, name: 'Tank par' }, { t: 142, name: 'Result' },
+];
+const CAPS = [
+  [0.4, 4, '6 overhead tanks + 1 underground tank'],
+  [4, 7.8, 'Sab ka level <b>ek hi screen</b> par. Chaliye banate hain!'],
+  [8.3, 14, 'Pehle saaman dekh lein. Bas ye cheezein chahiye.'],
+  [14, 20, '<b>ESP32 board</b>: system ka dimaagh. WiFi isi mein hai.'],
+  [20, 27, '<b>JSN-SR04T</b>: kaala sensor tank mein, chhota board ESP32 se jurta hai.'],
+  [27, 32, '<b>Mini breadboard</b>: is par bina soldering ke taar jurte hain.'],
+  [32, 38, '<b>Resistors</b>: 1k (brown-black-red) aur 2k (red-black-red).'],
+  [38, 44, '<b>Jumper wires</b> female-to-male. USB cable aapke paas hogi.'],
+  [44, 48, 'Breadboard ka raaz: har number ki line ke <b>5 khaane</b> aapas mein jure hain.'],
+  [48, 52, 'Lambi <b>laal (+)</b> line 5V hai, <b>neeli (–)</b> line GND hai.'],
+  [52, 57, '<b>1k resistor</b>: C10 se C16 tak lagayein.'],
+  [57, 62, '<b>2k resistor</b>: B16 se neeli (–) line tak.'],
+  [62, 67, 'Sensor ka <b>5V → laal (+)</b>, <b>GND → neeli (–)</b>.'],
+  [67, 72, 'ESP32 ka <b>VIN → laal (+)</b>, <b>GND → neeli (–)</b>.'],
+  [72, 76, 'Sensor ka <b>Trig → A26</b>.'],
+  [76, 80, 'ESP32 ka <b>D13 → E26</b>. Ek hi line mein, is liye jur gaye.'],
+  [80, 84, 'Sensor ka <b>Echo → A10</b>.'],
+  [84, 88, 'ESP32 ka <b>D34 → E16</b>.'],
+  [88, 92, 'Dono resistors 5V signal ko <b>3.3V</b> bana dete hain. ESP32 safe!'],
+  [92, 100, 'Kul <b>8 taar</b> aur <b>2 resistor</b>. Ek dafa mila lein.'],
+  [100, 104, 'USB cable lagayein aur <b>Arduino IDE</b> kholein.'],
+  [104, 108, 'WiFi ka naam aur password likhein, phir <b>Upload</b> dabayein.'],
+  [108, 112, 'Serial Monitor mein jo <b>address</b> aaye, wo phone mein kholein.'],
+  [112, 118, 'Ab test: sensor ke upar ek <b>kitaab</b> rakhein.'],
+  [118, 124, 'Kitaab <b>qareeb</b> = zyada pani. <b>Door</b> = kam pani.'],
+  [124, 128, 'Phone par % saath saath badal raha hai. <b>Sensor theek hai!</b>'],
+  [128.3, 133, 'Ab tank par: dhakkan mein surakh, sensor ka munh <b>neeche</b>.'],
+  [133, 138, 'Sensor full pani se <b>kam az kam 25 cm</b> upar ho.'],
+  [138, 142, 'Sensor har second pani tak ka <b>faasla</b> naapta hai.'],
+  [142.3, 148, 'Baaqi tanks par bhi yahi. <b>7 sensors, 1 ESP32.</b>'],
+  [148, 153.6, 'Aur sab tanks ka level <b>ek screen</b> par.'],
+];
+const PARTS = [
+  { t0: 14, t1: 20, n: 'Part 1', name: 'ESP32 board', desc: 'DevKit (30 pin). Code isi mein jaata hai aur yahi web page dikhata hai.', price: 'Aapke paas hai' },
+  { t0: 20, t1: 27, n: 'Part 2', name: 'JSN-SR04T', desc: 'Waterproof kaala sensor + 2.5 m cable + chhota board (5V, Trig, Echo, GND).', price: 'Rs 1,500 – 2,200' },
+  { t0: 27, t1: 32, n: 'Part 3', name: 'Mini breadboard', desc: '400 point. Taar seedha khaanon mein ghus jaate hain.', price: 'Rs 150 – 250' },
+  { t0: 32, t1: 38, n: 'Part 4', name: '1k + 2k resistor', desc: '1k: brown, black, red. 2k: red, black, red. (2.2k bhi chalega)', price: 'Rs 20' },
+  { t0: 38, t1: 44, n: 'Part 5', name: 'Jumper wires', desc: 'Female-to-male. Female sira pin par, male sira breadboard mein.', price: 'Rs 100 – 150' },
+];
+const CHECK = [
+  ['#e5534b', 'Sensor 5V → + line'], ['#2b2b2b', 'Sensor GND → – line'],
+  ['#f2c94c', 'Sensor Trig → A26'], ['#35b26b', 'Sensor Echo → A10'],
+  ['#e5534b', 'ESP32 VIN → + line'], ['#2b2b2b', 'ESP32 GND → – line'],
+  ['#f28c28', 'ESP32 D13 → E26'], ['#43b8ea', 'ESP32 D34 → E16'],
+  ['#d8c49a', '1k: C10–C16 · 2k: B16–(–)'],
+];
+
+// ---------- renderer ----------
+const canvas = $('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: RECORD });
+renderer.setPixelRatio(RECORD ? 1 : Math.min(window.devicePixelRatio || 1, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.localClippingEnabled = true;
+
+const scene = new THREE.Scene();
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture;
+const camera = new THREE.PerspectiveCamera(35, 16 / 9, 0.05, 1200);
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(1280, 720), 0.6, 0.3, 3.2);
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
+
+const hemi = new THREE.HemisphereLight(0xcfe8ff, 0x3a2f26, 0.55);
+scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xfff0dc, 2.3);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.bias = -0.0004;
+sun.shadow.normalBias = 0.02;
+scene.add(sun, sun.target);
+const rim = new THREE.DirectionalLight(0x7fd8ff, 0.7);
+scene.add(rim, rim.target);
+
+// ---------- builders ----------
+function canvasTex(w, h, draw, repeat) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  draw(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+  if (repeat) { t.wrapS = t.wrapT = THREE.RepeatWrapping; }
+  return t;
+}
+const std = o => new THREE.MeshStandardMaterial(o);
+const MAT = {
+  pcbBlack: std({ color: 0x16181d, roughness: .6, metalness: .15 }),
+  pcbGreen: std({ color: 0x1c5a39, roughness: .55, metalness: .1 }),
+  module: std({ color: 0x1b2230, roughness: .5, metalness: .2 }),
+  plastic: std({ color: 0x111214, roughness: .5 }),
+  gold: std({ color: 0xdcb45e, roughness: .25, metalness: 1 }),
+  silver: std({ color: 0xc9ced2, roughness: .4, metalness: .9 }),
+  chip: std({ color: 0x1a1a1c, roughness: .35 }),
+  white: std({ color: 0xf1efe8, roughness: .6 }),
+  probe: std({ color: 0x0f1012, roughness: .42 }),
+  probeFace: std({ color: 0x2b2d31, roughness: .85 }),
+  copper: std({ color: 0xb8743a, roughness: .3, metalness: 1 }),
+  stand: std({ color: 0xb9c2c6, roughness: .7 }),
+  tan: std({ color: 0xc9b48a, roughness: .5 }),
+  capBlue: std({ color: 0x1f3d8a, roughness: .4 }),
+  rubber: std({ color: 0x141518, roughness: .7 }),
+};
+function addMesh(geo, m, parent, x = 0, y = 0, z = 0) {
+  const o = new THREE.Mesh(geo, m); o.position.set(x, y, z);
+  o.castShadow = true; o.receiveShadow = true; parent && parent.add(o); return o;
+}
+const box = (w, h, d, m, p, x, y, z) => addMesh(new THREE.BoxGeometry(w, h, d), m, p, x, y, z);
+const cyl = (rt, rb, h, m, p, x, y, z, seg = 32) => addMesh(new THREE.CylinderGeometry(rt, rb, h, seg), m, p, x, y, z);
+function topDecal(w, d, tex, parent, y, x = 0, z = 0) {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d).rotateX(-Math.PI / 2),
+    std({ map: tex, transparent: true, roughness: .6 }));
+  m.position.set(x, y, z); m.receiveShadow = true; parent.add(m); return m;
+}
+function tube(points, r, m, parent, segs = 64, radial = 10, tension) {
+  const curve = new THREE.CatmullRomCurve3(points, false, tension ? 'catmullrom' : 'centripetal', tension || .5);
+  const mesh = addMesh(new THREE.TubeGeometry(curve, segs, r, radial, false), m, parent);
+  mesh.userData.segs = segs; mesh.userData.radial = radial; return mesh;
+}
+function setGrow(mesh, k) {
+  const n = Math.floor(clamp01(k) * mesh.userData.segs) * mesh.userData.radial * 6;
+  mesh.geometry.setDrawRange(0, n); mesh.visible = n > 0;
+}
+
+// ===================== BENCH (units: cm) =====================
+const bench = new THREE.Group(); scene.add(bench);
+const benchBg = canvasTex(512, 512, (g, w, h) => {
+  const gr = g.createRadialGradient(w / 2, h * .45, 10, w / 2, h / 2, w * .75);
+  gr.addColorStop(0, '#16383c'); gr.addColorStop(1, '#040a0c'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+});
+
+// cutting mat
+const matTex = canvasTex(2400, 1600, (g, w, h) => {
+  g.fillStyle = '#123130'; g.fillRect(0, 0, w, h);
+  const s = w / 60;
+  for (let i = 0; i <= 60; i++) { g.strokeStyle = i % 5 ? 'rgba(150,215,205,.10)' : 'rgba(150,215,205,.24)'; g.lineWidth = i % 5 ? 1.5 : 3; g.beginPath(); g.moveTo(i * s, 0); g.lineTo(i * s, h); g.stroke(); }
+  for (let j = 0; j <= 40; j++) { g.strokeStyle = j % 5 ? 'rgba(150,215,205,.10)' : 'rgba(150,215,205,.24)'; g.lineWidth = j % 5 ? 1.5 : 3; g.beginPath(); g.moveTo(0, j * s); g.lineTo(w, j * s); g.stroke(); }
+  g.fillStyle = 'rgba(170,225,215,.38)'; g.font = '600 22px "JetBrains Mono", monospace';
+  for (let i = 5; i < 60; i += 5) { g.fillText(String(i), i * s + 6, 26); g.fillText(String(i), i * s + 6, h - 10); }
+});
+const matMesh = new THREE.Mesh(new THREE.PlaneGeometry(60, 40).rotateX(-Math.PI / 2), std({ map: matTex, roughness: .92 }));
+matMesh.receiveShadow = true; bench.add(matMesh);
+
+// breadboard
+const BB = { L: 8.26, D: 5.46, H: 0.85, P: 0.254 };
+const ROWZ = { a: -1.397, b: -1.143, c: -0.889, d: -0.635, e: -0.381, f: 0.381, g: 0.635, h: 0.889, i: 1.143, j: 1.397, '-': -2.032, '+': -2.286, 'B-': 2.032, 'B+': 2.286 };
+const colX = c => (c - 15.5) * BB.P;
+const hole = (c, r) => v3(colX(c), BB.H, ROWZ[r]);
+const bbGroup = new THREE.Group(); bench.add(bbGroup);
+box(BB.L, BB.H, BB.D, std({ color: 0xe2e0d8, roughness: .6 }), bbGroup, 0, BB.H / 2, 0);
+const bbTex = canvasTex(1652, 1092, (g, w, h) => {
+  const s = w / BB.L, X = x => w / 2 + x * s, Z = z => h / 2 + z * s;
+  g.fillStyle = '#efeee7'; g.fillRect(0, 0, w, h);
+  g.fillStyle = '#d6d4cb'; g.fillRect(0, Z(-0.13), w, 0.26 * s);
+  const line = (z, col) => { g.strokeStyle = col; g.lineWidth = 0.04 * s; g.beginPath(); g.moveTo(X(-3.9), Z(z)); g.lineTo(X(3.9), Z(z)); g.stroke(); };
+  line(-2.286 - 0.19, '#d23b3b'); line(-2.032 + 0.19, '#2f64c8'); line(2.032 - 0.19, '#2f64c8'); line(2.286 + 0.19, '#d23b3b');
+  const holeAt = (x, z) => { const q = 0.092 * s; g.fillStyle = '#c9c7bf'; g.fillRect(X(x) - q * .75, Z(z) - q * .75, q * 1.5, q * 1.5); g.fillStyle = '#2d2d2d'; g.fillRect(X(x) - q / 2, Z(z) - q / 2, q, q); };
+  for (let c = 1; c <= 30; c++) for (const r of Object.keys(ROWZ)) holeAt(colX(c), ROWZ[r]);
+  g.fillStyle = '#7d7b74'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.font = `700 ${0.13 * s}px "JetBrains Mono", monospace`;
+  'abcdefghij'.split('').forEach(r => { g.fillText(r.toUpperCase(), X(-3.98), Z(ROWZ[r])); g.fillText(r.toUpperCase(), X(3.98), Z(ROWZ[r])); });
+  g.font = `700 ${0.12 * s}px "JetBrains Mono", monospace`;
+  [1, 5, 10, 15, 20, 25, 30].forEach(c => { g.fillText(String(c), X(colX(c)), Z(-1.65)); g.fillText(String(c), X(colX(c)), Z(1.65)); });
+  g.font = `800 ${0.2 * s}px "JetBrains Mono", monospace`;
+  g.fillStyle = '#d23b3b'; g.fillText('+', X(-4.0), Z(-2.286)); g.fillText('+', X(4.0), Z(2.286));
+  g.fillStyle = '#2f64c8'; g.fillText('–', X(-4.0), Z(-2.032)); g.fillText('–', X(4.0), Z(2.032));
+});
+topDecal(BB.L, BB.D, bbTex, bbGroup, BB.H + 0.002);
+
+// glow helpers (highlight rings, strips)
+const glowMat = (hex, k = 3) => new THREE.MeshBasicMaterial({ color: new THREE.Color(hex).multiplyScalar(k * 3), transparent: true, toneMapped: false, depthWrite: false });
+const ringGeo = new THREE.RingGeometry(0.1, 0.16, 32).rotateX(-Math.PI / 2);
+const rings = [];
+for (let i = 0; i < 4; i++) { const m = new THREE.Mesh(ringGeo, glowMat(0x5fe0ff)); m.renderOrder = 5; bench.add(m); rings.push(m); }
+const strips = [
+  { m: new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.03, 1.27), glowMat(0x5fe0ff, 2)), p: v3(colX(10), BB.H + .02, -0.889) },
+  { m: new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.03, 1.27), glowMat(0x5fe0ff, 2)), p: v3(colX(16), BB.H + .02, -0.889) },
+  { m: new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.03, 1.27), glowMat(0xf0b64a, 2)), p: v3(colX(23), BB.H + .02, 0.889) },
+  { m: new THREE.Mesh(new THREE.BoxGeometry(7.7, 0.03, 0.2), glowMat(0xff4b4b, 2.2)), p: v3(0, BB.H + .02, -2.286) },
+  { m: new THREE.Mesh(new THREE.BoxGeometry(7.7, 0.03, 0.2), glowMat(0x4b8bff, 2.2)), p: v3(0, BB.H + .02, -2.032) },
+];
+strips.forEach(s => { s.m.position.copy(s.p); s.m.renderOrder = 4; bench.add(s.m); });
+
+// ESP32 DevKit (pins drawn pointing up so the jumper housings are visible)
+const ESP_POS = v3(1.5, 0, 4.6);
+const BACK = ['EN', 'VP', 'VN', 'D34', 'D35', 'D32', 'D33', 'D25', 'D26', 'D27', 'D14', 'D12', 'D13', 'GND', 'VIN'];
+const FRONT = ['D23', 'D22', 'TX0', 'RX0', 'D21', 'D19', 'D18', 'D5', 'TX2', 'RX2', 'D4', 'D2', 'D15', 'GND', '3V3'];
+const pinX = i => -1.778 + i * 0.254;
+const espPinBase = i => v3(ESP_POS.x + pinX(i), 0.65, ESP_POS.z - 1.15);
+const esp = new THREE.Group(); esp.position.copy(ESP_POS); bench.add(esp);
+let espLed;
+{
+  box(5.2, .16, 2.8, MAT.pcbBlack, esp, 0, .32, 0);
+  for (const z of [-1.15, 1.15]) { box(3.9, .24, .254, MAT.plastic, esp, 0, .12, z); box(3.9, .25, .254, MAT.plastic, esp, 0, .525, z); }
+  const pins = new THREE.InstancedMesh(new THREE.BoxGeometry(.064, .6, .064), MAT.gold, 30);
+  const dm = new THREE.Matrix4();
+  for (let i = 0; i < 15; i++) { dm.makeTranslation(pinX(i), .95, -1.15); pins.setMatrixAt(i, dm); dm.makeTranslation(pinX(i), .95, 1.15); pins.setMatrixAt(15 + i, dm); }
+  pins.castShadow = true; esp.add(pins);
+  box(2.55, .08, 1.8, MAT.module, esp, -1.3, .44, 0);
+  box(1.75, .3, 1.6, MAT.silver, esp, -1.05, .63, 0);
+  topDecal(1.75, 1.6, canvasTex(700, 640, (g, w, h) => {
+    g.fillStyle = 'rgba(40,44,48,.85)'; g.textAlign = 'center';
+    g.font = '800 64px "JetBrains Mono", monospace'; g.fillText('ESP32-WROOM-32', w / 2, h * .42);
+    g.font = '600 40px "JetBrains Mono", monospace'; g.fillText('Wi-Fi  ·  Bluetooth', w / 2, h * .58);
+    g.strokeStyle = 'rgba(40,44,48,.5)'; g.lineWidth = 6; g.strokeRect(30, 30, w - 60, h - 60);
+  }), esp, .781, -1.05, 0);
+  topDecal(.58, 1.7, canvasTex(116, 340, (g, w, h) => {
+    g.strokeStyle = '#c9a24c'; g.lineWidth = 9; g.beginPath(); g.moveTo(20, 20);
+    for (let k = 0; k < 6; k++) { g.lineTo(w - 20, 20 + k * 52); g.lineTo(w - 20, 46 + k * 52); g.lineTo(20, 46 + k * 52); g.lineTo(20, 72 + k * 52); }
+    g.stroke();
+  }), esp, .481, -2.29, 0);
+  box(.62, .28, .78, MAT.silver, esp, 2.42, .54, 0);
+  box(.03, .12, .5, MAT.chip, esp, 2.74, .54, 0);
+  for (const z of [-.55, .55]) { box(.42, .12, .42, MAT.silver, esp, 1.95, .46, z); cyl(.1, .1, .1, MAT.chip, esp, 1.95, .56, z, 16); }
+  box(.5, .08, .5, MAT.chip, esp, .55, .44, 0);
+  box(.65, .16, .35, MAT.chip, esp, 1.2, .48, -.45);
+  box(.65, .03, .2, MAT.silver, esp, 1.2, .42, -.2);
+  for (const [x, z] of [[.1, .5], [.1, -.5], [1.4, .4], [.9, .55]]) box(.14, .08, .08, MAT.tan, esp, x, .44, z);
+  espLed = box(.12, .06, .08, std({ color: 0x5a1010, emissive: 0xff2a2a, emissiveIntensity: 0, roughness: .3 }), esp, 1.55, .43, .05);
+  topDecal(5.2, 2.8, canvasTex(1560, 840, (g, w, h) => {
+    const s = w / 5.2; g.fillStyle = '#e9e9e9'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = `700 ${0.085 * s}px "JetBrains Mono", monospace`;
+    BACK.forEach((n, i) => g.fillText(n, w / 2 + pinX(i) * s, h / 2 - 0.95 * s));
+    FRONT.forEach((n, i) => g.fillText(n, w / 2 + pinX(i) * s, h / 2 + 0.95 * s));
+    g.font = `800 ${0.13 * s}px "JetBrains Mono", monospace`; g.fillText('DEVKIT V1', w / 2 + 1.0 * s, h / 2 + .62 * s);
+    g.font = `700 ${0.09 * s}px "JetBrains Mono", monospace`; g.fillText('EN', w / 2 + 1.95 * s, h / 2 - .28 * s); g.fillText('BOOT', w / 2 + 1.95 * s, h / 2 + .28 * s);
+  }), esp, .402, 0, 0);
+}
+
+// JSN-SR04T driver board
+const SENS_POS = v3(-2.6, 0, -5.4);
+const sensPinBase = k => v3(SENS_POS.x - .381 + k * .254, .65, SENS_POS.z + 1.2);
+const sens = new THREE.Group(); sens.position.copy(SENS_POS); bench.add(sens);
+{
+  box(4.1, .16, 2.8, MAT.pcbGreen, sens, 0, .32, 0);
+  for (const [x, z] of [[-1.8, -1.2], [1.8, -1.2], [-1.8, 1.2], [1.8, 1.2]]) cyl(.12, .12, .24, MAT.white, sens, x, .12, z, 12);
+  box(1.02, .25, .254, MAT.plastic, sens, 0, .525, 1.2);
+  for (let k = 0; k < 4; k++) box(.064, .6, .064, MAT.gold, sens, -.381 + k * .254, .95, 1.2);
+  box(.9, .72, .8, MAT.chip, sens, -1.1, .76, -.3);
+  box(.94, .2, .84, MAT.copper, sens, -1.1, .78, -.3);
+  box(.6, .12, .45, MAT.chip, sens, .55, .46, -.45);
+  box(.45, .1, .45, MAT.chip, sens, 1.3, .45, .35);
+  box(.45, .16, .2, MAT.silver, sens, .3, .48, .45);
+  cyl(.13, .13, .34, MAT.capBlue, sens, 1.45, .57, -.7, 20);
+  cyl(.13, .13, .02, MAT.silver, sens, 1.45, .75, -.7, 20);
+  box(.8, .5, .45, std({ color: 0xf2f0e9, roughness: .5 }), sens, 0, .65, -1.12);
+  topDecal(4.1, 2.8, canvasTex(1230, 840, (g, w, h) => {
+    const s = w / 4.1; g.fillStyle = '#eef3ee'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = `700 ${0.085 * s}px "JetBrains Mono", monospace`;
+    ['5V', 'Trig', 'Echo', 'Gnd'].forEach((n, k) => g.fillText(n, w / 2 + (-.381 + k * .254) * s, h / 2 + .93 * s));
+    g.font = `800 ${0.14 * s}px "JetBrains Mono", monospace`; g.fillText('JSN-SR04T-2.0', w / 2 + .75 * s, h / 2 + .05 * s);
+  }), sens, .402, 0, 0);
+}
+
+// probe on a stand (face up)
+const PROBE_FACE_Y = 2.21;
+const probeStand = new THREE.Group(); probeStand.position.set(-6.2, 0, -2.0); bench.add(probeStand);
+function buildProbe(parent, scale = 1) {
+  const g = new THREE.Group(); g.scale.setScalar(scale);
+  cyl(.95, .95, 1.5, MAT.probe, g, 0, 0, 0, 48);
+  cyl(1.08, 1.08, .18, MAT.probe, g, 0, .75, 0, 48);
+  cyl(.9, .9, .02, MAT.probeFace, g, 0, .85, 0, 48);
+  cyl(.45, .45, .5, MAT.probe, g, 0, -1.0, 0, 24);
+  parent.add(g); return g;
+}
+{
+  box(2.6, .9, 2.6, MAT.stand, probeStand, 0, .45, 0);
+  const p = buildProbe(probeStand); p.position.y = 1.35;
+  tube([v3(-6.2, .35, -3.25), v3(-6.3, .13, -4.6), v3(-5.6, .13, -6.6), v3(-4.2, .13, -7.4), v3(-2.6, .2, -7.25), v3(-2.6, .6, -6.85), v3(-2.6, .65, -6.6)], .11, MAT.rubber, bench, 80, 10);
+}
+
+// resistors
+const BAND = { brown: 0x6b3a1e, black: 0x141414, red: 0xc0262d, gold: 0xc9a23a };
+function buildResistor(span, bands) {
+  const g = new THREE.Group(), H = .32;
+  for (const s of [-1, 1]) tube([v3(s * span / 2, -.3, 0), v3(s * span / 2, H - .1, 0), v3(s * (span / 2 - .05), H, 0), v3(s * .33, H, 0)], .022, MAT.silver, g, 24, 6, .1);
+  const prof = [[0, -.33], [.09, -.33], [.125, -.29], [.13, -.2], [.108, -.12], [.105, 0], [.108, .12], [.13, .2], [.125, .29], [.09, .33], [0, .33]].map(([r, y]) => new THREE.Vector2(r, y));
+  const body = addMesh(new THREE.LatheGeometry(prof, 32).rotateZ(-Math.PI / 2), MAT.tan, g, 0, H, 0);
+  [[-.2, .134], [-.1, .111], [0, .109], [.2, .134]].forEach(([x, r], i) => {
+    const b = addMesh(new THREE.CylinderGeometry(r, r, .05, 32).rotateZ(Math.PI / 2), std({ color: BAND[bands[i]], roughness: .45 }), g, x, H, 0);
+  });
+  bench.add(g); return g;
+}
+const R1 = { g: buildResistor(1.524, ['brown', 'black', 'red', 'gold']), to: v3((colX(10) + colX(16)) / 2, BB.H, ROWZ.c), toRy: 0, from: v3(-4.7, .13, 5.0), fromRy: .25, t0: 52.4, t1: 54.4 };
+const R2 = { g: buildResistor(.889, ['red', 'black', 'red', 'gold']), to: v3(colX(16), BB.H, (ROWZ.b + ROWZ['-']) / 2), toRy: Math.PI / 2, from: v3(-3.2, .13, 5.7), fromRy: -.35, t0: 57.3, t1: 59.3 };
+
+// jumper wires
+const WIRE = { red: 0xd8342f, black: 0x232427, yellow: 0xf2c94c, green: 0x2fa85e, orange: 0xf28c28, blue: 0x3a9be0 };
+function buildJumper(A, B, color) {
+  const g = new THREE.Group(); bench.add(g);
+  const wm = std({ color: WIRE[color], roughness: .42 });
+  const male = new THREE.Group(); g.add(male); male.position.copy(A);
+  box(.22, .55, .22, MAT.plastic, male, 0, .3, 0); box(.05, .25, .05, MAT.gold, male, 0, -.05, 0); box(.24, .1, .24, wm, male, 0, .6, 0);
+  const female = new THREE.Group(); g.add(female); female.position.copy(B);
+  box(.26, .78, .26, MAT.plastic, female, 0, .39, 0); box(.27, .1, .27, wm, female, 0, .82, 0);
+  const s = A.clone().add(v3(0, .62, 0)), e = B.clone().add(v3(0, .85, 0));
+  const dist = s.distanceTo(e), peak = Math.max(s.y, e.y) + .7 + dist * .16;
+  const mid = s.clone().lerp(e, .5); mid.y = peak;
+  const w = tube([s, s.clone().add(v3(0, .45, 0)), mid, e.clone().add(v3(0, .45, 0)), e], .06, wm, g, 110, 10);
+  return { g, male, female, wire: w };
+}
+const JUMPERS = [
+  { a: hole(3, '+'), b: sensPinBase(0), c: 'red', t: 62.4, la: '+ line', lb: 'Sensor 5V' },
+  { a: hole(6, '-'), b: sensPinBase(3), c: 'black', t: 64.6, la: '– line', lb: 'Sensor GND' },
+  { a: hole(29, '+'), b: espPinBase(14), c: 'red', t: 67.4, la: '+ line', lb: 'VIN' },
+  { a: hole(30, '-'), b: espPinBase(13), c: 'black', t: 69.6, la: '– line', lb: 'GND' },
+  { a: hole(26, 'a'), b: sensPinBase(1), c: 'yellow', t: 72.4, la: 'A26', lb: 'Trig' },
+  { a: hole(26, 'e'), b: espPinBase(12), c: 'orange', t: 76.3, la: 'E26', lb: 'D13' },
+  { a: hole(10, 'a'), b: sensPinBase(2), c: 'green', t: 80.4, la: 'A10', lb: 'Echo' },
+  { a: hole(16, 'e'), b: espPinBase(3), c: 'blue', t: 84.3, la: 'E16', lb: 'D34' },
+].map(j => Object.assign(j, buildJumper(j.a, j.b, j.c)));
+
+// loose jumper bundle shown in the parts tour
+const bundle = new THREE.Group(); bundle.position.set(-6.4, 0, 6.6); bench.add(bundle);
+['red', 'yellow', 'green', 'blue'].forEach((c, i) => {
+  const z = (i - 1.5) * .55, wm = std({ color: WIRE[c], roughness: .42 });
+  tube([v3(-2.2, .1, z), v3(-1, .1, z + .25), v3(0, .1, z - .2), v3(1, .1, z + .2), v3(2.2, .1, z)], .06, wm, bundle, 60, 8);
+  const m = box(.55, .22, .22, MAT.plastic, bundle, -2.45, .11, z); box(.25, .05, .05, MAT.gold, bundle, -2.85, .11, z);
+  box(.78, .26, .26, MAT.plastic, bundle, 2.55, .13, z);
+});
+
+// USB cable
+const usb = new THREE.Group(); bench.add(usb);
+box(.9, .3, .55, std({ color: 0x2a2d31, roughness: .5 }), usb, ESP_POS.x + 3.12, .54, ESP_POS.z);
+const usbCable = tube([v3(ESP_POS.x + 3.55, .54, ESP_POS.z), v3(ESP_POS.x + 5, .3, ESP_POS.z + .3), v3(ESP_POS.x + 7.5, .14, ESP_POS.z + 1.4), v3(ESP_POS.x + 12, .14, ESP_POS.z + 1.2), v3(ESP_POS.x + 20, .14, ESP_POS.z + 3)], .13, std({ color: 0x1d1f22, roughness: .6 }), usb, 80, 10);
+
+// book used in the test
+const book = new THREE.Group(); bench.add(book);
+{
+  const pages = std({ color: 0xf4efe2, roughness: .9 });
+  const cover = std({ map: canvasTex(512, 680, (g, w, h) => {
+    g.fillStyle = '#7b1e2b'; g.fillRect(0, 0, w, h); g.fillStyle = '#f0b64a'; g.fillRect(40, 60, w - 80, 8);
+    g.font = '800 64px "Baloo 2", sans-serif'; g.textAlign = 'center'; g.fillText('Register', w / 2, 170);
+    g.fillRect(40, h - 80, w - 80, 8);
+  }), roughness: .6 });
+  addMesh(new THREE.BoxGeometry(4.5, .8, 6), [cover, cover, cover, cover, pages, pages], book);
+}
+
+// ultrasonic wave rings
+function wavePool(parent, n, tubeR) {
+  const up = [], geo = new THREE.TorusGeometry(1, tubeR, 8, 64).rotateX(Math.PI / 2);
+  for (let i = 0; i < n; i++) { const m = new THREE.Mesh(geo, glowMat(0x5fe0ff, 2.5)); m.renderOrder = 6; parent.add(m); up.push(m); }
+  return up;
+}
+function updateWaves(pool, t, active, from, to, r0, r1, dir = 1) {
+  pool.forEach((m, i) => {
+    if (!active) { m.visible = false; return; }
+    const ph = (t * .9 + i / pool.length) % 1, out = ph < .5, k = out ? ph * 2 : (ph - .5) * 2;
+    const y = out ? lerp(from.y, to.y, k) : lerp(to.y, from.y, k);
+    m.visible = true; m.position.set(from.x, y, from.z);
+    m.scale.setScalar(lerp(r0, r1, out ? k : 1 - k * .3));
+    m.material.color.set(out ? 0x5fe0ff : 0xf0b64a).multiplyScalar(7.5);
+    m.material.opacity = Math.sin(k * Math.PI) * active;
+  });
+}
+const benchWaves = wavePool(bench, 8, .04);
+
+// ===================== SITE (units: m) =====================
+const SITE = v3(500, 0, 0);
+const site = new THREE.Group(); site.position.copy(SITE); scene.add(site);
+const skyBg = canvasTex(16, 512, (g, w, h) => {
+  const gr = g.createLinearGradient(0, 0, 0, h);
+  gr.addColorStop(0, '#0f2f4e'); gr.addColorStop(.55, '#3d6e95'); gr.addColorStop(.82, '#e9a77a'); gr.addColorStop(1, '#f6c89a');
+  g.fillStyle = gr; g.fillRect(0, 0, w, h);
+});
+function worldUVBox(x0, x1, y0, y1, z0, z1, mats, parent, scale = 4) {
+  const geo = new THREE.BoxGeometry(x1 - x0, y1 - y0, z1 - z0);
+  geo.translate((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
+  const p = geo.attributes.position, n = geo.attributes.normal, uv = geo.attributes.uv;
+  for (let i = 0; i < p.count; i++) {
+    const ax = Math.abs(n.getX(i)), ay = Math.abs(n.getY(i));
+    if (ax > .5) uv.setXY(i, p.getZ(i) / scale, p.getY(i) / scale);
+    else if (ay > .5) uv.setXY(i, p.getX(i) / scale, p.getZ(i) / scale);
+    else uv.setXY(i, p.getX(i) / scale, p.getY(i) / scale);
+  }
+  return addMesh(geo, mats, parent);
+}
+const grassTex = canvasTex(256, 256, (g, w, h) => {
+  g.fillStyle = '#5d7d3c'; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 1800; i++) { const k = (i * 7919) % 997 / 997; g.fillStyle = `rgba(${40 + k * 50 | 0},${80 + k * 60 | 0},${30 + k * 20 | 0},.5)`; g.fillRect((i * 37) % w, (i * 91) % h, 2, 2); }
+}, true);
+const soilTex = canvasTex(256, 256, (g, w, h) => {
+  const bands = ['#5a3e28', '#6b4a2f', '#7a5838', '#5f4330', '#4a3423', '#6d5136'];
+  bands.forEach((c, i) => { g.fillStyle = c; g.fillRect(0, i * h / bands.length, w, h / bands.length + 1); });
+  for (let i = 0; i < 260; i++) { g.fillStyle = 'rgba(30,20,12,.35)'; g.beginPath(); g.arc((i * 53) % w, (i * 97) % h, 1 + (i % 3), 0, 7); g.fill(); }
+}, true);
+const GRASS = std({ map: grassTex, roughness: .95 }), SOIL = std({ map: soilTex, roughness: .95 });
+const CONC = std({ color: 0xb7b3aa, roughness: .9 }), CONC_D = std({ color: 0x8f8b84, roughness: .9 });
+const earth = [SOIL, SOIL, GRASS, SOIL, SOIL, SOIL];
+worldUVBox(-40, 6, -5, 0, -40, 3, earth, site, 5);
+worldUVBox(10, 40, -5, 0, -40, 3, earth, site, 5);
+worldUVBox(6, 10, -5, -3, -40, 3, earth, site, 5);
+worldUVBox(6, 10, -3, 0, -40, -1, earth, site, 5);
+// underground tank (cut open at the front)
+worldUVBox(6, 6.15, -3, 0, -1, 3, CONC_D, site); worldUVBox(9.85, 10, -3, 0, -1, 3, CONC_D, site);
+worldUVBox(6, 10, -3, -2.85, -1, 3, CONC_D, site); worldUVBox(6, 10, -3, 0, -1, -.85, CONC_D, site);
+worldUVBox(6, 10, 0, .22, -1, 3, CONC, site);
+cyl(.4, .4, .06, std({ color: 0x3b3f44, roughness: .5, metalness: .6 }), site, 8, .25, .4, 32);
+const WATER = std({ color: 0x1f93d6, roughness: .12, metalness: 0, transparent: true, opacity: .84, emissive: 0x0b3a5a, emissiveIntensity: .5 });
+const ugWater = addMesh(new THREE.BoxGeometry(3.7, 1, 3.85), WATER, site, 8, 0, 1.075);
+const UG_PCT = 55;
+// building
+const facade = canvasTex(1200, 900, (g, w, h) => {
+  g.fillStyle = '#d9cdb8'; g.fillRect(0, 0, w, h);
+  for (let f = 0; f < 3; f++) for (let k = 0; k < 5; k++) {
+    const x = 90 + k * 220, y = 80 + f * 300;
+    g.fillStyle = '#6f6556'; g.fillRect(x - 8, y - 8, 156, 176);
+    const gr = g.createLinearGradient(0, y, 0, y + 160); gr.addColorStop(0, '#9fc3dc'); gr.addColorStop(1, '#46657d');
+    g.fillStyle = gr; g.fillRect(x, y, 140, 160);
+    g.fillStyle = '#c5b9a3'; g.fillRect(x - 14, y + 168, 168, 12);
+  }
+  g.fillStyle = '#bfb29b'; for (let f = 1; f < 3; f++) g.fillRect(0, f * 300 - 10, w, 14);
+});
+const FAC = std({ map: facade, roughness: .85 });
+addMesh(new THREE.BoxGeometry(12, 9, 8), [FAC, FAC, CONC, CONC, FAC, FAC], site, -2, 4.5, -2);
+worldUVBox(-8, 4, 9, 9.03, -6, 2, std({ color: 0xa9a49a, roughness: .95 }), site);
+for (const [x0, x1, z0, z1] of [[-8.1, 4.1, 1.9, 2.1], [-8.1, 4.1, -6.1, -5.9], [-8.1, -7.9, -6, 2], [3.9, 4.1, -6, 2]]) worldUVBox(x0, x1, 9, 9.8, z0, z1, CONC, site);
+const PVC = std({ color: 0xd9dcd8, roughness: .5 });
+cyl(.07, .07, 9.6, PVC, site, 4.25, 4.8, .5, 12);
+addMesh(new THREE.CylinderGeometry(.07, .07, 3.8, 12).rotateZ(Math.PI / 2), PVC, site, 6.1, .32, .5);
+// neighbour buildings (with their own rooftop tanks)
+const NB = std({ color: 0x9a8f80, roughness: .9 });
+const tankProfile = (() => {
+  const pts = [new THREE.Vector2(0, 0), new THREE.Vector2(.5, 0), new THREE.Vector2(.55, .04)];
+  for (let i = 0; i < 9; i++) { const y = .08 + i * .13; pts.push(new THREE.Vector2(.55, y), new THREE.Vector2(.572, y + .03), new THREE.Vector2(.572, y + .07), new THREE.Vector2(.55, y + .1)); }
+  pts.push(new THREE.Vector2(.55, 1.24), new THREE.Vector2(.45, 1.3), new THREE.Vector2(.28, 1.33), new THREE.Vector2(.27, 1.41), new THREE.Vector2(0, 1.41));
+  return pts;
+})();
+const tankGeo = new THREE.LatheGeometry(tankProfile, 48);
+const TANK = std({ color: 0x17191b, roughness: .5 });
+[[-20, -18, 8, 11, 8], [-6, -26, 10, 14, 8], [12, -22, 9, 9, 10], [26, -12, 8, 12, 7], [-28, -4, 7, 7, 9]].forEach(([x, z, w, h, d]) => {
+  addMesh(new THREE.BoxGeometry(w, h, d), NB, site, x, h / 2, z);
+  addMesh(tankGeo, TANK, site, x - w / 4, h, z); addMesh(tankGeo, TANK, site, x + w / 5, h, z + 1);
+});
+// our six rooftop tanks
+const ROOF_Y = 9.03;
+const TANKS = [
+  { name: 'Overhead 1', x: -.6, z: -.8, pct: null },
+  { name: 'Overhead 2', x: -3.0, z: -.8, pct: 64 },
+  { name: 'Overhead 3', x: -5.4, z: -.8, pct: 38 },
+  { name: 'Overhead 4', x: -.6, z: -3.2, pct: 91 },
+  { name: 'Overhead 5', x: -3.0, z: -3.2, pct: 18 },
+  { name: 'Overhead 6', x: -5.4, z: -3.2, pct: 70 },
+];
+const cutPlane = new THREE.Plane(new THREE.Vector3(0, 0, -1), -0.8);
+const TANK_CUT = std({ color: 0x17191b, roughness: .5, side: THREE.DoubleSide, clippingPlanes: [cutPlane] });
+const BOXM = std({ color: 0xe6e8e4, roughness: .5 });
+TANKS.forEach((tk, i) => {
+  addMesh(tankGeo, i === 0 ? TANK_CUT : TANK, site, tk.x, ROOF_Y, tk.z);
+  if (i) { box(.22, .1, .16, BOXM, site, tk.x + .12, ROOF_Y + 1.46, tk.z); }
+});
+// hero tank internals
+const HERO = TANKS[0], FULL_H = 1.02, FACE_Y = ROOF_Y + 1.28;
+const heroWater = new THREE.Group(); heroWater.position.set(HERO.x, ROOF_Y + .02, HERO.z); site.add(heroWater);
+addMesh(new THREE.CylinderGeometry(.535, .535, 1, 48, 1, false, Math.PI / 2, Math.PI).translate(0, .5, 0), WATER, heroWater);
+addMesh(new THREE.PlaneGeometry(1.07, 1).translate(0, .5, 0), WATER, heroWater);
+const heroSensor = new THREE.Group(); site.add(heroSensor);
+box(.22, .1, .16, BOXM, heroSensor, .12, .18, 0);
+cyl(.05, .05, .1, MAT.probe, heroSensor, 0, -.02, 0, 24);
+cyl(.06, .06, .02, MAT.probe, heroSensor, 0, .03, 0, 24);
+const heroLed = box(.03, .02, .03, glowMat(0x35ff8a, 2), heroSensor, .2, .24, .05);
+const fullLine = new THREE.Mesh(new THREE.BoxGeometry(1.1, .01, .01), glowMat(0xffffff, 1.6)); fullLine.position.set(HERO.x, ROOF_Y + .02 + FULL_H, HERO.z + .01); site.add(fullLine);
+const dimLine = new THREE.Mesh(new THREE.BoxGeometry(.012, FACE_Y - (ROOF_Y + .02 + FULL_H), .012), glowMat(0xf0b64a, 2)); dimLine.position.set(HERO.x + .2, (FACE_Y + ROOF_Y + .02 + FULL_H) / 2, HERO.z + .01); site.add(dimLine);
+const siteWaves = wavePool(site, 6, .006);
+// underground sensor
+box(.22, .1, .16, BOXM, site, 8.6, .28, 1.2);
+cyl(.05, .05, .1, MAT.probe, site, 8.3, .17, 1.2, 24);
+
+// ---------- labels (HTML, projected) ----------
+const labelBox = $('labels'), labelEls = [];
+let stageW = 1280, stageH = 720;
+function drawLabels(list) {
+  while (labelEls.length < list.length) { const d = document.createElement('div'); d.className = 'lbl'; d.hidden = true; labelBox.appendChild(d); labelEls.push(d); }
+  labelEls.forEach((el, i) => {
+    const L = list[i];
+    if (!L || L.o <= 0) { el.hidden = true; return; }
+    const p = L.pos.clone().project(camera);
+    if (p.z > 1 || Math.abs(p.x) > 1.2 || Math.abs(p.y) > 1.2) { el.hidden = true; return; }
+    el.hidden = false;
+    const key = L.cls + '|' + L.html;
+    if (el._k !== key) { el._k = key; el.className = 'lbl ' + (L.cls || ''); el.innerHTML = L.html; }
+    el.style.opacity = L.o;
+    el.style.transform = `translate(${((p.x * .5 + .5) * stageW).toFixed(1)}px, ${((-p.y * .5 + .5) * stageH).toFixed(1)}px) translate(-50%, calc(-100% - 0.6cqw))`;
+  });
+}
+const tankDot = pct => `<span class="dot" style="background:${levelColor(pct)}"></span><b>${Math.round(pct)}%</b>`;
+const tankLabel = (name, pct) => `<span class="dot" style="background:${levelColor(pct)}"></span>${name} <b>${Math.round(pct)}%</b>`;
+
+// ---------- camera shots ----------
+const SHOTS = [
+  { t: 0, s: 'site', pos: [12, 14.5, 19], tgt: [-9.5, 7.5, -2], dp: [-.55, -.1, -.25] },
+  { t: 8, s: 'bench', pos: [0, 25, 27], tgt: [-.5, 0, .5], dp: [0, -.5, -.5] },
+  { t: 14, s: 'bench', pos: [4.6, 7.6, 15], tgt: [4.6, 1.4, 4.6], dp: [-.12, 0, -.1] },
+  { t: 20, s: 'bench', pos: [-1.5, 8.5, 7.5], tgt: [-1.2, 1.2, -4.0], dp: [-.1, 0, -.1] },
+  { t: 27, s: 'bench', pos: [2.4, 11, 11], tgt: [2.4, .8, 0], dp: [.1, 0, 0] },
+  { t: 32, s: 'bench', pos: [-2.2, 5.4, 11.6], tgt: [-2.2, 1.4, 5.3], dp: [.06, 0, 0] },
+  { t: 38, s: 'bench', pos: [-3.6, 6.4, 14.5], tgt: [-3.6, 1.2, 6.6], dp: [.06, 0, 0] },
+  { t: 44, s: 'bench', pos: [0, 11, 5], tgt: [0, .85, -.9], dp: [0, -.06, 0] },
+  { t: 52, s: 'bench', pos: [1.0, 6.4, 4.6], tgt: [-.1, .85, -1.25], dp: [-.04, 0, 0] },
+  { t: 57, s: 'bench', pos: [5.4, 4.6, -1.3], tgt: [-.2, .85, -1.55], dp: [0, 0, .04] },
+  { t: 62, s: 'bench', pos: [2, 15.5, 13.5], tgt: [0, .8, -.6], dp: [-.12, 0, 0] },
+  { t: 72, s: 'bench', pos: [5, 10, 10], tgt: [.8, .8, -.8], dp: [-.1, 0, 0] },
+  { t: 80, s: 'bench', pos: [-3, 10, 10], tgt: [-.4, .8, -.6], dp: [.1, 0, 0] },
+  { t: 88, s: 'bench', pos: [-.4, 6.5, 4.2], tgt: [-.6, .85, -1.3], dp: [.05, 0, 0] },
+  { t: 92, s: 'bench', orbit: { c: [2.2, .8, -.3], r: 19, h: 12.5, a0: .5, a1: 1.25 } },
+  { t: 100, s: 'bench', pos: [7, 7.5, 13], tgt: [-1.6, .8, 3.2], dp: [-.04, 0, 0] },
+  { t: 112, s: 'bench', pos: [-14, 9, 11], tgt: [-2.4, 6.4, -2], dp: [.08, 0, 0] },
+  { t: 128, s: 'site', pos: [1.5, 10.6, 3.1], tgt: [-.6, 9.8, -.8], dp: [0, 0, .03] },
+  { t: 142, s: 'site', pos: [17, 15, 27], tgt: [4.5, 4.5, -1], dp: [-.35, -.08, -.2] },
+];
+function shotPose(sh, t) {
+  if (sh.orbit) {
+    const o = sh.orbit, a = lerp(o.a0, o.a1, ease((t - sh.t) / 8));
+    return { pos: v3(o.c[0] + o.r * Math.sin(a), o.h, o.c[2] + o.r * Math.cos(a)), tgt: v3(...o.c) };
+  }
+  const dt = t - sh.t;
+  return { pos: v3(...sh.pos).add(v3(...sh.dp).multiplyScalar(dt)), tgt: v3(...sh.tgt) };
+}
+function cameraAt(t) {
+  let i = 0; while (i + 1 < SHOTS.length && SHOTS[i + 1].t <= t) i++;
+  const sh = SHOTS[i]; let p = shotPose(sh, t);
+  if (i > 0 && SHOTS[i - 1].s === sh.s) {
+    const k = ease((t - sh.t) / 1.4);
+    if (k < 1) { const q = shotPose(SHOTS[i - 1], t); p = { pos: q.pos.lerp(p.pos, k), tgt: q.tgt.lerp(p.tgt, k) }; }
+  }
+  const off = sh.s === 'site' ? SITE : v3(0, 0, 0);
+  camera.position.copy(p.pos.add(off)); camera.lookAt(p.tgt.add(off)); camera.updateMatrixWorld();
+  return sh.s;
+}
+let currentScene = '';
+function setScene(s) {
+  if (s === currentScene) return; currentScene = s;
+  bench.visible = s === 'bench'; site.visible = s === 'site';
+  if (s === 'bench') {
+    scene.background = benchBg; scene.fog = new THREE.Fog(0x061214, 34, 70);
+    sun.intensity = 1.9; sun.position.set(-9, 22, 14); sun.target.position.set(0, 0, 0);
+    const c = sun.shadow.camera; c.left = -16; c.right = 16; c.top = 16; c.bottom = -16; c.near = 1; c.far = 60; c.updateProjectionMatrix();
+    rim.intensity = .8; rim.position.set(10, 8, -14); rim.target.position.set(0, 0, 0);
+    hemi.intensity = .4; renderer.toneMappingExposure = 1.1;
+  } else {
+    scene.background = skyBg; scene.fog = new THREE.Fog(0xe2ab84, 45, 140);
+    sun.intensity = 2.6; sun.position.set(SITE.x - 30, 34, 26); sun.target.position.set(SITE.x, 0, 0);
+    const c = sun.shadow.camera; c.left = -24; c.right = 24; c.top = 24; c.bottom = -24; c.near = 1; c.far = 120; c.updateProjectionMatrix();
+    rim.intensity = .35; rim.position.set(SITE.x + 20, 10, -30); rim.target.position.set(SITE.x, 0, 0);
+    hemi.intensity = .75; renderer.toneMappingExposure = 1.0;
+  }
+}
+
+// ---------- overlays ----------
+const ui = {
+  title: $('title'), chip: $('chip'), chipNo: $('chipNo'), chipName: $('chipName'), caption: $('caption'),
+  card: $('card'), cardN: $('cardN'), cardName: $('cardName'), cardDesc: $('cardDesc'), cardPrice: $('cardPrice'),
+  check: $('check'), checkList: $('checkList'), ide: $('ide'), phone: $('phone'), phoneBody: $('phoneBody'), phoneUpd: $('phoneUpd'),
+  end: $('end'), fade: $('fade'),
+};
+ui.checkList.innerHTML = CHECK.map(([c, s]) => `<li><span class="tick">✓</span><span><i style="background:${c}"></i>${s}</span></li>`).join('');
+const checkItems = [...ui.checkList.children];
+function show(el, o) { el.hidden = o <= 0; if (o > 0) el.style.opacity = o; }
+let lastHtml = new Map();
+function setHTML(el, html) { if (lastHtml.get(el) !== html) { lastHtml.set(el, html); el.innerHTML = html; } }
+
+function ideHTML(t) {
+  const typed = (str, a, b) => str.slice(0, Math.round(str.length * prog(t, a, b)));
+  const name = typed('"Office_WiFi"', 104.2, 105.2), pass = typed('"••••••••"', 105.3, 106.2);
+  const caretName = t > 104.2 && t < 105.25, caretPass = t >= 105.25 && t < 106.3;
+  const up = t > 106.3 && t < 106.9;
+  const pr = prog(t, 106.7, 108.1);
+  let out = '<span class="c">Output</span>';
+  if (t > 106.7) out = t < 108.1 ? `Uploading… ${Math.round(pr * 100)}%<div class="prog"><i style="width:${pr * 100}%"></i></div>` : '<span style="color:#7fdc9a">Done uploading.</span>';
+  const lines = [
+    [108.5, 'Connecting to WiFi.....'],
+    [109.2, 'Open this on phone/PC/TV:  <span class="ip">http://192.168.1.50/</span>'],
+    [109.9, 'Overhead 1     63%'], [110.3, 'Overhead 2     64%'], [110.7, 'Overhead 3     38%'],
+  ].filter(([a]) => t >= a).map(([, s]) => `<div>${s}</div>`).join('');
+  return `<div class="bar"><span class="btn">✓</span><span class="btn up${up ? ' hot' : ''}">→</span><span class="board">ESP32 Dev Module ▾</span></div>
+<div class="tab">water_tank_monitor.ino</div>
+<pre><span class="ln">13</span><span class="c">// 1. WiFi (change these)</span>
+<span class="${t > 104 && t < 106.4 ? 'hl' : ''}"><span class="ln">14</span><span class="k">const char</span>* WIFI_NAME     = <span class="s">${name}</span>${caretName ? '<span class="caret"></span>' : ''};</span>
+<span class="${t > 104 && t < 106.4 ? 'hl' : ''}"><span class="ln">15</span><span class="k">const char</span>* WIFI_PASSWORD = <span class="s">${pass}</span>${caretPass ? '<span class="caret"></span>' : ''};</span>
+<span class="ln">16</span>
+<span class="ln">17</span><span class="c">// 2. Tanks: name, TRIG, ECHO, emptyCm, fullCm, liters</span>
+<span class="ln">18</span>{<span class="s">"Overhead 1"</span>, 13, 34, 150, 30, 1000},</pre>
+<div class="out">${out}</div>
+${t > 108.3 ? `<div class="serial"><div class="t">Serial Monitor · 115200 baud</div>${lines}</div>` : ''}`;
+}
+function phoneHTML(mode, t, vals) {
+  if (mode === 'one') {
+    const { pct, dist } = vals;
+    return `<div class="one"><div class="tc"><div class="nm">Test Tank</div><div class="tk"><i style="height:${pct}%;background:${levelColor(pct)}"></i></div><div class="pc" style="color:${levelColor(pct)}">${Math.round(pct)}%</div><div class="ds">Distance: ${dist} cm</div></div></div>`;
+  }
+  return `<div class="grid">${vals.map(([n, p]) => `<div class="tc"><div class="nm">${n}</div><div class="tk"><i style="height:${p}%;background:${levelColor(p)}"></i></div><div class="pc" style="color:${levelColor(p)}">${Math.round(p)}%</div></div>`).join('')}</div>`;
+}
+
+// ---------- the frame function: everything is a function of t ----------
+function heroPct(t) {
+  if (t < 8) return lerp(22, 82, ease(t / 7));
+  if (t < 133) return 30;
+  return lerp(30, 72, ease(prog(t, 133.5, 140)));
+}
+function bookBottom(t) {
+  const keys = [[112, 13.4], [114, 13.4], [117.5, 7.0], [120, 7.0], [122.5, 11.2], [124, 11.2], [126, 8.6], [128, 8.6]];
+  for (let i = 1; i < keys.length; i++) if (t <= keys[i][0]) return lerp(keys[i - 1][1], keys[i][1], ease(prog(t, keys[i - 1][0], keys[i][0])));
+  return 8.6;
+}
+
+function renderAt(t) {
+  t = Math.min(Math.max(t, 0), DURATION - 0.001);
+  const s = cameraAt(t); setScene(s);
+  const labels = [];
+
+  if (s === 'bench') {
+    // parts tour: lift + turn the part being described
+    const lift = (obj, base, a, b, h, spin) => { const k = bell(t, a, b, .9); obj.position.y = base + h * k; obj.rotation.y = spin * Math.sin((t - a) * .9) * k; };
+    lift(esp, 0, 14, 20, 1.6, .25); lift(sens, 0, 20, 27, 1.2, .2); lift(probeStand, 0, 20, 27, 0, 0); lift(bbGroup, 0, 27, 32, 1.0, .12);
+    bundle.visible = t < 52; bundle.position.y = 1.4 * bell(t, 38, 44, .9);
+    bundle.rotation.x = .5 * bell(t, 38, 44, .9);
+
+    for (const R of [R1, R2]) {
+      const k = ease(prog(t, R.t0, R.t1)), g = R.g;
+      const loose = R.from.clone(); loose.y += 1.5 * bell(t, 32, 38, .9);
+      g.position.copy(loose.lerp(R.to, k)); g.position.y += Math.sin(Math.PI * k) * 2.6 + (k > .85 ? (1 - k) * 1.5 : 0);
+      g.rotation.set(lerp(-Math.PI / 2, 0, k), lerp(R.fromRy + (t < R.t0 ? .6 * Math.sin(t * .8) * bell(t, 32, 38, .9) : 0), R.toRy, k), 0);
+    }
+    JUMPERS.forEach(j => {
+      const pm = easeOut(prog(t, j.t, j.t + .35)), pw = prog(t, j.t + .25, j.t + 1.7), pf = easeOut(prog(t, j.t + 1.55, j.t + 2.0));
+      j.male.visible = pm > 0; j.male.position.y = j.a.y + (1 - pm) * 1.2;
+      setGrow(j.wire, pw);
+      j.female.visible = pf > 0; j.female.position.y = j.b.y + (1 - pf) * .9;
+      const o = fadeWin(t, j.t - .2, j.t + 2.35, .25);
+      if (o > 0) { labels.push({ pos: j.a.clone().add(v3(0, 1.0, 0)), html: j.la, o, cls: '' }, { pos: j.b.clone().add(v3(0, 1.5, 0)), html: j.lb, o, cls: '' }); }
+    });
+    // rings at target holes
+    const ringT = [
+      [52, 57, [hole(10, 'c'), hole(16, 'c')], ['C10', 'C16']],
+      [57, 62, [hole(16, 'b'), hole(16, '-')], ['B16', '– line']],
+    ];
+    rings.forEach(r => r.visible = false);
+    ringT.forEach(([a, b, ps, names]) => {
+      const o = fadeWin(t, a, b, .3); if (o <= 0) return;
+      ps.forEach((p, i) => { const r = rings[i]; r.visible = true; r.position.copy(p).add(v3(0, .01, 0)); r.scale.setScalar(1 + .25 * Math.sin(t * 6)); r.material.opacity = o; labels.push({ pos: p.clone().add(v3(0, .5, 0)), html: names[i], o, cls: '' }); });
+    });
+    JUMPERS.forEach((j, i) => {
+      const o = fadeWin(t, j.t - .3, j.t + 2.2, .2); if (o <= 0) return;
+      const r = rings[2 + (i % 2)]; r.visible = true; r.position.copy(j.a).add(v3(0, .01, 0)); r.scale.setScalar(1 + .25 * Math.sin(t * 6)); r.material.opacity = o;
+    });
+    // breadboard basics strips
+    strips[0].m.material.opacity = strips[1].m.material.opacity = .85 * fadeWin(t, 44.3, 48.2) * (.6 + .4 * Math.sin(t * 5));
+    strips[2].m.material.opacity = .85 * fadeWin(t, 45.3, 48.2) * (.6 + .4 * Math.sin(t * 5 + 1));
+    strips[3].m.material.opacity = strips[4].m.material.opacity = .9 * fadeWin(t, 48.2, 52) * (.6 + .4 * Math.sin(t * 5));
+    strips.forEach(st => st.m.visible = st.m.material.opacity > 0.01);
+    if (t > 44.3 && t < 48.2) {
+      const o = fadeWin(t, 44.3, 48.2);
+      labels.push({ pos: hole(10, 'a').add(v3(0, .4, 0)), html: '10: A–E jure', o, cls: '' }, { pos: hole(23, 'j').add(v3(0, .4, 0)), html: '23: F–J jure', o: fadeWin(t, 45.3, 48.2), cls: '' });
+    }
+    if (t > 48.2 && t < 52) { const o = fadeWin(t, 48.2, 52); labels.push({ pos: hole(8, '+').add(v3(0, .35, 0)), html: '+ 5V', o, cls: '' }, { pos: hole(22, '-').add(v3(0, .35, 0)), html: '– GND', o, cls: '' }); }
+    if (t > 88 && t < 92) { const o = fadeWin(t, 88, 92); labels.push({ pos: hole(10, 'c').add(v3(0, .9, 0)), html: '5V', o, cls: 'big' }, { pos: hole(16, 'c').add(v3(.3, .9, 0)), html: '3.3V → D34', o, cls: 'big' }); }
+    // parts tour labels
+    if (t > 32 && t < 38) { const o = fadeWin(t, 32.6, 38); labels.push({ pos: R1.g.position.clone().add(v3(0, .9, 0)), html: '1k', o, cls: 'big' }, { pos: R2.g.position.clone().add(v3(0, .9, 0)), html: '2k', o, cls: 'big' }); }
+    if (t > 20 && t < 27) { const o = fadeWin(t, 21, 27); labels.push({ pos: v3(-6.2, PROBE_FACE_Y + .6, -2), html: 'Tank mein', o, cls: 'big' }, { pos: sens.position.clone().add(v3(0, 1.5, 1.2)), html: '5V · Trig · Echo · GND', o, cls: '' }); }
+    // USB + LED
+    setGrow(usbCable, prog(t, 100.4, 101.6)); usb.children[0].visible = t > 101.3;
+    espLed.material.emissiveIntensity = t > 101.7 ? 3 : 0;
+    // test with the book
+    book.visible = t >= 112;
+    const bb = bookBottom(t); book.position.set(-6.2, bb + .4, -2.0); book.rotation.set(.04 * Math.sin(t * 1.3), .2, .03 * Math.sin(t * 1.1));
+    updateWaves(benchWaves, t, t > 112.6 ? fadeWin(t, 112.6, 128, .5) : 0, v3(-6.2, PROBE_FACE_Y + .05, -2), v3(-6.2, bb - .05, -2), .7, 1.5);
+    if (t > 113 && t < 128) {
+      const dist = Math.round((bb - PROBE_FACE_Y) * 6);
+      labels.push({ pos: v3(-6.2 + 2.4, (bb + PROBE_FACE_Y) / 2, -2), html: `${dist} cm`, o: fadeWin(t, 113, 128), cls: 'big' });
+    }
+  } else {
+    const hp = heroPct(t);
+    heroWater.scale.y = Math.max(.001, FULL_H * hp / 100);
+    ugWater.scale.y = 2.4 * UG_PCT / 100; ugWater.position.y = -2.85 + ugWater.scale.y / 2;
+    const install = t >= 128 && t < 142;
+    const drop = install ? 1 - easeOut(prog(t, 129.2, 131.4)) : 0;
+    heroSensor.position.set(HERO.x, FACE_Y + .02 + drop * .6, HERO.z);
+    heroLed.visible = !install || t > 131.6;
+    const showDim = install ? fadeWin(t, 133, 142, .4) : 0;
+    fullLine.visible = dimLine.visible = showDim > 0;
+    fullLine.material.opacity = dimLine.material.opacity = showDim;
+    const surf = v3(HERO.x, ROOF_Y + .02 + FULL_H * hp / 100 + .01, HERO.z);
+    const wavesOn = t < 8 ? fadeWin(t, 1, 8, .5) : (t > 138 && t < 142 ? fadeWin(t, 138, 142, .3) : 0);
+    updateWaves(siteWaves, t, wavesOn, v3(HERO.x, FACE_Y - .06, HERO.z), surf, .05, .16);
+    if (install && showDim > 0) {
+      labels.push({ pos: v3(HERO.x + .2, (FACE_Y + ROOF_Y + FULL_H) / 2 + .05, HERO.z), html: '25 cm', o: showDim, cls: 'big' });
+      labels.push({ pos: v3(HERO.x - .45, ROOF_Y + FULL_H + .07, HERO.z), html: 'Full level', o: showDim, cls: '' });
+    }
+    if (install && t > 138) labels.push({ pos: v3(HERO.x, ROOF_Y + 1.62, HERO.z), html: tankLabel('Overhead 1', hp), o: fadeWin(t, 138.2, 142), cls: 'tank big' });
+    const tankO = t < 8 ? (k => fadeWin(t, 2 + k * .35, 7.7, .3)) : (t >= 142 ? (k => fadeWin(t, 142.6 + k * .25, 154, .3)) : null);
+    if (tankO) {
+      TANKS.forEach((tk, k) => labels.push({ pos: v3(tk.x, ROOF_Y + (tk.z < -2 ? 2.5 : 1.6), tk.z), html: tankDot(tk.pct ?? hp), o: tankO(k), cls: 'tank' }));
+      labels.push({ pos: v3(8, .55, 1.2), html: tankLabel('Underground', UG_PCT), o: tankO(6), cls: 'tank' });
+    }
+    labels.forEach(L => L.pos.add(SITE));
+  }
+  drawLabels(labels);
+
+  // DOM overlays
+  const chi = CHAPTERS.reduce((a, c, i) => (t >= c.t ? i : a), 0);
+  const stepOn = chi >= 1 && chi <= 10;
+  show(ui.chip, stepOn ? fadeWin(t, 8.4, 142, .4) : 0);
+  if (stepOn) { setHTML(ui.chipNo, `Step ${chi}/10`); setHTML(ui.chipName, CHAPTERS[chi].name); }
+  show(ui.title, fadeWin(t, .6, 7.6, .6));
+  const cap = CAPS.find(([a, b]) => t >= a && t < b);
+  show(ui.caption, cap ? fadeWin(t, cap[0], cap[1], .25) : 0);
+  if (cap) setHTML(ui.caption, cap[2]);
+  const part = PARTS.find(p => t >= p.t0 && t < p.t1);
+  show(ui.card, part ? fadeWin(t, part.t0 + .4, part.t1, .35) : 0);
+  if (part) { setHTML(ui.cardN, part.n); setHTML(ui.cardName, part.name); setHTML(ui.cardDesc, part.desc); setHTML(ui.cardPrice, part.price); }
+  show(ui.check, fadeWin(t, 92.4, 100, .4));
+  if (t > 92 && t < 100) checkItems.forEach((li, i) => li.classList.toggle('on', t > 92.9 + i * .65));
+  show(ui.ide, fadeWin(t, 100.8, 112, .4));
+  if (t > 100.5 && t < 112) setHTML(ui.ide, ideHTML(t));
+  const phoneOne = fadeWin(t, 113.2, 128, .4), phoneAll = fadeWin(t, 144, 154, .5);
+  show(ui.phone, Math.max(phoneOne, phoneAll));
+  if (phoneOne > 0) {
+    const bb = bookBottom(t), dist = Math.round((bb - PROBE_FACE_Y) * 6);
+    const pct = Math.round(clamp01((60 - dist) / 35) * 100);
+    setHTML(ui.phoneBody, phoneHTML('one', t, { pct, dist })); setHTML(ui.phoneUpd, 'Updated just now');
+  } else if (phoneAll > 0) {
+    const hp = Math.round(heroPct(t));
+    setHTML(ui.phoneBody, phoneHTML('all', t, [...TANKS.map(tk => [tk.name, tk.pct ?? hp]), ['Underground', UG_PCT]])); setHTML(ui.phoneUpd, 'Updated just now');
+  }
+  show(ui.end, fadeWin(t, 148.3, 154, .5));
+  const fadeO = Math.max(1 - t / .6, 1 - Math.abs(t - 8) / .45, 1 - Math.abs(t - 128) / .45, (t - 153.3) / .7);
+  ui.fade.style.opacity = clamp01(fadeO);
+
+  composer.render();
+}
+
+// ---------- sizing ----------
+const stage = $('stage');
+function resize() {
+  const r = stage.getBoundingClientRect();
+  stageW = Math.max(1, Math.round(r.width)); stageH = Math.max(1, Math.round(r.height));
+  renderer.setSize(stageW, stageH, false); composer.setSize(stageW, stageH);
+  camera.aspect = stageW / stageH; camera.updateProjectionMatrix();
+}
+
+// ---------- player ----------
+let T = 0, playing = false, lastNow = 0, needs = true;
+const playBtn = $('play'), seek = $('seek'), timeEl = $('time'), chapBox = $('chapters');
+const fmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+chapBox.innerHTML = CHAPTERS.map((c, i) => `<button type="button" data-t="${c.t}"><b>${fmt(c.t)}</b>${c.name}</button>`).join('');
+const chapBtns = [...chapBox.children];
+function setPlaying(p) {
+  playing = p; lastNow = performance.now();
+  playBtn.setAttribute('aria-label', p ? 'Pause' : 'Play');
+  $('playIcon').innerHTML = p ? '<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>' : '<path d="M7 4l13 8-13 8z"/>';
+}
+playBtn.addEventListener('click', () => { if (!playing && T >= DURATION - .05) T = 0; setPlaying(!playing); needs = true; });
+seek.addEventListener('input', () => { T = +seek.value; needs = true; });
+chapBtns.forEach(b => b.addEventListener('click', () => { T = +b.dataset.t + .01; needs = true; if (!playing) setPlaying(true); }));
+function syncUI() {
+  seek.value = T.toFixed(2); timeEl.textContent = `${fmt(T)} / ${fmt(DURATION)}`;
+  const chi = CHAPTERS.reduce((a, c, i) => (T >= c.t ? i : a), 0);
+  chapBtns.forEach((b, i) => b.classList.toggle('on', i === chi));
+}
+function loop(now) {
+  if (playing) { T += Math.min(.1, (now - lastNow) / 1000); lastNow = now; if (T >= DURATION) { T = DURATION - .001; setPlaying(false); } needs = true; }
+  if (needs) { renderAt(T); syncUI(); needs = false; }
+  requestAnimationFrame(loop);
+}
+
+async function start() {
+  try { await Promise.race([document.fonts.ready, new Promise(r => setTimeout(r, 2500))]); } catch (e) {}
+  resize();
+  new ResizeObserver(() => { resize(); needs = true; }).observe(stage);
+  $('loading').hidden = true;
+  if (RECORD) {
+    window.renderAt = renderAt; renderAt(0); window.__ready = true;
+  } else {
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) T = 96;
+    setPlaying(!reduce);
+    requestAnimationFrame(loop);
+  }
+}
+start();
+</script>
