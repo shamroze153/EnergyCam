@@ -56,6 +56,8 @@ All times on the dashboard are Pakistan time (PKT).
   Gmail: deletes old HFM alert emails daily
 - `diagnose_live.py` - prints what the camera/AI sees per frame (confidences,
   DAY/NIGHT numbers, AC values) to tune settings
+- `water_tank_monitor/` - separate ESP32 project: shows the water level of
+  6 overhead + 1 underground tank on a web page (see its README)
 - `.github/workflows/keepalive.yml` - pings Supabase every 3 days so the free
   project is not auto-paused (needs the `DATABASE_URL` GitHub secret)
 
