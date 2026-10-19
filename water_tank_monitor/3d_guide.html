@@ -91,6 +91,14 @@ header p { margin: 0; color: var(--muted); font-size: 0.9rem; }
 #card p { margin: 0; font: 500 max(10px, 1.5cqw)/1.4 var(--f-body); color: var(--text); }
 #card .price { font: 700 max(10px, 1.5cqw)/1 var(--f-mono); color: var(--water); }
 
+#wire { position: absolute; right: 2.2cqw; top: 4.6cqw; background: var(--scrim); border: 1px solid var(--line); border-radius: 1cqw;
+  padding: 1cqw 1.4cqw; display: grid; gap: 0.6cqw; }
+#wire .k { font: 700 max(9px, 1.15cqw)/1 var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--brass); }
+#wire .r { display: flex; align-items: center; gap: 0.8cqw; font: 800 max(11px, 1.9cqw)/1 var(--f-display); color: #fff; }
+#wire .r span { color: var(--muted); }
+#wire i { width: 2.2cqw; height: 0.7cqw; border-radius: 0.35cqw; display: inline-block; box-shadow: 0 0 0 1px rgba(255,255,255,.25); }
+.lbl.from { background: var(--ok); color: #fff; }
+.lbl.to { background: var(--brass); color: var(--ink); }
 #check { position: absolute; right: 3cqw; top: 50%; transform: translateY(-50%); width: 34cqw;
   background: var(--scrim); border: 1px solid var(--line); border-radius: 1.2cqw; padding: 1.6cqw 1.8cqw; }
 #check h3 { margin: 0 0 1cqw; font: 800 max(12px, 2.2cqw)/1 var(--f-display); }
@@ -206,6 +214,7 @@ body.rec .stage { width: 1280px; height: 720px; aspect-ratio: auto; border-radiu
     <div id="chip" hidden><span class="no" id="chipNo"></span><span class="nm" id="chipName"></span></div>
     <div id="brand">Tank Monitor · ESP32</div>
     <div id="card" hidden><div class="n" id="cardN"></div><h3 id="cardName"></h3><p id="cardDesc"></p><div class="price" id="cardPrice"></div></div>
+    <div id="wire" hidden></div>
     <div id="check" hidden><h3>Ek dafa mila lein</h3><ol id="checkList"></ol></div>
     <div id="ide" hidden></div>
     <div id="phone" hidden><div class="scr"><div class="url">http://192.168.1.50/</div><div class="hd"><b>Pani ki Tankiyan</b><span id="phoneUpd">Updated</span></div><div id="phoneBody"></div></div></div>
@@ -223,8 +232,8 @@ body.rec .stage { width: 1280px; height: 720px; aspect-ratio: auto; border-radiu
   <div class="controls">
     <div class="bar">
       <button id="play" type="button" aria-label="Play"><svg viewBox="0 0 24 24" id="playIcon"><path d="M7 4l13 8-13 8z"/></svg></button>
-      <input id="seek" type="range" min="0" max="158" step="0.01" value="0" aria-label="Video position">
-      <span id="time">0:00 / 2:38</span>
+      <input id="seek" type="range" min="0" max="176" step="0.01" value="0" aria-label="Video position">
+      <span id="time">0:00 / 2:56</span>
     </div>
     <div class="chapters" id="chapters"></div>
   </div>
@@ -252,7 +261,10 @@ try {
 } catch (e) {}
 const RECORD = location.search.includes('record');
 if (RECORD) document.body.classList.add('rec');
-const DURATION = 158;
+const DURATION = 176;
+const WIRE0 = 62, SLOT = 5.5, WIRE_END = WIRE0 + 8 * SLOT, SHIFT = 18;
+// story time: the clock the non-wire scenes were authored against
+const storyTime = T => T < WIRE0 ? T : T < WIRE_END ? WIRE0 + (T - WIRE0) * 26 / (8 * SLOT) : T < WIRE_END + 4 ? 88 + (T - WIRE_END) : T - SHIFT;
 const BRAND = location.search.includes('brand');
 const $ = id => document.getElementById(id);
 if (BRAND) { $('brand').textContent = 'Mimar AI'; document.querySelector('#title .kick').textContent = 'Mimar AI · ESP32 + Ultrasonic sensor'; }
@@ -271,9 +283,9 @@ const levelColor = p => p < 25 ? '#e5534b' : p < 50 ? '#e3a21a' : '#35b26b';
 // ---------- story ----------
 const CHAPTERS = [
   { t: 0, name: 'Intro' }, { t: 8, name: 'Saaman' }, { t: 44, name: 'Breadboard' },
-  { t: 52, name: 'Resistors' }, { t: 62, name: 'Power taar' }, { t: 72, name: 'Trig taar' },
-  { t: 80, name: 'Echo taar' }, { t: 92, name: 'Check' }, { t: 100, name: 'Code upload' },
-  { t: 112, name: 'Test' }, { t: 128, name: 'Tank par' }, { t: 142, name: 'Result' },
+  { t: 52, name: 'Resistors' }, { t: 62, name: 'Power taar' }, { t: 84, name: 'Trig taar' },
+  { t: 95, name: 'Echo taar' }, { t: 110, name: 'Check' }, { t: 118, name: 'Code upload' },
+  { t: 130, name: 'Test' }, { t: 146, name: 'Tank par' }, { t: 160, name: 'Result' },
 ];
 const CAPS = [
   [0.4, 4, '6 overhead tanks + 1 underground tank'],
@@ -308,6 +320,22 @@ const CAPS = [
   [142.3, 148, 'Baaqi tanks par bhi yahi. <b>7 sensors, 1 ESP32.</b>'],
   [148, 153.6, 'Aur sab tanks ka level <b>ek screen</b> par. Pasand aaye to <b>share</b> karein!'],
 ];
+const WIRE_CAPS = [
+  'Taar 1: Sensor ka <b>5V</b> → <b>laal (+) line</b>',
+  'Taar 2: Sensor ka <b>GND</b> → <b>neeli (–) line</b>',
+  'Taar 3: ESP32 ka <b>VIN</b> → <b>laal (+) line</b>',
+  'Taar 4: ESP32 ka <b>GND</b> → <b>neeli (–) line</b>',
+  'Taar 5: Sensor ka <b>Trig</b> → <b>A26</b>',
+  'Taar 6: ESP32 ka <b>D13</b> → <b>E26</b> (Trig wali line)',
+  'Taar 7: Sensor ka <b>Echo</b> → <b>A10</b>',
+  'Taar 8: ESP32 ka <b>D34</b> → <b>E16</b>',
+];
+const CAPS_T = [
+  ...CAPS.filter(c => c[0] < WIRE0),
+  ...WIRE_CAPS.map((x, i) => [WIRE0 + i * SLOT + .1, WIRE0 + (i + 1) * SLOT, x]),
+  [WIRE_END, WIRE_END + 4, CAPS.find(c => c[0] === 88)[2]],
+  ...CAPS.filter(c => c[0] >= 92).map(([a, b, x]) => [a + SHIFT, b + SHIFT, x]),
+];
 const PARTS = [
   { t0: 14, t1: 20, n: 'Part 1', name: 'ESP32 board', desc: 'DevKit (30 pin). Code isi mein jaata hai aur yahi web page dikhata hai.', price: 'Aapke paas hai' },
   { t0: 20, t1: 27, n: 'Part 2', name: 'JSN-SR04T', desc: 'Waterproof kaala sensor + 2.5 m cable + chhota board (5V, Trig, Echo, GND).', price: 'Rs 1,500 – 2,200' },
@@ -326,7 +354,7 @@ const CHECK = [
 // ---------- renderer ----------
 const canvas = $('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: RECORD });
-renderer.setPixelRatio(RECORD ? 1 : Math.min(window.devicePixelRatio || 1, 2));
+renderer.setPixelRatio(RECORD ? 1.5 : Math.min(window.devicePixelRatio || 1, 2));
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 renderer.shadowMap.enabled = true;
@@ -577,19 +605,21 @@ function buildJumper(A, B, color) {
   const s = A.clone().add(v3(0, .62, 0)), e = B.clone().add(v3(0, .85, 0));
   const dist = s.distanceTo(e), peak = Math.max(s.y, e.y) + .7 + dist * .16;
   const mid = s.clone().lerp(e, .5); mid.y = peak;
-  const w = tube([s, s.clone().add(v3(0, .45, 0)), mid, e.clone().add(v3(0, .45, 0)), e], .06, wm, g, 110, 10);
+  const w = tube([e, e.clone().add(v3(0, .45, 0)), mid, s.clone().add(v3(0, .45, 0)), s], .06, wm, g, 110, 10);
   return { g, male, female, wire: w };
 }
 const JUMPERS = [
-  { a: hole(3, '+'), b: sensPinBase(0), c: 'red', t: 62.4, la: '+ line', lb: 'Sensor 5V' },
-  { a: hole(6, '-'), b: sensPinBase(3), c: 'black', t: 64.6, la: '– line', lb: 'Sensor GND' },
-  { a: hole(29, '+'), b: espPinBase(14), c: 'red', t: 67.4, la: '+ line', lb: 'VIN' },
-  { a: hole(30, '-'), b: espPinBase(13), c: 'black', t: 69.6, la: '– line', lb: 'GND' },
-  { a: hole(26, 'a'), b: sensPinBase(1), c: 'yellow', t: 72.4, la: 'A26', lb: 'Trig' },
-  { a: hole(26, 'e'), b: espPinBase(12), c: 'orange', t: 76.3, la: 'E26', lb: 'D13' },
-  { a: hole(10, 'a'), b: sensPinBase(2), c: 'green', t: 80.4, la: 'A10', lb: 'Echo' },
-  { a: hole(16, 'e'), b: espPinBase(3), c: 'blue', t: 84.3, la: 'E16', lb: 'D34' },
+  { a: hole(3, '+'), b: sensPinBase(0), c: 'red', la: '+ line', lb: 'Sensor 5V', from: 'Sensor 5V' },
+  { a: hole(6, '-'), b: sensPinBase(3), c: 'black', la: '– line', lb: 'Sensor GND', from: 'Sensor GND' },
+  { a: hole(29, '+'), b: espPinBase(14), c: 'red', la: '+ line', lb: 'VIN', from: 'ESP32 VIN' },
+  { a: hole(30, '-'), b: espPinBase(13), c: 'black', la: '– line', lb: 'GND', from: 'ESP32 GND' },
+  { a: hole(26, 'a'), b: sensPinBase(1), c: 'yellow', la: 'A26', lb: 'Trig', from: 'Sensor Trig' },
+  { a: hole(26, 'e'), b: espPinBase(12), c: 'orange', la: 'E26', lb: 'D13', from: 'ESP32 D13' },
+  { a: hole(10, 'a'), b: sensPinBase(2), c: 'green', la: 'A10', lb: 'Echo', from: 'Sensor Echo' },
+  { a: hole(16, 'e'), b: espPinBase(3), c: 'blue', la: 'E16', lb: 'D34', from: 'ESP32 D34' },
 ].map(j => Object.assign(j, buildJumper(j.a, j.b, j.c)));
+
+const tipDot = new THREE.Mesh(new THREE.SphereGeometry(.12, 16, 12), glowMat(0xffffff, 1.6)); tipDot.renderOrder = 9; bench.add(tipDot);
 
 // loose jumper bundle shown in the parts tour
 const bundle = new THREE.Group(); bundle.position.set(-6.4, 0, 6.6); bench.add(bundle);
@@ -800,9 +830,6 @@ const SHOTS = [
   { t: 44, s: 'bench', pos: [0, 11, 5], tgt: [0, .85, -.9], dp: [0, -.06, 0] },
   { t: 52, s: 'bench', pos: [1.0, 6.4, 4.6], tgt: [-.1, .85, -1.25], dp: [-.04, 0, 0] },
   { t: 57, s: 'bench', pos: [5.4, 4.6, -1.3], tgt: [-.2, .85, -1.55], dp: [0, 0, .04] },
-  { t: 62, s: 'bench', pos: [2, 15.5, 13.5], tgt: [0, .8, -.6], dp: [-.12, 0, 0] },
-  { t: 72, s: 'bench', pos: [5, 10, 10], tgt: [.8, .8, -.8], dp: [-.1, 0, 0] },
-  { t: 80, s: 'bench', pos: [-3, 10, 10], tgt: [-.4, .8, -.6], dp: [.1, 0, 0] },
   { t: 88, s: 'bench', pos: [-.4, 6.5, 4.2], tgt: [-.6, .85, -1.3], dp: [.05, 0, 0] },
   { t: 92, s: 'bench', orbit: { c: [2.2, .8, -.3], r: 19, h: 12.5, a0: .5, a1: 1.25 } },
   { t: 100, s: 'bench', pos: [7, 7.5, 13], tgt: [-1.6, .8, 3.2], dp: [-.04, 0, 0] },
@@ -818,7 +845,7 @@ function shotPose(sh, t) {
   const dt = t - sh.t;
   return { pos: v3(...sh.pos).add(v3(...sh.dp).multiplyScalar(dt)), tgt: v3(...sh.tgt) };
 }
-function cameraAt(t) {
+function storyPose(t) {
   let i = 0; while (i + 1 < SHOTS.length && SHOTS[i + 1].t <= t) i++;
   const sh = SHOTS[i]; let p = shotPose(sh, t);
   if (i > 0 && SHOTS[i - 1].s === sh.s) {
@@ -826,9 +853,37 @@ function cameraAt(t) {
     if (k < 1) { const q = shotPose(SHOTS[i - 1], t); p = { pos: q.pos.lerp(p.pos, k), tgt: q.tgt.lerp(p.tgt, k) }; }
   }
   const off = sh.s === 'site' ? SITE : v3(0, 0, 0);
-  camera.position.copy(p.pos.add(off)); camera.lookAt(p.tgt.add(off)); camera.updateMatrixWorld();
-  return sh.s;
+  return { s: sh.s, pos: p.pos.add(off), tgt: p.tgt.add(off) };
 }
+const mixPose = (p, q, k) => ({ s: q.s, pos: p.pos.clone().lerp(q.pos, k), tgt: p.tgt.clone().lerp(q.tgt, k) });
+// three angles per wire: the pin it starts from, following the wire to the hole, then a wide view from another side
+function wireShot(i, u) {
+  const j = JUMPERS[i], side = i % 2 ? 1 : -1, fromSensor = j.b.z < -3;
+  const A = { s: 'bench', tgt: j.b.clone().add(v3(0, .9, 0)) };
+  A.pos = A.tgt.clone().add(fromSensor ? v3(2.6 * side, 3.6, 5.0) : v3(2.6 * side, 4.4, 4.4));
+  const k = ease(prog(u, .9, 2.9));
+  const B = { s: 'bench', tgt: j.b.clone().lerp(j.a, k).add(v3(0, .7, 0)) };
+  B.pos = B.tgt.clone().add(v3(-2.4 * side, 5.6, 5.4));
+  const c = j.a.clone().lerp(j.b, .5).add(v3(0, .5, 0)), a = side * (1.0 + (i % 4 > 1 ? .5 : 0)) + (u - 3.2) * .1 * side;
+  const C = { s: 'bench', tgt: c, pos: c.clone().add(v3(8.5 * Math.sin(a), 6.2, 8.5 * Math.cos(a))) };
+  if (u < 1.0) return A;
+  if (u < 1.7) return mixPose(A, B, ease((u - 1.0) / .7));
+  if (u < 3.2) return B;
+  if (u < 3.9) return mixPose(B, C, ease((u - 3.2) / .7));
+  return C;
+}
+function poseAt(T, t) {
+  if (T >= WIRE0 && T < WIRE_END) {
+    const i = Math.floor((T - WIRE0) / SLOT), u = T - WIRE0 - i * SLOT;
+    const cur = wireShot(i, u);
+    if (u < .8) { const prev = i ? wireShot(i - 1, u + SLOT) : storyPose(storyTime(WIRE0)); return mixPose(prev, cur, ease(u / .8)); }
+    return cur;
+  }
+  const p = storyPose(t);
+  if (T >= WIRE_END && T < WIRE_END + 1.4) return mixPose(wireShot(7, SLOT), p, ease((T - WIRE_END) / 1.4));
+  return p;
+}
+function applyPose(p) { camera.position.copy(p.pos); camera.lookAt(p.tgt); camera.updateMatrixWorld(); return p.s; }
 let currentScene = '';
 function setScene(s) {
   if (s === currentScene) return; currentScene = s;
@@ -853,7 +908,7 @@ const ui = {
   title: $('title'), chip: $('chip'), chipNo: $('chipNo'), chipName: $('chipName'), caption: $('caption'),
   card: $('card'), cardN: $('cardN'), cardName: $('cardName'), cardDesc: $('cardDesc'), cardPrice: $('cardPrice'),
   check: $('check'), checkList: $('checkList'), ide: $('ide'), phone: $('phone'), phoneBody: $('phoneBody'), phoneUpd: $('phoneUpd'),
-  end: $('end'), fade: $('fade'), brandEnd: $('brandEnd'),
+  end: $('end'), fade: $('fade'), brandEnd: $('brandEnd'), wire: $('wire'),
   m1: document.querySelector('#brandEnd .m1'), m2: document.querySelector('#brandEnd .m2'), bsub: document.querySelector('#brandEnd .sub'), bglow: document.querySelector('#brandEnd .glow'),
 };
 ui.checkList.innerHTML = CHECK.map(([c, s]) => `<li><span class="tick">✓</span><span><i style="background:${c}"></i>${s}</span></li>`).join('');
@@ -906,9 +961,11 @@ function bookBottom(t) {
   return 8.6;
 }
 
-function renderAt(t) {
-  t = Math.min(Math.max(t, 0), DURATION - 0.001);
-  const s = cameraAt(t); setScene(s);
+function renderAt(T) {
+  T = Math.min(Math.max(T, 0), DURATION - 0.001);
+  const t = storyTime(T);
+  const s = applyPose(poseAt(T, t)); setScene(s);
+  const wi = T >= WIRE0 && T < WIRE_END ? Math.floor((T - WIRE0) / SLOT) : -1;
   const labels = [];
 
   if (s === 'bench') {
@@ -924,13 +981,18 @@ function renderAt(t) {
       g.position.copy(loose.lerp(R.to, k)); g.position.y += Math.sin(Math.PI * k) * 2.6 + (k > .85 ? (1 - k) * 1.5 : 0);
       g.rotation.set(lerp(-Math.PI / 2, 0, k), lerp(R.fromRy + (t < R.t0 ? .6 * Math.sin(t * .8) * bell(t, 32, 38, .9) : 0), R.toRy, k), 0);
     }
-    JUMPERS.forEach(j => {
-      const pm = easeOut(prog(t, j.t, j.t + .35)), pw = prog(t, j.t + .25, j.t + 1.7), pf = easeOut(prog(t, j.t + 1.55, j.t + 2.0));
-      j.male.visible = pm > 0; j.male.position.y = j.a.y + (1 - pm) * 1.2;
+    tipDot.visible = false;
+    JUMPERS.forEach((j, i) => {
+      const u = T - WIRE0 - i * SLOT;
+      const pf = easeOut(prog(u, .25, .8)), pw = prog(u, .9, 2.9), pm = easeOut(prog(u, 2.75, 3.25));
+      j.female.visible = pf > 0; j.female.position.y = j.b.y + (1 - pf) * 1.3;
       setGrow(j.wire, pw);
-      j.female.visible = pf > 0; j.female.position.y = j.b.y + (1 - pf) * .9;
-      const o = fadeWin(t, j.t - .2, j.t + 2.35, .25);
-      if (o > 0) { labels.push({ pos: j.a.clone().add(v3(0, 1.0, 0)), html: j.la, o, cls: '' }, { pos: j.b.clone().add(v3(0, 1.5, 0)), html: j.lb, o, cls: '' }); }
+      j.male.visible = pm > 0; j.male.position.y = j.a.y + (1 - pm) * 1.0;
+      if (pw > 0 && pw < 1) { tipDot.visible = true; tipDot.position.copy(j.wire.userData.curve.getPointAt(pw)); tipDot.scale.setScalar(1 + .25 * Math.sin(T * 14)); }
+      if (i === wi) {
+        labels.push({ pos: j.b.clone().add(v3(0, 1.75, 0)), html: `1 · Yahan se · ${j.lb}`, o: fadeWin(u, 0, 2.8, .25), cls: 'from' });
+        labels.push({ pos: j.a.clone().add(v3(0, 1.15, 0)), html: `2 · Yahan · ${j.la}`, o: fadeWin(u, .9, SLOT - .1, .25), cls: 'to' });
+      }
     });
     // rings at target holes
     const ringT = [
@@ -942,10 +1004,13 @@ function renderAt(t) {
       const o = fadeWin(t, a, b, .3); if (o <= 0) return;
       ps.forEach((p, i) => { const r = rings[i]; r.visible = true; r.position.copy(p).add(v3(0, .01, 0)); r.scale.setScalar(1 + .25 * Math.sin(t * 6)); r.material.opacity = o; labels.push({ pos: p.clone().add(v3(0, .5, 0)), html: names[i], o, cls: '' }); });
     });
-    JUMPERS.forEach((j, i) => {
-      const o = fadeWin(t, j.t - .3, j.t + 2.2, .2); if (o <= 0) return;
-      const r = rings[2 + (i % 2)]; r.visible = true; r.position.copy(j.a).add(v3(0, .01, 0)); r.scale.setScalar(1 + .25 * Math.sin(t * 6)); r.material.opacity = o;
-    });
+    if (wi >= 0) {
+      const j = JUMPERS[wi], u = T - WIRE0 - wi * SLOT;
+      const o1 = fadeWin(u, 0, 2.8, .25), o2 = fadeWin(u, .9, SLOT - .1, .25);
+      const r1 = rings[2], r2 = rings[3];
+      r1.visible = o1 > 0; r1.position.copy(j.b).add(v3(0, .02, 0)); r1.scale.setScalar(1.9 + .3 * Math.sin(T * 6)); r1.material.opacity = o1; r1.material.color.set(0x35ff8a).multiplyScalar(14);
+      r2.visible = o2 > 0; r2.position.copy(j.a).add(v3(0, .02, 0)); r2.scale.setScalar(1.6 + .3 * Math.sin(T * 6)); r2.material.opacity = o2; r2.material.color.set(0xffc24a).multiplyScalar(14);
+    }
     // breadboard basics strips
     strips[0].m.material.opacity = strips[1].m.material.opacity = .85 * fadeWin(t, 44.3, 48.2) * (.6 + .4 * Math.sin(t * 5));
     strips[2].m.material.opacity = .85 * fadeWin(t, 45.3, 48.2) * (.6 + .4 * Math.sin(t * 5 + 1));
@@ -1014,17 +1079,19 @@ function renderAt(t) {
   drawLabels(labels);
 
   // DOM overlays
-  const chi = CHAPTERS.reduce((a, c, i) => (t >= c.t ? i : a), 0);
+  const chi = CHAPTERS.reduce((a, c, i) => (T >= c.t ? i : a), 0);
   const stepOn = chi >= 1 && chi <= 10;
   show(ui.chip, stepOn ? fadeWin(t, 8.4, 142, .4) : 0);
   if (stepOn) { setHTML(ui.chipNo, `Step ${chi}/10`); setHTML(ui.chipName, CHAPTERS[chi].name); }
   show(ui.title, fadeWin(t, .6, 7.6, .6));
-  const cap = CAPS.find(([a, b]) => t >= a && t < b);
-  show(ui.caption, cap ? fadeWin(t, cap[0], cap[1], .25) : 0);
+  const cap = CAPS_T.find(([a, b]) => T >= a && T < b);
+  show(ui.caption, cap ? fadeWin(T, cap[0], cap[1], .25) : 0);
   if (cap) setHTML(ui.caption, cap[2]);
   const part = PARTS.find(p => t >= p.t0 && t < p.t1);
   show(ui.card, part ? fadeWin(t, part.t0 + .4, part.t1, .35) : 0);
   if (part) { setHTML(ui.cardN, part.n); setHTML(ui.cardName, part.name); setHTML(ui.cardDesc, part.desc); setHTML(ui.cardPrice, part.price); }
+  show(ui.wire, wi >= 0 ? fadeWin(T, WIRE0 + .2, WIRE_END, .3) : 0);
+  if (wi >= 0) { const j = JUMPERS[wi]; setHTML(ui.wire, `<div class="k">Taar ${wi + 1}/8</div><div class="r"><i style="background:#${WIRE[j.c].toString(16).padStart(6, '0')}"></i><b>${j.from}</b><span>→</span><b>${j.la}</b></div>`); }
   show(ui.check, fadeWin(t, 92.4, 100, .4));
   if (t > 92 && t < 100) checkItems.forEach((li, i) => li.classList.toggle('on', t > 92.9 + i * .65));
   show(ui.ide, fadeWin(t, 100.8, 112, .4));
