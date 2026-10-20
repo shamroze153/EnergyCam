@@ -130,6 +130,10 @@ Code khud NodeMCU wale pins le lega.
 - LoLin "NodeMCU V3" (chauda board, CH340 chip) par VIN pin USB se 5V nahi deta;
   wahan sensor ka 5V **VU** pin se lein (A0 ki taraf se 3rd pin). Tik-tik na aaye to
   sab se pehle yahi check karein.
+- **Resistors ke baghair (aasaan):** sensor ka VCC NodeMCU ke **3V** pin par lagayein aur Echo
+  seedha D2 par. Is mein koi resistor nahi lagta. (VU yaani 5V par Echo seedha D2 par kabhi na lagayein.)
+- Echo na aaye to `hardware_tester/hardware_tester.ino` chalayein: ye D1/D2 ke short khud check karta hai
+  aur A0 par lage ek faltu taar se batata hai ke breadboard ke kis khaane mein 3.3V ya trig pahunch raha hai.
 - NodeMCU ke pins ESP32 se kam hain, is liye saare 7 tanks ke liye ESP32 hi lein.
 
 ## 6. Masle aur hal
