@@ -120,13 +120,16 @@ Code khud NodeMCU wale pins le lega.
 
 | Sensor pin | NodeMCU |
 |---|---|
-| 5V | VIN |
+| 5V | VIN (LoLin "NodeMCU V3" board par **VU**) |
 | GND | G |
 | Trig | D1 |
 | Echo | 1k resistor → D2, aur D2 se 2k resistor → G |
 
 - Agar 1k aur 2k nahi hain to **ek hi value ke 3 resistor** lein (jaise teeno 1k ya
   teeno 10k): 1 resistor Echo se D2 tak, aur 2 resistor series mein D2 se G tak.
+- LoLin "NodeMCU V3" (chauda board, CH340 chip) par VIN pin USB se 5V nahi deta;
+  wahan sensor ka 5V **VU** pin se lein (A0 ki taraf se 3rd pin). Tik-tik na aaye to
+  sab se pehle yahi check karein.
 - NodeMCU ke pins ESP32 se kam hain, is liye saare 7 tanks ke liye ESP32 hi lein.
 
 ## 6. Masle aur hal
