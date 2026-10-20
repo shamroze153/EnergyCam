@@ -20,8 +20,17 @@ const char* securityName(uint8_t t) {
 
 void setup() {
   Serial.begin(115200);
-  delay(500);
+  delay(1000);
   Serial.println("\n\n===== WIFI CHECK =====");
+
+  // Board khud restart ho raha ho to wajah yahan dikhti hai. RST button = "External System".
+  String why = ESP.getResetReason();
+  Serial.printf("Pichli dafa restart ki wajah: %s\n", why.c_str());
+  if (why == "Power On") Serial.println("  (USB lagane par yahi aata hai. Bina USB nikaale baar baar aaye = bijli kam pari)");
+
+  // WiFi ki taaqat thori kam: jurte waqt bijli ka jhatka kam lagta hai aur board restart nahi hota
+  WiFi.persistent(false);
+  WiFi.setOutputPower(12);
   WiFi.mode(WIFI_STA);
   WiFi.disconnect();
   delay(100);
