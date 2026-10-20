@@ -9,14 +9,15 @@ void check() {
   Serial.println("\n----------- WIRE CHECK -----------");
   int bad = 0;
 
-  // 1) Sensor ka RX khud HIGH rehta hai: D1 ko chhor kar dekhein
+  // 1) Kai sensors ka RX khud HIGH rehta hai: D1 ko chhor kar dekhein.
+  //    Har sensor mein ye pull-up nahi hota, is liye LOW par sirf "?" (X nahi).
   pinMode(ECHO, INPUT);
   pinMode(TRIG, INPUT);
   int d1 = 0;
   for (int i = 0; i < 100; i++) { d1 += digitalRead(TRIG); delay(1); }
   Serial.print("1. Yellow (Trig) taar sensor tak:  ");
   if (d1 == 100) Serial.println("juda hai            OK");
-  else { Serial.println("nahi pahunch raha   X  -> yellow aur orange ek hi line mein, orange D1 par"); bad++; }
+  else Serial.println("pata nahi           ?  (line 4 OK ho to ye bhi theek hai)");
 
   // 2) D1 aur D2 aapas mein jude to nahi? (3us ka pulse sensor ko nahi chalata)
   digitalWrite(TRIG, LOW);
