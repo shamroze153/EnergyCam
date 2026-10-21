@@ -3,7 +3,7 @@
 // Office WiFi allow ho jaaye to WIFI_NAME / WIFI_PASSWORD bhar dein; na jure to
 // Tank-Monitor khud chal jaata hai.
 // Wiring: Trig D1, Echo 1k/2k resistors se D2, sensor 5V (VU). Serial Monitor: 115200.
-// Dashboard ka design page.h mein hai.
+// Dashboard ka design dashboard.html mein hai; badalne ke baad `python3 build_page.py` se page.h banayein.
 
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
