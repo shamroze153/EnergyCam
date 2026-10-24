@@ -21,3 +21,6 @@ reports/
 # python
 __pycache__/
 *.pyc
+
+# Gemma 4 room-check log
+gemma_checks.jsonl
