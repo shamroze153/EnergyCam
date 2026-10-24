@@ -58,6 +58,14 @@ All times on the dashboard are Pakistan time (PKT).
   DAY/NIGHT numbers, AC values) to tune settings
 - `.github/workflows/keepalive.yml` - pings Supabase every 3 days so the free
   project is not auto-paused (needs the `DATABASE_URL` GitHub secret)
+- `gemma_room_check.py` - asks Gemma 4 (Gemini API) what one camera frame
+  shows: lights on/off, AC running or not, other devices on, energy waste, and
+  a short alert in English and Roman Urdu. People are counted and blurred by
+  YOLO on this machine first, so no face is sent. Needs `GEMINI_API_KEY` in
+  `.env`. Examples: `python gemma_room_check.py --image room.jpg`,
+  `python gemma_room_check.py` (one RTSP frame), `--watch 10` (every 10 min).
+  Results go to `gemma_checks.jsonl`; the blurred frame that was sent is saved
+  as `gemma_last_frame.jpg`.
 
 ## Dashboard room colours (top of `dashboard.py`)
 

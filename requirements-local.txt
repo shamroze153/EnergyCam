@@ -10,3 +10,6 @@ fpdf2
 matplotlib
 # Time zone data for Asia/Karachi (Windows has no built-in tz database)
 tzdata
+# Gemma 4 room check (gemma_room_check.py)
+google-genai
+python-dotenv
