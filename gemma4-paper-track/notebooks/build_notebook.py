@@ -34,10 +34,36 @@ print(CODE_DIR)
 !python {CODE_DIR}/tests/test_smoke.py"""),
 ("md", """## 1. Look at the competition data, then build `tasks.jsonl`
 Each task needs: an id, the issue text, the gold patch, and a directory with the **pre-patch** repository.
-Run the inspect cell, read the printed keys, and set `SRC` / `REPO_TEMPLATE` / field names below."""),
-("code", """COMP = [p for p in find('*gemma-4-developer-agent*', roots=('/kaggle/input',), depth=3) if os.path.isdir(p)]
-print(COMP)
-!python -m graphpack.prepare_tasks --inspect {COMP[0] if COMP else '/kaggle/input'}"""),
+Run the next cell and send its whole output; then set `SRC` / `REPO_TEMPLATE` / field names below."""),
+("code", """# Shows what the competition data looks like. Copy ALL of this cell's output and send it.
+COMP = [p for p in find('*gemma-4-developer-agent*', roots=('/kaggle/input',), depth=3) if os.path.isdir(p)]
+print('COMP =', COMP)
+ROOT = COMP[0] if COMP else '/kaggle/input'
+def shallow(root, depth=3, per_dir=12):
+    base = root.rstrip('/').count('/')
+    for dp, dns, fns in os.walk(root):
+        level = dp.rstrip('/').count('/') - base
+        print('  ' * level + os.path.basename(dp) + '/' + f'   [{len(dns)} dirs, {len(fns)} files]')
+        for f in sorted(fns)[:per_dir]:
+            print('  ' * (level + 1) + f, f'({os.path.getsize(os.path.join(dp, f)):,} B)')
+        dns[:] = sorted(dns)[:per_dir] if level + 1 < depth else []
+shallow(ROOT)
+tables = [p for p in find('*.*', roots=(ROOT,), depth=3)
+          if p.endswith(('.jsonl', '.json', '.csv', '.parquet')) and os.path.isfile(p)]
+print('\\nTABLE FILES:', tables[:30])
+from graphpack.prepare_tasks import read_rows
+for t in [t for t in tables if os.path.getsize(t) < 200_000_000][:4]:   # skip huge graph/embedding files
+    try:
+        rows = read_rows(t)
+        if rows and isinstance(rows[0], dict):
+            print(f'\\n== {t}: {len(rows)} rows')
+            for k, v in rows[0].items():
+                print(f'   {k}: {str(v)[:200]!r}')
+    except Exception as e:
+        print('could not read', t, e)
+for r in [p for p in find('*.md', roots=(ROOT,), depth=3) if 'readme' in p.lower()][:2]:
+    print(f'\\n===== {r} =====')
+    print(open(r, encoding='utf-8', errors='replace').read()[:15000])"""),
 ("code", """# EDIT these three lines after looking at the inspect output
 SRC = f'{COMP[0]}/dev/tasks.jsonl'                       # the task table
 REPO_TEMPLATE = COMP[0] + '/dev/repos/{instance_id}'     # pre-patch snapshot per task
