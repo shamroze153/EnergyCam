@@ -5,16 +5,17 @@ import os
 CELLS = [
 ("md", """# GraphPack experiments — Gemma 4 Developer Agent Paper Track
 
-Reproduces every number in the paper: localization on the competition's public dev tasks
-with Gemma 4 E4B / E2B under fixed token budgets.
+Reproduces every number in the paper: localization on the 129 public development tasks of the
+Gemma 4 Developer Agent Competition, with Gemma 4 E4B / E2B under fixed token budgets.
 
-**Before running:** Settings → Accelerator **GPU L4x4**, Internet **off** (L4 sessions must be offline;
-graphpack itself needs only Python + NumPy). Add Input → the competition dataset, the Gemma 4
-model(s) (`gemma-4-e4b-it-qat-w4a16-ct`, `gemma-4-e2b-it-qat-w4a16-ct`), the `graphpack-code`
-dataset, and whatever the competition's *Getting Started* notebook attaches to provide vLLM offline.
-Results land in `/kaggle/working/results/` and `/kaggle/working/report/`."""),
+**Inputs (right panel → Add Input):** the competition data (`gemma-4-developer-agent`), the
+`graphpack-code` dataset, and for steps 3+ the Gemma 4 models `gemma-4-e4b-it-qat-w4a16-ct` and
+`gemma-4-e2b-it-qat-w4a16-ct` plus whatever the competition's *Getting Started* notebook attaches for vLLM.
+
+**Steps 0–2 need no GPU** (Settings → Accelerator: None). Steps 3+ need **GPU L4x4, Internet off**.
+Nothing in this notebook needs editing."""),
+("md", "## 0. Setup and self-test (should end with `ok`)"),
 ("code", """import os, sys, glob, subprocess, time, json
-# where the graphpack code is (Kaggle Dataset upload or a git clone)
 def find(tail, roots=('/kaggle/input', '/kaggle/working'), depth=6):
     # shallow glob, level by level: a recursive ** over the 20+ GB competition data is slow
     out = []
@@ -22,72 +23,44 @@ def find(tail, roots=('/kaggle/input', '/kaggle/working'), depth=6):
         for d in range(depth):
             out += glob.glob('/'.join([root] + ['*'] * d + [tail]))
     return sorted(set(out))
-# finds graphpack/ wherever Kaggle mounted the uploaded code dataset
 found = find('graphpack/__init__.py')
-assert found, 'add the graphpack code as an input dataset (folder containing graphpack/)'
+assert found, 'add the graphpack-code dataset as an input (right panel -> Add Input -> Your Work)'
 CODE_DIR = os.path.dirname(os.path.dirname(found[0]))
+COMP = [p for p in find('*gemma-4-developer-agent*', roots=('/kaggle/input',), depth=3)
+        if os.path.exists(os.path.join(p, 'tasks.jsonl'))]
+assert COMP, 'add the competition data as an input (right panel -> Add Input -> Competitions)'
+COMP = COMP[0]
 sys.path.insert(0, CODE_DIR)
 os.environ['PYTHONPATH'] = CODE_DIR   # for the `!python -m graphpack...` subprocesses
+os.makedirs('/kaggle/working/results', exist_ok=True)
 os.chdir('/kaggle/working')
-os.makedirs('results', exist_ok=True)
-print(CODE_DIR)
-!python {CODE_DIR}/tests/test_smoke.py"""),
-("md", """## 1. Look at the competition data, then build `tasks.jsonl`
-Each task needs: an id, the issue text, the gold patch, and a directory with the **pre-patch** repository.
-Run the next cell and send its whole output; then set `SRC` / `REPO_TEMPLATE` / field names below."""),
-("code", """# Shows what the competition data looks like. Copy ALL of this cell's output and send it.
-COMP = [p for p in find('*gemma-4-developer-agent*', roots=('/kaggle/input',), depth=3) if os.path.isdir(p)]
-print('COMP =', COMP)
-ROOT = COMP[0] if COMP else '/kaggle/input'
-def shallow(root, depth=3, per_dir=12):
-    base = root.rstrip('/').count('/')
-    for dp, dns, fns in os.walk(root):
-        level = dp.rstrip('/').count('/') - base
-        print('  ' * level + os.path.basename(dp) + '/' + f'   [{len(dns)} dirs, {len(fns)} files]')
-        for f in sorted(fns)[:per_dir]:
-            print('  ' * (level + 1) + f, f'({os.path.getsize(os.path.join(dp, f)):,} B)')
-        dns[:] = sorted(dns)[:per_dir] if level + 1 < depth else []
-shallow(ROOT)
-tables = [p for p in find('*.*', roots=(ROOT,), depth=3)
-          if p.endswith(('.jsonl', '.json', '.csv', '.parquet')) and os.path.isfile(p)]
-print('\\nTABLE FILES:', tables[:30])
-from graphpack.prepare_tasks import read_rows
-for t in [t for t in tables if os.path.getsize(t) < 200_000_000][:4]:   # skip huge graph/embedding files
-    try:
-        rows = read_rows(t)
-        if rows and isinstance(rows[0], dict):
-            print(f'\\n== {t}: {len(rows)} rows')
-            for k, v in rows[0].items():
-                print(f'   {k}: {str(v)[:200]!r}')
-    except Exception as e:
-        print('could not read', t, e)
-for r in [p for p in find('*.md', roots=(ROOT,), depth=3) if 'readme' in p.lower()][:2]:
-    print(f'\\n===== {r} =====')
-    print(open(r, encoding='utf-8', errors='replace').read()[:15000])"""),
-("code", """# EDIT these three lines after looking at the inspect output
-SRC = f'{COMP[0]}/dev/tasks.jsonl'                       # the task table
-REPO_TEMPLATE = COMP[0] + '/dev/repos/{instance_id}'     # pre-patch snapshot per task
-EXTRA = ''   # e.g. '--field-problem-statement issue --field-patch gold_patch'
-!python -m graphpack.prepare_tasks --src {SRC} --repo-template "{REPO_TEMPLATE}" {EXTRA} --out tasks.jsonl
+print('code:', CODE_DIR, '| competition data:', COMP)
+!python {CODE_DIR}/tests/test_smoke.py 2>&1 | tail -1"""),
+("md", """## 1. Build `tasks.jsonl` (CPU, ~10 minutes)
+Extracts only the `.py` files of each task's snapshot and links the provided graph and embeddings."""),
+("code", """!python -m graphpack.prepare_tasks --competition {COMP} --extract-to /kaggle/temp/snapshots --out tasks.jsonl 2>&1 | tail -3
 !wc -l tasks.jsonl"""),
-("md", "## 2. Retrieval-only baselines (CPU, minutes)"),
-("code", """for r in ['bm25', 'ppr', 'graphpack']:
-    !python -m graphpack.run --tasks tasks.jsonl --out results/retrieval.jsonl --method retrieval --ranker {r}
-!python -m graphpack.report results/*.jsonl --out-dir report"""),
-("md", """## 3. Serve Gemma 4 with vLLM
-Point `MODEL_PATH` at the model you added as input (the folder with `config.json`).
-Use the same checkpoint family the main competition allows (E4B, and E2B for the scale comparison)."""),
-("code", """MODEL_PATH = [p for p in find('config.json', roots=('/kaggle/input',), depth=8) if 'gemma' in p.lower()
-              and 'developer-agent' not in p]
-MODEL_PATH_ALL = MODEL_PATH
-print(MODEL_PATH)   # pick the E4B one below if several are listed
-MODEL_PATH = os.path.dirname(next((p for p in MODEL_PATH if 'e4b' in p.lower()), MODEL_PATH[0]))   # EDIT if wrong
+("md", """## 2. Retrieval-only results (CPU, ~15 minutes) — first real numbers for the paper
+Rankers: `bm25`, `ppr` (our graph, mentions only), `graphpack`, `embed` (provided embeddings),
+`graphpack-provided` (PPR over the competition's call graph), `graphpack-embed`."""),
+("code", """!python -m graphpack.run --tasks tasks.jsonl --out results/retrieval.jsonl --method retrieval --ranker bm25,ppr,graphpack,embed,graphpack-provided,graphpack-embed 2>&1 | tail -1
+!python -m graphpack.report results/retrieval.jsonl --out-dir report/retrieval > /dev/null
+print(open('report/retrieval/results.md').read())"""),
+("md", """## 3. Serve Gemma 4 E4B with vLLM (GPU L4x4, Internet off)
+If this cell says vLLM is missing: open the competition's *Getting Started* notebook, add the same
+vLLM input it uses (right panel), and run this cell again."""),
+("code", """models = [p for p in find('config.json', roots=('/kaggle/input',), depth=8)
+          if 'gemma' in p.lower() and 'developer-agent' not in p]
+print('\\n'.join(models))
+E4B = next((os.path.dirname(p) for p in models if 'e4b' in p.lower()), None)
+E2B = next((os.path.dirname(p) for p in models if 'e2b' in p.lower()), None)
+assert E4B, 'add the model gemma-4-e4b-it-qat-w4a16-ct as an input'
 try:
     import vllm  # noqa
     print('vllm', vllm.__version__)
 except ImportError:
     raise SystemExit('vLLM is not installed and L4 sessions are offline: attach the same vLLM input '
-                     '(wheels/utility script) that the competition Getting Started notebook uses, then rerun')
+                     'that the competition Getting Started notebook uses, then rerun this cell')
 def serve(model_path, name, port=8000, tp=1):
     # E2B/E4B fit on one 24 GB L4; tp=1 avoids head-count/tensor-parallel mismatches
     log = open(f'vllm_{name}.log', 'w')
@@ -104,41 +77,34 @@ def serve(model_path, name, port=8000, tp=1):
         raise RuntimeError(open(f'vllm_{name}.log').read()[-3000:])
     os.environ.update(LLM_BASE_URL=f'http://localhost:{port}/v1', LLM_API_KEY='EMPTY', LLM_MODEL=name)
     return proc
-server = serve(MODEL_PATH, 'gemma4-e4b')"""),
-("md", "## 4. One-shot localization: budget × ranker × packing (main experiment)"),
+server = serve(E4B, 'gemma4-e4b')
+!python -m graphpack.run --tasks tasks.jsonl --out results/smoke_e4b.jsonl --method oneshot --budget 2000 --limit 2 2>&1 | tail -2"""),
+("md", "## 4. One-shot localization: budget × ranker × packing (main experiment, ~2–3 GPU-hours)"),
 ("code", """MODEL = 'gemma4-e4b'
-GRID = [('bm25', 'bodies'), ('graphpack', 'bodies'), ('graphpack', 'skeleton'), ('graphpack', 'hybrid')]
-for budget in [2000, 4000, 8000, 16000]:
-    for ranker, mode in GRID:
-        !python -m graphpack.run --tasks tasks.jsonl --out results/oneshot_{MODEL}.jsonl --method oneshot \\
-            --ranker {ranker} --pack {mode} --budget {budget} --model {MODEL}"""),
-("md", "## 5. Agents: grep tools vs graph tools vs graph tools + 2k starting pack"),
-("code", """for tools, sp in [('grep', 0), ('graph', 0), ('graph', 2000)]:
-    !python -m graphpack.run --tasks tasks.jsonl --out results/agent_{MODEL}.jsonl --method agent \\
-        --tools {tools} --turns 15 --start-pack {sp} --context-limit 24000 --model {MODEL}"""),
-("md", """## 6. Scale: repeat the key configs with E2B
-Stop the E4B server first, add the E2B model as input, then run."""),
-("code", """server.terminate(); server.wait()
-E2B_PATH = [p for p in MODEL_PATH_ALL if 'e2b' in p.lower()]
-print(E2B_PATH)
-E2B_PATH = os.path.dirname(E2B_PATH[0])   # EDIT if the wrong one is picked
-server = serve(E2B_PATH, 'gemma4-e2b')
+BUDGETS = '2000,4000,8000,16000'
+for ranker, packs in [('bm25', 'bodies'), ('graphpack', 'bodies,skeleton,hybrid'), ('graphpack-embed', 'hybrid')]:
+    !python -m graphpack.run --tasks tasks.jsonl --out results/oneshot_{MODEL}.jsonl --method oneshot --ranker {ranker} --pack {packs} --budget {BUDGETS} --model {MODEL} 2>&1 | tail -1"""),
+("md", "## 5. Agents: grep tools vs graph tools vs graph tools + 2k starting pack (~2–3 GPU-hours)"),
+("code", """for tools, sp in [('grep', '0'), ('graph', '0,2000')]:
+    !python -m graphpack.run --tasks tasks.jsonl --out results/agent_{MODEL}.jsonl --method agent --tools {tools} --turns 15 --start-pack {sp} --context-limit 24000 --model {MODEL} 2>&1 | tail -1"""),
+("md", "## 6. Scale: repeat the key configs with E2B (~2 GPU-hours)"),
+("code", """assert E2B, 'add the model gemma-4-e2b-it-qat-w4a16-ct as an input'
+server.terminate(); server.wait()
+server = serve(E2B, 'gemma4-e2b')
 MODEL = 'gemma4-e2b'
-for budget in [2000, 4000, 8000, 16000]:
-    for ranker, mode in [('bm25', 'bodies'), ('graphpack', 'hybrid')]:
-        !python -m graphpack.run --tasks tasks.jsonl --out results/oneshot_{MODEL}.jsonl --method oneshot \\
-            --ranker {ranker} --pack {mode} --budget {budget} --model {MODEL}
-for tools, sp in [('grep', 0), ('graph', 2000)]:
-    !python -m graphpack.run --tasks tasks.jsonl --out results/agent_{MODEL}.jsonl --method agent \\
-        --tools {tools} --turns 15 --start-pack {sp} --model {MODEL}"""),
+for ranker, packs in [('bm25', 'bodies'), ('graphpack', 'hybrid')]:
+    !python -m graphpack.run --tasks tasks.jsonl --out results/oneshot_{MODEL}.jsonl --method oneshot --ranker {ranker} --pack {packs} --budget {BUDGETS} --model {MODEL} 2>&1 | tail -1
+for tools, sp in [('grep', '0'), ('graph', '2000')]:
+    !python -m graphpack.run --tasks tasks.jsonl --out results/agent_{MODEL}.jsonl --method agent --tools {tools} --turns 15 --start-pack {sp} --model {MODEL} 2>&1 | tail -1"""),
 ("md", """## 7. Tables and figure for the paper
-`report/results.md` has every table; `report/budget_curve.png` is Figure 1.
-Config names do not contain the model, so report each model's files separately."""),
+`report/<model>/results.md` has every table; `report/gemma4-e4b/budget_curve.png` is Figure 1.
+Download `graphpack_results.zip` from the Output tab."""),
 ("code", """for m in ['gemma4-e4b', 'gemma4-e2b']:
-    files = ' '.join(glob.glob(f'results/*{m}.jsonl') + ['results/retrieval.jsonl'])
-    !python -m graphpack.report {files} --out-dir report/{m}
-!python -m graphpack.report results/retrieval.jsonl --out-dir report/retrieval
-!cd /kaggle/working && zip -qr graphpack_results.zip results report && ls -la"""),
+    files = ' '.join(glob.glob(f'results/*_{m}.jsonl') + ['results/retrieval.jsonl'])
+    !python -m graphpack.report {files} --out-dir report/{m} > /dev/null
+    if os.path.exists(f'report/{m}/results.md'):
+        print(open(f'report/{m}/results.md').read())
+!cd /kaggle/working && zip -qr graphpack_results.zip results report && ls -la graphpack_results.zip"""),
 ]
 
 

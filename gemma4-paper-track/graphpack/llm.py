@@ -65,6 +65,7 @@ class ScriptedLLM:
 def parse_json(text):
     """First JSON object in a model reply (tolerates ```json fences and chatter)."""
     text = re.sub(r"<think>.*?</think>", "", text, flags=re.S)
+    text = re.sub(r"<\|channel>.*?<channel\|>", "", text, flags=re.S)  # Gemma 4 thought channel
     fence = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, flags=re.S)
     candidates = [fence.group(1)] if fence else []
     start = text.find("{")

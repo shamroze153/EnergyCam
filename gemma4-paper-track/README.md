@@ -66,8 +66,8 @@ On Kaggle: open `notebooks/graphpack_experiments.ipynb` (File → Import Noteboo
 to the main competition, choose **GPU L4x4 with Internet OFF** (L4 sessions must be offline),
 add the inputs — the competition dataset, `gemma-4-e4b-it-qat-w4a16-ct` (and later
 `gemma-4-e2b-it-qat-w4a16-ct`), this folder as a dataset, and the vLLM input the competition's
-*Getting Started* notebook uses — and run top to bottom. The two cells marked **EDIT** need paths: run the `--inspect` cell
-first, it prints the dataset tree and the keys of the task table.
+*Getting Started* notebook uses — and run top to bottom. Nothing needs editing: the notebook finds the inputs, extracts the
+snapshots' Python files and links the provided graphs/embeddings itself. Steps 0–2 run on CPU.
 
 Quick iteration without a GPU (a CPU session with Internet on, not L4): any
 OpenAI-compatible endpoint works, e.g. Gemma 4 on Google AI Studio:
@@ -102,7 +102,8 @@ python -m graphpack.report results/*.jsonl --out-dir report
 | `graphpack/llm.py` | OpenAI-compatible client (vLLM / AI Studio) |
 | `graphpack/metrics.py` | Acc@k, Hit@k, issue slices, AUBC |
 | `graphpack/run.py`, `report.py` | Experiment runner (resumable) and tables/CSV/figure |
-| `graphpack/prepare_tasks.py` | Inspect the competition data and write `tasks.jsonl` |
+| `graphpack/prepare_tasks.py` | Extract snapshots (`--competition`) and write `tasks.jsonl` |
+| `graphpack/provided.py` | Map the competition's call graph and embeddings onto our graph |
 | `notebooks/` | Kaggle notebook (rebuild with `python notebooks/build_notebook.py`) |
 
 ## 5. Before you submit: must-check list
@@ -110,9 +111,8 @@ python -m graphpack.report results/*.jsonl --out-dir report
 - [ ] **No [R] left** in the writeup, and every number matches `report/*/results.md`.
 - [ ] If a hypothesis turned out false, the text says so. Negative results are fine and
       still publishable; invented numbers disqualify.
-- [ ] Check the task facts against the official Data page / `HARNESS_README.md`: 129 dev
-      tasks and the four repos came from a community source. (Model names and the harness
-      tools are confirmed from the official Overview.)
+- [x] Task facts confirmed from the dataset itself: 129 tasks (fastapi 67, rich 48,
+      requests 13, httpx 1); model names and harness tools from the official Overview.
 - [ ] Open each reference once (arXiv IDs, venues) and fix any that are off.
 - [ ] Notebook is **public** and linked in Project Links; code dataset is public.
 - [ ] The code you publish contains nothing from EnergyCam or any `.env`/secret. Upload

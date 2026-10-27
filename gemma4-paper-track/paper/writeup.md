@@ -6,20 +6,21 @@
 
 ## Abstract
 
-Small open models running offline fail at repository-level bug fixing mostly *before* they write a patch: they never find the code that has to change. Free-form exploration (grep, open file, scroll) spends the 32k-token context of a consumer-GPU deployment quickly, and small models loop, repeat actions and run out of context. We study localization as a budgeted retrieval problem and introduce **GraphPack**, a dependency-free method that (1) seeds a typed code graph (contains/imports/calls/inherits) with lexical matches, identifier mentions and traceback frames from the issue, (2) spreads relevance with personalized PageRank, and (3) packs the ranked definitions into a fixed token budget as a *hybrid* of full bodies and one-line signatures. We propose the **localization–budget curve** and its normalised area (AUBC) as an evaluation that makes cost a first-class axis, and evaluate Gemma 4 E4B and E2B on the public development tasks of the Gemma 4 Developer Agent Competition. At a 4k-token budget, GraphPack-hybrid reaches **[R]**% function-level Acc@5 versus **[R]**% for BM25 bodies; a graph-tool agent started from a 2k-token GraphPack uses **[R]**× fewer tokens than a grep agent at **[R]** points higher accuracy. Gains concentrate on issues that do not name the faulty symbol (**[R]** points). We release the code, the per-task gold locations and all trajectories.
+Small open models running offline often fail at repository-level bug fixing *before* writing a patch: they never find the code that must change, because free-form exploration exhausts a 32k-token context. We treat localization as budgeted retrieval and introduce **GraphPack**, a dependency-free method that seeds a typed code graph with lexical matches, identifiers and traceback frames from the issue, spreads relevance with personalized PageRank, and packs the ranked definitions into a fixed token budget as a *hybrid* of full bodies and one-line signatures. We propose the **localization–budget curve** and its area (AUBC) to make cost a first-class axis, compare our graph with the competition's provided call graph and embeddings, and evaluate Gemma 4 E4B and E2B on the 129 development tasks of the Gemma 4 Developer Agent Competition. At a 4k-token budget, GraphPack-hybrid reaches **[R]**% function-level Acc@5 versus **[R]**% for BM25 bodies; a graph-tool agent started from a 2k-token GraphPack uses **[R]**× fewer tokens than a grep agent at **[R]** points higher accuracy. Gains concentrate on issues that do not name the faulty symbol (**[R]** points). We release the code, the per-task gold locations and all trajectories.
 
 ## 1 Introduction
 
 The Gemma 4 Developer Agent Competition asks for an agent that fixes real Python issues on everyday hardware: one Gemma 4 checkpoint (the bonus prize requires E2B or E4B), internet off, 12 hours for ~120 issues. Pipelines decompose the job into *localize → edit → validate* (Xia et al., 2024). Frontier agents localize by exploring; for small models every opened file costs context they cannot get back, and a wrong first guess compounds over turns.
 
-We ask: **given a token budget B, what should a small model see so that it names the right functions?** Three choices are usually confounded: *what* is ranked (lexical vs graph-propagated relevance), *how* it is rendered (bodies vs signatures), and *who* explores (one-shot context vs multi-turn agent). We separate them on one cost axis.
+The competition ships its own call graph and symbol embeddings for every repository snapshot, exposed to agents as graph tools. We ask: **given a token budget B, what should a small model see so that it names the right functions, and does the provided graph data help?** Three choices are usually confounded: *what* is ranked (lexical vs graph-propagated relevance), *how* it is rendered (bodies vs signatures), and *who* explores (one-shot context vs multi-turn agent). We separate them on one cost axis.
 
 **Contributions.**
 
 1. **GraphPack**: a standard-library code-graph builder, issue-seeded personalized PageRank and hybrid body/skeleton packing; CPU-only, no network, so it runs inside the competition sandbox (§3).
-2. **Localization–budget curves and AUBC**: accuracy as a function of tokens consumed, so one-shot methods and multi-turn agents share one plot (§4).
-3. **A study with Gemma 4 E4B and E2B**: 4 budgets × 4 context strategies and 3 agent tool sets, with error analysis by issue type and agent failure mode (§5–6).
-4. **A resource**: code, per-task gold function locations, all prompts and trajectories, reproducible from one public notebook.
+2. **A controlled comparison of graph sources**: our typed `ast` graph against the competition's call graph and embeddings, under the same ranking and packing.
+3. **Localization–budget curves and AUBC**: accuracy as a function of tokens consumed, so one-shot methods and multi-turn agents share one plot (§4).
+4. **A study with Gemma 4 E4B and E2B**: 4 budgets × 4 context strategies and 3 agent tool sets, with error analysis by issue type and agent failure mode (§5–6).
+5. **A resource**: code, per-task gold function locations, all prompts and trajectories, reproducible from one public notebook.
 
 ## 2 Related Work
 
@@ -57,6 +58,8 @@ Given issue text *q*, GraphPack scores every class/function node *v* (tests excl
 3. **Propagation**: personalized PageRank with restart distribution ∝ *s* over the undirected, weighted graph (calls 1.0, contains 1.0, inherits 0.7, imports 0.3; damping 0.85, 40 iterations), giving `ppr(v)`.
 4. **Score**: `λ·norm(lex) + (1−λ)·norm(ppr)` with min–max normalisation and λ = 0.5; traceback-seeded nodes are pinned to the top.
 
+**Using the provided graph data.** The competition's graphs contain only `calls` edges between dotted symbol names, and its 256-d embeddings cannot embed free text offline (the harness's `search_similar_code` likewise starts from a named symbol). We map their names onto our nodes (exact dotted name, else unique dotted suffix) and test three variants with the same seeds: **embed** scores each node by its seed-weighted maximum cosine similarity to the seeds; **graphpack-provided** runs the PPR step on the provided call graph instead of ours; **graphpack-embed** averages the normalised lexical, PPR and embedding scores.
+
 ### 3.3 Budgeted packing
 
 The ranked list is rendered, grouped by file in order of first appearance, until the budget *B* (≈ 4 characters per token) is spent:
@@ -75,7 +78,7 @@ Skeletons show many more candidates per token; bodies let the model discriminate
 
 ## 4 Experimental Setup
 
-**Tasks.** The 129 public development tasks of the Gemma 4 Developer Agent Competition (repositories `fastapi`, `rich`, `requests`, `httpx`). Each provides an issue, a pre-patch snapshot and a reference patch. **[R: number of tasks used after filtering, and why any were dropped]**
+**Tasks.** The 129 public development tasks of the Gemma 4 Developer Agent Competition: 67 `fastapi`, 48 `rich`, 13 `requests` and 1 `httpx`. Each provides an issue, optional hints, a snapshot archive at the base commit, a reference patch and a test patch. We extract only the snapshot's Python files; the localizers never see hints, tests or the patch. **[R: tasks dropped, if any, and why]** The provided graphs map onto our nodes at **[R]**% (nodes) and **[R]**% (edges).
 
 **Gold locations.** We parse the reference patch and map every touched pre-patch line (for pure insertions, the line above) to the innermost enclosing class/function in the snapshot. Test files, non-Python files and new files are excluded from function-level gold; **[R]** tasks have at least one gold function and **[R]**% touch more than one file.
 
@@ -96,8 +99,11 @@ Skeletons show many more candidates per token; bodies let the model discriminate
 | BM25 | [R] | [R] | [R] | [R] |
 | PPR (seeds only) | [R] | [R] | [R] | [R] |
 | GraphPack (BM25 + PPR) | [R] | [R] | [R] | [R] |
+| Embedding spread (provided) | [R] | [R] | [R] | [R] |
+| GraphPack on provided call graph | [R] | [R] | [R] | [R] |
+| GraphPack + provided embeddings | [R] | [R] | [R] | [R] |
 
-*Table 1. Retrieval without an LLM on the development tasks (%).* **[R: one or two sentences — does graph propagation add to BM25, and on which repositories?]**
+*Table 1. Retrieval without an LLM on the development tasks (%).* **[R: does graph propagation add to BM25; does our typed graph or the provided call graph work better; do the provided embeddings add anything?]**
 
 ### 5.2 One-shot localization under a budget
 
@@ -147,21 +153,17 @@ Skeletons show many more candidates per token; bodies let the model discriminate
 
 *Table 5. Function Acc@5 (%) by issue slice.* Our hypothesis, stated before running, was that traceback issues are easy for every method and that graph propagation helps most on behavioural issues that name neither a file nor a symbol. **[R: confirmed or not, with numbers.]**
 
-**Failure taxonomy.** We sample **[R: e.g. 30]** failed E4B tasks per best method and label each as: (i) gold not in context (retrieval miss), (ii) gold in context but not ranked (selection miss), (iii) gold partly found (multi-location fix), (iv) invalid/unparseable output, (v) agent loop or context exhaustion. **[R: counts and one illustrative example per category, quoting the trajectory file.]**
+**Failure taxonomy.** We label **[R: e.g. 30]** failed E4B tasks per best method as: retrieval miss (gold not shown), selection miss (shown, not ranked), partial (multi-location fix), invalid output, or agent loop/context exhaustion. **[R: counts and one example per category.]**
 
-**Cost on consumer hardware.** Graph construction and ranking take **[R]** s per task on CPU; a one-shot call at 4k tokens takes **[R]** s on **[R GPU]**, versus **[R]** s for a 15-turn agent. For the main competition's 12-hour budget over ~120 tasks (6 minutes per task), localization cost decides how many repair attempts remain.
+**Cost.** Indexing and ranking take **[R]** s per task on CPU; a 4k-token one-shot call takes **[R]** s on one L4, versus **[R]** s for a 15-turn agent. With the main competition's 12 hours for ~120 tasks, localization cost decides how many repair attempts remain.
 
 ## 7 Limitations
 
-The development set is small (129 tasks, four repositories), so we report bootstrap intervals. A single reference patch under-counts valid alternative fixes. Call edges are name-resolved, not type-resolved, so dynamic dispatch can hide edges. Packing approximates 4 characters per token; reported costs use server token counts. We evaluate localization, not end-to-end resolution (§8).
+The development set is small (129 tasks; `httpx` has one task), so we report bootstrap intervals and no per-repository claims beyond `fastapi` and `rich`. A single reference patch under-counts valid alternative fixes. Call edges are name-resolved, not type-resolved, so dynamic dispatch can hide edges. Packing approximates 4 characters per token; reported costs use server token counts. We evaluate localization, not end-to-end resolution.
 
-## 8 Use in a Full Agent and Generality
+## 8 Conclusion
 
-GraphPack needs only Python and NumPy, so it can ship inside a competition submission as an ADK skill whose script prints the pack as the agent's first observation, next to the harness's own graph tools, without changing the model. Nothing is specific to the development repositories or to Gemma; the graph schema maps directly onto tree-sitter parsers for other languages, and the budget-curve protocol applies to any localizer, including fine-tuned ones.
-
-## 9 Conclusion
-
-For a small offline model, what it reads matters as much as how it reasons. Issue-seeded graph ranking with hybrid packing lets Gemma 4 E4B localize **[R]**% of development-task bugs within **[R]** tokens. We release GraphPack, the protocol and all trajectories so small-model agents can be compared on cost as well as accuracy.
+For a small offline model, what it reads matters as much as how it reasons. Issue-seeded graph ranking with hybrid packing lets Gemma 4 E4B localize **[R]**% of development-task bugs within **[R]** tokens. GraphPack needs only Python and NumPy, so it can ship in a competition submission as an ADK skill whose script prints the pack as the agent's first observation; nothing in it is specific to these repositories or to Gemma. We release it, the protocol and all trajectories so small-model agents can be compared on cost as well as accuracy.
 
 ## Reproducibility
 

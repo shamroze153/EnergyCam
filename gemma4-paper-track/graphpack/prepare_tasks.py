@@ -11,13 +11,22 @@ then convert, naming the fields if the guesses are wrong:
 
 A row whose snapshot is not on disk but has `repo` + `base_commit` (SWE-bench
 style) can be cloned with --clone-to DIR (needs internet in the notebook).
+
+For the Gemma 4 Developer Agent dataset itself there is a one-step mode that
+extracts the Python files of every snapshot and links the provided graph and
+embeddings (no internet needed):
+
+  python -m graphpack.prepare_tasks --competition /kaggle/input/competitions/gemma-4-developer-agent \
+      --extract-to /kaggle/temp/snapshots --out tasks.jsonl
 """
 import argparse
 import csv
 import json
 import os
+import posixpath
 import subprocess
 import sys
+import tarfile
 
 GUESSES = {
     "instance_id": ["instance_id", "task_id", "id", "name"],
@@ -96,9 +105,60 @@ def clone(repo, commit, dest_root):
     return dest
 
 
+def extract_python(tgz, dest):
+    """Extract only .py files (no .git, no symlinks, no paths escaping dest)."""
+    if os.path.isdir(dest) and os.listdir(dest):
+        return sum(len([f for f in fs if f.endswith(".py")]) for _, _, fs in os.walk(dest))
+    count = 0
+    with tarfile.open(tgz, "r:*") as tf:
+        for m in tf:
+            name = posixpath.normpath(m.name[2:] if m.name.startswith("./") else m.name)
+            if (not m.isfile() or not name.endswith(".py") or name.startswith(("/", "..", ".git/"))
+                    or "/../" in name or "/.git/" in name):
+                continue
+            out = os.path.join(dest, *name.split("/"))
+            os.makedirs(os.path.dirname(out), exist_ok=True)
+            with tf.extractfile(m) as src, open(out, "wb") as dst:
+                dst.write(src.read())
+            count += 1
+    return count
+
+
+def prepare_competition(root, extract_to, out, limit=None):
+    from .provided import find_files
+    with open(os.path.join(root, "tasks.jsonl"), encoding="utf-8") as fh:
+        rows = [json.loads(l) for l in fh if l.strip()]
+    rows = rows[:limit] if limit else rows
+    written, skipped = [], []
+    for i, r in enumerate(rows, 1):
+        tgz = os.path.join(root, "snapshots", f"{r['instance_id']}.tgz")
+        if not os.path.exists(tgz):
+            skipped.append((r["instance_id"], "no snapshot"))
+            continue
+        dest = os.path.join(extract_to, r["instance_id"])
+        n = extract_python(tgz, dest)
+        if n == 0:
+            skipped.append((r["instance_id"], "no .py files in snapshot"))
+            continue
+        graph_json, emb_npz = find_files(root, r["repo"], r["base_commit"])
+        written.append({"instance_id": r["instance_id"], "repo": r["repo"], "base_commit": r["base_commit"],
+                        "repo_dir": dest, "problem_statement": r["problem_statement"],
+                        "hints_text": r.get("hints_text", ""), "patch": r["patch"],
+                        "graph_json": graph_json, "emb_npz": emb_npz})
+        print(f"[{i}/{len(rows)}] {r['instance_id']}: {n} .py files, graph={'yes' if graph_json else 'no'}, "
+              f"embeddings={'yes' if emb_npz else 'no'}", file=sys.stderr)
+    with open(out, "w", encoding="utf-8") as fh:
+        for t in written:
+            fh.write(json.dumps(t) + "\n")
+    print(f"wrote {len(written)} tasks to {out}; skipped {len(skipped)}: {skipped}", file=sys.stderr)
+
+
 def main(argv=None):
     p = argparse.ArgumentParser()
     p.add_argument("--inspect")
+    p.add_argument("--competition", help="root of the Gemma 4 Developer Agent dataset")
+    p.add_argument("--extract-to", default="/kaggle/temp/snapshots")
+    p.add_argument("--limit", type=int)
     p.add_argument("--src")
     p.add_argument("--out", default="tasks.jsonl")
     p.add_argument("--repo-template", help="e.g. /kaggle/input/x/repos/{instance_id}")
@@ -108,6 +168,8 @@ def main(argv=None):
     a = p.parse_args(argv)
     if a.inspect:
         return inspect(a.inspect)
+    if a.competition:
+        return prepare_competition(a.competition, a.extract_to, a.out, a.limit)
     if not a.src:
         p.error("--src or --inspect is required")
     rows, out, skipped = read_rows(a.src), [], 0

@@ -134,9 +134,8 @@ def test_all():
             fh.write(json.dumps({"instance_id": "shop-1", "repo_dir": repo,
                                  "problem_statement": ISSUE, "patch": PATCH}) + "\n")
         out = os.path.join(tmp, "res.jsonl")
-        for ranker in ("bm25", "graphpack"):
-            run.main(["--tasks", tasks, "--out", out, "--method", "retrieval", "--ranker", ranker])
-            run.main(["--tasks", tasks, "--out", out, "--method", "retrieval", "--ranker", ranker])  # resumes
+        run.main(["--tasks", tasks, "--out", out, "--method", "retrieval", "--ranker", "bm25"])
+        run.main(["--tasks", tasks, "--out", out, "--method", "retrieval", "--ranker", "bm25,graphpack"])  # resumes bm25
         rows = [json.loads(l) for l in open(out)]
         assert [r["config"] for r in rows] == ["retrieval-bm25", "retrieval-graphpack"]  # reruns resumed
         report.main([out, "--out-dir", os.path.join(tmp, "rep")])
@@ -145,6 +144,78 @@ def test_all():
     assert abs(aubc([(2000, 0.5), (32000, 0.5)]) - 0.5) < 1e-9
 
 
+def test_competition_layout():
+    """prepare_tasks --competition on a miniature copy of the Kaggle dataset layout."""
+    import io
+    import tarfile
+
+    import numpy as np
+
+    from graphpack import prepare_tasks
+    from graphpack.localize import run_tool
+    from graphpack.provided import load_provided
+
+    with tempfile.TemporaryDirectory() as tmp:
+        comp = os.path.join(tmp, "comp")
+        for d in ("snapshots", "graphs", "embeddings"):
+            os.makedirs(os.path.join(comp, d))
+        with tarfile.open(os.path.join(comp, "snapshots", "shop_1.tgz"), "w:gz") as tf:
+            def add(name, text):
+                data = text.encode()
+                info = tarfile.TarInfo(name)
+                info.size = len(data)
+                tf.addfile(info, io.BytesIO(data))
+            for rel, src in FILES.items():
+                add("./" + rel, src)
+            add("./.git/hooks/pre-commit.py", "x = 1\n")         # must be skipped
+            add("./.github/scripts/ci.py", "def ci():\n    pass\n")  # must be kept
+            add("./README.md", "not python")
+        with open(os.path.join(comp, "tasks.jsonl"), "w") as fh:
+            fh.write(json.dumps({"instance_id": "shop_1", "repo": "acme/shop", "base_commit": "abc123",
+                                 "patch": PATCH, "test_patch": "", "problem_statement": ISSUE,
+                                 "hints_text": "", "created_at": ""}) + "\n")
+        names = ["shop.pricing.apply_discount", "shop.pricing.add_tax", "shop.cart.Cart.checkout",
+                 "cart.Cart.add", "not.in.repo"]
+        with open(os.path.join(comp, "graphs", "shop_abc123.json"), "w") as fh:
+            json.dump({"directed": True, "multigraph": True, "graph": {},
+                       "nodes": [{"id": n, "name": n, "text": ""} for n in names],
+                       "edges": [{"type": "calls", "source": "shop.cart.Cart.checkout",
+                                  "target": "shop.pricing.apply_discount", "key": 0},
+                                 {"type": "calls", "source": "not.in.repo",
+                                  "target": "shop.pricing.add_tax", "key": 0}]}, fh)
+        vecs = {"shop.pricing.apply_discount": [1, 0, 0], "shop.pricing.add_tax": [0.9, 0.1, 0],
+                "shop.cart.Cart.checkout": [0, 1, 0], "cart.Cart.add": [0, 0, 1]}
+        np.savez(os.path.join(comp, "embeddings", "shop_abc123.npz"),
+                 **{k: np.array(v, dtype=np.float32) for k, v in vecs.items()})
+
+        tasks = os.path.join(tmp, "tasks.jsonl")
+        prepare_tasks.main(["--competition", comp, "--extract-to", os.path.join(tmp, "snap"), "--out", tasks])
+        task = json.loads(open(tasks).read().splitlines()[0])
+        snap = task["repo_dir"]
+        assert os.path.exists(os.path.join(snap, "shop", "pricing.py"))
+        assert os.path.exists(os.path.join(snap, ".github", "scripts", "ci.py"))
+        assert not os.path.exists(os.path.join(snap, ".git")) and not os.path.exists(os.path.join(snap, "README.md"))
+        assert task["graph_json"].endswith("shop_abc123.json") and task["emb_npz"].endswith("shop_abc123.npz")
+
+        g = build_graph(snap)
+        prov = load_provided(g, task["graph_json"], task["emb_npz"])
+        assert prov.stats["graph_nodes_mapped"] == 4          # "cart.Cart.add" maps by unique suffix
+        assert prov.edges == [("shop/cart.py::Cart.checkout", "shop/pricing.py::apply_discount", "calls")]
+        assert prov.dim == 3 and len(prov.emb) == 4
+        index = Index(g, provided=prov)
+        for ranker in ("embed", "graphpack-provided", "graphpack-embed"):
+            assert "shop/pricing.py::apply_discount" in rank(index, ISSUE, ranker)[:3], ranker
+        out = run_tool(index, "search_similar_code", {"query": "apply_discount", "k": 1})
+        assert out.startswith("shop/pricing.py::add_tax"), out   # nearest neighbour by embedding
+
+        out_file = os.path.join(tmp, "res.jsonl")
+        run.main(["--tasks", tasks, "--out", out_file, "--method", "retrieval", "--ranker", "graphpack-embed"])
+        row = json.loads(open(out_file).read().splitlines()[0])
+        assert row["gold_nodes"] == ["shop/pricing.py::apply_discount"] and row["metrics"]["func_acc@5"] == 1.0
+        assert row["provided_stats"]["emb_nodes_mapped"] == 4
+
+
 if __name__ == "__main__":
     test_all()
+    test_competition_layout()
     print("ok")

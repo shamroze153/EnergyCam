@@ -98,7 +98,7 @@ def run_oneshot(index, issue, llm, budget=8000, ranker="graphpack", pack_mode="h
 # Tool names and arguments follow the competition harness (read_file,
 # get_code_neighbors, get_code_subgraph, search_similar_code) so behaviour
 # measured here transfers to it. `search` stands in for `run_command("grep -rn ...")`;
-# search_similar_code is served by the BM25 index here, not by the released embeddings.
+# search_similar_code uses the released embeddings when the task provides them.
 AGENT_TOOLS = {
     "search": "search(pattern): regex search over .py files, returns up to 20 'file:line: text' matches",
     "read_file": "read_file(filepath, start_line=1, end_line=start_line+79): numbered lines of a file",
@@ -159,8 +159,19 @@ def run_tool(index, name, args):
                               for f in graph.files if f.startswith(prefix)})
             return "\n".join(entries[:200]) or "empty or not a directory"
         if name == "search_similar_code":
+            # harness semantics: nearest neighbours of a named symbol in the provided
+            # embeddings; lexical (BM25) fallback for free text or without embeddings
             k = min(int(args.get("k") or 10), 30)
-            ids = rank(index, str(args.get("query", "")), method="bm25")[:k]
+            query = str(args.get("query", ""))
+            nid = resolve_location(graph, query)
+            if nid not in index.pos:
+                cands = graph.by_name.get(query.split(".")[-1], [])
+                nid = cands[0] if len(cands) == 1 else None
+            if index.provided is not None and nid in index.pos and index.emb[index.pos[nid]].any():
+                sims = index.emb @ index.emb[index.pos[nid]]
+                ids = [index.ids[i] for i in (-sims).argsort()[:k + 1] if index.ids[i] != nid][:k]
+            else:
+                ids = rank(index, query, method="bm25")[:k]
             return "\n".join(f"{i}  {graph.nodes[i].signature}" for i in ids) or "no matches"
         if name == "find_symbol":
             ids = graph.by_name.get(str(args.get("name", "")).split(".")[-1], [])[:20]

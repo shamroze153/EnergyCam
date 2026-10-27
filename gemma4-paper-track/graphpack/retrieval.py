@@ -72,10 +72,15 @@ class BM25:
 
 
 class Index:
-    """Per-repository index: built once, reused for every issue on that snapshot."""
+    """Per-repository index: built once, reused for every issue on that snapshot.
 
-    def __init__(self, graph, include_tests=False):
+    provided: optional ProvidedData (the competition's own call graph and node
+    embeddings, mapped onto this graph's node ids; see provided.py).
+    """
+
+    def __init__(self, graph, include_tests=False, provided=None):
         self.g = graph
+        self.provided = provided
         self.ids = [nid for nid, n in graph.nodes.items()
                     if n.kind != "module" and (include_tests or not n.is_test)]
         self.pos = {nid: i for i, nid in enumerate(self.ids)}
@@ -85,28 +90,40 @@ class Index:
             text = f"{n.file} {n.qualname} {graph.source(nid)}"
             docs.append(tokenize(text))
         self.bm25 = BM25(docs)
-        self._build_matrix()
-
-    def _build_matrix(self):
-        # column-stochastic transition matrix over all graph nodes, undirected
         self.all_ids = list(self.g.nodes)
         self.all_pos = {nid: i for i, nid in enumerate(self.all_ids)}
+        own = ((s, d, t) for s, ds in self.g.edges.items() for d, t in ds.items())
+        self.walks = {"own": self._transition(own)}
+        if provided is not None:
+            self.walks["provided"] = self._transition(provided.edges)
+            # unit-normalised embeddings aligned with self.ids (zero rows = no embedding)
+            dim = provided.dim
+            self.emb = np.zeros((len(self.ids), dim), dtype=np.float32)
+            for nid, vec in provided.emb.items():
+                if nid in self.pos:
+                    self.emb[self.pos[nid]] = vec / (np.linalg.norm(vec) or 1.0)
+
+    def _transition(self, edges):
+        """Column-stochastic transition matrix (as COO arrays), edges made undirected."""
         rows, cols, vals = [], [], []
-        for s, ds in self.g.edges.items():
-            for d, t in ds.items():
-                w = EDGE_WEIGHTS.get(t, 0.5)
-                i, j = self.all_pos[s], self.all_pos[d]
-                rows += [i, j]
-                cols += [j, i]
-                vals += [w, w]
-        self.rows = np.array(rows, dtype=np.int64)
-        self.cols = np.array(cols, dtype=np.int64)
+        for s, d, t in edges:
+            if s not in self.all_pos or d not in self.all_pos or s == d:
+                continue
+            w = EDGE_WEIGHTS.get(t, 0.5)
+            i, j = self.all_pos[s], self.all_pos[d]
+            rows += [i, j]
+            cols += [j, i]
+            vals += [w, w]
+        rows = np.array(rows, dtype=np.int64)
+        cols = np.array(cols, dtype=np.int64)
         vals = np.array(vals, dtype=float)
         out_w = np.zeros(len(self.all_ids))
-        np.add.at(out_w, self.cols, vals)
-        self.vals = vals / np.where(out_w[self.cols] > 0, out_w[self.cols], 1.0)
+        np.add.at(out_w, cols, vals)
+        vals = vals / np.where(out_w[cols] > 0, out_w[cols], 1.0)
+        return rows, cols, vals
 
-    def ppr(self, seeds, damping=0.85, iters=40):
+    def ppr(self, seeds, damping=0.85, iters=40, walk="own"):
+        rows, cols, vals = self.walks[walk]
         n = len(self.all_ids)
         p = np.zeros(n)
         for nid, w in seeds.items():
@@ -118,9 +135,25 @@ class Index:
         r = p.copy()
         for _ in range(iters):
             spread = np.zeros(n)
-            np.add.at(spread, self.rows, self.vals * r[self.cols])
+            np.add.at(spread, rows, vals * r[cols])
             r = (1 - damping) * p + damping * spread
         return r
+
+    def embed_scores(self, seeds):
+        """Max seed-weighted cosine similarity to the seeds' provided embeddings.
+
+        The competition embeddings cannot embed free text offline, so (like the
+        harness's search_similar_code) relevance spreads from named symbols.
+        """
+        out = np.zeros(len(self.ids))
+        if self.provided is None:
+            return out
+        for nid, w in seeds.items():
+            i = self.pos.get(nid)
+            if i is None or not self.emb[i].any():
+                continue
+            out = np.maximum(out, w * (self.emb @ self.emb[i]))
+        return out
 
 
 def mentions(graph, issue):
@@ -152,27 +185,45 @@ def _minmax(x):
     return (x - x.min()) / (x.max() - x.min())
 
 
+RANKERS = ("bm25", "ppr", "graphpack", "embed", "graphpack-provided", "graphpack-embed")
+
+
 def rank(index, issue, method="graphpack", lambda_lex=0.5, n_seeds=10):
     """Return node ids (classes/functions) ranked for the issue.
 
-    method: bm25 | ppr | graphpack (bm25 + mentions seeding PPR, mixed)
+    bm25                lexical only
+    ppr                 PPR over our ast graph from issue mentions only
+    graphpack           BM25 + mentions seed PPR over our graph, mixed with BM25
+    embed               seeds spread by cosine similarity of the provided embeddings
+    graphpack-provided  as graphpack, but PPR walks the competition's call graph
+    graphpack-embed     graphpack mixed with the embedding spread (1/3 each)
     """
+    if method not in RANKERS:
+        raise ValueError(f"unknown ranker {method}")
+    if method != "bm25" and method.endswith(("embed", "provided")) and index.provided is None:
+        raise ValueError(f"ranker {method} needs the competition graph/embeddings (provided data)")
     lex = index.bm25.scores(tokenize(issue))
     if method == "bm25":
         order = np.argsort(-lex, kind="stable")
         return [index.ids[i] for i in order if lex[i] > 0]
 
     seeds = mentions(index.g, issue)
-    if method == "graphpack":
+    if method != "ppr":
         for i in np.argsort(-lex, kind="stable")[:n_seeds]:
             if lex[i] > 0:
                 seeds[index.ids[i]] = seeds.get(index.ids[i], 0) + lex[i] / lex.max()
-    pr_all = index.ppr(seeds)
-    pr = np.array([pr_all[index.all_pos[nid]] for nid in index.ids])
-    if method == "ppr":
-        score = pr
+    if method == "embed":
+        score = index.embed_scores(seeds)
     else:
-        score = lambda_lex * _minmax(lex) + (1 - lambda_lex) * _minmax(pr)
+        pr_all = index.ppr(seeds, walk="provided" if method == "graphpack-provided" else "own")
+        pr = np.array([pr_all[index.all_pos[nid]] for nid in index.ids])
+        if method == "ppr":
+            score = pr
+        elif method == "graphpack-embed":
+            score = (_minmax(lex) + _minmax(pr) + _minmax(index.embed_scores(seeds))) / 3
+        else:
+            score = lambda_lex * _minmax(lex) + (1 - lambda_lex) * _minmax(pr)
+    if method != "ppr":
         # nodes named in a traceback stay on top regardless of the mix
         for nid, w in seeds.items():
             if nid in index.pos and w >= 3.0:
