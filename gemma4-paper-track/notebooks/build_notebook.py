@@ -8,9 +8,10 @@ CELLS = [
 Reproduces every number in the paper: localization on the competition's public dev tasks
 with Gemma 4 E4B / E2B under fixed token budgets.
 
-**Before running:** Settings → Accelerator **GPU (L4x4 or T4x2)**, Internet **on** (only for `pip install`),
-Add Input → the competition dataset, the Gemma 4 model(s), and the `graphpack` code
-(upload the `gemma4-paper-track` folder as a Kaggle Dataset, or `git clone` it).
+**Before running:** Settings → Accelerator **GPU L4x4**, Internet **off** (L4 sessions must be offline;
+graphpack itself needs only Python + NumPy). Add Input → the competition dataset, the Gemma 4
+model(s) (`gemma-4-e4b-it-qat-w4a16-ct`, `gemma-4-e2b-it-qat-w4a16-ct`), the `graphpack-code`
+dataset, and whatever the competition's *Getting Started* notebook attaches to provide vLLM offline.
 Results land in `/kaggle/working/results/` and `/kaggle/working/report/`."""),
 ("code", """import os, sys, glob, subprocess, time, json
 # where the graphpack code is (Kaggle Dataset upload or a git clone)
@@ -57,11 +58,12 @@ print(MODEL_PATH)   # pick the E4B one below if several are listed
 MODEL_PATH = os.path.dirname(next((p for p in MODEL_PATH if 'e4b' in p.lower()), MODEL_PATH[0]))   # EDIT if wrong
 try:
     import vllm  # noqa
+    print('vllm', vllm.__version__)
 except ImportError:
-    !pip install -q vllm
-def serve(model_path, name, port=8000, tp=None):
-    import torch
-    tp = tp or torch.cuda.device_count()
+    raise SystemExit('vLLM is not installed and L4 sessions are offline: attach the same vLLM input '
+                     '(wheels/utility script) that the competition Getting Started notebook uses, then rerun')
+def serve(model_path, name, port=8000, tp=1):
+    # E2B/E4B fit on one 24 GB L4; tp=1 avoids head-count/tensor-parallel mismatches
     log = open(f'vllm_{name}.log', 'w')
     proc = subprocess.Popen(['vllm', 'serve', model_path, '--served-model-name', name, '--port', str(port),
                              '--max-model-len', '32768', '--tensor-parallel-size', str(tp),

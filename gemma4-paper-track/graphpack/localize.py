@@ -4,7 +4,7 @@
   oneshot     one LLM call over a packed context (bm25 or graphpack ranking,
               bodies | skeleton | hybrid packing) under a token budget
   agent       multi-turn tool use; tools = grep (search/view/list_dir) and
-              optionally graph (find_symbol/skeleton/neighbors), optionally
+              optionally graph (the harness's graph tools plus find_symbol/skeleton), optionally
               starting from a small GraphPack skeleton
 
 Every method returns the same record: ranked files, ranked node ids, and the
@@ -95,17 +95,25 @@ def run_oneshot(index, issue, llm, budget=8000, ranker="graphpack", pack_mode="h
 
 # ---------------------------------------------------------------- agent
 
+# Tool names and arguments follow the competition harness (read_file,
+# get_code_neighbors, get_code_subgraph, search_similar_code) so behaviour
+# measured here transfers to it. `search` stands in for `run_command("grep -rn ...")`;
+# search_similar_code is served by the BM25 index here, not by the released embeddings.
 AGENT_TOOLS = {
     "search": "search(pattern): regex search over .py files, returns up to 20 'file:line: text' matches",
-    "view": "view(path, start=1, end=start+79): show numbered lines of a file",
+    "read_file": "read_file(filepath, start_line=1, end_line=start_line+79): numbered lines of a file",
     "list_dir": "list_dir(path='.'): list a directory",
+    "search_similar_code": "search_similar_code(query, k=10): definitions most similar to a text query",
     "find_symbol": "find_symbol(name): classes/functions with this name, with signatures",
     "skeleton": "skeleton(path): every class/function signature in a file, with line ranges",
-    "neighbors": "neighbors(id): callers, callees, parents, children of a node id 'file.py::Qual.name'",
+    "get_code_neighbors": ("get_code_neighbors(node, edge_type=None, max_neighbors=50): callers, callees, "
+                           "parents, children of 'file.py::Qual.name'; edge_type in calls|contains|imports|inherits"),
+    "get_code_subgraph": "get_code_subgraph(nodes): edges among a list of node ids",
     "submit": "submit(locations): finish; locations = ranked list of 'file.py::Qual.name'",
 }
-GREP_TOOLS = ["search", "view", "list_dir", "submit"]
-GRAPH_TOOLS = GREP_TOOLS[:-1] + ["find_symbol", "skeleton", "neighbors", "submit"]
+GREP_TOOLS = ["search", "read_file", "list_dir", "submit"]
+GRAPH_TOOLS = GREP_TOOLS[:-1] + ["search_similar_code", "find_symbol", "skeleton",
+                                 "get_code_neighbors", "get_code_subgraph", "submit"]
 
 SYSTEM_AGENT = """You localize bugs in a Python repository by calling tools.
 Each reply must be ONLY one JSON object: {{"thought": "...", "tool": "<name>", "args": {{...}}}}
@@ -122,7 +130,8 @@ def _truncate(text, max_tokens=MAX_OBS_TOKENS):
     return text if len(text) <= limit else text[:limit] + "\n... (truncated)"
 
 
-def run_tool(graph, name, args):
+def run_tool(index, name, args):
+    graph = index.g
     try:
         if name == "search":
             pat = re.compile(str(args.get("pattern", "")))
@@ -134,14 +143,14 @@ def run_tool(graph, name, args):
                         if len(hits) >= 20:
                             return "\n".join(hits) + "\n... (more matches)"
             return "\n".join(hits) or "no matches"
-        if name == "view":
-            path = resolve_location(graph, str(args.get("path", "")))
+        if name == "read_file":
+            path = resolve_location(graph, str(args.get("filepath", args.get("path", ""))))
             path = graph.nodes[path].file if path in graph.nodes else path
             if path not in graph.files:
-                return f"no such file: {args.get('path')}"
+                return f"no such file: {args.get('filepath')}"
             lines = graph.files[path].splitlines()
-            start = max(int(args.get("start", 1)), 1)
-            end = min(int(args.get("end", start + 79)), start + 119, len(lines))
+            start = max(int(args.get("start_line") or 1), 1)
+            end = min(int(args.get("end_line") or start + 79), start + 119, len(lines))
             return "\n".join(f"{i:>5} {lines[i - 1]}" for i in range(start, end + 1)) or "(empty)"
         if name == "list_dir":
             prefix = str(args.get("path", ".")).strip("./")
@@ -149,6 +158,10 @@ def run_tool(graph, name, args):
             entries = sorted({f[len(prefix):].split("/")[0] + ("/" if "/" in f[len(prefix):] else "")
                               for f in graph.files if f.startswith(prefix)})
             return "\n".join(entries[:200]) or "empty or not a directory"
+        if name == "search_similar_code":
+            k = min(int(args.get("k") or 10), 30)
+            ids = rank(index, str(args.get("query", "")), method="bm25")[:k]
+            return "\n".join(f"{i}  {graph.nodes[i].signature}" for i in ids) or "no matches"
         if name == "find_symbol":
             ids = graph.by_name.get(str(args.get("name", "")).split(".")[-1], [])[:20]
             return "\n".join(f"{i}  {graph.nodes[i].signature}" for i in ids) or "not found"
@@ -157,12 +170,20 @@ def run_tool(graph, name, args):
             nodes = sorted((n for n in graph.nodes.values() if n.file == path and n.kind != "module"),
                            key=lambda n: n.start)
             return "\n".join(f"{n.start}-{n.end} {n.qualname}: {n.signature}" for n in nodes) or "no file/defs"
-        if name == "neighbors":
-            nid = resolve_location(graph, str(args.get("id", "")))
+        if name == "get_code_neighbors":
+            nid = resolve_location(graph, str(args.get("node", args.get("id", ""))))
             if nid not in graph.nodes:
-                return "unknown id"
-            rows = [f"{t}/{d}: {o}  {graph.nodes[o].signature}" for o, t, d in graph.neighbors(nid)]
-            return "\n".join(rows[:40]) or "no neighbours"
+                return "unknown node"
+            etype = args.get("edge_type")
+            rows = [f"{t}/{d}: {o}  {graph.nodes[o].signature}" for o, t, d in graph.neighbors(nid)
+                    if not etype or t == etype]
+            return "\n".join(rows[:min(int(args.get("max_neighbors") or 50), 50)]) or "no neighbours"
+        if name == "get_code_subgraph":
+            nodes = args.get("nodes") or []
+            ids = {resolve_location(graph, str(n)) for n in nodes[:30]} if isinstance(nodes, list) else set()
+            ids.discard(None)
+            rows = [f"{s} -{t}-> {d}" for s in sorted(ids) for d, t in graph.edges.get(s, {}).items() if d in ids]
+            return "\n".join(rows) or "no edges among these nodes"
     except (re.error, ValueError, TypeError) as e:
         return f"tool error: {e}"
     return f"unknown tool: {name}"
@@ -194,7 +215,7 @@ def run_agent(index, issue, llm, tools="grep", max_turns=15, context_limit=24000
             submitted = [resolve_location(g, l) for l in locs if isinstance(l, str)] if isinstance(locs, list) else []
             stop_reason = "submit"
             break
-        obs = "Reply with one JSON tool call." if tool not in names else _truncate(run_tool(g, tool, args))
+        obs = "Reply with one JSON tool call." if tool not in names else _truncate(run_tool(index, tool, args))
         messages += [{"role": "assistant", "content": text}, {"role": "user", "content": f"Observation:\n{obs}"}]
         if sum(approx_tokens(m["content"]) for m in messages) > context_limit:
             stop_reason = "context_limit"

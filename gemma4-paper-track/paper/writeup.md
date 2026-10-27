@@ -10,7 +10,7 @@ Small open models running offline fail at repository-level bug fixing mostly *be
 
 ## 1 Introduction
 
-The Gemma 4 Developer Agent Competition asks for an agent that fixes real Python issues on everyday hardware: a small Gemma 4 model, internet off, a 32k-token context. Pipelines decompose the job into *localize → edit → validate* (Xia et al., 2024). Frontier agents localize by exploring; for small models every opened file costs context they cannot get back, and a wrong first guess compounds over turns.
+The Gemma 4 Developer Agent Competition asks for an agent that fixes real Python issues on everyday hardware: one Gemma 4 checkpoint (the bonus prize requires E2B or E4B), internet off, 12 hours for ~120 issues. Pipelines decompose the job into *localize → edit → validate* (Xia et al., 2024). Frontier agents localize by exploring; for small models every opened file costs context they cannot get back, and a wrong first guess compounds over turns.
 
 We ask: **given a token budget B, what should a small model see so that it names the right functions?** Three choices are usually confounded: *what* is ranked (lexical vs graph-propagated relevance), *how* it is rendered (bodies vs signatures), and *who* explores (one-shot context vs multi-turn agent). We separate them on one cost axis.
 
@@ -71,7 +71,7 @@ Skeletons show many more candidates per token; bodies let the model discriminate
 
 - **Retrieval only**: the ranking itself (bm25, ppr, graphpack); no LLM.
 - **One-shot**: one call with the issue and the packed context; the model returns up to 10 ranked `path::Qual.name` locations as JSON. Model-named locations are resolved to graph nodes (exact id, `path:line`, or unique suffix match) and the list is backfilled with the retrieval order so that Acc@k is defined for every k.
-- **Agent**: a ReAct-style loop (one JSON tool call per turn, ≤ 15 turns, observations truncated to 1.5k tokens, conversation capped at 24k tokens). *grep* tools: `search(regex)`, `view(path, start, end)`, `list_dir`, `submit`. *graph* tools add `find_symbol`, `skeleton(path)` and `neighbors(id)`. Optionally the first message includes a 2k-token GraphPack skeleton.
+- **Agent**: a ReAct-style loop (one JSON tool call per turn, ≤ 15 turns, observations truncated to 1.5k tokens, conversation capped at 24k tokens). *grep* tools: `search(regex)` (standing in for `run_command("grep …")`), `read_file`, `list_dir`, `submit`. *graph* tools add the competition harness's `get_code_neighbors`, `get_code_subgraph` and `search_similar_code` (same names and arguments; here backed by our graph and, for similarity, BM25), plus `find_symbol` and `skeleton(path)`. Optionally the first message includes a 2k-token GraphPack skeleton.
 
 ## 4 Experimental Setup
 
@@ -83,7 +83,7 @@ Skeletons show many more candidates per token; bodies let the model discriminate
 
 **Localization–budget curve and AUBC.** For a method family we plot Function Acc@5 against mean tokens per task on a log₂ axis and integrate between 2k and 32k tokens, holding the curve flat outside measured points and normalising so that 1.0 means perfect accuracy at every budget. Agents, which do not have a budget knob, appear as single points on the same axes.
 
-**Models and serving.** Gemma 4 E4B-it and E2B-it **[R: exact checkpoint names, e.g. the QAT w4a16 variants allowed by the competition]**, served with vLLM (max length 32,768, temperature 0, max 1,024 output tokens) on **[R: GPU, e.g. Kaggle 4×L4]**. All prompts are listed in the released code (`graphpack/localize.py`).
+**Models and serving.** `gemma-4-e4b-it-qat-w4a16-ct` and `gemma-4-e2b-it-qat-w4a16-ct`, the two small checkpoints allowed by the competition, served with vLLM (max length 32,768, temperature 0, max 1,024 output tokens) on one NVIDIA L4 (24 GB) of a Kaggle L4x4 machine, offline. All prompts are listed in the released code (`graphpack/localize.py`).
 
 **Grid.** One-shot: budgets {2k, 4k, 8k, 16k} × {bm25-bodies, graphpack-bodies, graphpack-skeleton, graphpack-hybrid}. Agents: grep, graph, graph + 2k start pack. E2B repeats bm25-bodies, graphpack-hybrid, grep agent and graph + start pack. Total compute: **[R]** GPU-hours.
 
@@ -157,7 +157,7 @@ The development set is small (129 tasks, four repositories), so we report bootst
 
 ## 8 Use in a Full Agent and Generality
 
-GraphPack yields a plain-text first observation and three read-only tools, so it drops into any harness (including the competition's ADK harness) without changing the model, needing only the standard library and NumPy. Nothing is specific to the development repositories or to Gemma; the graph schema maps directly onto tree-sitter parsers for other languages, and the budget-curve protocol applies to any localizer, including fine-tuned ones.
+GraphPack needs only Python and NumPy, so it can ship inside a competition submission as an ADK skill whose script prints the pack as the agent's first observation, next to the harness's own graph tools, without changing the model. Nothing is specific to the development repositories or to Gemma; the graph schema maps directly onto tree-sitter parsers for other languages, and the budget-curve protocol applies to any localizer, including fine-tuned ones.
 
 ## 9 Conclusion
 

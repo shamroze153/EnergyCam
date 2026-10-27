@@ -114,7 +114,7 @@ def test_all():
 
         llm = ScriptedLLM([
             '{"thought": "look", "tool": "search", "args": {"pattern": "percent"}}',
-            '{"thought": "look", "tool": "neighbors", "args": {"id": "shop/cart.py::Cart.checkout"}}',
+            '{"thought": "look", "tool": "get_code_neighbors", "args": {"node": "shop/cart.py::Cart.checkout", "edge_type": "calls"}}',
             '{"thought": "done", "tool": "submit", "args": {"locations": ["shop/pricing.py::apply_discount"]}}',
         ])
         rec = run_agent(index, ISSUE, llm, tools="graph", max_turns=5, start_pack=200)
@@ -122,6 +122,11 @@ def test_all():
         assert rec["nodes"][0] == "shop/pricing.py::apply_discount"
         assert "percent / 10" in llm.calls[1][-1]["content"]          # search observation
         assert "apply_discount" in llm.calls[2][-1]["content"]        # neighbors observation
+        from graphpack.localize import run_tool
+        assert "Cart.checkout -calls-> shop/pricing.py::apply_discount" in run_tool(
+            index, "get_code_subgraph", {"nodes": ["shop/cart.py::Cart.checkout", "shop/pricing.py::apply_discount"]})
+        assert "105.3" not in run_tool(index, "read_file", {"filepath": "shop/pricing.py", "start_line": 4, "end_line": 6})
+        assert run_tool(index, "search_similar_code", {"query": "discount percent"}).startswith("shop/pricing.py::apply_discount")
 
         # CLI round trip: run -> results.jsonl -> report
         tasks = os.path.join(tmp, "tasks.jsonl")

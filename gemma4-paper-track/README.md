@@ -62,13 +62,15 @@ cd gemma4-paper-track
 python tests/test_smoke.py          # prints "ok"
 ```
 
-On Kaggle: open `notebooks/graphpack_experiments.ipynb` (File → Import Notebook), add
-three inputs — the competition dataset, the Gemma 4 model(s), this folder as a dataset —
-and run top to bottom. The two cells marked **EDIT** need paths: run the `--inspect` cell
+On Kaggle: open `notebooks/graphpack_experiments.ipynb` (File → Import Notebook), attach it
+to the main competition, choose **GPU L4x4 with Internet OFF** (L4 sessions must be offline),
+add the inputs — the competition dataset, `gemma-4-e4b-it-qat-w4a16-ct` (and later
+`gemma-4-e2b-it-qat-w4a16-ct`), this folder as a dataset, and the vLLM input the competition's
+*Getting Started* notebook uses — and run top to bottom. The two cells marked **EDIT** need paths: run the `--inspect` cell
 first, it prints the dataset tree and the keys of the task table.
 
-Quick iteration without a GPU: any OpenAI-compatible endpoint works, e.g. Gemma 4 on
-Google AI Studio:
+Quick iteration without a GPU (a CPU session with Internet on, not L4): any
+OpenAI-compatible endpoint works, e.g. Gemma 4 on Google AI Studio:
 
 ```bash
 export LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai
@@ -108,9 +110,9 @@ python -m graphpack.report results/*.jsonl --out-dir report
 - [ ] **No [R] left** in the writeup, and every number matches `report/*/results.md`.
 - [ ] If a hypothesis turned out false, the text says so. Negative results are fine and
       still publishable; invented numbers disqualify.
-- [ ] Check the task facts against the official Data page: 129 dev tasks, the four repos,
-      allowed checkpoints (E2B/E4B, QAT w4a16), 32k context. These came from community
-      sources, not the official page.
+- [ ] Check the task facts against the official Data page / `HARNESS_README.md`: 129 dev
+      tasks and the four repos came from a community source. (Model names and the harness
+      tools are confirmed from the official Overview.)
 - [ ] Open each reference once (arXiv IDs, venues) and fix any that are off.
 - [ ] Notebook is **public** and linked in Project Links; code dataset is public.
 - [ ] The code you publish contains nothing from EnergyCam or any `.env`/secret. Upload
