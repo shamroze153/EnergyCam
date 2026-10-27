@@ -14,9 +14,17 @@ Add Input → the competition dataset, the Gemma 4 model(s), and the `graphpack`
 Results land in `/kaggle/working/results/` and `/kaggle/working/report/`."""),
 ("code", """import os, sys, glob, subprocess, time, json
 # where the graphpack code is (Kaggle Dataset upload or a git clone)
-CODE_DIR = next((p for p in glob.glob('/kaggle/input/*/gemma4-paper-track') + glob.glob('/kaggle/input/graphpack*')
-                 + ['/kaggle/working/gemma4-paper-track'] if os.path.isdir(os.path.join(p, 'graphpack'))), None)
-assert CODE_DIR, 'add the graphpack code as an input dataset (folder containing graphpack/)'
+def find(tail, roots=('/kaggle/input', '/kaggle/working'), depth=6):
+    # shallow glob, level by level: a recursive ** over the 20+ GB competition data is slow
+    out = []
+    for root in roots:
+        for d in range(depth):
+            out += glob.glob('/'.join([root] + ['*'] * d + [tail]))
+    return sorted(set(out))
+# finds graphpack/ wherever Kaggle mounted the uploaded code dataset
+found = find('graphpack/__init__.py')
+assert found, 'add the graphpack code as an input dataset (folder containing graphpack/)'
+CODE_DIR = os.path.dirname(os.path.dirname(found[0]))
 sys.path.insert(0, CODE_DIR)
 os.environ['PYTHONPATH'] = CODE_DIR   # for the `!python -m graphpack...` subprocesses
 os.chdir('/kaggle/working')
@@ -26,7 +34,7 @@ print(CODE_DIR)
 ("md", """## 1. Look at the competition data, then build `tasks.jsonl`
 Each task needs: an id, the issue text, the gold patch, and a directory with the **pre-patch** repository.
 Run the inspect cell, read the printed keys, and set `SRC` / `REPO_TEMPLATE` / field names below."""),
-("code", """COMP = sorted(glob.glob('/kaggle/input/*gemma-4-developer-agent*'))
+("code", """COMP = [p for p in find('*gemma-4-developer-agent*', roots=('/kaggle/input',), depth=3) if os.path.isdir(p)]
 print(COMP)
 !python -m graphpack.prepare_tasks --inspect {COMP[0] if COMP else '/kaggle/input'}"""),
 ("code", """# EDIT these three lines after looking at the inspect output
@@ -42,9 +50,11 @@ EXTRA = ''   # e.g. '--field-problem-statement issue --field-patch gold_patch'
 ("md", """## 3. Serve Gemma 4 with vLLM
 Point `MODEL_PATH` at the model you added as input (the folder with `config.json`).
 Use the same checkpoint family the main competition allows (E4B, and E2B for the scale comparison)."""),
-("code", """MODEL_PATH = sorted(glob.glob('/kaggle/input/gemma-4*/**/config.json', recursive=True))
-print(MODEL_PATH)
-MODEL_PATH = os.path.dirname(MODEL_PATH[0])   # EDIT if the wrong one is picked
+("code", """MODEL_PATH = [p for p in find('config.json', roots=('/kaggle/input',), depth=8) if 'gemma' in p.lower()
+              and 'developer-agent' not in p]
+MODEL_PATH_ALL = MODEL_PATH
+print(MODEL_PATH)   # pick the E4B one below if several are listed
+MODEL_PATH = os.path.dirname(next((p for p in MODEL_PATH if 'e4b' in p.lower()), MODEL_PATH[0]))   # EDIT if wrong
 try:
     import vllm  # noqa
 except ImportError:
@@ -81,7 +91,7 @@ for budget in [2000, 4000, 8000, 16000]:
 ("md", """## 6. Scale: repeat the key configs with E2B
 Stop the E4B server first, add the E2B model as input, then run."""),
 ("code", """server.terminate(); server.wait()
-E2B_PATH = [p for p in glob.glob('/kaggle/input/gemma-4*/**/config.json', recursive=True) if 'e2b' in p.lower()]
+E2B_PATH = [p for p in MODEL_PATH_ALL if 'e2b' in p.lower()]
 print(E2B_PATH)
 E2B_PATH = os.path.dirname(E2B_PATH[0])   # EDIT if the wrong one is picked
 server = serve(E2B_PATH, 'gemma4-e2b')
