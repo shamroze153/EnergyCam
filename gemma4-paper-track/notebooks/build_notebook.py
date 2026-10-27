@@ -31,18 +31,18 @@ COMP = [p for p in find('*gemma-4-developer-agent*', roots=('/kaggle/input',), d
 assert COMP, 'add the competition data as an input (right panel -> Add Input -> Competitions)'
 COMP = COMP[0]
 sys.path.insert(0, CODE_DIR)
-os.environ['PYTHONPATH'] = CODE_DIR   # for the `!python -m graphpack...` subprocesses
+os.environ['PYTHONPATH'] = CODE_DIR   # for the `!PYTHONPATH={CODE_DIR} {sys.executable} -m graphpack...` subprocesses
 os.chdir('/kaggle/working')
 for d in ('results', 'logs', 'report'):
     os.makedirs(d, exist_ok=True)
 print('code:', CODE_DIR, '| competition data:', COMP)
-!python {CODE_DIR}/tests/test_smoke.py 2>&1 | tail -1"""),
+!{sys.executable} {CODE_DIR}/tests/test_smoke.py 2>&1 | tail -1"""),
 ("md", "## 1. Build `tasks.jsonl` (CPU, ~10 minutes)"),
-("code", """!python -m graphpack.prepare_tasks --competition {COMP} --extract-to /kaggle/temp/snapshots --out tasks.jsonl 2>&1 | tail -2
+("code", """!PYTHONPATH={CODE_DIR} {sys.executable} -m graphpack.prepare_tasks --competition {COMP} --extract-to /kaggle/temp/snapshots --out tasks.jsonl 2>&1 | tail -2
 !wc -l tasks.jsonl"""),
 ("md", "## 2. Retrieval-only results (CPU, ~15 minutes)"),
-("code", """!python -m graphpack.run --tasks tasks.jsonl --out results/retrieval.jsonl --method retrieval --ranker bm25,ppr,graphpack,embed,graphpack-provided,graphpack-embed 2>&1 | tail -1
-!python -m graphpack.report results/retrieval.jsonl --out-dir report/retrieval > /dev/null
+("code", """!PYTHONPATH={CODE_DIR} {sys.executable} -m graphpack.run --tasks tasks.jsonl --out results/retrieval.jsonl --method retrieval --ranker bm25,ppr,graphpack,embed,graphpack-provided,graphpack-embed 2>&1 | tail -1
+!PYTHONPATH={CODE_DIR} {sys.executable} -m graphpack.report results/retrieval.jsonl --out-dir report/retrieval > /dev/null
 print(open('report/retrieval/results.md').read())"""),
 ("md", """## 3. Start Gemma 4 E4B: one vLLM server per GPU
 Each L4 serves its own copy of the model; the runs below are split across them."""),
@@ -157,7 +157,7 @@ else:
     if not files:
         continue
     files_arg = ' '.join(files + ['results/retrieval.jsonl'])
-    !python -m graphpack.report {files_arg} --out-dir report/{m} > /dev/null
+    !PYTHONPATH={CODE_DIR} {sys.executable} -m graphpack.report {files_arg} --out-dir report/{m} > /dev/null
     print(open(f'report/{m}/results.md').read())
 !cd /kaggle/working && zip -qr graphpack_results.zip results report logs && ls -la graphpack_results.zip"""),
 ]
