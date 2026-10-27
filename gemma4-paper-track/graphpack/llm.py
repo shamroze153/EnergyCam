@@ -6,6 +6,8 @@ vLLM server in a Kaggle notebook or a hosted Gemma 4 endpoint while iterating:
                 or https://generativelanguage.googleapis.com/v1beta/openai
   LLM_API_KEY   "EMPTY" for vLLM
   LLM_MODEL     the served model name, e.g. google/gemma-4-e4b-it
+  LLM_EXTRA_BODY optional JSON merged into each request, e.g.
+                '{"chat_template_kwargs": {"enable_thinking": false}}' for vLLM
 """
 import json
 import os
@@ -27,8 +29,8 @@ class ChatLLM:
     def chat(self, messages):
         """Return (text, usage dict with prompt_tokens / completion_tokens)."""
         body = json.dumps({"model": self.model, "messages": messages,
-                           "temperature": self.temperature,
-                           "max_tokens": self.max_tokens}).encode()
+                           "temperature": self.temperature, "max_tokens": self.max_tokens,
+                           **json.loads(os.environ.get("LLM_EXTRA_BODY") or "{}")}).encode()
         req = urllib.request.Request(f"{self.base_url}/chat/completions", data=body, headers={
             "Content-Type": "application/json", "Authorization": f"Bearer {self.api_key}"})
         delay = 2

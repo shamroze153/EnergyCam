@@ -81,6 +81,8 @@ def main(argv=None):
     p.add_argument("--turns", type=int, default=15)
     p.add_argument("--context-limit", type=int, default=24000)
     p.add_argument("--limit", type=int)
+    p.add_argument("--shard", default="0/1",
+                   help="i/n: run only tasks whose position %% n == i (parallel workers, one --out each)")
     p.add_argument("--model", help="overrides LLM_MODEL")
     p.add_argument("--no-provided", action="store_true",
                    help="ignore the competition graph/embeddings even if the task lists them")
@@ -95,7 +97,8 @@ def main(argv=None):
                     r = json.loads(line)
                     done.setdefault(r["config"], set()).add(r["instance_id"])
     llm = None if a.method == "retrieval" else ChatLLM(model=a.model)
-    all_tasks = load_tasks(a.tasks, a.limit)
+    shard_i, shard_n = (int(x) for x in a.shard.split("/"))
+    all_tasks = [t for k, t in enumerate(load_tasks(a.tasks, a.limit)) if k % shard_n == shard_i]
     todo = [(t, [c for c in configs if t["instance_id"] not in done.get(c["name"], set())]) for t in all_tasks]
     todo = [(t, cs) for t, cs in todo if cs]
     print(f"{len(configs)} config(s): {', '.join(c['name'] for c in configs)}\n"

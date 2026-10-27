@@ -29,6 +29,18 @@ def load(paths):
     return rows
 
 
+def baseline_for(cfg):
+    """retrieval-* vs retrieval-bm25; oneshot-*-B vs oneshot-bm25-bodies-B; agent-* vs agent-grep-t15-sp0."""
+    if cfg.startswith("retrieval-"):
+        return "retrieval-bm25"
+    m = re.match(r"^oneshot-.+-(\d+)$", cfg)
+    if m:
+        return f"oneshot-bm25-bodies-{m.group(1)}"
+    if cfg.startswith("agent-"):
+        return re.sub(r"^agent-[a-z]+-t(\d+)-sp\d+$", r"agent-grep-t\1-sp0", cfg)
+    return None
+
+
 def mean(xs):
     xs = [x for x in xs if x is not None]
     return sum(xs) / len(xs) if xs else float("nan")
@@ -64,13 +76,14 @@ def main(argv=None):
     md = ["# Results", ""]
 
     md += ["## Main table (Acc@k in %, mean cost per task)", "",
-           "| config | n | " + " | ".join(MAIN_COLS) + " | func_acc@5 95% CI | tokens | calls | sec | errors |",
-           "|---" * (len(MAIN_COLS) + 7) + "|"]
+           "| config | n | n func | " + " | ".join(MAIN_COLS) + " | func_acc@5 95% CI | tokens | calls | sec | errors |",
+           "|---" * (len(MAIN_COLS) + 8) + "|"]
     for cfg in sorted(rows):
         rs = rows[cfg]
         lo, hi = bootstrap_ci(metric(rs, "func_acc@5"))
         tok = mean([r["prompt_tokens"] + r["completion_tokens"] for r in rs])
-        md.append(f"| {cfg} | {len(rs)} | " + " | ".join(fmt(mean(metric(rs, c))) for c in MAIN_COLS)
+        n_func = sum(1 for r in rs if r["metrics"].get("func_acc@5") is not None)
+        md.append(f"| {cfg} | {len(rs)} | {n_func} | " + " | ".join(fmt(mean(metric(rs, c))) for c in MAIN_COLS)
                   + f" | {fmt(lo)}–{fmt(hi)} | {fmt(tok, False)} | {mean([r['llm_calls'] for r in rs]):.1f}"
                   + f" | {mean([r['seconds'] for r in rs]):.1f} | {sum(1 for r in rs if r.get('error'))} |")
 
@@ -84,6 +97,43 @@ def main(argv=None):
                 sub = [r for r in rows[cfg] if r["slices"][s] is val]
                 cells.append(f"{fmt(mean(metric(sub, 'func_acc@5')))} ({len(sub)})")
         md.append(f"| {cfg} | " + " | ".join(cells) + " |")
+
+    # how much of the competition's graph/embeddings mapped onto our nodes (one row per task)
+    per_task = {}
+    for rs in rows.values():
+        for r in rs:
+            if r.get("provided_stats"):
+                per_task[r["instance_id"]] = r["provided_stats"]
+    if per_task:
+        def share(a, b):
+            vals = [st[a] / st[b] for st in per_task.values() if st.get(b)]
+            return fmt(mean(vals))
+        md += ["", "## Provided graph/embedding coverage (mean over tasks, %)", "",
+               "| tasks | graph nodes mapped | graph edges mapped | embeddings mapped |", "|---|---|---|---|",
+               f"| {len(per_task)} | {share('graph_nodes_mapped', 'graph_nodes')} | "
+               f"{share('graph_edges_mapped', 'graph_edges')} | {share('emb_nodes_mapped', 'emb_nodes')} |"]
+
+    # paired comparison with the matching baseline, task by task
+    pairs = []
+    for cfg in sorted(rows):
+        base = baseline_for(cfg)
+        if base and base in rows and base != cfg:
+            pairs.append((cfg, base))
+    if pairs:
+        md += ["", "## Paired comparison with baseline (same tasks; difference in points, 95% paired bootstrap CI)", "",
+               "| config | baseline | metric | diff | 95% CI | wins | losses |", "|---|---|---|---|---|---|---|"]
+        for cfg, base in pairs:
+            by_id = {r["instance_id"]: r for r in rows[base]}
+            for key in ("func_acc@1", "func_acc@5", "file_acc@1"):
+                d = [r["metrics"].get(key) - by_id[r["instance_id"]]["metrics"].get(key)
+                     for r in rows[cfg] if r["instance_id"] in by_id
+                     and r["metrics"].get(key) is not None
+                     and by_id[r["instance_id"]]["metrics"].get(key) is not None]
+                if not d:
+                    continue
+                lo, hi = bootstrap_ci(d)
+                md.append(f"| {cfg} | {base} | {key} | {100 * mean(d):+.1f} | {100 * lo:+.1f} to {100 * hi:+.1f} "
+                          f"| {sum(x > 0 for x in d)} | {sum(x < 0 for x in d)} |")
 
     # budget curves: oneshot configs that differ only in budget
     curves = defaultdict(list)
@@ -136,7 +186,8 @@ def main(argv=None):
         ax.set_xlabel("mean tokens per task (log scale)")
         ax.set_ylabel("Function Acc@5 (%)")
         ax.grid(alpha=0.3)
-        ax.legend(fontsize=7)
+        if curves or agents:
+            ax.legend(fontsize=7)
         fig.tight_layout()
         fig.savefig(os.path.join(a.out_dir, "budget_curve.png"), dpi=200)
     except ImportError:

@@ -24,30 +24,15 @@ The competition ships its own call graph and symbol embeddings for every reposit
 
 ## 2 Related Work
 
-**Repository-level agents and benchmarks.** SWE-bench (Jimenez et al., 2024) is the standard benchmark; SWE-agent (Yang et al., 2024) showed that the agent–computer interface strongly affects success; OpenHands (Wang et al., 2024) is an open agent platform; AutoCodeRover (Zhang et al., 2024) navigates with AST-aware search. Agentless (Xia et al., 2024) replaces exploration with a fixed hierarchical pipeline; we ask how that trade-off changes when the model is small and the budget fixed.
+**Agents and benchmarks.** SWE-bench (Jimenez et al., 2024) is the standard benchmark; SWE-agent (Yang et al., 2024) showed that the agent–computer interface strongly affects success; OpenHands (Wang et al., 2024) and AutoCodeRover (Zhang et al., 2024) explore with search tools, while Agentless (Xia et al., 2024) replaces exploration with a fixed pipeline. SWE-Gym (Pan et al., 2024) and SWE-smith (Yang et al., 2025) train open models, often with LoRA (Hu et al., 2022); GraphPack is training-free and complementary.
 
-**Graph-based localization.** RepoGraph (Ouyang et al., 2024) builds a line-level repository graph and feeds ego-graphs to agents. LocAgent (Chen et al., 2025) parses repositories into heterogeneous graphs and fine-tunes models for graph-guided multi-hop localization. OrcaLoca (Yu et al., 2025) combines priority-based action scheduling with context pruning. They report accuracy at fixed configurations; we study the *budget* axis and the rendering choice with consumer-hardware models.
-
-**Ranked repository maps.** Aider's repository map (Gauthier, 2023), the closest prior system, ranks symbols with PageRank over a tree-sitter reference graph within a token budget, personalised to files already in the chat and not evaluated for localization. GraphPack seeds PageRank from the issue, mixes in lexical scores, and is evaluated across budgets.
-
-**Context use and retrieval.** Models use long contexts unevenly (Liu et al., 2024), motivating small ranked contexts. BM25 (Robertson & Zaragoza, 2009) is the standard lexical baseline; personalized PageRank (Haveliwala, 2002) spreads query relevance over a graph.
-
-**Training small SWE agents.** SWE-Gym (Pan et al., 2024) and SWE-smith (Yang et al., 2025) build training data for open models, often with LoRA (Hu et al., 2022). GraphPack is training-free and complementary: its output can be any fine-tuned agent's first observation.
+**Graph-based localization.** RepoGraph (Ouyang et al., 2024), LocAgent (Chen et al., 2025) and OrcaLoca (Yu et al., 2025) navigate repository graphs and report accuracy at fixed configurations; we study the *budget* axis and the rendering choice with consumer-hardware models. Aider's repository map (Gauthier, 2023), the closest system, ranks symbols with PageRank within a token budget, personalised to files in the chat and not evaluated for localization; GraphPack seeds PageRank from the issue and mixes in lexical scores. We build on BM25 (Robertson & Zaragoza, 2009), personalized PageRank (Haveliwala, 2002), and evidence that models use long contexts unevenly (Liu et al., 2024).
 
 ## 3 Method
 
 ### 3.1 Code graph
 
-For a repository snapshot we parse every `.py` file with Python's `ast` module and create one node per module, class and function (methods and nested functions included), keyed `path.py::Qual.name` with line span, one-line signature (decorators and header) and first docstring line. Edges:
-
-| edge | from → to | resolution |
-|---|---|---|
-| contains | module → class/function, class → method | syntactic |
-| imports | module → module | absolute and relative imports, `src/` layouts; intra-repo only |
-| calls | function → function | `f()` resolved through local definitions and imported aliases; `x.f()` linked to all definitions named `f` (same file preferred), only if there are ≤ 5 candidates; `C()` → `C.__init__` |
-| inherits | class → base class | local/imported name, else unique global name |
-
-Call resolution is deliberately conservative: an unresolvable method name (e.g. `get`) with many candidates produces no edge rather than a hub. Building the graph takes **[R]** s for the largest development repository on a single CPU core.
+We parse every `.py` file with Python's `ast` module into module, class and function nodes (keyed `path.py::Qual.name`, with line span, signature and first docstring line) and four edge types: **contains** (module→class/function, class→method), **imports** (intra-repo, relative and `src/` layouts), **calls** (`f()` resolved through local definitions and imported aliases; `x.f()` linked to definitions named `f` only if there are ≤ 5 candidates; `C()`→`C.__init__`) and **inherits**. Conservative call resolution avoids hubs from common names such as `get`.
 
 ### 3.2 Issue-seeded ranking
 
@@ -72,9 +57,9 @@ Skeletons show many more candidates per token; bodies let the model discriminate
 
 ### 3.4 Localizers
 
-- **Retrieval only**: the ranking itself (bm25, ppr, graphpack); no LLM.
+- **Retrieval only**: the ranking itself; no LLM.
 - **One-shot**: one call with the issue and the packed context; the model returns up to 10 ranked `path::Qual.name` locations as JSON. Model-named locations are resolved to graph nodes (exact id, `path:line`, or unique suffix match) and the list is backfilled with the retrieval order so that Acc@k is defined for every k.
-- **Agent**: a ReAct-style loop (one JSON tool call per turn, ≤ 15 turns, observations truncated to 1.5k tokens, conversation capped at 24k tokens). *grep* tools: `search(regex)` (standing in for `run_command("grep …")`), `read_file`, `list_dir`, `submit`. *graph* tools add the competition harness's `get_code_neighbors`, `get_code_subgraph` and `search_similar_code` (same names and arguments; here backed by our graph and, for similarity, BM25), plus `find_symbol` and `skeleton(path)`. Optionally the first message includes a 2k-token GraphPack skeleton.
+- **Agent**: a ReAct-style loop (one JSON tool call per turn, ≤ 15 turns, observations truncated to 1.5k tokens, conversation capped at 24k tokens). *grep* tools: `search(regex)` (standing in for `run_command("grep …")`), `read_file`, `list_dir`, `submit`. *graph* tools add the competition harness's `get_code_neighbors`, `get_code_subgraph` and `search_similar_code` (same names and arguments, backed by our graph and the provided embeddings), plus `find_symbol` and `skeleton(path)`. Optionally the first message includes a 2k-token GraphPack skeleton.
 
 ## 4 Experimental Setup
 
@@ -94,16 +79,18 @@ Skeletons show many more candidates per token; bodies let the model discriminate
 
 ### 5.1 Retrieval alone
 
-| ranker | File Acc@1 | File Acc@5 | Func Acc@5 | Func Acc@10 |
-|---|---|---|---|---|
-| BM25 | [R] | [R] | [R] | [R] |
-| PPR (seeds only) | [R] | [R] | [R] | [R] |
-| GraphPack (BM25 + PPR) | [R] | [R] | [R] | [R] |
-| Embedding spread (provided) | [R] | [R] | [R] | [R] |
-| GraphPack on provided call graph | [R] | [R] | [R] | [R] |
-| GraphPack + provided embeddings | [R] | [R] | [R] | [R] |
+| ranker | File Acc@1 | File Acc@5 | Func Acc@1 | Func Acc@5 | Func Acc@10 |
+|---|---|---|---|---|---|
+| BM25 | 20.2 | 45.7 | 6.2 | 18.0 | 25.8 |
+| PPR (seeds only) | 17.8 | 33.3 | 7.8 | 13.3 | 15.6 |
+| **GraphPack** (BM25 + PPR, our graph) | 26.4 | 47.3 | **11.7** | **20.3** | **27.3** |
+| Embedding spread (provided) | **27.1** | 37.2 | **11.7** | 14.8 | 17.2 |
+| GraphPack on provided call graph | 26.4 | **51.2** | 7.8 | 18.8 | 23.4 |
+| GraphPack + provided embeddings | 26.4 | 48.8 | **11.7** | 19.5 | 25.0 |
 
-*Table 1. Retrieval without an LLM on the development tasks (%).* **[R: does graph propagation add to BM25; does our typed graph or the provided call graph work better; do the provided embeddings add anything?]**
+*Table 1. Retrieval without an LLM on the 129 development tasks (%).* GraphPack beats BM25 on every metric, most at the top of the list: Function Acc@1 nearly doubles (11.7 vs 6.2) and File Acc@1 rises from 20.2 to 26.4. At Acc@5 the gain is small (+2.3) and the 95% intervals overlap (14.1–27.3 vs 11.7–25.0; paired test **[R]**). Graph propagation alone is weak (PPR from mentions: 13.3): the graph helps when it re-ranks lexical candidates, not when it replaces them. The provided call graph gives the best File Acc@5 (51.2) but lower function precision than our typed graph (Acc@1 7.8 vs 11.7), and the provided embeddings, though strong at rank 1, add nothing on top of GraphPack (19.5 vs 20.3 at Acc@5).
+
+**Where retrieval fails.** Two thirds of the issues (87/129) name no gold symbol; there every ranker stays below 10% Function Acc@5 (GraphPack 9.3, BM25 5.8), against 42.9 for both when a symbol is named. All 38 multi-file fixes score 0 under the strict all-locations criterion, and only 2 issues contain a traceback, so traceback seeding rarely applies on this set. These are the cases a reading model must solve, which §5.2 tests.
 
 ### 5.2 One-shot localization under a budget
 
