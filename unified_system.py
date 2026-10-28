@@ -141,34 +141,91 @@ def is_after_hours(now=None):
     return t >= AFTER_HOURS_START or t < AFTER_HOURS_END   # window crosses midnight
 
 
+# Exit code 78 is the conventional 'configuration error' (EX_CONFIG). run_system.bat
+# treats it as fatal and stops restarting: a missing setting is not fixed by trying
+# again five seconds later, and a restart loop hides the real problem while hammering
+# the database and the mail server.
+EXIT_CONFIG = 78
+
+
+def fail_config(message):
+    """Report a configuration problem in plain words and stop for good."""
+    print("")
+    print(">> CONFIGURATION ERROR")
+    print(">> " + message)
+    print(">> The system will NOT restart until this is fixed.")
+    print("")
+    raise SystemExit(EXIT_CONFIG)
+
+
+def check_config():
+    """Check every setting the system needs before it touches camera or database."""
+    required = {
+        "SENDER_EMAIL": SENDER_EMAIL,
+        "APP_PASSWORD": APP_PASSWORD,
+        "RECEIVER_EMAIL": RECEIVER_EMAIL,
+        "RTSP_URL": rtsp_url,
+        "DATABASE_URL": DATABASE_URL,
+    }
+    missing = [name for name, value in required.items() if not value or not str(value).strip()]
+    if missing:
+        fail_config(
+            "Missing from .env: " + ", ".join(missing) + ". "
+            "Add each one to the .env file beside unified_system.py."
+        )
+    if not DATABASE_URL.startswith(("postgres://", "postgresql://")):
+        fail_config(
+            "DATABASE_URL does not look like a connection string: it should start "
+            "with postgresql://"
+        )
+
+
+def safe_error(e):
+    """Describe an exception without repeating its message.
+
+    Driver messages carry connection details: psycopg2 includes the host, port,
+    user and database name, and smtplib echoes the server's reply. Operators still
+    need something to act on, so report the exception type and, where the driver
+    offers one, its standard error code. Neither identifies the server.
+    """
+    code = getattr(e, "pgcode", None) or getattr(e, "smtp_code", None)
+    return type(e).__name__ + (" [%s]" % code if code else "")
+
+
 def get_connection():
     return psycopg2.connect(DATABASE_URL, sslmode=DB_SSLMODE)
 
 
-def setup_database():
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS logs (
-            id SERIAL PRIMARY KEY,
-            timestamp TIMESTAMPTZ,
-            room_name TEXT,
-            room_status TEXT,
-            ac1_status TEXT,
-            ac2_status TEXT,
-            person_count INTEGER,
-            alert_sent INTEGER
+def verify_database():
+    """Check the schema is present and this credential can reach it.
+
+    The camera system deliberately holds no permission to create or change tables.
+    Schema changes are applied once by an administrator with sql/01_schema.sql, so a
+    compromised camera PC cannot alter or drop anything. See sql/02_roles.sql.
+    """
+    missing = []
+    try:
+        conn = get_connection()
+        try:
+            cursor = conn.cursor()
+            for table in ("logs", "heartbeat"):
+                cursor.execute("SELECT to_regclass(%s)", ("public." + table,))
+                if cursor.fetchone()[0] is None:
+                    missing.append(table)
+            cursor.close()
+        finally:
+            conn.close()
+    except psycopg2.Error as e:
+        # Never print the driver's message: it carries host, port, user and database.
+        fail_config(
+            "Database connection failed (%s). Check DATABASE_URL in .env. The driver's "
+            "message is withheld because it contains connection details." % safe_error(e)
         )
-    """)
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS heartbeat (
-            id SERIAL PRIMARY KEY,
-            timestamp TIMESTAMPTZ
+    if missing:
+        fail_config(
+            "Missing table(s): %s. An administrator must run sql/01_schema.sql once "
+            "in the Supabase SQL editor before starting the system." % ", ".join(missing)
         )
-    """)
-    conn.commit()
-    cursor.close()
-    conn.close()
 
 
 def log_to_db(room_name, room_status, ac1_status, ac2_status, person_count, alert_sent):
@@ -183,7 +240,7 @@ def log_to_db(room_name, room_status, ac1_status, ac2_status, person_count, aler
         cursor.close()
         conn.close()
     except Exception as e:
-        print(f">> DB log failed: {e}")
+        print(">> DB log failed: %s" % safe_error(e))
 
 
 def log_heartbeat():
@@ -195,7 +252,7 @@ def log_heartbeat():
         cursor.close()
         conn.close()
     except Exception as e:
-        print(f">> Heartbeat log failed: {e}")
+        print(">> Heartbeat log failed: %s" % safe_error(e))
 
 
 def cleanup_old_rows():
@@ -211,7 +268,7 @@ def cleanup_old_rows():
         conn.close()
         print(f">> Retention: {RETENTION_DAYS} din se purani rows delete — logs={logs_deleted}, heartbeat={hb_deleted}")
     except Exception as e:
-        print(f">> Retention cleanup failed: {e}")
+        print(">> Retention cleanup failed: %s" % safe_error(e))
 
 
 def smoothed_status(history, raw_reading, maxlen, threshold_ratio=0.5):
@@ -302,7 +359,7 @@ def delete_sent_copy(message_id, attempts=4, wait_seconds=5):
         print(">> WARNING: Sent-folder copy nahi mili — delete nahi hui.")
     except Exception as e:
         global imap_unavailable
-        reason = str(e)
+        reason = safe_error(e)
         if any(k in reason.lower() for k in ("disabled", "authenticationfailed", "invalid credentials", "not enabled")):
             imap_unavailable = True
             print(">> WARNING: Gmail IMAP band hai (admin ne disable kiya ya login fail) — Sent-folder cleanup "
@@ -348,7 +405,7 @@ def send_email(subject, message_text, image_frame=None):
             threading.Thread(target=delete_sent_copy, args=(message_id,), daemon=True).start()
         return True
     except Exception as e:
-        print(f">> EMAIL FAILED: {e}")
+        print(">> EMAIL FAILED: %s" % safe_error(e))
         return False
 
 
@@ -357,7 +414,8 @@ def connect_camera():
 
 
 def main():
-    setup_database()
+    check_config()
+    verify_database()
 
     cap = connect_camera()
 
@@ -519,4 +577,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main()

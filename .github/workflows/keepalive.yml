@@ -31,15 +31,17 @@ jobs:
           url = os.environ.get("DATABASE_URL")
           if not url:
               sys.exit("DATABASE_URL secret is not set (Settings > Secrets and variables > Actions).")
+          # This secret belongs to the energycam_keepalive role, which can read only the
+          # heartbeat table (timestamps, nothing else). See sql/02_roles.sql.
           try:
               conn = psycopg2.connect(url, sslmode="require", connect_timeout=20)
               cur = conn.cursor()
-              cur.execute("SELECT COUNT(*) FROM logs")
+              cur.execute("SELECT COUNT(*) FROM heartbeat")
               count = cur.fetchone()[0]
               conn.close()
           except Exception as e:
               # The repo is public, so its logs are too: print only the error
               # type, never the message (it can contain host/user names).
               sys.exit(f"Keep-alive FAILED: {type(e).__name__}")
-          print(f"Keep-alive OK: logs table has {count} rows")
+          print(f"Keep-alive OK: heartbeat table has {count} rows")
           PY
