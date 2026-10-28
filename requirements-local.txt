@@ -1,15 +1,43 @@
-# Camera system (on-prem laptop/server). Install with:
+# Camera system (on-prem laptop / DVR server). Install with:
 #   pip install -r requirements-local.txt
 # Includes the dashboard packages too, so the dashboard also runs locally.
+#
+# ---------------------------------------------------------------------------
+# PINNING (security review item 1)
+#
+# These were unpinned, so pip installed whatever was newest on the day. A new
+# major release of ultralytics, opencv or numpy would then land on a running
+# installation and break detection with no change on our side.
+#
+# The bounds below stop that: pip may take a patch or minor update, never a new
+# major version. They are an INTERIM measure. Exact pins must come from a
+# machine where the system is known to work - they cannot be chosen by reading
+# the code, because what matters is the combination that actually runs.
+#
+# On the working camera PC, inside the conda environment:
+#
+#     conda activate hfm_energy
+#     pip freeze > requirements-local.lock.txt
+#
+# Commit that file and install from it on every new machine:
+#
+#     pip install -r requirements-local.lock.txt
+#
+# Re-generate it only after testing an upgrade, never automatically.
+# ---------------------------------------------------------------------------
+
 -r requirements.txt
 
-ultralytics
-opencv-python
-numpy
-fpdf2
-matplotlib
+ultralytics>=8.3,<9
+opencv-python>=4.10,<5
+numpy>=1.26,<3
+fpdf2>=2.7,<3
+matplotlib>=3.8,<4
+
 # Time zone data for Asia/Karachi (Windows has no built-in tz database)
-tzdata
+tzdata>=2024.1
+
 # Gemma 4 room check (gemma_room_check.py)
-google-genai
-python-dotenv
+google-genai>=1.0,<2
+
+python-dotenv>=1.0,<2
