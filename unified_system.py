@@ -145,30 +145,38 @@ def get_connection():
     return psycopg2.connect(DATABASE_URL, sslmode=DB_SSLMODE)
 
 
-def setup_database():
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS logs (
-            id SERIAL PRIMARY KEY,
-            timestamp TIMESTAMPTZ,
-            room_name TEXT,
-            room_status TEXT,
-            ac1_status TEXT,
-            ac2_status TEXT,
-            person_count INTEGER,
-            alert_sent INTEGER
+def verify_database():
+    """Check the schema is present and this credential can reach it.
+
+    The camera system deliberately holds no permission to create or change tables.
+    Schema changes are applied once by an administrator with sql/01_schema.sql, so a
+    compromised camera PC cannot alter or drop anything. See sql/02_roles.sql.
+    """
+    missing = []
+    try:
+        conn = get_connection()
+        try:
+            cursor = conn.cursor()
+            for table in ("logs", "heartbeat"):
+                cursor.execute("SELECT to_regclass(%s)", ("public." + table,))
+                if cursor.fetchone()[0] is None:
+                    missing.append(table)
+            cursor.close()
+        finally:
+            conn.close()
+    except psycopg2.Error as e:
+        # Never print the driver's message: it carries host, port, user and database.
+        raise SystemExit(
+            ">> DATABASE CONNECTION FAILED (%s). Check DATABASE_URL in .env. "
+            "The driver's message is withheld because it contains connection details."
+            % type(e).__name__
         )
-    """)
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS heartbeat (
-            id SERIAL PRIMARY KEY,
-            timestamp TIMESTAMPTZ
+    if missing:
+        raise SystemExit(
+            ">> MISSING TABLE(S): %s. An administrator must run sql/01_schema.sql "
+            "once in the Supabase SQL editor before starting the system."
+            % ", ".join(missing)
         )
-    """)
-    conn.commit()
-    cursor.close()
-    conn.close()
 
 
 def log_to_db(room_name, room_status, ac1_status, ac2_status, person_count, alert_sent):
@@ -357,7 +365,7 @@ def connect_camera():
 
 
 def main():
-    setup_database()
+    verify_database()
 
     cap = connect_camera()
 
@@ -519,4 +527,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main()

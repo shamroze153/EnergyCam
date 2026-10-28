@@ -18,20 +18,33 @@ See [HANDOVER.md](HANDOVER.md) for architecture, privacy controls and hosting.
 `requirements.txt` must stay small: only what `dashboard.py` imports. Heavy
 packages (ultralytics/torch, opencv) make the Streamlit Cloud build slow or fail.
 
+## Database first
+
+Before the camera system is started for the first time, an administrator runs
+`sql/01_schema.sql` and `sql/02_roles.sql` once in the Supabase SQL editor. The
+application no longer creates its own tables, and each component connects with its own
+least-privilege role rather than one shared password. See
+[sql/README.md](sql/README.md) for the run order and which credential goes where.
+
 ## Setup (camera system, Windows)
 
 1. `conda activate hfm_energy`
 2. `pip install -r requirements-local.txt`
 3. Create `.env` with `SENDER_EMAIL`, `APP_PASSWORD`, `RECEIVER_EMAIL`,
    `RTSP_URL`, `DATABASE_URL`. **Never commit `.env`.**
+   `DATABASE_URL` here is the **`energycam_app`** connection string — it may write log
+   rows and delete expired ones, and nothing else.
 4. Run: `python unified_system.py` (or `run_system.bat` for auto-restart)
-5. Watchdog (separate window): `python heartbeat_watchdog.py`
+5. Watchdog (separate window, ideally a different machine):
+   `python heartbeat_watchdog.py`, with the **`energycam_watchdog`** string in its own
+   `.env`.
 
 ## Dashboard
 
 - Local: `streamlit run dashboard.py` (reads `DATABASE_URL` from `.env`)
 - Cloud: Streamlit Community Cloud, main file `dashboard.py`, Python 3.11,
   secret `DATABASE_URL = "postgresql://..."` (use Supabase's **Session pooler** URL)
+- Use the **`energycam_dashboard`** string, which can only read the `logs` table.
 
 All times on the dashboard are Pakistan time (PKT).
 
