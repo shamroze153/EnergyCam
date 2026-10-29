@@ -502,7 +502,12 @@ def main():
                              else PRESENCE_CONFIDENCE)
             person_present_raw = any(c == 0.0 and cf >= presence_conf for c, cf in zip(class_ids, confs))
             person_present = smoothed_status(person_history, person_present_raw, 4)
-            room_empty = not person_present
+            # Both views must agree before the room counts as empty. person_present
+            # is smoothed over several frames so it lags; person_count is this frame.
+            # A room with anyone counted in it is not empty, whatever the smoothed
+            # view says. Their disagreement is what produced a log line reading
+            # "EMPTY | People=1" immediately after a false alert.
+            room_empty = (not person_present) and person_count == 0
 
             ac1_result = check_ac_status(frame, "left_ac", light_mode)
             ac2_result = check_ac_status(frame, "right_ac", light_mode)
@@ -553,7 +558,12 @@ def main():
             # about to be sent, at the confidence used for blurring: if someone is
             # visible enough to need blurring, the room is not empty.
             try:
-                people_in_shot = count_people(clean_frame, model)
+                # Check the frame that will be attached AND the live one.
+                # pick_clean_frame walks back through a buffer for a sharp frame,
+                # which can predate the person walking in - so on its own it let a
+                # false alert through.
+                people_in_shot = max(count_people(clean_frame, model),
+                                     count_people(frame, model))
             except Exception as e:
                 people_in_shot = 0   # detector failed; defer to the main loop
                 print(">> Presence re-check failed: %s" % safe_error(e))
