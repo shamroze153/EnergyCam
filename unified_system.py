@@ -2,7 +2,7 @@ from ultralytics import YOLO
 import cv2
 import threading
 from ac_config import check_ac_status, detect_light_mode
-from privacy_blur import anonymize
+from privacy_blur import anonymize, count_people
 import numpy as np
 import smtplib
 import imaplib
@@ -75,6 +75,9 @@ COUNT_CONFIDENCE = 0.5
 # Lower (e.g. 0.35) if real people are missed at night; raise if chairs/
 # reflections still make an empty room OCCUPIED.
 PRESENCE_CONFIDENCE = 0.5
+# At night the camera switches to infrared and every detection scores lower, so the
+# daytime threshold misses real people. A person at 0.35 in an IR frame is a person.
+PRESENCE_CONFIDENCE_NIGHT = 0.35
 
 ac1_history = deque(maxlen=AC_HISTORY_LEN)
 ac2_history = deque(maxlen=AC_HISTORY_LEN)
@@ -495,7 +498,9 @@ def main():
             person_count = sum(1 for c, cf in zip(class_ids, confs) if c == 0.0 and cf >= COUNT_CONFIDENCE)
             # Presence: only confident detections, so low-confidence ghosts (chairs,
             # reflections) don't keep an empty room OCCUPIED and block the alert
-            person_present_raw = any(c == 0.0 and cf >= PRESENCE_CONFIDENCE for c, cf in zip(class_ids, confs))
+            presence_conf = (PRESENCE_CONFIDENCE_NIGHT if light_mode == "NIGHT"
+                             else PRESENCE_CONFIDENCE)
+            person_present_raw = any(c == 0.0 and cf >= presence_conf for c, cf in zip(class_ids, confs))
             person_present = smoothed_status(person_history, person_present_raw, 4)
             room_empty = not person_present
 
@@ -542,20 +547,38 @@ def main():
         should_alert = room_empty and ac_on and empty_duration >= EMPTY_THRESHOLD_SECONDS
         if should_alert and not alert_sent_this_cycle:
             clean_frame = pick_clean_frame(frame_buffer, frame)
-            print(">> Alert trigger — blur + email bhej raha hai...")
-            subject = f"HFM Energy Alert: {ROOM_NAME} Empty but AC ON"
-            if is_after_hours():
-                subject = "[AFTER-HOURS] " + subject
-            sent_ok = send_email(
-                subject,
-                f"{ROOM_NAME} khaali hai lekin AC ON hai (AC1={ac1_on}, AC2={ac2_on}) — energy waste ho raha hai.\nSnapshot attached.",
-                image_frame=clean_frame
-            )
-            alert_sent_this_cycle = True
-            alert_pending_log = alert_pending_log or sent_ok
-            if sent_ok:
-                alert_active = True
-                alert_fired_time = current_time
+            # Last line of defence. The blur step and the occupancy step used
+            # different confidences, so an alert once went out captioned "room empty"
+            # with a pixelated person in the attached picture. Re-check the very frame
+            # about to be sent, at the confidence used for blurring: if someone is
+            # visible enough to need blurring, the room is not empty.
+            try:
+                people_in_shot = count_people(clean_frame, model)
+            except Exception as e:
+                people_in_shot = 0   # detector failed; defer to the main loop
+                print(">> Presence re-check failed: %s" % safe_error(e))
+            if people_in_shot > 0:
+                print(">> Alert CANCELLED: %d person(s) visible in the snapshot."
+                      % people_in_shot)
+                room_empty = False
+                empty_since = None
+                empty_duration = 0
+                alert_sent_this_cycle = False
+            else:
+                print(">> Alert trigger — blur + email bhej raha hai...")
+                subject = f"HFM Energy Alert: {ROOM_NAME} Empty but AC ON"
+                if is_after_hours():
+                    subject = "[AFTER-HOURS] " + subject
+                sent_ok = send_email(
+                    subject,
+                    f"{ROOM_NAME} khaali hai lekin AC ON hai (AC1={ac1_on}, AC2={ac2_on}) — energy waste ho raha hai.\nSnapshot attached.",
+                    image_frame=clean_frame
+                )
+                alert_sent_this_cycle = True
+                alert_pending_log = alert_pending_log or sent_ok
+                if sent_ok:
+                    alert_active = True
+                    alert_fired_time = current_time
 
         if current_time - last_log_time >= LOG_INTERVAL_SECONDS:
             room_status = "EMPTY" if room_empty else "OCCUPIED"

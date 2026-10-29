@@ -70,6 +70,20 @@ def _mostly_inside_ac(x1, y1, x2, y2, ac_zones, ratio=0.5):
     return False
 
 
+def count_people(frame, model, conf=None):
+    """How many people this frame contains, at the same confidence used for blurring.
+
+    The blur step and the occupancy step used to disagree: anything detected at
+    DETECT_CONF was blurred, but the room only counted as occupied at a higher
+    threshold, so a person could be pixelated in a snapshot captioned 'room empty'.
+    unified_system calls this before sending such an alert. If a person is visible
+    enough to need blurring, the room is not empty.
+    """
+    results = model(frame, classes=[PERSON], conf=conf or DETECT_CONF,
+                    imgsz=DETECT_IMGSZ, verbose=False)
+    return int(len(results[0].boxes))
+
+
 def anonymize(frame, model, conf=None):
     """Returns a COPY of the frame with people, screens, keyboards, phones and
     fixed zones blurred. The rest of the room stays clear."""
