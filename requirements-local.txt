@@ -29,7 +29,7 @@
 -r requirements.txt
 
 ultralytics>=8.3,<9
-opencv-python>=4.10,<5
+opencv-python>=4.10,<6   # the working camera PC runs 5.0.0.93; a <5 ceiling would downgrade it
 numpy>=1.26,<3
 fpdf2>=2.7,<3
 matplotlib>=3.8,<4
@@ -37,7 +37,8 @@ matplotlib>=3.8,<4
 # Time zone data for Asia/Karachi (Windows has no built-in tz database)
 tzdata>=2024.1
 
-# Gemma 4 room check (gemma_room_check.py)
+# Gemma 4 room check (gemma_room_check.py). Not yet installed on the camera PC;
+# pip install it there before running that script.
 google-genai>=1.0,<2
 
 python-dotenv>=1.0,<2
