@@ -98,6 +98,11 @@ button:focus-visible{outline:2px solid var(--lantern);outline-offset:2px}
 .sBody p.by{text-align:center;text-indent:0;font-style:italic;color:#6a6d86}
 .story.collapsed .sBody{display:none}
 .story.collapsed .card{padding-bottom:10px}
+.swipe{position:fixed;left:50%;top:38%;transform:translate(-50%,-50%);display:flex;align-items:center;gap:10px;z-index:3;pointer-events:none;
+  background:rgba(16,21,42,.82);color:#fff;border:1px solid var(--panel-line);border-radius:999px;padding:10px 18px;font-size:15px;box-shadow:0 8px 30px rgba(0,0,0,.4)}
+.swipe svg{color:var(--lantern);animation:swipeMove 1.4s ease-in-out infinite}
+@keyframes swipeMove{0%,100%{transform:translateX(10px)}50%{transform:translateX(-10px)}}
+@media (prefers-reduced-motion:reduce){.swipe svg{animation:none}}
 @media (max-width:560px){
   .dots{display:none} .chip span{display:none} #whereChip{display:none}
   .act{padding:0 14px;font-size:14px} #capSub{display:none} .icon{width:36px;height:36px}
@@ -113,7 +118,8 @@ button:focus-visible{outline:2px solid var(--lantern);outline-offset:2px}
   <div class="chip" id="whereChip"><span id="where">The cover</span></div>
 </div>
 <div class="bubble" id="bubble" role="status" aria-live="polite"></div>
-<div class="hint" id="hint">Drag to look around · Tap the characters</div>
+<div class="hint" id="hint">Swipe the page to turn it · Tap the characters</div>
+<div class="swipe" id="swipe" hidden aria-hidden="true"><svg viewBox="0 0 48 24" width="48" height="24"><path d="M44 12H8M16 4l-8 8 8 8" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Swipe the page to turn it</span></div>
 <section class="story" id="story" hidden>
   <div class="card" id="storyCard">
     <button class="grip" id="grip" aria-label="Hide the story text" aria-expanded="true"><span></span></button>
@@ -287,24 +293,54 @@ function shutterArt(g, w, h, right) {
 
 /* ================================================================== characters (all original designs) */
 function princess(g, cx, by, k = 1, o = {}) {
-  const X = v => cx + v * k, Y = v => by - v * k;
-  cut(g, N.cape, g => poly(g, [X(-.2), Y(1.12), X(.2), Y(1.12), X(.48), Y(.22), X(-.48), Y(.22)]));
-  cut(g, N.hair, g => { rr(g, X(-.22), Y(1.44), .44 * k, .64 * k, .14 * k); circ(g, X(0), Y(1.36), .22 * k); });
-  cut(g, '#4a2f5a', g => { rr(g, X(-.15), Y(.36), .11 * k, .33 * k, .04 * k); rr(g, X(.04), Y(.36), .11 * k, .33 * k, .04 * k); ell(g, X(-.1), Y(.03), .1 * k, .045 * k); ell(g, X(.1), Y(.03), .1 * k, .045 * k); });
-  if (!o.noLeft) { cut(g, N.coat, g => rr(g, X(-.32), Y(1.06), .1 * k, .44 * k, .05 * k)); cut(g, N.mitten, g => circ(g, X(-.27), Y(.6), .065 * k)); }
-  if (!o.noRight) { cut(g, N.coat, g => rr(g, X(.22), Y(1.06), .1 * k, .44 * k, .05 * k)); cut(g, N.mitten, g => circ(g, X(.27), Y(.6), .065 * k)); }
-  cut(g, N.coat, g => { g.moveTo(X(-.16), Y(1.13)); g.lineTo(X(.16), Y(1.13)); g.lineTo(X(.36), Y(.36)); g.quadraticCurveTo(X(0), Y(.3), X(-.36), Y(.36)); g.closePath(); circ(g, X(-.18), Y(1.05), .09 * k); circ(g, X(.18), Y(1.05), .09 * k); });
+  // Zainab: long dark-brown hair with side bangs, cream bow headband, her favourite red
+  const X = v => cx + v * k, Y = v => by - v * k, HAIR = '#2b1a14', RED = '#cc2f3b', SKIN = '#dcab86';
+  cut(g, '#8e2443', g => poly(g, [X(-.2), Y(1.12), X(.2), Y(1.12), X(.48), Y(.22), X(-.48), Y(.22)]));
+  cut(g, HAIR, g => { g.moveTo(X(-.2), Y(1.44)); g.quadraticCurveTo(X(-.31), Y(1.0), X(-.27), Y(.7)); g.quadraticCurveTo(X(-.16), Y(.63), X(-.06), Y(.77)); g.lineTo(X(.06), Y(.77)); g.quadraticCurveTo(X(.16), Y(.63), X(.27), Y(.7)); g.quadraticCurveTo(X(.31), Y(1.0), X(.2), Y(1.44)); g.closePath(); circ(g, X(0), Y(1.36), .215 * k); });
+  cut(g, '#3b2430', g => { rr(g, X(-.15), Y(.36), .11 * k, .33 * k, .04 * k); rr(g, X(.04), Y(.36), .11 * k, .33 * k, .04 * k); ell(g, X(-.1), Y(.03), .1 * k, .045 * k); ell(g, X(.1), Y(.03), .1 * k, .045 * k); });
+  if (!o.noLeft) { cut(g, RED, g => rr(g, X(-.32), Y(1.06), .1 * k, .44 * k, .05 * k)); cut(g, '#fff4e6', g => circ(g, X(-.27), Y(.6), .065 * k)); }
+  if (!o.noRight) { cut(g, RED, g => rr(g, X(.22), Y(1.06), .1 * k, .44 * k, .05 * k)); cut(g, '#fff4e6', g => circ(g, X(.27), Y(.6), .065 * k)); }
+  cut(g, RED, g => { g.moveTo(X(-.16), Y(1.13)); g.lineTo(X(.16), Y(1.13)); g.lineTo(X(.36), Y(.36)); g.quadraticCurveTo(X(0), Y(.3), X(-.36), Y(.36)); g.closePath(); circ(g, X(-.18), Y(1.05), .09 * k); circ(g, X(.18), Y(1.05), .09 * k); });
+  stroke(g, '#b02733', .008 * k, g => { for (let i = -3; i <= 3; i++) { g.moveTo(X(i * .045), Y(1.08)); g.lineTo(X(i * .075), Y(.42)); } }, false);
   cut(g, N.fur, g => { for (let i = -4; i <= 4; i++) circ(g, X(i * .085), Y(.36 - Math.abs(i) * .005), .05 * k); rr(g, X(-.03), Y(1.1), .06 * k, .72 * k, .03 * k); }, { blur: 3, oy: 1 });
   dots(g, N.gold, [[X(0), Y(.95)], [X(0), Y(.8)], [X(0), Y(.65)]], .018 * k);
-  cut(g, N.skin, g => { rr(g, X(-.045), Y(1.22), .09 * k, .1 * k, .02 * k); circ(g, X(0), Y(1.34), .165 * k); });
+  cut(g, SKIN, g => { rr(g, X(-.045), Y(1.22), .09 * k, .1 * k, .02 * k); circ(g, X(0), Y(1.34), .17 * k); });
   if (!o.noScarf) cut(g, N.fur, g => { for (let i = -2; i <= 2; i++) circ(g, X(i * .07), Y(1.14), .055 * k); }, { blur: 3, oy: 1 });
-  cut(g, N.hair, g => { g.moveTo(X(-.18), Y(1.36)); g.quadraticCurveTo(X(-.15), Y(1.56), X(.05), Y(1.53)); g.quadraticCurveTo(X(.2), Y(1.5), X(.18), Y(1.34)); g.quadraticCurveTo(X(.08), Y(1.45), X(-.05), Y(1.44)); g.quadraticCurveTo(X(-.14), Y(1.42), X(-.18), Y(1.36)); g.closePath(); }, { blur: 3, oy: 1 });
-  cut(g, N.gold, g => poly(g, [X(-.12), Y(1.5), X(-.1), Y(1.6), X(-.05), Y(1.54), X(0), Y(1.67), X(.05), Y(1.54), X(.1), Y(1.6), X(.12), Y(1.5)]), { blur: 3, oy: 1 });
-  dots(g, N.pink, [[X(0), Y(1.57)]], .022 * k);
-  if (o.closed) stroke(g, N.ink, .014 * k, g => { g.arc(X(-.06), Y(1.33), .025 * k, .1 * Math.PI, .9 * Math.PI); g.moveTo(X(.085), Y(1.33)); g.arc(X(.06), Y(1.33), .025 * k, .1 * Math.PI, .9 * Math.PI); }, false);
-  else { dots(g, N.ink, [[X(-.06), Y(1.33)], [X(.06), Y(1.33)]], .022 * k); dots(g, '#fff', [[X(-.053), Y(1.338)], [X(.067), Y(1.338)]], .007 * k); }
-  dots(g, 'rgba(240,110,130,.45)', [[X(-.1), Y(1.28)], [X(.1), Y(1.28)]], .03 * k);
-  stroke(g, '#7a3a3a', .013 * k, g => g.arc(X(0), Y(1.28), .04 * k, .2 * Math.PI, .8 * Math.PI), false);
+  cut(g, HAIR, g => { ell(g, X(-.168), Y(1.22), .045 * k, .16 * k, .08); ell(g, X(.168), Y(1.22), .045 * k, .16 * k, -.08); });
+  cut(g, HAIR, g => { g.moveTo(X(-.19), Y(1.33)); g.quadraticCurveTo(X(-.18), Y(1.57), X(.04), Y(1.55)); g.quadraticCurveTo(X(.21), Y(1.53), X(.2), Y(1.34)); g.quadraticCurveTo(X(.13), Y(1.43), X(.0), Y(1.46)); g.quadraticCurveTo(X(-.09), Y(1.45), X(-.12), Y(1.37)); g.quadraticCurveTo(X(-.15), Y(1.31), X(-.19), Y(1.33)); g.closePath(); }, { blur: 3, oy: 1 });
+  stroke(g, '#f3e6d3', .035 * k, g => g.arc(X(0), Y(1.37), .205 * k, Math.PI * 1.12, Math.PI * 1.88));
+  cut(g, '#fbf1e4', g => { ell(g, X(.1), Y(1.59), .075 * k, .045 * k, -.5); ell(g, X(.24), Y(1.57), .075 * k, .045 * k, .5); circ(g, X(.17), Y(1.565), .028 * k); }, { blur: 4, oy: 2 });
+  stroke(g, 'rgba(180,150,120,.5)', .006 * k, g => { g.moveTo(X(.14), Y(1.58)); g.lineTo(X(.07), Y(1.6)); g.moveTo(X(.2), Y(1.58)); g.lineTo(X(.27), Y(1.56)); }, false);
+  stroke(g, HAIR, .011 * k, g => { g.moveTo(X(-.095), Y(1.385)); g.quadraticCurveTo(X(-.06), Y(1.4), X(-.03), Y(1.385)); g.moveTo(X(.03), Y(1.385)); g.quadraticCurveTo(X(.06), Y(1.4), X(.095), Y(1.385)); }, false);
+  if (o.closed) stroke(g, N.ink, .014 * k, g => { g.arc(X(-.06), Y(1.335), .026 * k, .1 * Math.PI, .9 * Math.PI); g.moveTo(X(.086), Y(1.335)); g.arc(X(.06), Y(1.335), .026 * k, .1 * Math.PI, .9 * Math.PI); }, false);
+  else { dots(g, '#2a1a12', [[X(-.06), Y(1.335)], [X(.06), Y(1.335)]], .027 * k); dots(g, '#fff', [[X(-.051), Y(1.345)], [X(.069), Y(1.345)]], .009 * k); }
+  dots(g, 'rgba(235,105,115,.42)', [[X(-.105), Y(1.275)], [X(.105), Y(1.275)]], .032 * k);
+  cut(g, '#9b3a3f', g => { g.moveTo(X(-.05), Y(1.265)); g.quadraticCurveTo(X(0), Y(1.2), X(.05), Y(1.265)); g.closePath(); }, { shadow: false });
+  cut(g, '#ffffff', g => { g.moveTo(X(-.04), Y(1.262)); g.lineTo(X(.04), Y(1.262)); g.lineTo(X(.035), Y(1.246)); g.lineTo(X(-.035), Y(1.246)); g.closePath(); }, { shadow: false });
+}
+function shamroze(g, cx, by, k = 1) {
+  // Shamroze: navy suit, white shirt, blue polka-dot tie, swept-up black hair, trimmed beard; carries a lantern
+  const X = v => cx + v * k, Y = v => by - v * k, SUIT = '#1f2c52', SUIT2 = '#16203e', SKIN = '#d6a07a', HAIR = '#15110f';
+  cut(g, SUIT, g => { rr(g, X(-.17), Y(.95), .15 * k, .92 * k, .03 * k); rr(g, X(.02), Y(.95), .15 * k, .92 * k, .03 * k); });
+  cut(g, '#121216', g => { ell(g, X(-.11), Y(.035), .12 * k, .045 * k); ell(g, X(.11), Y(.035), .12 * k, .045 * k); });
+  cut(g, SUIT, g => { rr(g, X(-.37), Y(1.55), .13 * k, .7 * k, .06 * k); poly(g, [X(.2), Y(1.56), X(.35), Y(1.52), X(.51), Y(1.1), X(.4), Y(1.03)]); });
+  cut(g, SKIN, g => { circ(g, X(-.305), Y(.84), .06 * k); circ(g, X(.46), Y(1.04), .06 * k); });
+  cut(g, SUIT, g => { g.moveTo(X(-.27), Y(1.6)); g.lineTo(X(.27), Y(1.6)); g.lineTo(X(.26), Y(.8)); g.lineTo(X(-.26), Y(.8)); g.closePath(); circ(g, X(-.25), Y(1.52), .09 * k); circ(g, X(.25), Y(1.52), .09 * k); });
+  cut(g, '#fbfbfd', g => poly(g, [X(-.09), Y(1.63), X(.09), Y(1.63), X(0), Y(1.2)]), { blur: 3, oy: 1 });
+  cut(g, '#3d6fb8', g => poly(g, [X(-.027), Y(1.59), X(.027), Y(1.59), X(.042), Y(1.3), X(0), Y(1.22), X(-.042), Y(1.3)]), { shadow: false });
+  dots(g, '#dfe9ff', [[X(0), Y(1.52)], [X(.014), Y(1.44)], [X(-.012), Y(1.37)], [X(.01), Y(1.3)]], .007 * k);
+  cut(g, SUIT2, g => { poly(g, [X(-.09), Y(1.63), X(-.21), Y(1.6), X(-.05), Y(1.18), X(-.01), Y(1.2)]); poly(g, [X(.09), Y(1.63), X(.21), Y(1.6), X(.05), Y(1.18), X(.01), Y(1.2)]); }, { blur: 3, oy: 1 });
+  dots(g, '#0e152b', [[X(0), Y(1.08)], [X(0), Y(.96)]], .016 * k);
+  cut(g, SKIN, g => { rr(g, X(-.05), Y(1.72), .1 * k, .14 * k, .02 * k); ell(g, X(0), Y(1.85), .14 * k, .17 * k); ell(g, X(-.14), Y(1.85), .03 * k, .045 * k); ell(g, X(.14), Y(1.85), .03 * k, .045 * k); });
+  cut(g, '#231a16', g => { g.moveTo(X(-.142), Y(1.88)); g.quadraticCurveTo(X(-.15), Y(1.69), X(0), Y(1.665)); g.quadraticCurveTo(X(.15), Y(1.69), X(.142), Y(1.88)); g.quadraticCurveTo(X(.1), Y(1.77), X(0), Y(1.78)); g.quadraticCurveTo(X(-.1), Y(1.77), X(-.142), Y(1.88)); g.closePath(); ell(g, X(-.04), Y(1.795), .045 * k, .014 * k, -.15); ell(g, X(.04), Y(1.795), .045 * k, .014 * k, .15); }, { blur: 3, oy: 1 });
+  cut(g, '#b06a5c', g => ell(g, X(0), Y(1.765), .03 * k, .009 * k), { shadow: false });
+  cut(g, '#2e2622', g => { ell(g, X(-.125), Y(1.94), .035 * k, .07 * k); ell(g, X(.125), Y(1.94), .035 * k, .07 * k); }, { shadow: false });
+  cut(g, HAIR, g => { g.moveTo(X(-.135), Y(1.94)); g.quadraticCurveTo(X(-.16), Y(2.11), X(-.02), Y(2.14)); g.quadraticCurveTo(X(.13), Y(2.17), X(.165), Y(2.06)); g.quadraticCurveTo(X(.155), Y(1.98), X(.125), Y(1.95)); g.quadraticCurveTo(X(0), Y(2.01), X(-.135), Y(1.94)); g.closePath(); }, { blur: 3, oy: 1 });
+  stroke(g, HAIR, .022 * k, g => { g.moveTo(X(-.095), Y(1.905)); g.lineTo(X(-.03), Y(1.912)); g.moveTo(X(.03), Y(1.912)); g.lineTo(X(.095), Y(1.905)); }, false);
+  dots(g, '#2a1a12', [[X(-.058), Y(1.875)], [X(.058), Y(1.875)]], .019 * k); dots(g, '#fff', [[X(-.052), Y(1.882)], [X(.064), Y(1.882)]], .006 * k);
+  stroke(g, '#2a2d44', .012 * k, g => { g.moveTo(X(.46), Y(1.02)); g.lineTo(X(.46), Y(.96)); }, false);
+  cut(g, '#2a2d44', g => { poly(g, [X(.39), Y(.95), X(.53), Y(.95), X(.46), Y(1.0)]); rr(g, X(.39), Y(.78), .14 * k, .03 * k, .01 * k); });
+  cut(g, '#ffd27a', g => rr(g, X(.41), Y(.945), .1 * k, .165 * k, .02 * k), { sc: 'rgba(255,200,100,1)', blur: 14, oy: 0 });
 }
 function armArt(g, w, h) { cut(g, N.coat, g => rr(g, w / 2 - .05, .1, .1, h - .1, .05)); cut(g, N.mitten, g => circ(g, w / 2, .1, .068)); }
 function scarfArt(g, w, h) {
@@ -477,16 +513,21 @@ const SP = [
         props: [{ id: 'win', x: 0, y: 0, w: 3.8, h: 2.75, basic: true, opacity: .25, dz: .006, draw(g, w, h) { castleWindows(g, 1.9, h - .2, .86, '#ffd27a', 'rgba(255,200,100,1)'); } }] },
       { z: -0.25, x: 2, w: 3.8, h: 1.7, draw(g, w, h) { pine(g, .42, h, .95); pine(g, 3.38, h, 1.0); },
         props: [{ id: 'banner', x: 0, y: .78, w: 2.5, h: .56, px: .5, py: 0, dz: .02, draw(g, w, h) { ribbon(g, w, h, 'Princess Zainab', .3); } }] },
-      { z: 1.4, x: 2, w: 3.9, h: .7, draw(g, w, h) { drift(g, 0, 1.3, h, .35); drift(g, 2.6, 3.9, h, .4); lampPost(g, .55, h - .05, .38); lampPost(g, 3.35, h - .05, .38); } },
+      { z: .55, x: .95, w: 1.0, h: 1.9, draw: null, props: [{ id: 'sham', x: 0, y: 0, w: 1.0, h: 1.85, tap: true, draw(g, w, h) { shamroze(g, .45, h, .82); } }] },
+      { z: 1.4, x: 2, w: 3.9, h: .7, draw(g, w, h) { drift(g, 0, 1.3, h, .35); drift(g, 2.6, 3.9, h, .4); lampPost(g, 3.35, h - .05, .38); } },
     ],
     setup(o, sp) {
       o.banner.grp.scale.x = .06;
-      [[.55 - 1.95, .6], [3.35 - 1.95, .6]].forEach(([x, y]) => { const s = glow('#ffc867', .55, .7); s.position.set(x, y, .05); sp.hinges[3].add(s); });
+      o.shGlow = glow('#ffc867', .6, .85); o.shGlow.position.set(-.05 + .46 * .82, .86 * .82, .04); o.sham.grp.add(o.shGlow);
+      { const s = glow('#ffc867', .55, .7); s.position.set(3.35 - 1.95, .6, .05); sp.hinges[4].add(s); }
     },
     lamp: o => ({ obj: o.win.grp, at: [0, 1.6, .3], i: 2.5 }),
     reset(o) { o._lit = false; o.banner.grp.scale.x = .06; o.win.mesh.material.opacity = .25; },
-    async action(o) {
+    tick(o, t) { o.shGlow.material.opacity = .75 + .12 * Math.sin(t * 4) * Math.sin(t * 1.7); },
+    async action(o, id) {
+      if (id === 'sham') { bubble('“This story is for you, Princess Zainab.”', o.sham, 1.85, 2600); sfx.chime([659, 784, 988]); await tween(.6, p => { o.shGlow.scale.setScalar(.6 + .5 * Math.sin(p * Math.PI)); }); return; }
       if (!o._lit) {
+        bubble('“This story is for you, Princess Zainab.”', o.sham, 1.85, 2200);
         sfx.chime([523, 659, 784, 1046]);
         await tween(1.1, p => { o.banner.grp.scale.x = lerp(.06, 1, p); }, E.back);
         burstAt(o.banner.grp, [0, .3, .1], '#ffe7a8', 50, 1.3);
@@ -1165,16 +1206,23 @@ function buildBook() {
   coverPivot = new THREE.Group(); coverPivot.position.set(0, (Y0 + BT) / 2, 0); book.add(coverPivot);
   const cover = sh(new THREE.Mesh(new THREE.BoxGeometry(BW, BT, BD), [cloth, cloth, coverMat, endMat, cloth, cloth])); cover.position.set(BW / 2, Y0 / 2, 0); coverPivot.add(cover);
   const spg = new THREE.BoxGeometry(.06, 1, BD); spg.translate(0, .5, 0); spine = sh(new THREE.Mesh(spg, cloth)); spine.position.set(-.03, 0, 0); book.add(spine);
-  const SEG = 32, lg = new THREE.PlaneGeometry(W, D, SEG, 1); lg.rotateX(-Math.PI / 2); lg.translate(W / 2, 0, 0); leafBase = Float32Array.from(lg.attributes.position.array);
+  const SEG = 32, ROWS = 10, lg = new THREE.PlaneGeometry(W, D, SEG, ROWS); lg.rotateX(-Math.PI / 2); lg.translate(W / 2, 0, 0); leafBase = Float32Array.from(lg.attributes.position.array);
   leafFront = new THREE.Mesh(lg, lam({ map: SP[0].rT, side: THREE.FrontSide })); leafFront.castShadow = true;
   leafBack = new THREE.Mesh(lg, lam({ map: SP[0].lTm, side: THREE.BackSide }));
-  leaf = new THREE.Group(); leaf.position.y = Y0 + .004; leaf.add(leafFront, leafBack); leaf.visible = false; leaf.userData.SEG = SEG; book.add(leaf);
+  leaf = new THREE.Group(); leaf.position.y = Y0 + .004; leaf.add(leafFront, leafBack); leaf.visible = false; leaf.userData.SEG = SEG; leaf.userData.ROWS = ROWS; book.add(leaf);
 }
-function setLeaf(t, dir) {
-  const SEG = leaf.userData.SEG, ds = W / SEG, theta = t * Math.PI, k = .55 * Math.sin(Math.PI * t) * dir, X = [0], Yv = [0]; let x = 0, y = 0;
-  for (let i = 1; i <= SEG; i++) { const s = (i - .5) * ds, phi = theta - k * (s / W); x += Math.cos(phi) * ds; y += Math.sin(phi) * ds; X.push(x); Yv.push(y); }
-  const pos = leafFront.geometry.attributes.position;
-  for (let v = 0; v < pos.count; v++) { const j = Math.round(leafBase[v * 3] / ds); pos.setXYZ(v, X[j], Yv[j] + .0005 * j, leafBase[v * 3 + 2]); }
+function setLeaf(t, dir, peelAmt = 0) {
+  const SEG = leaf.userData.SEG, ROWS = leaf.userData.ROWS, ds = W / SEG, pos = leafFront.geometry.attributes.position, sn = Math.sin(Math.PI * t), k = .55 * sn * dir;
+  for (let r = 0; r <= ROWS; r++) {
+    const theta = t * Math.PI + dir * .22 * sn * (r / ROWS); let x = 0, y = 0;
+    for (let j = 0; j <= SEG; j++) {
+      if (j > 0) { const s = (j - .5) * ds, phi = theta - k * (s / W); x += Math.cos(phi) * ds; y += Math.sin(phi) * ds; }
+      const v = r * (SEG + 1) + j, bx = leafBase[v * 3], bz = leafBase[v * 3 + 2];
+      let px = x, py = y + .0005 * j, pz = bz;
+      if (peelAmt > 0) { const f = clamp(1 - Math.hypot(W - bx, D / 2 - bz) / 1.3, 0, 1), l = peelAmt * f * f; py += l * .9; px -= l * .32; pz -= l * .22; }
+      pos.setXYZ(v, px, py, pz);
+    }
+  }
   pos.needsUpdate = true; leafFront.geometry.computeVertexNormals(); leafFront.geometry.computeBoundingSphere();
 }
 
@@ -1299,27 +1347,49 @@ const sfx = (() => {
 const S = { cur: -1, busy: false, acting: false, cover: 0 };
 function applyCover() { const c = S.cover; coverPivot.rotation.z = c * Math.PI; leftBlock.visible = leftPage.visible = c > .965; spine.scale.y = lerp(Y0 + BT + .002, Y0 - .03, E.inOut(clamp(c * 1.4, 0, 1))); }
 function lampFor(sp) { const l = sp.lamp?.(sp.o); if (l) { L.follow = l.obj; L.at.set(...l.at); L.target = l.i; } else { L.follow = null; L.target = 0; } }
-async function go(dir) {
-  if (S.busy || S.acting) return; const n = S.cur + dir; if (n < -1 || n >= SP.length) return;
-  ensure(n); ensure(S.cur); S.busy = true; hideBubble(); ui(); L.target = 0;
-  if (S.cur === -1) await openCover(); else if (n === -1) await closeCover(); else await turn(dir);
-  S.cur = n; S.busy = false; if (n >= 0) lampFor(SP[n]); ui(); tidy(n);
+function unpeel() { if (leaf.userData.peelFor != null) { rightPage.material.map = SP[leaf.userData.peelFor].rT; leaf.userData.peelFor = null; leaf.visible = false; } }
+function beginTurn(dir) {
+  if (S.busy || S.acting) return null; const n = S.cur + dir; if (n < -1 || n >= SP.length) return null;
+  unpeel(); ensure(n); ensure(S.cur); S.busy = true; hideBubble(); L.target = 0; ui();
+  const c = { dir, n, q: 0, kind: S.cur === -1 ? 'open' : n === -1 ? 'close' : 'turn', a: SP[S.cur], b: SP[n] };
+  if (c.kind === 'open') { const sp = SP[0]; rightPage.material.map = sp.rT; leftPage.material.map = sp.lT; sp.root.visible = true; sp.reset?.(sp.o); setRise(sp, 0, true); }
+  else if (c.kind === 'turn') {
+    const { a, b } = c; b.root.visible = true; b.reset?.(b.o); setRise(b, 0, true); leaf.visible = true;
+    if (dir > 0) { rightPage.material.map = b.rT; leafFront.material.map = a.rT; leafBack.material.map = b.lTm; }
+    else { leftPage.material.map = b.lT; leafFront.material.map = b.rT; leafBack.material.map = a.lTm; }
+  }
+  sfx.flip(); setTurn(c, 0); return c;
 }
-async function openCover() {
-  const sp = SP[0]; rightPage.material.map = sp.rT; leftPage.material.map = sp.lT; sp.root.visible = true; sp.reset?.(sp.o); setRise(sp, 0, true);
-  sfx.flip(); sfx.thud(); toMood(sp.mood, 2.2); snowTarget = sp.snow; let rp = null;
-  await tween(1.6, p => { S.cover = p; applyCover(); if (p > .62 && !rp) rp = rise(sp); }, E.inOut);
-  S.cur = 0; ui(); await rp;
+function setTurn(c, q) {
+  c.q = q;
+  if (c.kind === 'open') { S.cover = q; applyCover(); }
+  else if (c.kind === 'close') { setRise(c.a, 1 - clamp(q / .25, 0, 1), false); S.cover = 1 - clamp((q - .18) / .82, 0, 1); applyCover(); }
+  else { setRise(c.a, 1 - clamp(q / .2, 0, 1), false); const t = clamp((q - .1) / .9, 0, 1); setLeaf(c.dir > 0 ? t : 1 - t, c.dir); }
 }
-async function closeCover() { const sp = SP[0]; snowTarget = 0; await fold(sp); sp.root.visible = false; sfx.flip(); toMood('warm', 1.5); await tween(1.3, p => { S.cover = 1 - p; applyCover(); }, E.inOut); sfx.thud(); }
-async function turn(dir) {
-  const a = SP[S.cur], b = SP[S.cur + dir];
-  await fold(a); a.root.visible = false; b.root.visible = true; b.reset?.(b.o); setRise(b, 0, true);
-  leaf.visible = true; sfx.flip(); toMood(b.mood, 1.5); snowTarget = b.snow; let rp = null;
-  if (dir > 0) { rightPage.material.map = b.rT; leafFront.material.map = a.rT; leafBack.material.map = b.lTm; setLeaf(0, 1); await tween(1.15, p => { setLeaf(p, 1); if (p > .74 && !rp) rp = rise(b); }, E.inOut); leftPage.material.map = b.lT; }
-  else { leftPage.material.map = b.lT; leafFront.material.map = b.rT; leafBack.material.map = a.lTm; setLeaf(1, -1); await tween(1.15, p => setLeaf(1 - p, -1), E.inOut); rightPage.material.map = b.rT; rp = rise(b); }
-  leaf.visible = false; S.cur += dir; ui(); await rp; S.cur -= dir;
+async function endTurn(c, commit, full) {
+  const from = c.q, to = commit ? 1 : 0, dur = full ? 1.75 : Math.max(.3, Math.abs(to - from) * 1.25);
+  if (commit) { toMood(c.kind === 'close' ? 'warm' : c.b.mood, 1.5); snowTarget = c.kind === 'close' ? 0 : c.b.snow; }
+  let rp = null;
+  await tween(dur, p => {
+    setTurn(c, lerp(from, to, p));
+    if (commit && !rp && ((c.kind === 'open' && c.q > .62) || (c.kind === 'turn' && c.dir > 0 && c.q > .82))) rp = rise(c.b);
+  }, full ? E.inOut : E.out);
+  const { a, b } = c;
+  if (commit) {
+    if (c.kind === 'close') { a.root.visible = false; sfx.thud(); }
+    else if (c.kind === 'turn') { a.root.visible = false; leaf.visible = false; if (c.dir > 0) leftPage.material.map = b.lT; else rightPage.material.map = b.rT; if (!rp) rp = rise(b); }
+    try { navigator.vibrate?.(10); } catch (e) { }
+    S.cur = c.n; ui(); if (rp) await rp;
+    if (S.cur === 0 && !S.swiped) showSwipeHint();
+  } else {
+    if (c.kind === 'open') b.root.visible = false;
+    else if (c.kind === 'close') rp = rise(a);
+    else { b.root.visible = false; leaf.visible = false; if (c.dir > 0) rightPage.material.map = a.rT; else leftPage.material.map = a.lT; rp = rise(a); }
+    if (rp) await rp;
+  }
+  S.busy = false; if (S.cur >= 0) lampFor(SP[S.cur]); ui(); tidy(S.cur);
 }
+async function go(dir) { const c = beginTurn(dir); if (c) await endTurn(c, true, true); }
 async function act(id) {
   if (S.busy || S.acting) return; if (S.cur < 0) { go(1); return; }
   const sp = SP[S.cur]; S.acting = true; ui();
@@ -1341,6 +1411,9 @@ function ui() {
 $('prev').onclick = () => go(-1); $('next').onclick = () => go(1);
 $('act').onclick = () => { sfx.unlock(); act(); };
 $('snd').onclick = () => { sfx.on = !sfx.on; $('snd').setAttribute('aria-pressed', String(sfx.on)); $('snd').setAttribute('aria-label', sfx.on ? 'Turn sound off' : 'Turn sound on'); $('sndWave').style.display = sfx.on ? '' : 'none'; $('sndOff').style.display = sfx.on ? 'none' : ''; };
+let swipeT = 0;
+function showSwipeHint() { $('swipe').hidden = false; clearTimeout(swipeT); swipeT = setTimeout(hideSwipeHint, 5000); }
+function hideSwipeHint() { $('swipe').hidden = true; }
 function openReader() {
   const sp = SP[S.cur]; if (!sp) return;
   $('rCh').textContent = sp.dedication ? 'DEDICATION' : sp.numeral; $('rTitle').textContent = sp.dedication ? 'The Fox of the First Snow' : sp.title;
@@ -1395,29 +1468,49 @@ function targetFrame() {
   const fx = closed ? BW / 2 : port ? W / 2 + .05 : 0, halfW = closed ? 2.8 : port ? 2.3 : 4.75, halfH = closed ? 3.0 : port ? 3.25 : 3.95;
   return { fx, dist: Math.max(halfW / ht, halfH / vtE), shift: (bot - top) / 2 };
 }
-const ptrs = new Map(); let dragMoved = 0, pinch0 = 0, zoom0 = 1;
-canvas.addEventListener('pointerdown', e => { canvas.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); dragMoved = 0; if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch0 = Math.hypot(a.x - b.x, a.y - b.y); zoom0 = cam.zoom; } });
+const ptrs = new Map(); let gest = null, pinch0 = 0, zoom0 = 1;
+const pv = new THREE.Vector3();
+function pagePx() { const a = pv.set(0, Y0, .6).project(camera).x, b = pv.set(W, Y0, .6).project(camera).x; return Math.max(140, Math.abs(b - a) * innerWidth / 2 * .95); }
+canvas.addEventListener('pointerdown', e => {
+  canvas.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (ptrs.size === 1) gest = { x0: e.clientX, y0: e.clientY, t0: performance.now(), mode: null, lx: e.clientX, lt: performance.now(), v: 0 };
+  else if (ptrs.size === 2 && gest?.mode !== 'turn') { const [a, b] = [...ptrs.values()]; pinch0 = Math.hypot(a.x - b.x, a.y - b.y); zoom0 = cam.zoom; gest = { mode: 'pinch' }; }
+});
 canvas.addEventListener('pointermove', e => {
   const p = ptrs.get(e.pointerId); if (!p) { hover(e); return; }
-  const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
-  if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; cam.zoom = clamp(zoom0 * pinch0 / Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)), .6, 1.4); dragMoved += 99; return; }
-  dragMoved += Math.abs(dx) + Math.abs(dy); cam.tyaw = clamp(cam.tyaw - dx * .005, -.75, .75); cam.tpitch = clamp(cam.tpitch + dy * .004, .3, 1.2);
+  const ix = e.clientX - p.x, iy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
+  if (!gest) return;
+  if (gest.mode === 'pinch') { if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; cam.zoom = clamp(zoom0 * pinch0 / Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)), .6, 1.4); } return; }
+  const dx = e.clientX - gest.x0, dy = e.clientY - gest.y0;
+  if (!gest.mode && Math.hypot(dx, dy) > 10) {
+    if (Math.abs(dx) > Math.abs(dy) * 1.1) { const dir = dx < 0 ? 1 : -1, c = beginTurn(dir); if (c) { gest.mode = 'turn'; gest.ctrl = c; gest.dir = dir; gest.pw = pagePx(); hideSwipeHint(); S.swiped = true; } else gest.mode = 'none'; }
+    else gest.mode = 'tilt';
+  }
+  if (gest.mode === 'turn') { const now = performance.now(); gest.v = (e.clientX - gest.lx) / Math.max(1, now - gest.lt); gest.lx = e.clientX; gest.lt = now; setTurn(gest.ctrl, clamp((gest.dir > 0 ? -dx : dx) / gest.pw, 0, 1)); }
+  else if (gest.mode === 'tilt') cam.tpitch = clamp(cam.tpitch + iy * .004, .35, 1.2);
 });
-canvas.addEventListener('pointerup', e => { if (ptrs.has(e.pointerId) && ptrs.size === 1 && dragMoved < 6) { sfx.unlock(); pick(e); } ptrs.delete(e.pointerId); });
-canvas.addEventListener('pointercancel', e => ptrs.delete(e.pointerId));
+function endPtr(e, cancel) {
+  const had = ptrs.delete(e.pointerId); if (!had || !gest) return;
+  if (gest.mode === 'turn') { if (!ptrs.size) { const c = gest.ctrl, fling = gest.dir > 0 ? -gest.v : gest.v; endTurn(c, !cancel && (c.q > .33 || (fling > .4 && c.q > .04))); gest = null; } return; }
+  if (!cancel && !gest.mode && !ptrs.size && performance.now() - gest.t0 < 700) { sfx.unlock(); pick(e); }
+  if (!ptrs.size) gest = null;
+}
+canvas.addEventListener('pointerup', e => endPtr(e, false));
+canvas.addEventListener('pointercancel', e => endPtr(e, true));
 canvas.addEventListener('wheel', e => { e.preventDefault(); cam.zoom = clamp(cam.zoom * (1 + e.deltaY * .001), .6, 1.4); }, { passive: false });
-canvas.addEventListener('dblclick', () => { cam.tyaw = 0; cam.tpitch = .78; cam.zoom = 1; });
+canvas.addEventListener('dblclick', () => { cam.tpitch = .78; cam.zoom = 1; });
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
 function setRay(e) { ndc.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ndc, camera); }
 function hitAt(e) { setRay(e); return ray.intersectObjects(taps.filter(m => m.userData.spread === S.cur && m.parent.parent.visible), false)[0]; }
 function pick(e) { if (S.cur < 0) { setRay(e); if (ray.intersectObject(coverPivot, true).length) go(1); return; } const h = hitAt(e); if (h) act(h.object.userData.id); }
 let hoverT = 0;
-function hover(e) { const now = performance.now(); if (now - hoverT < 60) return; hoverT = now; canvas.style.cursor = (S.cur >= 0 ? hitAt(e) : null) ? 'pointer' : 'grab'; }
+function hover(e) { const now = performance.now(); if (now - hoverT < 60) return; hoverT = now; canvas.style.cursor = (S.cur >= 0 ? hitAt(e) : null) ? 'pointer' : 'grab'; peel.hover = S.cur >= 0 && e.clientX > innerWidth * .62 && e.clientY > innerHeight * .5; }
 function resize() { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); storyUI(); }
 addEventListener('resize', resize);
 
 /* ---- main loop */
 let last = performance.now();
+const peel = { amt: 0, hover: false };
 const wp = new THREE.Vector3();
 function frame(now) {
   const dt = Math.min(.05, (now - last) / 1000); last = now; const t = now / 1000;
@@ -1431,6 +1524,15 @@ function frame(now) {
   if (L.follow) { L.follow.localToWorld(wp.copy(L.at)); lampLight.position.copy(wp); }
   lampLight.intensity = lerp(lampLight.intensity, L.target * (1 + .06 * Math.sin(t * 13) * Math.sin(t * 5)), 1 - Math.pow(.05, dt));
   const sp = SP[S.cur]; if (sp && sp.tick && !S.busy) sp.tick(sp.o, t, dt);
+  const nx = SP[S.cur + 1];
+  if (!S.busy && !S.acting && S.cur >= 0 && nx?.built && !gest?.mode) {
+    const ph = t % 6, want = Math.max(ph < 1.6 ? Math.sin(ph / 1.6 * Math.PI) * .3 : 0, peel.hover ? .38 : 0);
+    peel.amt = lerp(peel.amt, want, 1 - Math.pow(.01, dt));
+    if (peel.amt > .004) {
+      if (leaf.userData.peelFor !== S.cur) { leafFront.material.map = sp.rT; leafBack.material.map = nx.lTm; rightPage.material.map = nx.rT; leaf.userData.peelFor = S.cur; leaf.visible = true; }
+      setLeaf(0, 1, peel.amt);
+    } else unpeel();
+  } else if (!S.busy) unpeel();
   renderer.render(scene, camera); placeBubble(now); requestAnimationFrame(frame);
 }
 
@@ -1440,7 +1542,7 @@ async function boot() {
   ensure(0); buildBook(); applyCover(); applyMood(moodNow); resize(); ui();
   requestAnimationFrame(t => { last = t; frame(t); });
   $('loader').classList.add('gone'); setTimeout(() => { $('hint').style.opacity = 0; }, 7000);
-  window.__book = { go, act, S, SP, cam }; setTimeout(() => ensure(1), 900);
+  window.__book = { go, act, S, SP, cam, peel }; setTimeout(() => ensure(1), 900);
 }
 boot();
 </script>
