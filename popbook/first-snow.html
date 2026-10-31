@@ -3,7 +3,7 @@
 <meta name="description" content="An original interactive 3D pop-up storybook, written by Shamroze for Princess Zainab.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Cormorant+SC:wght@500&family=Pinyon+Script&family=Alegreya+Sans:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Cormorant+SC:wght@500&family=Pinyon+Script&family=Alegreya+Sans:wght@400;500;700&family=Noto+Nastaliq+Urdu:wght@400;600&display=swap">
 <style>
 /* Layout: one full-bleed 3D stage (a storybook on a table at night) with a title chip and a bottom control pill. */
 :root{
@@ -20,6 +20,7 @@
   --font-sc:"Cormorant SC", "Cormorant Garamond", Georgia, serif;
   --font-script:"Pinyon Script", "Snell Roundhand", cursive;
   --font-ui:"Alegreya Sans", "Segoe UI", system-ui, sans-serif;
+  --font-urdu:"Noto Nastaliq Urdu", "Jameel Noori Nastaleeq", "Urdu Typesetting", serif;
   color-scheme:dark;
 }
 html,body{height:100%}
@@ -32,7 +33,8 @@ body{background:var(--room);color:var(--text);font-family:var(--font-ui);overflo
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));pointer-events:none}
 .chip{pointer-events:auto;display:flex;align-items:baseline;gap:10px;background:var(--panel);border:1px solid var(--panel-line);
   backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-radius:999px;padding:7px 16px;min-width:0}
-.chip b{font-family:var(--font-book);font-weight:500;font-style:italic;font-size:19px;white-space:nowrap}
+.chip b{font-family:var(--font-book);font-weight:500;font-style:italic;font-size:19px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top>.chip{flex:0 1 auto;min-width:0}
 .chip span{font-family:var(--font-sc);font-size:14px;letter-spacing:.06em;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bar{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:center;pointer-events:none;
   padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));
@@ -106,7 +108,7 @@ button:focus-visible{outline:2px solid var(--lantern);outline-offset:2px}
 @keyframes swipeMove{0%,100%{transform:translateX(10px)}50%{transform:translateX(-10px)}}
 @media (prefers-reduced-motion:reduce){.swipe svg{animation:none}}
 .sHead{position:relative}
-.speak{position:absolute;right:-6px;top:0;width:34px;height:34px;border:0;border-radius:50%;background:transparent;color:#2d3f7a;display:grid;place-items:center;cursor:pointer}
+.speak{position:absolute;inset-inline-end:-6px;top:0;width:34px;height:34px;border:0;border-radius:50%;background:transparent;color:#2d3f7a;display:grid;place-items:center;cursor:pointer}
 .speak[aria-pressed="true"]{background:rgba(255,200,103,.35)}
 .sBody p{transition:background .3s}
 .sBody p.speaking{background:rgba(255,200,103,.28);border-radius:6px;box-shadow:0 0 0 4px rgba(255,200,103,.28)}
@@ -241,7 +243,31 @@ textarea.bIn{font:italic 500 18px var(--font-book);line-height:1.4;resize:none}
 .vLive{display:flex;align-items:center;gap:10px;margin-top:8px;color:#ffb3c0;font:700 15px var(--font-ui);font-variant-numeric:tabular-nums}
 .vLive .dot{width:10px;height:10px;border-radius:50%;background:#e2455f;animation:bar 1s infinite}
 @media (prefers-reduced-motion:reduce){.bars i,.vLive .dot{animation:none}}
+.tright{flex:none}
+.langBtn{pointer-events:auto;height:34px;min-width:52px;border-radius:999px;border:1px solid var(--panel-line);background:var(--panel);color:var(--text);cursor:pointer;padding:0 12px;
+  font:600 14px var(--font-ui);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.langBtn:lang(ur){font:600 15px var(--font-urdu);line-height:1}
+#langSeg button{width:auto;padding:0 14px;font:600 14px var(--font-ui)}
+#langSeg button[data-lang="ur"]{font:600 15px var(--font-urdu);line-height:1}
+.story[lang="ur"] .card{direction:rtl}
+.story[lang="ur"] .sHead span{font-family:var(--font-urdu);letter-spacing:0;font-size:14px}
+.story[lang="ur"] .sHead h2{font-family:var(--font-urdu);font-style:normal;font-weight:600;font-size:21px;line-height:1.9}
+.story[lang="ur"] .sBody p{font-family:var(--font-urdu);font-size:calc(var(--fs) - 1.5px);line-height:2.15;text-indent:0;text-align:right;font-style:normal}
+.story[lang="ur"] .sBody p::first-letter{font-size:inherit!important;float:none!important;margin:0!important;color:inherit!important;font-weight:inherit!important}
+.story[lang="ur"] .sBody p.center,.story[lang="ur"] .sBody p.by{text-align:center}
+.story[lang="ur"] .sBody p.script{font-family:var(--font-urdu);font-size:27px;font-weight:600}
+.story[lang="ur"].full .sBody p{font-size:calc(var(--fs) + .5px)}
+.story[lang="ur"] .seePic{font-family:var(--font-urdu);font-size:16px}
+.bubble.ur{font-family:var(--font-urdu);font-style:normal;line-height:1.9;direction:rtl;font-size:17px}
+.sheet[lang="ur"]{direction:rtl}
+.sheet[lang="ur"] h2,.sheet[lang="ur"] .ch{font-family:var(--font-urdu);font-style:normal;letter-spacing:0}
+.sheet[lang="ur"] p{font-family:var(--font-urdu);font-size:19px;line-height:2.15;text-indent:0;text-align:right}
+.sheet[lang="ur"] p.center,.sheet[lang="ur"] p.verse{text-align:center}
+.vWords[dir="rtl"]{font-family:var(--font-urdu);line-height:2.15;text-align:right;font-size:17px}
+.bIn.ur,textarea.bIn.ur{font-family:var(--font-urdu);line-height:2;font-style:normal}
+.bLbl small{text-transform:none;letter-spacing:0;opacity:.8}
 @media (max-width:560px){
+  .langBtn{height:32px;padding:0 10px}
   .mkBtn{height:32px;padding:0 12px}
   .dots{display:none} .chip span{display:none} #whereChip{display:none}
   .act{padding:0 14px;font-size:14px} #capSub{display:none} .icon{width:36px;height:36px}
@@ -254,7 +280,7 @@ textarea.bIn{font:italic 500 18px var(--font-book);line-height:1.4;resize:none}
 <div class="vignette"></div>
 <div class="top">
   <div class="chip"><b>The Fox of the First Snow</b><span>by Shamroze · for Princess Zainab</span></div>
-  <div class="tright"><button class="mkBtn" id="mkBtn">Make your own</button><div class="chip" id="whereChip"><span id="where">The cover</span></div></div>
+  <div class="tright"><button class="langBtn" id="langBtn" lang="ur" aria-label="Read in Urdu">اردو</button><button class="mkBtn" id="mkBtn">Make your own</button><div class="chip" id="whereChip"><span id="where">The cover</span></div></div>
 </div>
 <div class="toast" id="toast" hidden role="status"></div>
 <div class="vchip" id="vchip" hidden><span class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span><span id="vText"></span><button id="vPause" aria-label="Pause the voice"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></button></div>
@@ -301,6 +327,8 @@ textarea.bIn{font:italic 500 18px var(--font-book);line-height:1.4;resize:none}
         <h3 id="bHead">Who is this book for?</h3>
         <label class="bLbl" for="bName">Child’s name</label>
         <input class="bIn" id="bName" maxlength="18" autocomplete="off" placeholder="e.g. Zainab">
+        <label class="bLbl" for="bNameUr">Name in Urdu <small>(optional, for the Urdu book)</small></label>
+        <input class="bIn ur" id="bNameUr" dir="rtl" lang="ur" maxlength="18" autocomplete="off" placeholder="مثلاً زینب">
         <div class="bLbl">Call them</div><div class="chips" data-key="t"></div>
         <div class="bLbl">In the story, use</div><div class="chips" data-key="k"></div>
       </section>
@@ -316,10 +344,14 @@ textarea.bIn{font:italic 500 18px var(--font-book);line-height:1.4;resize:none}
         <h3>Who is giving this book?</h3>
         <label class="bLbl" for="bGiver">Your name (shown as the author)</label>
         <input class="bIn" id="bGiver" maxlength="22" autocomplete="off" placeholder="e.g. Shamroze">
+        <label class="bLbl" for="bGiverUr">Your name in Urdu <small>(optional)</small></label>
+        <input class="bIn ur" id="bGiverUr" dir="rtl" lang="ur" maxlength="22" autocomplete="off" placeholder="مثلاً شمروز">
         <div class="bLbl">Put a grown-up in the story</div><div class="chips" data-key="ad"></div>
         <div class="bLbl" id="bAsLbl">Grown-up’s skin</div><div class="sws" data-key="as"></div>
         <label class="bLbl" for="bMsg">Your message on the first page</label>
         <textarea class="bIn" id="bMsg" rows="4" maxlength="240"></textarea>
+        <label class="bLbl" for="bMsgUr">Message in Urdu <small>(optional, for the Urdu book)</small></label>
+        <textarea class="bIn ur" id="bMsgUr" dir="rtl" lang="ur" rows="3" maxlength="240"></textarea>
       </section>
       <section class="bStep" data-step="3">
         <h3>Your book is ready</h3>
@@ -356,6 +388,7 @@ textarea.bIn{font:italic 500 18px var(--font-book);line-height:1.4;resize:none}
       <button class="lay" data-layout="textfirst" role="radio"><span class="mini m-first"><i class="txt"></i><i class="arrow"></i></span><b>Story first</b><small>Read the page, then open the scene</small></button>
       <button class="lay" data-layout="overlay" role="radio"><span class="mini m-over"><i class="pic"></i><i class="txt"></i></span><b>Story over picture</b><small>Full-screen scene, words on top</small></button>
     </div>
+    <div class="setRow"><span>Language</span><div class="seg" id="langSeg" role="radiogroup" aria-label="Language"><button data-lang="en" role="radio">English</button><button data-lang="ur" role="radio" lang="ur">اردو</button></div></div>
     <div class="setRow"><span>Text size</span>
       <div class="seg" role="radiogroup" aria-label="Text size"><button data-size="s" role="radio" aria-label="Small">A</button><button data-size="m" role="radio" aria-label="Medium">A</button><button data-size="l" role="radio" aria-label="Large">A</button></div></div>
     <label class="setRow" id="famRow" hidden><span>Play the family voice<small id="famSub">Recorded for this book</small></span><input type="checkbox" id="optFamily" role="switch" checked></label>
@@ -389,7 +422,7 @@ const E = {
 const BOOK = '"Cormorant Garamond", Georgia, serif', SC = '"Cormorant SC", "Cormorant Garamond", Georgia, serif', SCRIPT = '"Pinyon Script", cursive';
 
 /* ================================================================== who the book is for (set by the character builder) */
-const DEFAULT_CFG = { n: 'Zainab', t: 'Princess', k: 'girl', s: '#dcab86', h: '#2b1a14', y: 'long', a: 'bow', c: '#cc2f3b', g: 'Shamroze', ad: 'man', as: '#d6a07a',
+const DEFAULT_CFG = { n: 'Zainab', nu: 'زینب', t: 'Princess', k: 'girl', s: '#dcab86', h: '#2b1a14', y: 'long', a: 'bow', c: '#cc2f3b', g: 'Shamroze', gu: 'شمروز', mu: '', ad: 'man', as: '#d6a07a',
   m: 'who makes the coldest nights feel warm.\nMay you always find the light,\nand always be the light\nfor someone else.' };
 const OPT = {
   t: [['Princess', 'Princess'], ['Prince', 'Prince'], ['', 'Just the name']],
@@ -405,19 +438,79 @@ const OPT = {
 function sanitize(c) {
   const d = DEFAULT_CFG, o = { ...d }, col = v => /^#[0-9a-f]{6}$/i.test(v || '') ? v : null, pick = (k, v) => OPT[k].some(x => (Array.isArray(x) ? x[0] : x) === v) ? v : d[k];
   const txt = (v, n) => String(v ?? '').replace(/[<>{}]/g, '').replace(/\s+/g, ' ').trim().slice(0, n);
-  o.n = txt(c.n, 18) || d.n; o.g = txt(c.g, 22) || d.g; o.t = pick('t', c.t ?? d.t); o.k = pick('k', c.k); o.y = pick('y', c.y); o.a = pick('a', c.a); o.ad = pick('ad', c.ad);
+  o.n = txt(c.n, 18) || d.n; o.g = txt(c.g, 22) || d.g; o.nu = c.nu === undefined ? d.nu : txt(c.nu, 18); o.gu = c.gu === undefined ? d.gu : txt(c.gu, 22);
+  o.mu = String(c.mu ?? '').replace(/[<>{}]/g, '').split('\n').map(l => l.trim().slice(0, 70)).filter(Boolean).slice(0, 5).join('\n'); o.t = pick('t', c.t ?? d.t); o.k = pick('k', c.k); o.y = pick('y', c.y); o.a = pick('a', c.a); o.ad = pick('ad', c.ad);
   o.s = col(c.s) || d.s; o.h = col(c.h) || d.h; o.c = col(c.c) || d.c; o.as = col(c.as) || d.as;
   o.m = String(c.m ?? d.m).replace(/[<>{}]/g, '').split('\n').map(l => l.trim().slice(0, 60)).filter(Boolean).slice(0, 5).join('\n');
   return o;
 }
 let CFG = { ...DEFAULT_CFG };
 const tn = c => c.t ? c.t + ' ' + c.n : c.n;
+let LANG = 'en';
+const URDU = '"Noto Nastaliq Urdu", "Jameel Noori Nastaleeq", serif';
+const UR_TITLE = { Princess: 'شہزادی', Prince: 'شہزادہ' };
+const UR_DIGITS = n => String(n).replace(/\d/g, d => '۰۱۲۳۴۵۶۷۸۹'[d]);
+const UR_NUM = { I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6, VII: 7, VIII: 8, IX: 9, X: 10 };
+const DEFAULT_UR_MSG = 'جس کی مسکراہٹ سرد ترین راتوں کو بھی گرم کر دیتی ہے۔\nدعا ہے کہ تمہیں ہمیشہ روشنی ملے،\nاور تم ہمیشہ کسی اور کے لیے روشنی بنو۔';
+const urMsg = () => CFG.mu || (CFG.m === DEFAULT_CFG.m ? DEFAULT_UR_MSG : CFG.m);
+const isUrText = str => /[؀-ۿ]/.test(str);
+/* short strings: English → Urdu (titles, hints, buttons, speech bubbles) */
+const DICT = {
+  'Open the book': 'کتاب کھولیں', 'The End': 'ختم شد',
+  'For {TN}': '{TN} کے نام', 'The Coldest Night': 'سب سے ٹھنڈی رات', 'The Lantern Fox': 'لالٹین والی لومڑی', 'The Whispering Pines': 'سرگوشیاں کرتے دیودار',
+  'The Frozen Lake': 'جمی ہوئی جھیل', 'The Wishing Hill': 'دعاؤں والی پہاڑی', 'The First Light': 'پہلی روشنی', 'Home Again': 'گھر واپسی',
+  'Tap the castle': 'محل کو چھوئیں', 'Tap the shutters': 'کھڑکی کے پٹ چھوئیں', 'Tap the little fox': 'ننھی لومڑی کو چھوئیں', 'Tap the trees': 'درختوں کو چھوئیں',
+  'Tap {N} or the fox': '{N} یا لومڑی کو چھوئیں', 'Tap {N} to make a wish': 'دعا کے لیے {N} کو چھوئیں', 'Tap the fox': 'لومڑی کو چھوئیں', 'Tap {N}’s little lantern': '{N} کی ننھی لالٹین کو چھوئیں',
+  'Fireworks again': 'پھر سے آتش بازی', 'Light up the castle': 'محل روشن کریں', 'Close the shutters': 'پٹ بند کریں', 'Open the shutters': 'پٹ کھولیں',
+  'Hug the fox': 'لومڑی کو گلے لگائیں', 'Give him your scarf': 'اپنا مفلر دے دیں', 'Shake the pines': 'درخت ہلائیں', 'Twirl on the ice': 'برف پر گھومیں',
+  'Wish again': 'پھر سے دعا', 'Make a wish': 'دعا مانگیں', 'Follow the fox': 'لومڑی کے پیچھے چلیں', 'Lift the lantern together': 'مل کر لالٹین اٹھائیں',
+  'Tap, tap… tap, tap.': 'ٹَک ٹَک… ٹَک ٹَک۔', '“Brrr… so cold…”': '“بررر… کتنی سردی ہے…”', '“Hello, little ones! We are friends.”': '“ننھے دوستو، ڈرو نہیں! ہم دوست ہیں۔”',
+  '“Hello? Is somebody there?”': '“کوئی ہے؟ کون ہے وہاں؟”', '“I wish… for my friend to shine.”': '“میری دعا ہے… کہ میری دوست پھر سے جگمگا اٹھے۔”',
+  '“Look, {N}, there he is!”': '“دیکھو {N}، وہ رہی!”', '“Oh! That is so much better.”': '“آہا! اب کتنا اچھا لگ رہا ہے۔”', '“Run, little fox, run!”': '“بھاگو ننھی لومڑی، بھاگو!”',
+  '“Spring is coming!”': '“بہار آ رہی ہے!”', '“Sweet dreams, {TN}.”': '“میٹھے خواب، {TN}۔”', '“Sweet dreams, {TorN}.”': '“میٹھے خواب، {TorN}۔”',
+  '“Thank you, Lantern Fox!”': '“شکریہ، لالٹین والی لومڑی!”', '“This story is for you, {TN}.”': '“یہ کہانی تمہارے لیے ہے، {TN}۔”', '“Wheeeee!”': '“واہ! مزہ آ گیا!”',
+  '“Thank you, {TorN}.”': '“شکریہ، {TorN}۔”', '“You are very welcome, little fox.”': '“کوئی بات نہیں، ننھی لومڑی۔”',
+};
+const TR = str => LANG === 'ur' ? (DICT[str] ?? str) : str;
+/* the story in Urdu, written for this book; {g:girl|boy} picks the verb ending */
+const UR_PARAS = [null,
+  ['سال کی سب سے ٹھنڈی رات تھی۔ برف اتنی آہستہ آہستہ گر رہی تھی کہ اُلّو بھی سرگوشیوں میں باتیں کر رہے تھے۔',
+   'چھوٹے سے محل کے سب سے اونچے مینار میں {TN} {g:جاگ رہی تھی|جاگ رہا تھا}۔ ٹَک ٹَک، کوئی کھڑکی کے پٹ پر دستک دے رہا تھا۔ ٹَک ٹَک۔',
+   'وہ بستر سے {g:اُتری|اُترا}، ٹھنڈے پتھریلے فرش پر دبے پاؤں {g:چلی|چلا} اور پٹ کی درز سے باہر جھانکا۔ نیچے خاموش باغ میں کوئی ننھی سی سنہری چیز اندھیرے میں چمک رہی تھی۔'],
+  ['جمے ہوئے فوارے کے پاس ایک لومڑی بیٹھی تھی، بلی سے بھی چھوٹی۔ اس کی دُم لالٹین کی طرح چمکتی تھی، مگر روشنی مدھم تھی اور ٹمٹما رہی تھی۔',
+   '“میں لالٹین والی لومڑی ہوں،” اس نے کانپتے ہوئے کہا۔ “ہر سردی میں بہار کی پہلی روشنی پہاڑیوں کے پار میں ہی لے کر جاتی ہوں۔ مگر شمالی ہوا نے میری دُم کو کاٹ کھایا ہے، اور میری روشنی بجھنے کو ہے۔”',
+   '{N} نے ایک پل بھی نہیں سوچا۔ اپنا سب سے گرم مفلر اُتارا اور لومڑی کے گرد لپیٹ دیا، بالکل کسی پیار بھری جپھی کی طرح۔'],
+  ['“تو پھر میں تمہارے ساتھ {g:چلوں گی|چلوں گا}،” {N} نے کہا، “تاکہ ہوا تمہاری روشنی پھر سے نہ بجھا سکے۔”',
+   'دونوں دبے پاؤں سرگوشیاں کرتے دیوداروں میں داخل ہوئے، جہاں درختوں نے برف کے کوٹ پہن رکھے تھے اور ہر شاخ سانس روکے کھڑی تھی۔ برف کے ڈھیروں سے ننھی ننھی آنکھیں جھانک رہی تھیں۔ کہیں کچھ سرسرایا۔ کہیں کچھ ہلا۔',
+   '“ڈرو مت،” لومڑی نے کہا۔ “یہ تو بس دیکھنا چاہتے ہیں کہ رات کو یہاں چلنے کی ہمت کس میں ہے۔”'],
+  ['جنگل کے اُس پار جھیل تھی، آئینے کی طرح چکنی اور جمی ہوئی۔ برف کے بہت نیچے ننھی مچھلیاں یوں چمک رہی تھیں جیسے آسمان سے گرے ستارے۔',
+   '“گھوم کر جائیں گے تو صبح ہو جائے گی،” لومڑی نے آہ بھری۔',
+   'تو {N} نے دستانے والا ہاتھ آگے بڑھایا، لومڑی نے اپنی دُم اس کی کلائی کے گرد لپیٹی، اور ایک، دو، تین! دونوں برف پر پھسلتے چلے گئے، اور اتنا ہنسے کہ چاند بھی دیکھنے نکل آیا کہ یہ کیسا شور ہے۔'],
+  ['سب سے اونچی پہاڑی کی چوٹی پر ساری دنیا چاندی جیسی اور خاموش تھی۔ لومڑی کی روشنی اب بس ایک ننھی سی چمک رہ گئی تھی۔',
+   '“اسے صرف ایک ہی چیز دوبارہ روشن کر سکتی ہے،” اس نے سرگوشی کی۔ “ایک دعا، جو کوئی نیک دل مانگے۔”',
+   '{N} نے آنکھیں بند کیں۔ نہ ہیرے مانگے، نہ بڑا محل، نہ اپنا ٹٹو۔ بس یہ دعا مانگی کہ اس کی دوست پھر سے جگمگا اٹھے۔',
+   '#اور آسمان ناچنے لگا۔'],
+  ['آسمان پر ہرے اور جامنی رنگ کی لہریں دوڑنے لگیں، اور لومڑی کی دُم طلوعِ آفتاب کی طرح دہک اٹھی۔ وہ پہاڑی سے چھلانگ لگا کر دوڑی، اور جہاں جہاں اس کے پنجے پڑے، برف پگھل کر پھول بنتی گئی۔',
+   '#سفید کلیاں۔ جامنی پھول۔ ناخن سے بھی چھوٹی نیلی گھنٹیاں۔',
+   '“بہار آ رہی ہے!” لومڑی نے پکارا۔ “بہار آ رہی ہے، اور تم {g:لے کر آئی ہو|لے کر آئے ہو}!”'],
+  ['لومڑی اپنی دُم کی گرم ہوا پر {N} کو گھر لے آئی، عین اُس وقت جب آسمان کے کنارے گلابی ہونے لگے تھے۔ مفلر تو چلا گیا تھا، مگر دل کسی بھی مفلر سے زیادہ گرم تھا۔',
+   'صبح کھڑکی کی چوکھٹ پر اسے ایک ننھی سی لالٹین ملی، بلوط کے پھل سے بھی چھوٹی، گلابی اون کے دھاگے سے بندھی ہوئی۔',
+   'اب جب بھی پہلی برف گرتی ہے، وہ یہ لالٹین لے کر باغ میں {g:جاتی|جاتا} ہے، کسی ایسے کا ہاتھ تھامے جو اس سے بہت پیار کرتا ہے، اور اسے دور پہاڑیوں کی طرف اونچا {g:کرتی|کرتا} ہے۔ اور جواب میں ایک ننھی سی سنہری روشنی جھپکتی ہے، ایک، دو، تین بار۔',
+   '#یہ لالٹین والی لومڑی ہے، جو شکریہ کہہ رہی ہے۔'],
+];
 function T(str) {
-  const girl = CFG.k !== 'boy';
-  const map = { N: CFG.n, T: CFG.t, TN: tn(CFG), TorN: CFG.t || CFG.n, G: CFG.g, she: girl ? 'she' : 'he', She: girl ? 'She' : 'He', her: girl ? 'her' : 'his', Her: girl ? 'Her' : 'His', obj: girl ? 'her' : 'him' };
-  return String(str).replace(/\{(\w+)\}/g, (m, k) => map[k] ?? m);
+  const girl = CFG.k !== 'boy', ur = LANG === 'ur';
+  const N = ur ? (CFG.nu || CFG.n) : CFG.n, G = ur ? (CFG.gu || CFG.g) : CFG.g, TT = ur ? (UR_TITLE[CFG.t] || '') : CFG.t;
+  const map = { N, T: TT, TN: TT ? TT + ' ' + N : N, TorN: TT || N, G, she: girl ? 'she' : 'he', She: girl ? 'She' : 'He', her: girl ? 'her' : 'his', Her: girl ? 'Her' : 'His', obj: girl ? 'her' : 'him' };
+  return String(str).replace(/\{g:([^|}]*)\|([^}]*)\}/g, (m, a, b) => girl ? a : b).replace(/\{(\w+)\}/g, (m, k) => map[k] ?? m);
 }
-const P = sp => [...sp.paras].map(T);
+const P = sp => {
+  if (LANG !== 'ur') return [...sp.paras].map(T);
+  if (sp.dedication) return ['تحریر: {G}', '§{TN} کے نام', ...urMsg().split('\n').map(l => '#' + l)].map(T);
+  return UR_PARAS[SP.indexOf(sp)].map(T);
+};
+const numLabel = sp => LANG === 'ur' ? 'باب ' + UR_DIGITS(UR_NUM[sp.numeral] || '') : sp.numeral;
+async function ensureUrduFont() { try { await Promise.race([document.fonts.load('40px "Noto Nastaliq Urdu"', 'پہلی برف کی لومڑی'), document.fonts.load('600 40px "Noto Nastaliq Urdu"', 'شہزادی'), new Promise(r => setTimeout(r, 6000))]); } catch (e) { } }
 const B32 = 'abcdefghijklmnopqrstuvwxyz234567';
 function encCfg(obj) { const bytes = new TextEncoder().encode(JSON.stringify(obj)); let bits = 0, val = 0, out = ''; for (const b of bytes) { val = (val << 8) | b; bits += 8; while (bits >= 5) { out += B32[(val >>> (bits - 5)) & 31]; bits -= 5; } val &= (1 << bits) - 1; } if (bits > 0) out += B32[(val << (5 - bits)) & 31]; return out; }
 function decCfg(str) { let bits = 0, val = 0; const out = []; for (const ch of str) { const i = B32.indexOf(ch); if (i < 0) throw new Error('bad code'); val = (val << 5) | i; bits += 5; if (bits >= 8) { out.push((val >>> (bits - 8)) & 255); bits -= 8; } val &= (1 << bits) - 1; } return JSON.parse(new TextDecoder().decode(new Uint8Array(out))); }
@@ -723,8 +816,9 @@ function ribbon(g, w, h, str, size, col = '#d9436f') {
   cut(g, '#a8305a', g => { poly(g, [0, y0 + .1, .3, y0 + .1, .3, y1 + .05, 0, y1 + .05, .1, mid + .07]); poly(g, [w, y0 + .1, w - .3, y0 + .1, w - .3, y1 + .05, w, y1 + .05, w - .1, mid + .07]); });
   cut(g, col, g => { g.moveTo(.2, y0); g.quadraticCurveTo(w / 2, y0 - .07, w - .2, y0); g.lineTo(w - .2, y1); g.quadraticCurveTo(w / 2, y1 - .07, .2, y1); g.closePath(); });
   stroke(g, N.gold, .012, g => { g.moveTo(.25, y0 + .04); g.quadraticCurveTo(w / 2, y0 - .03, w - .25, y0 + .04); g.moveTo(.25, y1 - .04); g.quadraticCurveTo(w / 2, y1 - .11, w - .25, y1 - .04); }, false);
-  { const u = g._u; g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.font = `${size * u}px ${SCRIPT}`; const wpx = g.measureText(str).width, mx = (w - .8) * u; g.restore(); if (wpx > mx) size *= mx / wpx; }
-  text(g, str, w / 2, mid - .01, size, { font: SCRIPT, color: '#fff6e0', glow: 'rgba(255,220,150,.6)' });
+  if (isUrText(str)) size *= .72;
+  { const u = g._u; g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.font = `${size * u}px ${isUrText(str) ? URDU : SCRIPT}`; const wpx = g.measureText(str).width, mx = (w - .8) * u; g.restore(); if (wpx > mx) size *= mx / wpx; }
+  text(g, str, w / 2, mid - .01, size, { font: isUrText(str) ? URDU : SCRIPT, color: '#fff6e0', glow: 'rgba(255,220,150,.6)' });
 }
 
 function bearArt(g) {
@@ -1259,7 +1353,7 @@ const SP = [
         { id: 'arm', x: .548, y: .97, w: .3, h: .7, px: .5, py: .05, dz: .026, tap: true, draw(g, w, h) { zArmArt(g, w, h); } },
       ] },
       { z: 1.35, rise: 'drop', x: 2, w: 3.9, h: .9, draw(g, w, h) { drift(g, 0, 1.4, h, .35); drift(g, 2.5, 3.9, h, .35); pine(g, 3.6, h, .7); },
-        props: [{ id: 'end', x: -1.05, y: .3, w: 1.6, h: .48, dz: .02, draw(g, w, h) { ribbon(g, w, h, 'The End', .28, '#5a6fd0'); } }] },
+        props: [{ id: 'end', x: -1.05, y: .3, w: 1.6, h: .48, dz: .02, draw(g, w, h) { ribbon(g, w, h, TR('The End'), .28, '#5a6fd0'); } }] },
     ],
     setup(o, sp) {
       o.foxLight = glow('#ffc867', .4, .6); o.foxLight.position.set(-1.0, 1.15, .05); sp.hinges[1].add(o.foxLight);
@@ -1307,9 +1401,44 @@ function gutter(g, w, h, side) { const x0 = side === 'L' ? w : 0, x1 = side === 
 function pxFlake(g, x, y, r, col, lw) { g.save(); g._u = 1; flake(g, x, y, r, col, lw); g.restore(); }
 function fitText(g, str, x, y, size, font, maxW, weight = '') { g.font = `${weight} ${size}px ${font}`; const w = g.measureText(str).width; if (w > maxW) g.font = `${weight} ${Math.floor(size * maxW / w)}px ${font}`; g.fillText(str, x, y); }
 function msgLines(g, msg, maxW) { const out = []; msg.split('\n').forEach(par => { let line = ''; par.split(' ').forEach(wd => { const t = line ? line + ' ' + wd : wd; if (g.measureText(t).width > maxW && line) { out.push(line); line = wd; } else line = t; }); out.push(line); }); return out; }
+function layoutUr(g, paras, x0, x1, y0, size) {
+  const lh = Math.round(size * 2.15), font = `${size}px ${URDU}`, lines = []; let y = y0;
+  g.font = font; g.direction = 'rtl';
+  paras.forEach(raw => {
+    const verse = raw.startsWith('#'), words = (verse ? raw.slice(1) : raw).split(' ').filter(Boolean); let cur = '';
+    words.forEach(w => { const t = cur ? cur + ' ' + w : w; if (cur && g.measureText(t).width > x1 - x0) { lines.push({ s: cur, y, verse }); y += lh; cur = w; } else cur = t; });
+    if (cur) { lines.push({ s: cur, y, verse }); y += lh; } y += lh * .12;
+  });
+  return { end: y, draw() { g.font = font; g.direction = 'rtl'; g.fillStyle = '#22253a'; lines.forEach(l => { g.textAlign = l.verse ? 'center' : 'right'; g.fillText(l.s, l.verse ? (x0 + x1) / 2 : x1, l.y); }); } };
+}
+function leftPageUr(sp, g, w, h, x0, x1, cx, blue, ink) {
+  g.direction = 'rtl'; g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+  g.fillStyle = '#7d7f98'; g.font = `28px ${URDU}`; g.fillText('پہلی برف کی لومڑی', cx, 98);
+  g.fillRect(x0, 128, x1 - x0, 1.5);
+  [[x0 + 18, 158], [x1 - 18, 158]].forEach(([x, y]) => pxFlake(g, x, y, 14, 'rgba(45,63,122,.35)', 2));
+  if (sp.dedication) {
+    g.fillStyle = '#7d7f98'; g.font = `32px ${URDU}`; g.fillText('تحریر', cx, 262);
+    g.fillStyle = blue; fitText(g, T('{G}'), cx, 384, 76, URDU, 760, '600');
+    g.strokeStyle = 'rgba(45,63,122,.5)'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(cx - 170, 462); g.lineTo(cx - 30, 462); g.moveTo(cx + 30, 462); g.lineTo(cx + 170, 462); g.stroke(); pxFlake(g, cx, 462, 16, blue, 2.2);
+    if (CFG.t) { g.save(); g.translate(cx, 560); g.fillStyle = '#c9963a'; g.beginPath(); poly(g, [-46, 26, -40, -22, -18, 6, 0, -34, 18, 6, 40, -22, 46, 26]); g.fill(); g.fillStyle = '#e2456f'; g.beginPath(); g.arc(0, 4, 7, 0, 7); g.fill(); g.restore(); }
+    const gold = g.createLinearGradient(0, 620, 0, 720); gold.addColorStop(0, '#b77a2a'); gold.addColorStop(1, '#8a5a1a');
+    g.fillStyle = gold; fitText(g, T('{TN}'), cx, 700, 84, URDU, 780, '600');
+    g.fillStyle = '#7d7f98'; g.font = `32px ${URDU}`; g.fillText('کے نام', cx, 790);
+    g.fillStyle = ink; g.font = `34px ${URDU}`; msgLines(g, urMsg(), 760).slice(0, 5).forEach((t, i) => g.fillText(t, cx, 905 + i * 72));
+  } else {
+    g.fillStyle = blue; g.font = `30px ${URDU}`; g.fillText(numLabel(sp), cx, 215);
+    g.fillStyle = ink; fitText(g, T(TR(sp.title)), cx, 300, 56, URDU, 760, '600');
+    g.strokeStyle = 'rgba(45,63,122,.55)'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(cx - 110, 352); g.lineTo(cx - 24, 352); g.moveTo(cx + 24, 352); g.lineTo(cx + 110, 352); g.stroke(); pxFlake(g, cx, 352, 12, blue, 2);
+    let size = 38, out; for (let t = 0; t < 14; t++) { out = layoutUr(g, P(sp), x0, x1, 450, size); if (out.end < (sp.end ? 1150 : 1245)) break; size -= 1.5; }
+    out.draw();
+    if (sp.end) { g.direction = 'rtl'; g.textAlign = 'center'; g.fillStyle = blue; g.font = `600 40px ${URDU}`; g.fillText('ختم شد', cx, 1222); }
+  }
+  g.direction = 'rtl'; g.textAlign = 'center'; g.fillStyle = '#7d7f98'; g.font = `24px ${URDU}`; g.fillText(UR_DIGITS(sp.page), cx, 1318);
+}
 function leftPageCanvas(sp) {
   const c = mk(PX[0], PX[1]), g = c.getContext('2d'), w = 1024, h = 1382; g.scale(PS, PS); paperBase(g, w, h);
   const blue = '#2d3f7a', ink = '#22253a', x0 = 110, x1 = w - 128, cx = (x0 + x1) / 2;
+  if (LANG === 'ur') { leftPageUr(sp, g, w, h, x0, x1, cx, blue, ink); gutter(g, w, h, 'L'); return c; }
   g.textAlign = 'center'; g.textBaseline = 'alphabetic';
   g.fillStyle = '#7d7f98'; g.font = `24px ${SC}`; g.letterSpacing = '5px'; g.fillText('THE FOX OF THE FIRST SNOW', cx, 92); g.letterSpacing = '0px';
   g.fillRect(x0, 110, x1 - x0, 1.5);
@@ -1370,15 +1499,17 @@ function coverCanvas() {
   [[130, 120], [900, 120], [130, h - 120], [900, h - 120], [150, 700], [880, 700], [260, 470], [790, 930], [800, 470], [250, 930]].forEach(([x, y], i) => pxFlake(g, x, y, 10 + (i % 3) * 6, 'rgba(220,230,255,.45)', 1.6));
   const cx = (72 + w - 52) / 2; g.textAlign = 'center'; g.textBaseline = 'alphabetic';
   g.shadowColor = 'rgba(0,0,0,.5)'; g.shadowOffsetY = 2; g.shadowBlur = 3; g.fillStyle = silver;
-  g.font = `italic 500 96px ${BOOK}`; g.fillText('The Fox of', cx, 240); g.fillText('the First Snow', cx, 340);
+  if (LANG === 'ur') { g.direction = 'rtl'; g.font = `600 84px ${URDU}`; g.fillText('پہلی برف', cx, 235); g.fillText('کی لومڑی', cx, 365); g.direction = 'ltr'; }
+  else { g.font = `italic 500 96px ${BOOK}`; g.fillText('The Fox of', cx, 240); g.fillText('the First Snow', cx, 340); }
   g.lineWidth = 4; g.strokeStyle = silver; g.beginPath(); g.arc(cx, 700, 220, 0, Math.PI * 2); g.stroke(); g.lineWidth = 1.5; g.beginPath(); g.arc(cx, 700, 202, 0, Math.PI * 2); g.stroke();
   g.shadowColor = 'transparent';
   const t = mk(440, 440), tg = t.getContext('2d'); tg._u = 150; tg.setTransform(150, 0, 0, 150, 0, 0); tg.save(); tg.translate(.38, 1.92); tailArt(tg); tg.restore(); fox(tg, 1.65, 2.62, 2.0);
   tg.setTransform(1, 0, 0, 1, 0, 0); tg.globalCompositeOperation = 'source-in'; tg.fillStyle = gold; tg.fillRect(0, 0, 440, 440);
   const gl = g.createRadialGradient(cx - 90, 760, 10, cx - 90, 760, 160); gl.addColorStop(0, 'rgba(255,200,103,.45)'); gl.addColorStop(1, 'rgba(255,200,103,0)'); g.fillStyle = gl; g.fillRect(cx - 260, 600, 340, 320);
   g.shadowColor = 'rgba(0,0,0,.5)'; g.shadowOffsetY = 2; g.shadowBlur = 3; g.drawImage(t, cx - 230, 700 - 250);
-  g.fillStyle = silver; g.letterSpacing = '8px'; fitText(g, ('WRITTEN BY ' + CFG.g).toUpperCase(), cx, 1050, 36, SC, 780, '500'); g.letterSpacing = '0px';
-  g.fillStyle = gold; fitText(g, 'for ' + tn(CFG), cx, 1160, 64, SCRIPT, 780);
+  if (LANG === 'ur') { g.direction = 'rtl'; g.fillStyle = silver; fitText(g, T('تحریر: {G}'), cx, 1060, 40, URDU, 780); g.fillStyle = gold; fitText(g, T('{TN} کے نام'), cx, 1175, 54, URDU, 780, '600'); g.direction = 'ltr'; }
+  else { g.fillStyle = silver; g.letterSpacing = '8px'; fitText(g, ('WRITTEN BY ' + CFG.g).toUpperCase(), cx, 1050, 36, SC, 780, '500'); g.letterSpacing = '0px';
+  g.fillStyle = gold; fitText(g, 'for ' + tn(CFG), cx, 1160, 64, SCRIPT, 780); }
   return c;
 }
 function endpaperCanvas() { const c = mk(512, 512), g = c.getContext('2d'); g.fillStyle = '#1f2d63'; g.fillRect(0, 0, 512, 512); for (let y = 0; y < 512; y += 64) for (let x = 0; x < 512; x += 64) pxFlake(g, x + ((y / 64) % 2 ? 32 : 0) + 16, y + 32, 11, 'rgba(210,222,255,.35)', 1.6); return c; }
@@ -1660,9 +1791,10 @@ const dotsEl = $('dots'); for (let i = -1; i < SP.length; i++) dotsEl.appendChil
 function ui() {
   const sp = SP[S.cur], closed = S.cur < 0, lock = S.busy || S.acting;
   $('prev').disabled = closed || lock; $('next').disabled = S.cur >= SP.length - 1 || lock; $('act').disabled = lock; $('read').disabled = closed;
-  $('act').textContent = closed ? 'Open the book' : sp.button(sp.o);
-  $('capTitle').textContent = closed ? 'The Fox of the First Snow' : T(sp.title);
-  $('capSub').textContent = closed ? `Written by ${CFG.g} · for ${tn(CFG)}` : T(sp.hint);
+  $('act').textContent = T(TR(closed ? 'Open the book' : sp.button(sp.o)));
+  $('capTitle').textContent = closed ? (LANG === 'ur' ? 'پہلی برف کی لومڑی' : 'The Fox of the First Snow') : T(TR(sp.title));
+  $('capSub').textContent = closed ? `Written by ${CFG.g} · for ${tn(CFG)}` : T(TR(sp.hint));
+  $('capTitle').lang = $('capSub').lang = $('act').lang = LANG; $('act').style.fontFamily = LANG === 'ur' ? 'var(--font-urdu)' : '';
   $('where').textContent = closed ? 'The cover' : sp.dedication ? 'Dedication' : `${sp.numeral} · Page ${sp.page}`;
   [...dotsEl.children].forEach((d, i) => d.classList.toggle('on', i === S.cur + 1));
   storyUI();
@@ -1676,7 +1808,8 @@ sfx.on = prefs.sound;
 let tfShow = false;
 function syncSettings() {
   document.querySelectorAll('.lay').forEach(b => b.setAttribute('aria-checked', String(b.dataset.layout === prefs.layout)));
-  document.querySelectorAll('.seg button').forEach(b => b.setAttribute('aria-checked', String(b.dataset.size === prefs.size)));
+  document.querySelectorAll('.seg button[data-size]').forEach(b => b.setAttribute('aria-checked', String(b.dataset.size === prefs.size)));
+  document.querySelectorAll('#langSeg button').forEach(b => b.setAttribute('aria-checked', String(b.dataset.lang === LANG)));
   $('optAloud').checked = prefs.aloud; $('optSound').checked = prefs.sound; $('aloudRow').hidden = !TTS; $('setNote').hidden = portrait();
   const nv = voiceCount(); $('famRow').hidden = !nv; $('optFamily').checked = prefs.family; $('famSub').textContent = `${nv} of ${SP.length} pages recorded by ${CFG.g}`; $('setVoice').hidden = !VOICE.canRecord;
   $('story').dataset.layout = prefs.layout; $('story').dataset.size = prefs.size; $('speakBtn').hidden = !TTS;
@@ -1684,7 +1817,25 @@ function syncSettings() {
 function openSettings() { syncSettings(); $('settings').hidden = false; hideSwipeHint(); $('setDone').focus(); }
 function closeSettings() { $('settings').hidden = true; prefs.chosen = true; savePrefs(); if (S.cur >= 0 && !S.swiped) showSwipeHint(); }
 document.querySelectorAll('.lay').forEach(b => b.onclick = () => { prefs.layout = b.dataset.layout; tfShow = prefs.layout === 'textfirst'; savePrefs(); syncSettings(); storyFor = null; storyUI(); });
-document.querySelectorAll('.seg button').forEach(b => b.onclick = () => { prefs.size = b.dataset.size; savePrefs(); syncSettings(); });
+document.querySelectorAll('.seg button[data-size]').forEach(b => b.onclick = () => { prefs.size = b.dataset.size; savePrefs(); syncSettings(); });
+document.querySelectorAll('#langSeg button').forEach(b => b.onclick = () => setLang(b.dataset.lang));
+$('langBtn').onclick = () => setLang(LANG === 'ur' ? 'en' : 'ur');
+LANG = prefs.lang === 'ur' ? 'ur' : 'en';
+function langUI() { const b = $('langBtn'); b.textContent = LANG === 'ur' ? 'English' : 'اردو'; b.lang = LANG === 'ur' ? 'en' : 'ur'; b.setAttribute('aria-label', LANG === 'ur' ? 'Read in English' : 'Read in Urdu'); document.documentElement.lang = LANG === 'ur' ? 'ur' : 'en'; }
+async function setLang(l) {
+  if (l === LANG || S.busy || S.acting) return;
+  if (l === 'ur') { toast('اردو تیار ہو رہی ہے…', 2200); await ensureUrduFont(); }
+  LANG = prefs.lang = l; savePrefs(); relang(); syncSettings(); langUI();
+}
+function relang() {
+  stopSpeak(); hideBubble(); unpeel(); const cur = S.cur;
+  SP.forEach((sp, i) => { if (sp.built) unbuild(i); }); storyFor = null;
+  const old = coverMatG.map; coverMatG.map = pageTex(coverCanvas()); coverMatG.needsUpdate = true; old?.dispose();
+  const i0 = Math.max(cur, 0); ensure(i0); const sp = SP[i0];
+  rightPage.material.map = sp.rT; leftPage.material.map = sp.lT; leafFront.material.map = sp.rT; leafBack.material.map = sp.lTm;
+  if (cur >= 0) { sp.root.visible = true; sp.reset?.(sp.o); sp.hinges.forEach(h => h.userData.popped = true); setRise(sp, 1, true); lampFor(sp); }
+  ui(); tidy(i0); if (cur >= 0) setTimeout(() => readPage(false), 400);
+}
 $('optAloud').onchange = e => { prefs.aloud = e.target.checked; savePrefs(); if (prefs.aloud) readPage(true); else stopSpeak(); };
 $('optFamily').onchange = e => { prefs.family = e.target.checked; savePrefs(); if (!prefs.family) stopFamily(); };
 $('setVoice').onclick = () => { $('settings').hidden = true; openStudio(); };
@@ -1703,9 +1854,10 @@ function replayRise() {
 /* ---- read aloud with the device's own voice */
 const TTS = 'speechSynthesis' in window ? window.speechSynthesis : null;
 let ttsRun = 0;
-function pickVoice() { const vs = TTS.getVoices(); return vs.find(v => /en[-_]GB/i.test(v.lang) && /female|libby|sonia|serena|kate|martha|hazel/i.test(v.name)) || vs.find(v => /en[-_]GB/i.test(v.lang)) || vs.find(v => /^en/i.test(v.lang)) || null; }
+function pickVoice() { const vs = TTS.getVoices(); if (LANG === 'ur') return vs.find(v => /^ur/i.test(v.lang)) || null; return vs.find(v => /en[-_]GB/i.test(v.lang) && /female|libby|sonia|serena|kate|martha|hazel/i.test(v.name)) || vs.find(v => /en[-_]GB/i.test(v.lang)) || vs.find(v => /^en/i.test(v.lang)) || null; }
 function stopSpeak() { stopFamily(); ttsRun++; try { TTS?.cancel(); } catch (e) { } document.querySelectorAll('.sBody p.speaking').forEach(p => p.classList.remove('speaking')); $('speakBtn').setAttribute('aria-pressed', 'false'); }
 function speakPage() {
+  if (TTS && LANG === 'ur' && !pickVoice()) { toast('This phone has no Urdu reading voice. You can record your own: Aa › Read it in your own voice.'); return; }
   if (!TTS || S.cur < 0) return; stopSpeak(); storyFill();
   const run = ++ttsRun, items = [...$('sBody').children]; let i = 0; $('speakBtn').setAttribute('aria-pressed', 'true');
   const next = () => {
@@ -1713,7 +1865,7 @@ function speakPage() {
     if (i >= items.length) { items.forEach(p => p.classList.remove('speaking')); $('speakBtn').setAttribute('aria-pressed', 'false'); return; }
     items.forEach((p, k) => p.classList.toggle('speaking', k === i)); try { items[i].scrollIntoView({ block: 'nearest', behavior: REDUCE ? 'auto' : 'smooth' }); } catch (e) { }
     const u = new SpeechSynthesisUtterance(items[i].textContent.replace(/[“”]/g, '"').replace(/~/g, '')), v = pickVoice();
-    if (v) u.voice = v; u.lang = v?.lang || 'en-GB'; u.rate = .9; u.pitch = 1.05; u.onend = () => { i++; next(); }; u.onerror = () => { i = items.length; next(); };
+    if (v) u.voice = v; u.lang = v?.lang || (LANG === 'ur' ? 'ur-PK' : 'en-GB'); u.rate = .9; u.pitch = 1.05; u.onend = () => { i++; next(); }; u.onerror = () => { i = items.length; next(); };
     try { TTS.speak(u); } catch (e) { i = items.length; next(); }
   };
   next();
@@ -1730,8 +1882,9 @@ const VO = new Audio(); VO.preload = 'auto';
 function fnv(str) { let h = 0x811c9dc5; for (const ch of str) { h ^= ch.codePointAt(0); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(36); }
 const bookId = () => 'b' + fnv((CFG.n + '|' + CFG.g).toLowerCase());
 const voicePages = () => VOX.books[bookId()]?.pages || {};
-const voiceCount = () => Object.keys(voicePages()).length;
-function voiceUrl(i) { const e = voicePages()[i]; if (!e) return null; return localUrl[bookId() + ':' + i] || (e.path ? e.path : null); }
+const vk = i => (LANG === 'ur' ? 'u' : '') + i;
+const voiceCount = () => Object.keys(voicePages()).filter(k => (LANG === 'ur') === k.startsWith('u')).length;
+function voiceUrl(i) { const e = voicePages()[vk(i)]; if (!e) return null; return localUrl[bookId() + ':' + vk(i)] || (e.path ? e.path : null); }
 const idb = (() => {
   let dbp; const open = () => dbp ??= new Promise((res, rej) => { const r = indexedDB.open('fox-voices', 1); r.onupgradeneeded = () => r.result.createObjectStore('v'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
   const tx = async (mode, fn) => { const d = await open(); return new Promise((res, rej) => { const t = d.transaction('v', mode), q = fn(t.objectStore('v')); t.oncomplete = () => res(q?.result); t.onerror = () => rej(t.error); }); };
@@ -1783,12 +1936,12 @@ function renderStudio() {
     ? '<b>Tip:</b> find a quiet room, open the words, tap <b>Record</b> and read slowly. Smile while you read; children can hear it.'
     : '<b>How to record:</b> open the words for a page, record yourself reading them with your phone’s voice recorder or a WhatsApp voice note, then tap <b>Upload recording</b> and pick that file. MP3, M4A, WAV and WebM work best.';
   $('stRows').replaceChildren(...SP.map((sp, i) => {
-    const e = pages[i], row = document.createElement('div'); row.className = 'vRow' + (e ? ' recorded' : ''); row.dataset.i = i;
+    const e = pages[vk(i)], row = document.createElement('div'); row.className = 'vRow' + (e ? ' recorded' : ''); row.dataset.i = i;
     const head = document.createElement('div'); head.className = 'vHead';
-    const b = document.createElement('b'); b.textContent = T(pageLabel(sp, i)); const st = document.createElement('span'); st.className = 'vStat'; st.textContent = e ? `Recorded ${fmtDur(e.dur)}`.trim() : 'Not recorded';
+    const b = document.createElement('b'); b.textContent = sp.dedication ? (LANG === 'ur' ? 'انتساب' : 'Dedication') : `${numLabel(sp)} · ${T(TR(sp.title))}`; if (LANG === 'ur') b.style.fontFamily = 'var(--font-urdu)'; const st = document.createElement('span'); st.className = 'vStat'; st.textContent = e ? `Recorded ${fmtDur(e.dur)}`.trim() : 'Not recorded';
     head.append(b, st);
     const det = document.createElement('details'); const sum = document.createElement('summary'); sum.textContent = 'Show the words to read';
-    const words = document.createElement('div'); words.className = 'vWords'; P(sp).forEach(t => { const pp = document.createElement('p'); pp.textContent = t.replace(/^[§#]/, ''); words.append(pp); });
+    const words = document.createElement('div'); words.className = 'vWords'; if (LANG === 'ur') { words.dir = 'rtl'; words.lang = 'ur'; } P(sp).forEach(t => { const pp = document.createElement('p'); pp.textContent = t.replace(/^[§#]/, ''); words.append(pp); });
     if (sp.end) { const pp = document.createElement('p'); pp.textContent = 'The End.'; words.append(pp); }
     det.append(sum, words); if (rec?.i === i) det.open = true;
     const btns = document.createElement('div'); btns.className = 'vBtns';
@@ -1844,38 +1997,40 @@ $('voFile').onchange = async e => {
   }
 };
 async function storeVoice(i, blob, ext, dur) {
+  const k = vk(i);
   const bid = bookId();
   if (VOICE.mode === 'artifact') {
     if (!VOICE.art) throw new Error('save');
     rowMsg(i, 'Saving to the book…');
-    const book = VOX.books[bid] ??= { name: CFG.n, pages: {} }, old = book.pages[i]?.path;
-    const path = `voices/${bid}/p${i}-${Date.now().toString(36)}.${ext}`;
-    book.name = CFG.n; book.pages[i] = { path, dur: Math.round(dur * 10) / 10 };
+    const book = VOX.books[bid] ??= { name: CFG.n, pages: {} }, old = book.pages[k]?.path;
+    const path = `voices/${bid}/p${k}-${Date.now().toString(36)}.${ext}`;
+    book.name = CFG.n; book.pages[k] = { path, dur: Math.round(dur * 10) / 10 };
     const files = { [path]: new Blob([blob]), 'voices/index.json': { content: JSON.stringify(VOX), contentType: 'application/json' } };
     if (old && old !== path) files[old] = null;
     try { await VOICE.art.publish(files); }
     catch (err) {
-      if (old) book.pages[i].path = old; else delete book.pages[i];
+      if (old) book.pages[k].path = old; else delete book.pages[k];
       const c = err?.code; stBusy = null; renderStudio();
       rowMsg(i, c === 'capability_disabled' ? 'Saving voices is off while the book is shared publicly. Turn public sharing off, record, then share again.' : c === 'not_writer' || c === 'not_granted' ? 'Only the book’s owner or editors can add voices.' : c === 'too_large' ? 'That recording is too big to save.' : c === 'conflict' ? 'The book was just updated somewhere else. It will reload; please try again.' : 'Could not save. Please try again in a moment.');
       return;
     }
-    localUrl[bid + ':' + i] = URL.createObjectURL(blob);
+    localUrl[bid + ':' + k] = URL.createObjectURL(blob);
   } else {
-    await idb.put(bid + ':' + i, { blob, dur, ext });
-    (VOX.books[bid] ??= { pages: {} }).pages[i] = { dur, local: true };
-    localUrl[bid + ':' + i] = URL.createObjectURL(blob);
+    await idb.put(bid + ':' + k, { blob, dur, ext });
+    (VOX.books[bid] ??= { pages: {} }).pages[k] = { dur, local: true };
+    localUrl[bid + ':' + k] = URL.createObjectURL(blob);
   }
   stBusy = null; renderStudio(); rowMsg(i, 'Saved. This voice now plays when the page opens.'); syncSettings();
 }
 async function removeVoice(i) {
-  const bid = bookId(), book = VOX.books[bid], e = book?.pages[i]; if (!e) return;
+  const k = vk(i);
+  const bid = bookId(), book = VOX.books[bid], e = book?.pages[k]; if (!e) return;
   stBusy = i; renderStudio(); stopFamily();
   try {
-    if (VOICE.mode === 'artifact') { delete book.pages[i]; await VOICE.art.publish({ ...(e.path ? { [e.path]: null } : {}), 'voices/index.json': { content: JSON.stringify(VOX), contentType: 'application/json' } }); }
-    else await idb.del(bid + ':' + i);
-    delete book.pages[i]; delete localUrl[bid + ':' + i];
-  } catch (err) { book.pages[i] = e; rowMsg(i, 'Could not remove it. Please try again.'); }
+    if (VOICE.mode === 'artifact') { delete book.pages[k]; await VOICE.art.publish({ ...(e.path ? { [e.path]: null } : {}), 'voices/index.json': { content: JSON.stringify(VOX), contentType: 'application/json' } }); }
+    else await idb.del(bid + ':' + k);
+    delete book.pages[k]; delete localUrl[bid + ':' + k];
+  } catch (err) { book.pages[k] = e; rowMsg(i, 'Could not remove it. Please try again.'); }
   stBusy = null; renderStudio(); syncSettings();
 }
 /* recording inside the page, where the browser allows the microphone (e.g. when the book is hosted on your own website) */
@@ -1925,6 +2080,7 @@ function renderBuilder() {
   [...$('bDots').children].forEach((d, i) => d.classList.toggle('on', i === bStep)); $('bCount').textContent = `${bStep + 1} of 4`;
   document.querySelectorAll('#builder [data-key]').forEach(box => [...box.children].forEach(b => b.setAttribute('aria-checked', String(b.dataset.v === draft[box.dataset.key]))));
   const showAs = draft.ad !== 'none'; $('bAsLbl').hidden = !showAs; document.querySelector('#builder .sws[data-key="as"]').hidden = !showAs;
+  if (document.activeElement !== $('bNameUr')) $('bNameUr').value = draft.nu || ''; if (document.activeElement !== $('bGiverUr')) $('bGiverUr').value = draft.gu || ''; if (document.activeElement !== $('bMsgUr')) $('bMsgUr').value = draft.mu || '';
   if (document.activeElement !== $('bName')) $('bName').value = draft.n; if (document.activeElement !== $('bGiver')) $('bGiver').value = draft.g; if (document.activeElement !== $('bMsg')) $('bMsg').value = draft.m;
   $('bNameTag').textContent = draft.n.trim() ? tn({ ...draft, n: draft.n.trim() }) : ' ';
   $('bBack').textContent = bStep ? 'Back' : 'Cancel'; $('bNext').textContent = bStep === 3 ? 'Create the book' : 'Next';
@@ -1934,9 +2090,12 @@ function renderBuilder() {
 }
 function openBuilder() { draft = { ...CFG }; bStep = 0; $('settings').hidden = true; hideSwipeHint(); stopSpeak(); $('builder').hidden = false; renderBuilder(); setTimeout(() => { drawPreview(); $('bName').focus(); }, 60); }
 function closeBuilder() { $('builder').hidden = true; }
-$('bName').oninput = e => { draft.n = e.target.value; renderBuilder(); };
-$('bGiver').oninput = e => { draft.g = e.target.value; renderBuilder(); };
+$('bName').oninput = e => { draft.n = e.target.value; if (!draft._nuT) draft.nu = ''; renderBuilder(); };
+$('bGiver').oninput = e => { draft.g = e.target.value; if (!draft._guT) draft.gu = ''; renderBuilder(); };
 $('bMsg').oninput = e => { draft.m = e.target.value; };
+$('bNameUr').oninput = e => { draft.nu = e.target.value; draft._nuT = true; };
+$('bGiverUr').oninput = e => { draft.gu = e.target.value; draft._guT = true; };
+$('bMsgUr').oninput = e => { draft.mu = e.target.value; };
 $('bBack').onclick = () => { if (bStep) { bStep--; renderBuilder(); } else closeBuilder(); };
 $('bNext').onclick = () => { if (bStep < 3) { bStep++; renderBuilder(); $('builder').querySelector('.bBody').scrollTop = 0; } else createBook(); };
 $('bClose').onclick = closeBuilder; $('mkBtn').onclick = openBuilder; $('setMake').onclick = openBuilder;
@@ -1962,7 +2121,7 @@ async function createBook() {
 }
 function openReader() {
   const sp = SP[S.cur]; if (!sp) return;
-  $('rCh').textContent = sp.dedication ? 'DEDICATION' : sp.numeral; $('rTitle').textContent = sp.dedication ? 'The Fox of the First Snow' : sp.title;
+  document.querySelector('#reader .sheet').lang = LANG; $('rCh').textContent = sp.dedication ? (LANG === 'ur' ? 'انتساب' : 'DEDICATION') : numLabel(sp); $('rTitle').textContent = sp.dedication ? (LANG === 'ur' ? 'پہلی برف کی لومڑی' : 'The Fox of the First Snow') : T(TR(sp.title));
   $('rBody').replaceChildren(...P(sp).map(t => { const p = document.createElement('p'); if (t.startsWith('§')) { p.className = 'script'; t = t.slice(1); } else if (t.startsWith('#')) { p.className = 'center'; t = t.slice(1); } else if (sp.dedication) p.className = 'center'; p.textContent = t; return p; }));
   $('reader').hidden = false; $('rClose').focus();
 }
@@ -1974,13 +2133,13 @@ let storyFor = null;
 function storyFill() {
   if (S.cur < 0 || storyFor === S.cur) return; storyFor = S.cur; const sp = SP[S.cur];
   if (prefs.layout === 'textfirst') tfShow = true;
-  $('sNum').textContent = sp.dedication ? '' : sp.numeral; $('sTitle').textContent = sp.dedication ? 'A Dedication' : sp.title;
+  $('story').lang = LANG; $('sNum').textContent = sp.dedication ? '' : numLabel(sp); $('sTitle').textContent = sp.dedication ? (LANG === 'ur' ? 'انتساب' : 'A Dedication') : T(TR(sp.title));
   $('sBody').replaceChildren(...P(sp).map(t => { const p = document.createElement('p');
     if (sp.dedication) { p.className = t.startsWith('§') ? 'script' : 'by'; t = t.replace(/^[§#]/, ''); }
     else if (t.startsWith('#')) { p.className = 'center'; t = t.slice(1); }
     p.textContent = t; return p; }));
-  if (sp.end) { const p = document.createElement('p'); p.className = 'center'; p.textContent = '~ The End ~'; $('sBody').append(p); }
-  $('seePic').textContent = sp.dedication ? 'Open the first scene' : 'See the picture';
+  if (sp.end) { const p = document.createElement('p'); p.className = 'center'; p.textContent = LANG === 'ur' ? '~ ختم شد ~' : '~ The End ~'; $('sBody').append(p); }
+  $('seePic').textContent = LANG === 'ur' ? (sp.dedication ? 'پہلا منظر کھولیں' : 'تصویر دیکھیں') : (sp.dedication ? 'Open the first scene' : 'See the picture');
   $('storyCard').scrollTop = 0; $('sBody').scrollTop = 0;
 }
 function storyUI() {
@@ -2001,7 +2160,7 @@ addEventListener('keydown', e => {
   else if ((e.key === ' ' || e.key === 'Enter') && document.activeElement === canvas) { e.preventDefault(); sfx.unlock(); act(); }
 });
 const bubbleEl = $('bubble'); let bub = null;
-function bubble(txt, rec, y, ms) { bubbleEl.textContent = T(txt); bub = { rec, y, until: performance.now() + ms }; bubbleEl.classList.add('show'); }
+function bubble(txt, rec, y, ms) { bubbleEl.textContent = T(TR(txt)); bubbleEl.classList.toggle('ur', LANG === 'ur'); bubbleEl.lang = LANG; bub = { rec, y, until: performance.now() + ms }; bubbleEl.classList.add('show'); }
 function hideBubble() { bub = null; bubbleEl.classList.remove('show'); }
 const tmpV = new THREE.Vector3();
 function placeBubble(now) {
@@ -2101,6 +2260,7 @@ function frame(now) {
 /* ---- boot */
 async function boot() {
   try { await Promise.race([Promise.all([`500 40px "Cormorant Garamond"`, `italic 500 40px "Cormorant Garamond"`, `600 40px "Cormorant Garamond"`, `500 40px "Cormorant SC"`, `40px "Pinyon Script"`].map(f => document.fonts.load(f))), new Promise(r => setTimeout(r, 3500))]); } catch (e) { }
+  if (LANG === 'ur') await ensureUrduFont(); langUI();
   ensure(0); buildBook(); applyCover(); applyMood(moodNow); syncSettings(); buildChips(); namesUI(); resize(); ui(); initVoices();
   requestAnimationFrame(t => { last = t; frame(t); });
   $('loader').classList.add('gone'); setTimeout(() => { $('hint').style.opacity = 0; }, 7000);
