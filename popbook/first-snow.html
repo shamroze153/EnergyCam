@@ -163,6 +163,7 @@ const E = {
   inOut: t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2,
   out: t => 1 - Math.pow(1 - t, 3), in: t => t * t, lin: t => t,
   back: t => { const c1 = 1.9, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); },
+  bounce: t => { const n = 7.5625, d = 2.75; if (t < 1 / d) return n * t * t; if (t < 2 / d) return n * (t -= 1.5 / d) * t + .75; if (t < 2.5 / d) return n * (t -= 2.25 / d) * t + .9375; return n * (t -= 2.625 / d) * t + .984375; },
 };
 const BOOK = '"Cormorant Garamond", Georgia, serif', SC = '"Cormorant SC", "Cormorant Garamond", Georgia, serif', SCRIPT = '"Pinyon Script", cursive';
 
@@ -471,6 +472,17 @@ function windowBox(g, x0, x1, y) {
   [['#ef7aa6', 0], ['#b98ae6', 1], ['#ffd27a', 2]].forEach(([c, k]) => dots(g, c, Array.from({ length: 4 }, (_, i) => [x0 + .1 + i * (x1 - x0 - .2) / 3 + k * .03, y - .06 - (k % 2) * .03]), .035));
 }
 
+function raysArt(g, w, h) { cut(g, 'rgba(255,241,196,.9)', g => { for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2, b = a + .09; g.moveTo(w / 2, h / 2); g.lineTo(w / 2 + Math.cos(a) * w * .48, h / 2 + Math.sin(a) * h * .48); g.lineTo(w / 2 + Math.cos(b) * w * .48, h / 2 + Math.sin(b) * h * .48); g.closePath(); } }, { shadow: false }); }
+function birdArt(g, w, h) { stroke(g, '#4a4060', .018, g => { g.moveTo(.02, .03); g.quadraticCurveTo(w * .3, -.02, w / 2, h * .7); g.quadraticCurveTo(w * .7, -.02, w - .02, .03); }, false); }
+function butterflyArt(g, w, h, c) { cut(g, c, g => { ell(g, w * .3, h * .38, w * .2, h * .3, -.4); ell(g, w * .7, h * .38, w * .2, h * .3, .4); ell(g, w * .34, h * .72, w * .13, h * .2, .3); ell(g, w * .66, h * .72, w * .13, h * .2, -.3); }, { blur: 3, oy: 1 }); stroke(g, '#3a2a40', .012, g => { g.moveTo(w / 2, h * .2); g.lineTo(w / 2, h * .9); }, false); dots(g, 'rgba(255,255,255,.7)', [[w * .28, h * .35], [w * .72, h * .35]], .015); }
+function skyLanternArt(g, w, h) { cut(g, '#ffb04a', g => poly(g, [.03, .02, w - .03, .02, w - .01, h - .01, .01, h - .01]), { sc: 'rgba(255,170,70,1)', blur: 12, oy: 0 }); cut(g, '#ffe2a0', g => rr(g, .045, h - .075, w - .09, .05, .02), { shadow: false }); }
+function zArmArt(g, w, h) {
+  cut(g, '#cc2f3b', g => rr(g, w / 2 - .05, .2, .1, h - .2, .05)); cut(g, '#fff4e6', g => circ(g, w / 2, .22, .06));
+  cut(g, '#2a2d44', g => { poly(g, [w / 2 - .05, .1, w / 2 + .05, .1, w / 2, .05]); });
+  cut(g, '#ffd27a', g => rr(g, w / 2 - .035, .1, .07, .1, .015), { sc: 'rgba(255,200,100,1)', blur: 12, oy: 0 });
+  stroke(g, '#ef7aa6', .01, g => { g.moveTo(w / 2, .05); g.lineTo(w / 2, .02); }, false);
+}
+
 /* ================================================================== 3D helpers (glows, particles, aurora) */
 const DOT = (() => { const c = mk(64, 64), g = c.getContext('2d'), r = g.createRadialGradient(32, 32, 0, 32, 32, 32); r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(.35, 'rgba(255,255,255,.7)'); r.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = r; g.fillRect(0, 0, 64, 64); const t = new THREE.CanvasTexture(c); return t; })();
 function glow(color, size, opacity = 1) {
@@ -498,6 +510,8 @@ function aurora(w, h, phase, c1, c2) {
 const SP = [
   {
     dedication: true, numeral: '', title: 'For Princess Zainab', page: 'iii', mood: 'night', snow: .7,
+    shot: { pitch: .72, zoom: .95, ty: 1.15, sway: .06 },
+    async intro(o) { await tween(1.4, p => { if (!o._lit) o.win.mesh.material.opacity = lerp(.25, .6, p); }); },
     hint: 'Tap the castle', button: o => o._lit ? 'Fireworks again' : 'Light up the castle',
     paras: ['Written by Shamroze', '§For Princess Zainab', '#who makes the coldest nights feel warm.', '#May you always find the light, and always be the light for someone else.'],
     ground(g) {
@@ -509,11 +523,11 @@ const SP = [
     },
     layers: [
       { z: -2.3, x: 2, w: 3.8, h: 2.9, draw(g, w, h) { nightSky(g, w, h, { seed: 5, moon: [3.05, .62, .26], paint: g => { mountains(g, w, h - .7, '#7d8cc4', N.snow, [[-.2, h - .6], [.5, h - 1.5], [1.0, h - 1.0], [1.6, h - 1.7], [2.3, h - 1.05], [3.0, h - 1.6], [3.6, h - .9], [4, h - 1.2]]); cut(g, N.snow2, g => { ell(g, .8, h, 1.4, .55); ell(g, 3.1, h, 1.5, .6); }); } }); } },
-      { z: -1.3, x: 2, w: 3.8, h: 2.75, draw(g, w, h) { cut(g, N.snow, g => ell(g, 1.9, h + .1, 1.7, .4)); castle(g, 1.9, h - .2, .86); },
+      { z: -1.3, rise: 'grow', x: 2, w: 3.8, h: 2.75, draw(g, w, h) { cut(g, N.snow, g => ell(g, 1.9, h + .1, 1.7, .4)); castle(g, 1.9, h - .2, .86); },
         props: [{ id: 'win', x: 0, y: 0, w: 3.8, h: 2.75, basic: true, opacity: .25, dz: .006, draw(g, w, h) { castleWindows(g, 1.9, h - .2, .86, '#ffd27a', 'rgba(255,200,100,1)'); } }] },
-      { z: -0.25, x: 2, w: 3.8, h: 1.7, draw(g, w, h) { pine(g, .42, h, .95); pine(g, 3.38, h, 1.0); },
+      { z: -0.25, rise: 'grow', x: 2, w: 3.8, h: 1.7, draw(g, w, h) { pine(g, .42, h, .95); pine(g, 3.38, h, 1.0); },
         props: [{ id: 'banner', x: 0, y: .78, w: 2.5, h: .56, px: .5, py: 0, dz: .02, draw(g, w, h) { ribbon(g, w, h, 'Princess Zainab', .3); } }] },
-      { z: .55, x: .95, w: 1.0, h: 1.9, draw: null, props: [{ id: 'sham', x: 0, y: 0, w: 1.0, h: 1.85, tap: true, draw(g, w, h) { shamroze(g, .45, h, .82); } }] },
+      { z: .55, rise: 'slide', dir: -1, x: .95, w: 1.0, h: 1.9, draw: null, props: [{ id: 'sham', x: 0, y: 0, w: 1.0, h: 1.85, tap: true, draw(g, w, h) { shamroze(g, .45, h, .82); } }] },
       { z: 1.4, x: 2, w: 3.9, h: .7, draw(g, w, h) { drift(g, 0, 1.3, h, .35); drift(g, 2.6, 3.9, h, .4); lampPost(g, 3.35, h - .05, .38); } },
     ],
     setup(o, sp) {
@@ -523,7 +537,12 @@ const SP = [
     },
     lamp: o => ({ obj: o.win.grp, at: [0, 1.6, .3], i: 2.5 }),
     reset(o) { o._lit = false; o.banner.grp.scale.x = .06; o.win.mesh.material.opacity = .25; },
-    tick(o, t) { o.shGlow.material.opacity = .75 + .12 * Math.sin(t * 4) * Math.sin(t * 1.7); },
+    tick(o, t, dt) {
+      o.shGlow.material.opacity = .75 + .12 * Math.sin(t * 4) * Math.sin(t * 1.7);
+      if (Math.random() < dt * 7) spark(wpos(o.win.grp, (Math.random() - .5) * 2.2, .6 + Math.random() * 2.2, .2), '#fff1c4', (Math.random() - .5) * .05, .12, 0, 1.8);
+      if (Math.random() < dt * 6) spark(wpos(o.sham.grp, .33 + (Math.random() - .5) * .08, .72, .05), '#ffb347', (Math.random() - .5) * .08, .3, 0, 1.3);
+      if (o._lit && Math.random() < dt * .5) burstAt(o.win.grp, [(Math.random() - .5) * 2, 2.5 + Math.random() * .4, .2], ['#ffd27a', '#ff8fb8', '#9fe3ff'][Math.floor(Math.random() * 3)], 40, 1.2, .08, 1.5);
+    },
     async action(o, id) {
       if (id === 'sham') { bubble('“This story is for you, Princess Zainab.”', o.sham, 1.85, 2600); sfx.chime([659, 784, 988]); await tween(.6, p => { o.shGlow.scale.setScalar(.6 + .5 * Math.sin(p * Math.PI)); }); return; }
       if (!o._lit) {
@@ -539,6 +558,7 @@ const SP = [
   },
   {
     numeral: 'I', title: 'The Coldest Night', page: 1, mood: 'night', snow: 1,
+    shot: { pitch: .5, zoom: .86, ty: 1.4, sway: .04 },
     hint: 'Tap the shutters', button: o => o._open ? 'Close the shutters' : 'Open the shutters',
     paras: [
       'On the coldest night of the year, the snow fell so softly that even the owls spoke in whispers.',
@@ -551,16 +571,16 @@ const SP = [
       dots(g, N.snow3, [[1.0, 4.9], [1.15, 4.75], [1.0, 4.6], [1.18, 4.45], [1.05, 4.3]], .035);
     },
     layers: [
-      { z: -2.3, x: 2, w: 3.8, h: 2.9, draw(g, w, h) { nightSky(g, w, h, { seed: 9, moon: [.75, .7, .24], stars: 70 }); } },
+      { z: -2.3, x: 2, w: 3.8, h: 2.9, draw(g, w, h) { nightSky(g, w, h, { seed: 9, moon: [.75, .7, .24], stars: 70 }); }, props: [0, 1].map(i => ({ id: 'cl' + i, x: 0, y: 2.05 + i * .35, w: .9, h: .38, basic: true, opacity: .7, dz: .015, draw(g) { cloud2(g, .14, .24, 1.05); } })) },
       { z: -1.45, x: 2.0, w: 1.3, h: 1.95, draw(g, w, h) { roomArt(g, w, h); } },
       { z: -1.33, x: 2.0, w: 1.2, h: 2.1, draw: null, props: [{ id: 'zainab', x: 0, y: 0, w: 1.1, h: 2.0, draw(g, w, h) { princess(g, w / 2, h, 1.18, { noScarf: true }); } }] },
-      { z: -1.2, x: 2, w: 3.8, h: 2.55, draw(g, w, h) { towerWall(g, w, h, { cx: 1.9, ww: .9, yb: .95, straight: .62 }, { top: .32 }); cut(g, '#2a2d44', g => { rr(g, 2.62, h - 1.62, .05, .2, .02); }); },
+      { z: -1.2, rise: 'grow', x: 2, w: 3.8, h: 2.55, draw(g, w, h) { towerWall(g, w, h, { cx: 1.9, ww: .9, yb: .95, straight: .62 }, { top: .32 }); cut(g, '#2a2d44', g => { rr(g, 2.62, h - 1.62, .05, .2, .02); }); },
         props: [
           { id: 'shL', x: -.45, y: .95, w: .45, h: 1.1, px: 0, py: 0, dz: .02, tap: true, draw(g, w, h) { shutterArt(g, w, h, false); } },
           { id: 'shR', x: .45, y: .95, w: .45, h: 1.1, px: 1, py: 0, dz: .02, tap: true, draw(g, w, h) { shutterArt(g, w, h, true); } },
           { id: 'lan', x: .82, y: 1.05, w: .22, h: .32, dz: .02, draw(g, w, h) { cut(g, '#2a2d44', g => poly(g, [.03, h, .19, h, .17, .06, .05, .06])); cut(g, '#ffd27a', g => rr(g, .06, .1, .1, h - .14, .02), { sc: 'rgba(255,200,100,1)', blur: 16, oy: 0 }); cut(g, '#2a2d44', g => poly(g, [0, .08, .22, .08, .11, 0])); } },
         ] },
-      { z: 0.15, x: 2, w: 3.8, h: 1.4, draw(g, w, h) { drift(g, .1, 1.5, h, .4); snowman(g, 3.05, h - .02, .95); pine(g, .45, h, .7); } },
+      { z: 0.15, rise: 'drop', x: 2, w: 3.8, h: 1.4, draw(g, w, h) { drift(g, .1, 1.5, h, .4); snowman(g, 3.05, h - .02, .95); pine(g, .45, h, .7); } },
       { z: 1.35, x: 2, w: 3.9, h: .65, draw(g, w, h) { drift(g, 0, 1.6, h, .42); drift(g, 2.5, 3.9, h, .35); },
         props: [{ id: 'peek', x: -1.1, y: .05, w: .5, h: .28, px: .5, py: 0, dz: -.012, glow: '#ffb347', draw(g) { g.scale(.62, .62); tailArt(g); } }] },
     ],
@@ -568,10 +588,19 @@ const SP = [
       o.peekGlow = glow('#ffb347', .7, .5); o.peekGlow.position.set(0, .12, .02); o.peek.grp.add(o.peekGlow);
       o.lanGlow = glow('#ffc867', .6, .8); o.lanGlow.position.set(0, .18, .03); o.lan.grp.add(o.lanGlow);
       o.winGlow = glow('#ffb46b', 1.4, 0); o.winGlow.position.set(0, 1.5, .05); sp.hinges[3].add(o.winGlow);
+      o.cl0.mesh.material.color.set('#c3cbe8'); o.cl1.mesh.material.color.set('#c3cbe8');
     },
     lamp: o => ({ obj: o.lan.grp, at: [0, .2, .3], i: 1.6 }),
+    async intro(o) { bubble('Tap, tap… tap, tap.', o.shL, 1.15, 1800); sfx.knock(); await wait(400); sfx.knock(); },
     reset(o) { o._open = false; o.shL.grp.rotation.y = 0; o.shR.grp.rotation.y = 0; o.winGlow.material.opacity = 0; },
-    tick(o, t) { o.peekGlow.material.opacity = .35 + .25 * Math.sin(t * 3) + .1 * Math.sin(t * 11); o.peek.grp.rotation.z = Math.sin(t * 2) * .08; },
+    tick(o, t, dt) {
+      o.peekGlow.material.opacity = .35 + .25 * Math.sin(t * 3) + .1 * Math.sin(t * 11); o.peek.grp.rotation.z = Math.sin(t * 2) * .08;
+      const gust = Math.pow(Math.max(0, Math.sin(t * .6)), 4); wind = gust * 1.5;
+      if (!o._open) { o.shL.grp.rotation.y = -Math.abs(Math.sin(t * 23)) * .07 * gust; o.shR.grp.rotation.y = Math.abs(Math.sin(t * 19)) * .07 * gust; }
+      o.lan.grp.rotation.z = Math.sin(t * 1.8) * .05 + gust * .12 * Math.sin(t * 7);
+      for (let i = 0; i < 2; i++) { const c = o['cl' + i], ph = (t * .035 + i * .5) % 1; c.grp.position.x = lerp(-1.45, 1.45, ph); c.mesh.material.opacity = .7 * Math.sin(ph * Math.PI); }
+      if (o._open && Math.random() < dt * 9) spark(wpos(o.zainab.grp, (Math.random() - .5) * .8, 1.1 + Math.random() * .7, .35), '#ffcf8a', (Math.random() - .5) * .25, .18, .12, 1.5);
+    },
     async action(o) {
       const a = o._open ? 1 : 0, b = 1 - a; sfx.creak();
       await tween(1.1, p => { const q = lerp(a, b, p); o.shL.grp.rotation.y = -2.0 * q; o.shR.grp.rotation.y = 2.0 * q; o.winGlow.material.opacity = .45 * q; L.target = 1.6 + 4 * q; }, b ? E.back : E.inOut);
@@ -581,6 +610,8 @@ const SP = [
   },
   {
     numeral: 'II', title: 'The Lantern Fox', page: 3, mood: 'night', snow: .6,
+    shot: { pitch: .6, zoom: .8, ty: .85, sway: .07 },
+    async intro(o) { bubble('“Brrr… so cold…”', o.fox, 1.2, 1800); },
     hint: 'Tap the little fox', button: o => o._warm ? 'Hug the fox' : 'Give him your scarf',
     paras: [
       'Beside the frozen fountain sat a fox no bigger than a cat. His tail glowed like a lantern, but the light was thin and flickering.',
@@ -595,7 +626,7 @@ const SP = [
     },
     layers: [
       { z: -2.3, x: 2, w: 3.8, h: 2.9, draw(g, w, h) { nightSky(g, w, h, { seed: 21, moon: [3.2, .55, .2], paint: g => { castle(g, 3.0, h - .55, .55); cut(g, '#2e5a52', g => { for (let x = 0; x < 1.9; x += .26) circ(g, x, h - .62, .2); rr(g, -.1, h - .65, 1.95, .7, 0); for (let x = 2.65; x < 4; x += .26) circ(g, x, h - .48, .18); rr(g, 2.55, h - .5, 1.5, .55, 0); }); cut(g, N.snow, g => { for (let x = 0; x < 1.9; x += .26) ell(g, x, h - .78, .15, .05); for (let x = 2.65; x < 4; x += .26) ell(g, x, h - .63, .13, .045); }, { shadow: false }); } }); } },
-      { z: -1.0, x: 2, w: 3.8, h: 1.95, draw(g, w, h) {
+      { z: -1.0, rise: 'grow', x: 2, w: 3.8, h: 1.95, draw(g, w, h) {
         const cx = 2.4;
         cut(g, N.stone, g => { rr(g, cx - .8, h - .45, 1.6, .45, .05); rr(g, cx - .09, h - 1.2, .18, .8, .03); g.moveTo(cx - .45, h - 1.2); g.quadraticCurveTo(cx, h - .95, cx + .45, h - 1.2); g.closePath(); rr(g, cx - .05, h - 1.55, .1, .4, .03); circ(g, cx, h - 1.6, .08); });
         cut(g, N.ice, g => { rr(g, cx - .78, h - .5, 1.56, .1, .05); ell(g, cx, h - 1.22, .45, .05); }, { blur: 3, oy: 1 });
@@ -603,12 +634,12 @@ const SP = [
         cut(g, N.snow, g => { ell(g, cx, h - 1.67, .09, .04); ell(g, cx, h - 1.24, .46, .04); }, { blur: 2, oy: 1 });
         drift(g, 0, 1.2, h, .5);
       } },
-      { z: -0.05, x: 2.55, w: 1.3, h: 1.4, draw: null, props: [
+      { z: -0.05, rise: 'spin', x: 2.55, w: 1.3, h: 1.4, draw: null, props: [
         { id: 'tail', x: -.2, y: .14, w: .8, h: .45, px: .97, py: .27, dz: .004, glow: '#ffb347', draw(g) { tailArt(g); } },
         { id: 'fox', x: .05, y: 0, w: .9, h: 1.3, tap: true, dz: .012, draw(g, w, h) { fox(g, .4, h, 1.05); } },
         { id: 'fscarf', x: .2, y: .66, w: .4, h: .32, py: 1, dz: .02, draw(g, w, h) { scarfArt(g, w, h); } },
       ] },
-      { z: 0.6, x: 1.05, w: 1.1, h: 1.9, draw: null, props: [
+      { z: 0.6, rise: 'slide', dir: -1, x: 1.05, w: 1.1, h: 1.9, draw: null, props: [
         { id: 'zainab', x: 0, y: 0, w: 1.1, h: 1.85, tap: true, draw(g, w, h) { princess(g, w / 2, h, 1.05, { noScarf: true }); } },
         { id: 'pscarf', x: .0, y: 1.27, w: .4, h: .32, py: 1, dz: .02, draw(g, w, h) { scarfArt(g, w, h); } },
       ] },
@@ -620,11 +651,14 @@ const SP = [
     },
     lamp: o => ({ obj: o.tail.grp, at: [-.3, .2, .3], i: 1.2 }),
     reset(o) { o._warm = false; o.fscarf.grp.scale.setScalar(.001); o.pscarf.grp.scale.setScalar(1); o.tail.mesh.material.emissiveIntensity = .15; },
-    tick(o, t) {
+    tick(o, t, dt) {
       const base = o._warm ? .85 : .3, fl = o._warm ? .05 : .2;
       o.tailGlow.material.opacity = base + fl * Math.sin(t * 9) * Math.sin(t * 3.3);
       o.tail.mesh.material.emissiveIntensity = (o._warm ? .7 : .15) + fl * .5 * Math.sin(t * 7);
-      o.tail.grp.rotation.z = Math.sin(t * 1.6) * .06;
+      o.tail.grp.rotation.z = Math.sin(t * 1.6) * .06 + (o._warm ? Math.sin(t * 5) * .06 : 0);
+      o.fox.grp.scale.y = 1 + .018 * Math.sin(t * 2.4) + (o._warm ? 0 : .01 * Math.sin(t * 31));
+      if (Math.random() < dt * (o._warm ? 18 : 4)) spark(wpos(o.tail.grp, -.38 + (Math.random() - .5) * .35, .12, .05), o._warm ? '#ffc35a' : '#ff9a3a', (Math.random() - .5) * .15, .25 + Math.random() * .25, 0, 1.7);
+      if (Math.random() < dt * 4) spark(wpos(o.$h[1], .5 + (Math.random() - .5) * 1.5, .5 + Math.random() * 1.1, .1), '#dff4ff', 0, .04, 0, 1.0);
     },
     async action(o, id) {
       if (!o._warm) {
@@ -645,6 +679,7 @@ const SP = [
   },
   {
     numeral: 'III', title: 'The Whispering Pines', page: 5, mood: 'night', snow: .8,
+    shot: { pitch: .55, zoom: .86, ty: 1.15, sway: .14 },
     hint: 'Tap the trees', button: () => 'Shake the pines',
     paras: [
       '“Then I shall come with you,” said Zainab, “so the wind cannot blow you out again.”',
@@ -658,7 +693,7 @@ const SP = [
     },
     layers: [
       { z: -2.3, x: 2, w: 3.8, h: 2.9, draw(g, w, h) { nightSky(g, w, h, { seed: 31, moon: [2.0, .55, .22], paint: g => { for (let i = 0; i < 9; i++) pine(g, .1 + i * .46, h - .3, .9 + (i % 3) * .2, '#2b3a6b', false); for (let i = 0; i < 8; i++) pine(g, .3 + i * .48, h, .8 + (i % 2) * .25, '#22305a', true); } }); } },
-      { z: -1.6, x: 2, w: 3.8, h: .3, draw(g, w, h) { drift(g, 0, 3.8, h, .2); }, props: [
+      { z: -1.6, rise: 'grow', x: 2, w: 3.8, h: .3, draw(g, w, h) { drift(g, 0, 3.8, h, .2); }, props: [
         { id: 'deer', x: -.62, y: 0, w: .6, h: 1.3, dz: -.02, draw(g, w, h) { deer(g, .3, h, 1.0); } },
         { id: 'p0', x: -1.25, y: 0, w: 1.3, h: 2.25, tap: true, draw(g, w, h) { pine(g, w / 2, h, 1.5); } },
         { id: 'p1', x: .05, y: 0, w: 1.4, h: 2.45, tap: true, draw(g, w, h) { pine(g, w / 2, h, 1.65); } },
@@ -666,7 +701,7 @@ const SP = [
         { id: 'owl', x: .62, y: 1.25, w: .4, h: .6, dz: .03, tap: true, draw(g, w, h) { cut(g, '#5a3a2a', g => rr(g, 0, h - .05, w, .05, .02)); owl(g, w / 2, h - .04, 1); } },
         { id: 'owlE', x: .62, y: 1.25 + .3, w: .3, h: .16, dz: .035, basic: true, draw(g, w, h) { owlEyes(g, w, h); } },
       ] },
-      { z: -0.6, x: 1.9, w: 2.4, h: 1.9, draw: null, props: [
+      { z: -0.6, rise: 'slide', dir: -1, x: 1.9, w: 2.4, h: 1.9, draw: null, props: [
         { id: 'zainab', x: -.45, y: 0, w: 1.0, h: 1.75, tap: true, draw(g, w, h) { princess(g, w / 2, h, 1.0, { noScarf: true }); } },
         { id: 'tail', x: .28, y: .1, w: .8, h: .45, px: .97, py: .27, dz: .004, glow: '#ffb347', draw(g) { tailArt(g); } },
         { id: 'fox', x: .55, y: 0, w: .8, h: 1.1, dz: .012, tap: true, draw(g, w, h) { fox(g, .36, h, .88); } },
@@ -677,17 +712,27 @@ const SP = [
         { id: 'b1', x: .1, y: -.35, w: .4, h: .55, dz: -.015, draw(g, w, h) { bunny(g, w / 2, h, .9); } },
         { id: 'b2', x: 1.35, y: -.35, w: .4, h: .55, dz: -.015, draw(g, w, h) { bunny(g, w / 2, h, 1.05); } },
       ] },
-      { z: 1.45, x: 2, w: 3.9, h: .4, draw(g, w, h) { drift(g, 0, 3.9, h, .25); }, props: [
+      { z: 1.45, rise: 'drop', x: 2, w: 3.9, h: .4, draw(g, w, h) { drift(g, 0, 3.9, h, .25); }, props: [
         { id: 'f0', x: -1.6, y: 0, w: .9, h: 1.45, tap: true, draw(g, w, h) { pine(g, w / 2, h, 1.0); } },
         { id: 'f1', x: 1.62, y: 0, w: .95, h: 1.55, tap: true, draw(g, w, h) { pine(g, w / 2, h, 1.08); } },
       ] },
     ],
-    setup(o) { o.tailGlow = glow('#ffb347', 1.0, .8); o.tailGlow.position.set(-.38, .1, .06); o.tail.grp.add(o.tailGlow); o.tail.mesh.material.emissiveIntensity = .7; },
+    setup(o) {
+      o.tailGlow = glow('#ffb347', 1.0, .8); o.tailGlow.position.set(-.38, .1, .06); o.tail.grp.add(o.tailGlow); o.tail.mesh.material.emissiveIntensity = .7;
+      o.eyes = [[-.72, .3], [.62, .22], [-.12, .34], [1.62, .3], [1.0, .5]].map(([x, y]) => { const e = new THREE.Group(); e.position.set(x, y, .05); [-.045, .045].forEach(dx => { const s = glow('#ffe58a', .13, 0); s.position.x = dx; e.add(s); }); o.$h[1].add(e); return e; });
+    },
     lamp: o => ({ obj: o.tail.grp, at: [-.3, .2, .3], i: 3 }),
-    reset(o) { ['b0', 'b1', 'b2'].forEach(b => o[b].grp.position.y = -.35); o.deer.grp.position.x = -.62; o.owlE.mesh.material.opacity = 0; },
-    tick(o, t) { o.tailGlow.material.opacity = .8 + .08 * Math.sin(t * 5); o.tail.grp.rotation.z = Math.sin(t * 1.8) * .07; },
+    reset(o) { o._up = false; o._owl = false; o._shaking = false; ['b0', 'b1', 'b2'].forEach(b => o[b].grp.position.y = -.35); o.deer.grp.position.x = -.62; o.owlE.mesh.material.opacity = 0; },
+    tick(o, t, dt) {
+      o.tailGlow.material.opacity = .8 + .08 * Math.sin(t * 5); o.tail.grp.rotation.z = Math.sin(t * 1.8) * .07;
+      if (!o._shaking) ['p0', 'p1', 'p2', 'f0', 'f1'].forEach((k, i) => { o[k].grp.rotation.z = Math.sin(t * .9 + i * 1.3) * .03; });
+      o.eyes.forEach((e, i) => { const v = Math.sin(t * .8 + i * 2.1), op = v > .5 ? Math.min(1, (v - .5) * 6) : 0, blink = Math.sin(t * 7 + i * 3) > .92 ? 0 : 1; e.children.forEach(s => s.material.opacity = op * blink); });
+      if (o._up) ['b0', 'b1', 'b2'].forEach((b, i) => { o[b].grp.position.y = .02 + Math.abs(Math.sin(t * 3 + i * 2)) * .09; });
+      if (o._owl) o.owlE.mesh.material.opacity = Math.sin(t * 2.3) > .95 ? 0 : 1;
+      if (Math.random() < dt * 1.3) { const k = ['p0', 'p1', 'p2', 'f0', 'f1'][Math.floor(Math.random() * 5)]; for (let j = 0; j < 8; j++) spark(wpos(o[k].grp, (Math.random() - .5) * .7, o[k].P.h * (.45 + Math.random() * .4), .06), '#ffffff', (Math.random() - .5) * .12, -.45, 0, 1.2); }
+    },
     async action(o, id) {
-      sfx.rustle();
+      sfx.rustle(); o._shaking = true; setTimeout(() => { o._shaking = false; }, 1700);
       const trees = ['p0', 'p1', 'p2', 'f0', 'f1'];
       trees.forEach((tr, i) => {
         const r = o[tr]; setTimeout(() => {
@@ -699,62 +744,16 @@ const SP = [
       sfx.chime([660, 784, 990]);
       ['b0', 'b1', 'b2'].forEach((b, i) => setTimeout(() => tween(.5, p => { o[b].grp.position.y = lerp(-.35, .02, p); }, E.back), i * 160));
       tween(.9, p => { o.deer.grp.position.x = lerp(-.62, -.35, p); }, E.out);
-      tween(.4, p => { o.owlE.mesh.material.opacity = p; });
+      tween(.4, p => { o.owlE.mesh.material.opacity = p; }).then(() => { o._owl = true; }); setTimeout(() => { o._up = true; }, 900);
       await wait(500);
       bubble('“Hello, little ones! We are friends.”', o.zainab, 1.75, 2400);
       await wait(1500);
     },
   },
   {
-    numeral: 'IV', title: 'The Sleeping Bear', page: 7, mood: 'night', snow: .3,
-    hint: 'Tap the bear (gently!)', button: o => o._past ? 'Tiptoe back' : 'Tiptoe past',
-    paras: [
-      'Past the pines, the path wound by a deep blue cave. From inside came a sound like faraway thunder. Rrrr-hmmm. Rrrr-hmmm.',
-      '“That’s only Old Bramble the bear,” whispered the fox. “He sleeps all winter long. If we wake him now, he’ll be grumpy until June.”',
-      'So Zainab held her breath, the fox tucked his glowing tail close, and they tiptoed past, one careful step at a time.',
-    ],
-    ground(g) {
-      g.fillStyle = N.snow; g.fillRect(0, 0, W, D);
-      cut(g, '#cfd6ea', g => ell(g, 2.4, 1.6, 1.2, .45), { shadow: false });
-      dots(g, N.snow3, [[.8, 3.4], [1.3, 3.3], [1.8, 3.35], [2.3, 3.3], [2.8, 3.35], [3.3, 3.3]], .03);
-      cut(g, '#8b93ad', g => { ell(g, .4, 4.7, .16, .09); ell(g, 3.6, 4.5, .14, .08); ell(g, 3.3, 1.2, .12, .07); });
-    },
-    layers: [
-      { z: -2.3, x: 2, w: 3.8, h: 2.9, draw(g, w, h) { nightSky(g, w, h, { seed: 61, moon: [.7, .55, .2], paint: g => mountains(g, w, h - .6, '#6f7db8', N.snow, [[-.2, h - .7], [.7, h - 1.6], [1.5, h - 1.0], [2.4, h - 1.8], [3.2, h - 1.1], [4, h - 1.5]]) }); } },
-      { z: -1.75, x: 2.4, w: 1.9, h: 1.45, draw(g, w, h) { const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#1d2340'); gr.addColorStop(1, '#2d3558'); cut(g, gr, g => rr(g, 0, 0, w, h, 0), { shadow: false }); cut(g, '#3a4366', g => { ell(g, .3, h, .4, .2); ell(g, 1.6, h, .4, .25); }, { shadow: false }); } },
-      { z: -1.45, x: 2.4, w: 1.9, h: 1.0, draw: null, props: [{ id: 'bear', x: 0, y: 0, w: 1.7, h: .85, tap: true, draw(g) { bearArt(g); } }] },
-      { z: -1.05, x: 2, w: 3.8, h: 2.35, draw(g, w, h) { caveFace(g, w, h, 2.3, 1.55, 1.3); pine(g, .4, h, .7); },
-        props: [0, 1, 2].map(i => ({ id: 'z' + i, x: .95 + i * .08, y: 1.0, w: .26, h: .26, py: .5, dz: .03, basic: true, draw(g, w, h) { zArt(g, w, h); } })) },
-      { z: .25, x: 2, w: 3.8, h: .1, draw: null, props: [
-        { id: 'zainab', x: -1.45, y: 0, w: 1.0, h: 1.65, tap: true, draw(g, w, h) { princess(g, w / 2, h, .9, { noScarf: true }); } },
-        { id: 'tail', x: -1.2, y: .1, w: .8, h: .45, px: .97, py: .27, dz: .004, glow: '#ffb347', draw(g) { g.scale(.75, .75); tailArt(g); } },
-        { id: 'fox', x: -.85, y: 0, w: .7, h: .95, dz: .012, tap: true, draw(g, w, h) { fox(g, .3, h, .75); } },
-      ] },
-      { z: 1.45, x: 2, w: 3.9, h: .7, draw(g, w, h) { drift(g, 0, 1.4, h, .35); drift(g, 2.6, 3.9, h, .4); cut(g, '#7d86a6', g => { ell(g, 1.6, h - .05, .2, .12); ell(g, 2.4, h - .04, .15, .09); }); } },
-    ],
-    setup(o) { o.tailGlow = glow('#ffb347', .8, .5); o.tailGlow.position.set(-.3, .08, .06); o.tail.grp.add(o.tailGlow); o.tail.mesh.material.emissiveIntensity = .35; },
-    lamp: o => ({ obj: o.tail.grp, at: [-.3, .2, .3], i: 1.5 }),
-    reset(o) { o._past = false; o._snort = 0; ['zainab', 'tail', 'fox'].forEach(k => o[k].grp.position.x = o[k].P.x); },
-    tick(o, t) {
-      o.bear.grp.scale.set(1 + .015 * Math.sin(t * 1.4), 1 + .04 * Math.sin(t * 1.4) + (o._snort || 0), 1);
-      for (let i = 0; i < 3; i++) { const z = o['z' + i], p = (t * .3 + i / 3) % 1; z.grp.position.set(z.P.x + Math.sin(p * 5) * .08 + p * .25, 1.0 + p * .8, .03); z.grp.scale.setScalar(.6 + p * .9); z.mesh.material.opacity = Math.sin(p * Math.PI) * (o._snort ? 1 : .8); }
-      o.tailGlow.material.opacity = .45 + .1 * Math.sin(t * 6);
-    },
-    async action(o, id) {
-      if (id === 'bear') { bubble('“Mmm… honey… zzz…”', o.bear, .9, 2000); sfx.snore(); await tween(.8, p => { o._snort = Math.sin(p * Math.PI) * .12; }); o._snort = 0; return; }
-      const dir = o._past ? -1 : 1, keys = ['zainab', 'tail', 'fox'], start = keys.map(k => o[k].grp.position.x);
-      for (let st = 0; st < 5; st++) {
-        if (st === 2) { sfx.snore(); bubble('“Shhh…!”', o.fox, .95, 1300); await tween(.8, p => { o._snort = Math.sin(p * Math.PI) * .12; }); o._snort = 0; await wait(500); }
-        sfx.step();
-        await tween(.45, p => keys.forEach((k, i) => { o[k].grp.position.x = start[i] + dir * .52 * (st + E.inOut(p)); o[k].grp.position.y = (k === 'tail' ? .1 : 0) + Math.sin(p * Math.PI) * .05; }));
-      }
-      o._past = !o._past;
-      if (o._past) bubble('“We did it,” whispered Zainab.', o.zainab, 1.65, 2000);
-    },
-  },
-  {
-    numeral: 'V', title: 'The Frozen Lake', page: 9, mood: 'night', snow: .35,
-    hint: 'Tap Zainab', button: o => o._across ? 'Glide back again' : 'Glide across the ice',
+    numeral: 'IV', title: 'The Frozen Lake', page: 7, mood: 'night', snow: .35,
+    shot: { pitch: 1.0, zoom: .9, ty: .8, sway: .05 },
+    hint: 'Tap Zainab or the fox', button: () => 'Twirl on the ice',
     paras: [
       'Beyond the woods lay the lake, frozen as smooth as a mirror. Deep beneath the ice, tiny fish glowed like dropped stars.',
       '“Going all the way round would take until morning,” sighed the fox.',
@@ -770,9 +769,9 @@ const SP = [
     },
     layers: [
       { z: -2.3, x: 2, w: 3.8, h: 2.9, draw(g, w, h) { nightSky(g, w, h, { seed: 41, stars: 90 }); }, props: [{ id: 'moon', x: .6, y: .6, w: .7, h: .7, py: .5, dz: .01, draw(g, w, h) { moon(g, w / 2, h / 2, .25); } }] },
-      { z: -2.05, x: 2, w: 3.8, h: 1.6, draw(g, w, h) { mountains(g, w, h, '#7d8cc4', N.snow, [[-.2, h - .3], [.6, h - 1.4], [1.3, h - .7], [2.0, h - 1.55], [2.8, h - .8], [3.4, h - 1.3], [4, h - .5]]); cut(g, '#cdd8f0', g => rr(g, 0, h - .35, w, .35, 0)); for (let i = 0; i < 10; i++) pine(g, .2 + i * .38, h, .45, '#2b3a6b'); } },
+      { z: -2.05, rise: 'grow', x: 2, w: 3.8, h: 1.6, draw(g, w, h) { mountains(g, w, h, '#7d8cc4', N.snow, [[-.2, h - .3], [.6, h - 1.4], [1.3, h - .7], [2.0, h - 1.55], [2.8, h - .8], [3.4, h - 1.3], [4, h - .5]]); cut(g, '#cdd8f0', g => rr(g, 0, h - .35, w, .35, 0)); for (let i = 0; i < 10; i++) pine(g, .2 + i * .38, h, .45, '#2b3a6b'); } },
       { z: -1.0, x: 2, w: 3.8, h: .7, draw(g, w, h) { drift(g, 0, .9, h, .5); drift(g, 2.9, 3.8, h, .55); stroke(g, '#6b5a3a', .015, g => { for (let i = 0; i < 6; i++) { g.moveTo(.2 + i * .1, h - .2); g.lineTo(.18 + i * .1, h - .6 - (i % 2) * .15); } }, false); } },
-      { z: 0.3, x: 2, w: 3.8, h: .1, draw: null, props: [
+      { z: 0.3, rise: 'spin', x: 2, w: 3.8, h: .1, draw: null, props: [
         { id: 'zainab', x: -1.2, y: 0, w: 1.0, h: 1.65, tap: true, draw(g, w, h) { princess(g, w / 2, h, .92, { noScarf: true }); } },
         { id: 'tail', x: -.95, y: .2, w: .8, h: .45, px: .97, py: .27, dz: .004, glow: '#ffb347', draw(g) { g.scale(.85, .85); tailArt(g); } },
         { id: 'fox', x: -.55, y: 0, w: 1.0, h: .8, dz: .012, tap: true, draw(g, w, h) { fox(g, .42, h, .85, 'run'); } },
@@ -782,91 +781,35 @@ const SP = [
     setup(o, sp) {
       o.tailGlow = glow('#ffb347', .9, .7); o.tailGlow.position.set(-.32, .09, .06); o.tail.grp.add(o.tailGlow); o.tail.mesh.material.emissiveIntensity = .6;
       o.fish = [0, 1, 2, 3, 4, 5].map(i => { const s = glow(i % 2 ? '#7fe0ff' : '#ffd27a', .32, .9); sp.fx.add(s); return s; });
+      o.ice = new THREE.Mesh(new THREE.PlaneGeometry(3.7, 2.9), new THREE.ShaderMaterial({ uniforms: { uTime: { value: 0 } }, vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+        fragmentShader: 'uniform float uTime; varying vec2 vUv; void main(){ float m = smoothstep(.5, .4, length(vUv - .5)); float s = pow(max(0., sin((vUv.x * 1.3 + vUv.y) * 18. - uTime * 1.6)), 14.) * .22 + pow(max(0., sin((vUv.x - vUv.y * .7) * 31. + uTime * 1.1)), 34.) * .2; gl_FragColor = vec4(vec3(.75, .9, 1.) * s * m, 1.); }',
+        transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+      o.ice.rotation.x = -Math.PI / 2; o.ice.position.set(2, Y0 + .008, .3); sp.fx.add(o.ice);
     },
     lamp: o => ({ obj: o.tail.grp, at: [-.3, .2, .3], i: 2.5 }),
-    reset(o) { o._across = false; o.zainab.grp.position.x = -1.2; o.tail.grp.position.x = -.95; o.fox.grp.position.x = -.55; o.moon.grp.position.y = .6; },
-    tick(o, t) {
+    reset(o) { o._moon = false; o._twirl = false; o._u = 0; o.moon.grp.position.y = .6; },
+    tick(o, t, dt) {
       o.fish.forEach((s, i) => { const a = t * (.25 + i * .04) + i * 1.3; s.position.set(2 + Math.cos(a) * (.6 + i * .18), Y0 + .02, .3 + Math.sin(a * 1.3) * (.4 + i * .12)); s.material.opacity = .55 + .35 * Math.sin(t * 2 + i); });
-      o.tailGlow.material.opacity = .7 + .1 * Math.sin(t * 4);
+      o.tailGlow.material.opacity = .7 + .1 * Math.sin(t * 4); o.ice.material.uniforms.uTime.value = t;
+      if (!o._twirl) {
+        o._u = (o._u || 0) + (dt || .016) * .5; const X = Math.sin(o._u) * 1.15, lean = -Math.cos(o._u) * .15;
+        o.zainab.grp.position.x = X - .35; o.fox.grp.position.x = X + .3; o.tail.grp.position.x = X - .1;
+        o.zainab.grp.rotation.z = lean; o.fox.grp.rotation.z = lean * .7;
+        if (Math.random() < (dt || .016) * 16) spark(wpos(o.zainab.grp, (Math.random() - .5) * .3, .04, .05), '#cfefff', (Math.random() - .5) * .3, .2, 0, .9);
+      }
     },
     async action(o) {
-      const dir = o._across ? -1 : 1, dx = 2.1 * dir;
-      const sx = [o.zainab.grp.position.x, o.tail.grp.position.x, o.fox.grp.position.x];
-      sfx.whoosh(); let lastB = 0;
-      if (!o._across) tween(2.4, p => { o.moon.grp.position.y = lerp(.6, 1.35, p); }, E.out);
-      bubble(o._across ? '“Once more!”' : '“Wheeeee!”', o.zainab, 1.65, 1800);
-      await tween(2.0, p => {
-        o.zainab.grp.position.x = sx[0] + dx * p; o.tail.grp.position.x = sx[1] + dx * p; o.fox.grp.position.x = sx[2] + dx * p;
-        o.zainab.grp.rotation.z = -Math.sin(p * Math.PI) * .12 * dir; o.fox.grp.rotation.z = -Math.sin(p * Math.PI) * .08 * dir;
-        if (p - lastB > .12) { lastB = p; burstAt(o.zainab.grp, [0, .02, .05], '#dff4ff', 10, .4, .4, .7, -.3); }
-      }, E.inOut);
-      o._across = !o._across;
+      o._twirl = true; sfx.whoosh(); bubble('“Wheeeee!”', o.zainab, 1.65, 1800);
+      if (!o._moon) { o._moon = true; tween(2.4, p => { o.moon.grp.position.y = lerp(.6, 1.35, p); }, E.out); }
+      burstAt(o.zainab.grp, [0, .4, .1], '#dff4ff', 50, 1.3); burstAt(o.fox.grp, [0, .3, .1], '#ffd27a', 30, 1.0);
+      await tween(1.3, p => { const a = E.inOut(p) * Math.PI * 2; o.zainab.grp.rotation.y = a; o.fox.grp.rotation.y = -a; o.tail.grp.rotation.y = -a; o.zainab.grp.position.y = Math.sin(p * Math.PI) * .28; o.fox.grp.position.y = Math.sin(p * Math.PI) * .2; o.tail.grp.position.y = .2 + o.fox.grp.position.y; });
+      o.zainab.grp.rotation.y = o.fox.grp.rotation.y = o.tail.grp.rotation.y = 0; o.zainab.grp.position.y = 0; o.fox.grp.position.y = 0; o.tail.grp.position.y = .2; o._twirl = false;
     },
   },
   {
-    numeral: 'VI', title: 'The Bridge of Stars', page: 11, mood: 'night', snow: .2,
-    hint: 'Tap the stars', button: o => o._built ? 'Cross the bridge again' : 'Call down the stars',
-    paras: [
-      'On the far side of the lake, the path stopped at the edge of a deep, dark gorge. There was no bridge, not even a fallen log.',
-      '“Hold on tight,” said the fox, and he swished his tail across the sky, using the very last of his light. One by one, the stars came tumbling down, until they made a shining bridge from one side to the other.',
-      'They crossed it hand in paw, and the stars hummed softly under their feet.',
-    ],
-    ground(g) {
-      g.fillStyle = N.snow; g.fillRect(0, 0, W, D);
-      const gr = g.createLinearGradient(1.45, 0, 2.65, 0); gr.addColorStop(0, '#2a3160'); gr.addColorStop(.5, '#0d1230'); gr.addColorStop(1, '#2a3160');
-      cut(g, gr, g => { g.moveTo(1.5, 0); for (let y = 0; y <= D; y += .3) g.lineTo(1.45 + Math.sin(y * 3) * .06, y); g.lineTo(2.65 + Math.sin(D * 2) * .06, D); for (let y = D; y >= 0; y -= .3) g.lineTo(2.65 + Math.sin(y * 2.4) * .06, y); g.closePath(); }, { blur: 8, oy: 0 });
-      const r = rng(83); for (let i = 0; i < 18; i++) dots(g, 'rgba(255,240,200,.7)', [[1.6 + r() * .9, r() * D]], .012);
-    },
-    layers: [
-      { z: -2.3, x: 2, w: 3.8, h: 2.9, draw(g, w, h) { nightSky(g, w, h, { seed: 81, stars: 160, maxY: .85, stops: [[0, '#0d1236'], [.75, '#26336f'], [1, '#3e4a8a']] }); } },
-      { z: -1.7, x: 2, w: 3.8, h: 1.55, draw(g, w, h) { cut(g, '#55608a', g => { g.moveTo(-.1, h); g.lineTo(-.1, h - 1.2); g.lineTo(.6, h - 1.35); g.lineTo(1.5, h - 1.1); g.lineTo(1.6, h); g.closePath(); g.moveTo(2.3, h); g.lineTo(2.4, h - 1.0); g.lineTo(3.2, h - 1.25); g.lineTo(3.9, h - .95); g.lineTo(3.9, h); g.closePath(); }); stroke(g, N.snow, .12, g => { g.moveTo(-.1, h - 1.2); g.lineTo(.6, h - 1.35); g.lineTo(1.5, h - 1.1); g.moveTo(2.4, h - 1.0); g.lineTo(3.2, h - 1.25); g.lineTo(3.9, h - .95); }); } },
-      { z: -.35, x: 2, w: 3.8, h: .8, draw(g, w, h) {
-        cut(g, '#5d6787', g => { g.moveTo(-.1, h); g.lineTo(-.1, h - .55); g.lineTo(1.2, h - .55); g.lineTo(1.3, h - .3); g.lineTo(1.2, h); g.closePath(); g.moveTo(2.6, h); g.lineTo(2.5, h - .3); g.lineTo(2.6, h - .55); g.lineTo(3.9, h - .55); g.lineTo(3.9, h); g.closePath(); }, { blur: 10, oy: 3 });
-        stroke(g, N.snow, .1, g => { g.moveTo(-.1, h - .57); g.lineTo(1.22, h - .57); g.moveTo(2.58, h - .57); g.lineTo(3.9, h - .57); });
-      },
-        props: [
-          ...Array.from({ length: 9 }, (_, i) => ({ id: 's' + i, x: 0, y: 0, w: .22, h: .22, py: .5, dz: .02, basic: true, tap: true, draw(g, w, h) { starArt(g, w, h); } })),
-          { id: 'zainab', x: -1.3, y: .55, w: .9, h: 1.45, tap: true, dz: .03, draw(g, w, h) { princess(g, w / 2, h, .8, { noScarf: true }); } },
-          { id: 'tail', x: -1.0, y: .62, w: .8, h: .45, px: .97, py: .27, dz: .034, glow: '#ffb347', draw(g) { g.scale(.65, .65); tailArt(g); } },
-          { id: 'fox', x: -.8, y: .55, w: .6, h: .8, dz: .04, tap: true, draw(g, w, h) { fox(g, .26, h, .65); } },
-        ] },
-      { z: 1.45, x: 2, w: 3.9, h: .9, draw(g, w, h) { drift(g, 0, 1.25, h, .35); drift(g, 2.75, 3.9, h, .35); pine(g, .35, h, .65); pine(g, 3.6, h, .7); } },
-    ],
-    arcY(xc) { return xc < 1.15 || xc > 2.65 ? .55 : .55 + .4 * Math.sin(Math.PI * (xc - 1.15) / 1.5); },
-    setup(o, sp) {
-      const r = rng(5);
-      o.sky = []; o.target = [];
-      for (let i = 0; i < 9; i++) {
-        const xc = 1.15 + i * 1.5 / 8; o.target.push([xc - 1.9, sp.arcY(xc) - .02]); o.sky.push([-1.6 + r() * 3.2, 2.15 + r() * .55]);
-        const gl = glow('#fff1b8', .45, .9); gl.position.z = .01; o['s' + i].grp.add(gl); o['s' + i].gl = gl;
-      }
-      o.tailGlow = glow('#ffb347', .7, .35); o.tailGlow.position.set(-.26, .07, .06); o.tail.grp.add(o.tailGlow); o.tail.mesh.material.emissiveIntensity = .2;
-    },
-    lamp: o => ({ obj: o.tail.grp, at: [-.3, .2, .3], i: 1.2 }),
-    place(o, xc, sp) { const yz = sp.arcY(xc), yf = sp.arcY(xc + .5); o.zainab.grp.position.set(xc - 1.9, yz, .03); o.fox.grp.position.set(xc + .5 - 1.9, yf, .04); o.tail.grp.position.set(xc + .5 - 1.9 - .2, yf + .07, .034); },
-    reset(o) { const sp = SP.find(s => s.o === o); o._built = false; o._side = 0; for (let i = 0; i < 9; i++) o['s' + i].grp.position.set(o.sky[i][0], o.sky[i][1], .02); sp.place(o, .6, sp); },
-    tick(o, t) { for (let i = 0; i < 9; i++) { const s = o['s' + i]; s.gl.material.opacity = .6 + .4 * Math.sin(t * 3 + i * 1.7); if (!o._built && !o._flying) s.grp.position.y = o.sky[i][1] + Math.sin(t + i) * .03; } o.tailGlow.material.opacity = .3 + .12 * Math.sin(t * 7) * Math.sin(t * 2); },
-    async action(o) {
-      const sp = SP.find(s => s.o === o);
-      if (!o._built) {
-        o._flying = true; bubble('“Hold on tight!”', o.fox, .8, 1600);
-        burstAt(o.tail.grp, [-.26, .07, .06], '#ffcf6b', 30, .8);
-        for (let i = 0; i < 9; i++) {
-          const s = o['s' + i], a = s.grp.position.clone(), [tx, ty] = o.target[i];
-          sfx.note(523 * Math.pow(2, [0, 2, 4, 5, 7, 9, 11, 12, 14][i] / 12));
-          tween(.7, p => { s.grp.position.set(lerp(a.x, tx, p), lerp(a.y, ty, p) + Math.sin(p * Math.PI) * .3, .02); s.grp.rotation.z = p * Math.PI * 2; }, E.inOut).then(() => burstAt(s.grp, [0, 0, .02], '#fff1b8', 12, .5, .06, .7, -.2));
-          await wait(140);
-        }
-        await wait(700); o._flying = false; o._built = true;
-      }
-      const from = o._side ? 3.15 : .6, to = o._side ? .6 : 3.15; sfx.wish();
-      bubble('“The stars are humming!”', o.zainab, 1.45, 2200);
-      await tween(3.0, p => { sp.place(o, lerp(from, to, p), sp); o.zainab.grp.position.y += Math.abs(Math.sin(p * Math.PI * 8)) * .03; }, E.inOut);
-      o._side = 1 - o._side;
-    },
-  },
-  {
-    numeral: 'VII', title: 'The Wishing Hill', page: 13, mood: 'night', snow: .25,
+    numeral: 'V', title: 'The Wishing Hill', page: 9, mood: 'night', snow: .25,
+    shot: { pitch: .42, zoom: .9, ty: 1.6, sway: .05 },
+    async intro(o) { for (let i = 0; i < o.con.length; i++) { const st = o.con[i]; sfx.note(659 * Math.pow(2, i / 6)); burst(st.getWorldPosition(new THREE.Vector3()), '#fff6dc', 10, .3, .05, .8, 0); await tween(.35, p => st.scale.setScalar(lerp(.001, .3, E.back(p)))); } },
     hint: 'Tap Zainab to make a wish', button: o => o._lit ? 'Wish again' : 'Make a wish',
     paras: [
       'At the top of the highest hill the whole world was silver and still. The fox’s light had shrunk to the smallest glow.',
@@ -881,13 +824,13 @@ const SP = [
     },
     layers: [
       { z: -2.3, x: 2, w: 3.8, h: 2.9, draw(g, w, h) { nightSky(g, w, h, { seed: 51, stars: 140, maxY: .85, stops: [[0, '#0b1030'], [.7, '#22306a'], [1, '#3e4a8a']] }); } },
-      { z: -1.5, x: 2, w: 3.8, h: 1.5, draw(g, w, h) { cut(g, N.snow2, g => { ell(g, .9, h + .2, 1.5, 1.2); ell(g, 3.2, h + .2, 1.3, .9); }); stroke(g, '#c9d2ea', .035, g => { g.moveTo(.75, h - .95); g.lineTo(.75, h - 1.35); g.moveTo(.75, h - 1.2); g.lineTo(.6, h - 1.38); g.moveTo(.75, h - 1.12); g.lineTo(.92, h - 1.3); }); } },
-      { z: -0.55, x: 2.1, w: 2.6, h: .85, draw(g, w, h) { cut(g, N.snow, g => ell(g, w / 2, h + .1, 1.3, .85)); cut(g, N.snow2, g => ell(g, w / 2 + .5, h + .1, .7, .4), { shadow: false }); }, props: [
+      { z: -1.5, rise: 'grow', x: 2, w: 3.8, h: 1.5, draw(g, w, h) { cut(g, N.snow2, g => { ell(g, .9, h + .2, 1.5, 1.2); ell(g, 3.2, h + .2, 1.3, .9); }); stroke(g, '#c9d2ea', .035, g => { g.moveTo(.75, h - .95); g.lineTo(.75, h - 1.35); g.moveTo(.75, h - 1.2); g.lineTo(.6, h - 1.38); g.moveTo(.75, h - 1.12); g.lineTo(.92, h - 1.3); }); } },
+      { z: -0.55, rise: 'drop', x: 2.1, w: 2.6, h: .85, draw(g, w, h) { cut(g, N.snow, g => ell(g, w / 2, h + .1, 1.3, .85)); cut(g, N.snow2, g => ell(g, w / 2 + .5, h + .1, .7, .4), { shadow: false }); }, props: [
         { id: 'zainab', x: -.25, y: .72, w: 1.0, h: 1.7, tap: true, draw(g, w, h) { princess(g, w / 2, h, .95, { closed: true, noScarf: true }); } },
         { id: 'tail', x: .25, y: .78, w: .8, h: .45, px: .97, py: .27, dz: .004, glow: '#ffb347', draw(g) { g.scale(.8, .8); tailArt(g); } },
         { id: 'fox', x: .5, y: .72, w: .7, h: 1.0, dz: .012, tap: true, draw(g, w, h) { fox(g, .3, h, .8); } },
       ] },
-      { z: .55, x: 2, w: 3.8, h: .95, draw(g, w, h) { cut(g, N.snow2, g => { ell(g, 2.9, h + .3, 1.2, .9); ell(g, .5, h + .2, .9, .5); }); [[2.4, .9, '#f2e1c0'], [2.85, 1.0, '#e9d1c9'], [3.3, .85, '#dfe3f2']].forEach(([x, s, c]) => house(g, x, h - .2, s, c)); },
+      { z: .55, rise: 'swing', dir: 1, x: 2, w: 3.8, h: .95, draw(g, w, h) { cut(g, N.snow2, g => { ell(g, 2.9, h + .3, 1.2, .9); ell(g, .5, h + .2, .9, .5); }); [[2.4, .9, '#f2e1c0'], [2.85, 1.0, '#e9d1c9'], [3.3, .85, '#dfe3f2']].forEach(([x, s, c]) => house(g, x, h - .2, s, c)); },
         props: [{ id: 'vill', x: 0, y: 0, w: 3.8, h: .95, basic: true, opacity: .5, dz: .006, draw(g, w, h) { cut(g, '#ffd27a', g => [[2.4, .9], [2.85, 1.0], [3.3, .85]].forEach(([x, s]) => rr(g, x - .05 * s, h - .2 - .2 * s, .1 * s, .1 * s, .01)), { sc: 'rgba(255,200,100,1)', blur: 14, oy: 0 }); } }] },
       { z: 1.5, x: 2, w: 3.9, h: 1.2, draw(g, w, h) { drift(g, 0, 1.3, h, .3); drift(g, 2.7, 3.9, h, .3); pine(g, .35, h, .75); pine(g, 3.6, h, .8); } },
     ],
@@ -895,11 +838,14 @@ const SP = [
       o.tailGlow = glow('#ffb347', .9, .2); o.tailGlow.position.set(-.3, .09, .06); o.tail.grp.add(o.tailGlow);
       o.aur = [aurora(3.6, .9, 0, '#3dffb0', '#9a6bff'), aurora(3.4, .7, 2.1, '#58e0ff', '#ff6bd5')];
       o.aur[0].position.set(0, 2.05, .08); o.aur[1].position.set(.1, 1.75, .1); o.aur.forEach(a => sp.hinges[0].add(a));
+      o.con = [[.55, 2.55], [.85, 2.4], [1.12, 2.55], [1.3, 2.3], [1.05, 2.12], [.7, 2.18]].map(([x, y]) => { const st = glow('#fff6dc', .001, 1); st.position.set(x, y, .12); sp.hinges[0].add(st); return st; });
     },
     lamp: o => ({ obj: o.tail.grp, at: [-.3, .2, .3], i: .8 }),
-    reset(o) { o._lit = false; o.aur.forEach(a => a.material.uniforms.uAmp.value = .18); o.tail.mesh.material.emissiveIntensity = .1; o.tailGlow.material.opacity = .2; o.tailGlow.scale.setScalar(.9); },
+    reset(o) { o.con.forEach(st => st.scale.setScalar(.001)); o._ns = 0; o._lit = false; o.aur.forEach(a => a.material.uniforms.uAmp.value = .18); o.tail.mesh.material.emissiveIntensity = .1; o.tailGlow.material.opacity = .2; o.tailGlow.scale.setScalar(.9); },
     tick(o, t) {
       o.aur.forEach(a => a.material.uniforms.uTime.value = t);
+      o.con.forEach((st, i) => st.material.opacity = .7 + .3 * Math.sin(t * 3 + i));
+      if (!o._ns) o._ns = t + 2.5; if (t > o._ns) { o._ns = t + 3.5 + Math.random() * 3; const x0 = -1.6 + Math.random() * 1.4; shootingStar(o.$h[0], [x0, 2.65, .12], [x0 + 1.2 + Math.random() * .6, 2.0, .12]); }
       if (!o._lit) o.tailGlow.material.opacity = .15 + .1 * Math.sin(t * 6) * Math.sin(t * 2.1);
       else o.tailGlow.material.opacity = .95 + .05 * Math.sin(t * 5);
     },
@@ -919,7 +865,8 @@ const SP = [
     },
   },
   {
-    numeral: 'VIII', title: 'The First Light', page: 15, mood: 'dawn', snow: 0,
+    numeral: 'VI', title: 'The First Light', page: 11, mood: 'dawn', snow: 0,
+    shot: { pitch: .66, zoom: .88, ty: 1.0, sway: .1 },
     hint: 'Tap the fox', button: () => 'Follow the fox',
     paras: [
       'Ribbons of green and violet rippled across the sky, and the fox’s tail blazed like a sunrise. He leapt from the hilltop and ran, and everywhere his paws touched, the snow melted into flowers.',
@@ -934,24 +881,38 @@ const SP = [
     },
     layers: [
       { z: -2.3, x: 2, w: 3.8, h: 2.9, draw(g, w, h) { backdrop(g, w, h, [[0, '#7f8fd6'], [.55, '#f6a5a0'], [1, '#ffd59a']], g => { skyStars(g, w, h, 18, 61, .3); cut(g, 'rgba(255,255,255,.6)', g => { ell(g, .8, .9, .4, .08); ell(g, 2.9, .7, .5, .09); ell(g, 2.4, 1.2, .3, .06); }, { shadow: false }); }); },
-        props: [{ id: 'sun', x: 0, y: .3, w: 1.1, h: 1.1, py: .5, dz: .01, basic: true, draw(g, w, h) { cut(g, '#ffd27a', g => circ(g, w / 2, h / 2, .3), { sc: 'rgba(255,200,110,1)', blur: 50, oy: 0 }); } }] },
-      { z: -2.05, x: 2, w: 3.8, h: 1.35, draw(g, w, h) { cut(g, '#b3a2d9', g => { ell(g, .8, h + .2, 1.4, 1.1); ell(g, 3.1, h + .2, 1.4, 1.0); }); cut(g, N.snow, g => { ell(g, .8, h - .78, .5, .14); ell(g, 3.1, h - .68, .55, .14); }, { shadow: false }); } },
-      { z: -1.1, x: 2, w: 3.8, h: 1.0, draw(g, w, h) { cut(g, '#8cc477', g => { ell(g, .6, h + .3, 1.2, .9); ell(g, 3.3, h + .3, 1.1, .8); }); [[.4, .8], [3.5, .75]].forEach(([x, s]) => { cut(g, '#6b4a3a', g => rr(g, x - .03, h - .55 * s, .06, .55 * s, .02)); cut(g, '#f6b7d0', g => { circ(g, x, h - .7 * s, .22 * s); circ(g, x - .15 * s, h - .58 * s, .15 * s); circ(g, x + .16 * s, h - .6 * s, .15 * s); }); }); } },
-      { z: -0.15, x: 2, w: 3.8, h: .1, draw: null, props: [
+        props: [{ id: 'rays', x: 0, y: .3, w: 1.9, h: 1.9, py: .5, dz: .005, basic: true, opacity: .55, draw(g, w, h) { raysArt(g, w, h); } }, ...[0, 1, 2].map(i => ({ id: 'bd' + i, x: -1.4, y: 2.0 + i * .18, w: .24, h: .12, py: .5, dz: .02, draw(g, w, h) { birdArt(g, w, h); } })), { id: 'sun', x: 0, y: .3, w: 1.1, h: 1.1, py: .5, dz: .01, basic: true, draw(g, w, h) { cut(g, '#ffd27a', g => circ(g, w / 2, h / 2, .3), { sc: 'rgba(255,200,110,1)', blur: 50, oy: 0 }); } }] },
+      { z: -2.05, rise: 'grow', x: 2, w: 3.8, h: 1.35, draw(g, w, h) { cut(g, '#b3a2d9', g => { ell(g, .8, h + .2, 1.4, 1.1); ell(g, 3.1, h + .2, 1.4, 1.0); }); cut(g, N.snow, g => { ell(g, .8, h - .78, .5, .14); ell(g, 3.1, h - .68, .55, .14); }, { shadow: false }); } },
+      { z: -1.1, rise: 'grow', x: 2, w: 3.8, h: 1.0, draw(g, w, h) { cut(g, '#8cc477', g => { ell(g, .6, h + .3, 1.2, .9); ell(g, 3.3, h + .3, 1.1, .8); }); [[.4, .8], [3.5, .75]].forEach(([x, s]) => { cut(g, '#6b4a3a', g => rr(g, x - .03, h - .55 * s, .06, .55 * s, .02)); cut(g, '#f6b7d0', g => { circ(g, x, h - .7 * s, .22 * s); circ(g, x - .15 * s, h - .58 * s, .15 * s); circ(g, x + .16 * s, h - .6 * s, .15 * s); }); }); } },
+      { z: -0.15, rise: 'slide', dir: -1, x: 2, w: 3.8, h: .1, draw: null, props: [
         { id: 'tail', x: -1.75, y: .3, w: .8, h: .45, px: .97, py: .27, dz: .004, glow: '#ffb347', draw(g) { g.scale(.85, .85); tailArt(g); } },
         { id: 'fox', x: -1.35, y: 0, w: 1.0, h: .8, dz: .012, tap: true, draw(g, w, h) { fox(g, .42, h, .85, 'run'); } },
+        ...['#ff9cc0', '#9fd0ff', '#ffd27a', '#c9a6ff'].map((c, i) => ({ id: 'bf' + i, x: -1 + i * .7, y: .9, w: .26, h: .2, py: .5, dz: .05 + i * .003, draw(g, w, h) { butterflyArt(g, w, h, c); } })),
       ] },
       { z: .55, x: 2, w: 3.8, h: .35, draw(g, w, h) { drift(g, 0, .6, h, .3); drift(g, 3.2, 3.8, h, .3); },
         props: ['drop', 'crocus', 'bell', 'daisy', 'drop', 'crocus', 'bell', 'drop', 'crocus', 'daisy'].map((k, i) => ({ id: 'fl' + i, x: -1.45 + i * .32, y: 0, w: .3, h: .42, dz: .01 + (i % 3) * .004, draw(g, w, h) { flower(g, w, h, k); } })) },
-      { z: 1.4, x: 2, w: 3.9, h: 1.6, draw(g, w, h) { cut(g, '#8cc477', g => { ell(g, .5, h + .1, .9, .35); ell(g, 3.5, h + .1, .8, .3); }); drift(g, 2.9, 3.9, h, .2); },
+      { z: 1.4, rise: 'spin', x: 2, w: 3.9, h: 1.6, draw(g, w, h) { cut(g, '#8cc477', g => { ell(g, .5, h + .1, .9, .35); ell(g, 3.5, h + .1, .8, .3); }); drift(g, 2.9, 3.9, h, .2); },
         props: [{ id: 'zainab', x: -1.45, y: .05, w: .9, h: 1.5, tap: true, draw(g, w, h) { princess(g, w / 2, h, .85, { noScarf: true }); } }] },
     ],
     setup(o) { o.tailGlow = glow('#ffb347', 1.5, 1); o.tailGlow.position.set(-.32, .09, .06); o.tail.grp.add(o.tailGlow); o.tail.mesh.material.emissiveIntensity = 1.1; },
     lamp: o => ({ obj: o.tail.grp, at: [-.3, .2, .3], i: 5 }),
-    reset(o) { o.fox.grp.position.x = -1.35; o.tail.grp.position.x = -1.75; o.sun.grp.position.y = .3; for (let i = 0; i < 10; i++) { o['fl' + i].grp.scale.setScalar(.001); o['fl' + i]._on = false; } },
-    tick(o, t) { o.tailGlow.material.opacity = .9 + .1 * Math.sin(t * 6); o.tail.grp.rotation.z = Math.sin(t * 9) * .06; },
+    reset(o) { o._manual = false; o._ph = 0; o.fox.grp.position.x = -1.35; o.tail.grp.position.x = -1.75; o.sun.grp.position.y = .3; for (let i = 0; i < 10; i++) { o['fl' + i].grp.scale.setScalar(.001); o['fl' + i]._on = false; } },
+    tick(o, t, dt) {
+      o.tailGlow.material.opacity = .9 + .1 * Math.sin(t * 6); o.tail.grp.rotation.z = Math.sin(t * 9) * .06;
+      o.rays.grp.rotation.z = t * .15; o.rays.grp.position.y = o.sun.grp.position.y;
+      for (let i = 0; i < 3; i++) { const b = o['bd' + i], ph = (t * .05 + i * .33) % 1; b.grp.position.set(lerp(-1.7, 1.7, ph), 2.0 + i * .18 + Math.sin(t * 2 + i) * .05, .02); b.grp.scale.y = .5 + .5 * Math.abs(Math.sin(t * 6 + i)); }
+      for (let i = 0; i < 4; i++) { const b = o['bf' + i]; b.grp.position.set(Math.sin(t * .35 + i * 1.7) * 1.5, .65 + Math.sin(t * .9 + i) * .35 + i * .1, .05 + i * .003); b.grp.scale.x = .2 + .8 * Math.abs(Math.sin(t * 13 + i)); b.grp.rotation.z = Math.sin(t * 1.3 + i) * .3; }
+      for (let i = 0; i < 10; i++) { const f = o['fl' + i]; if (f._on) f.grp.rotation.z = Math.sin(t * 1.5 + i) * .1; }
+      if (!o._manual) {
+        o._ph = ((o._ph || 0) + dt * .15) % 1; const x = lerp(-1.75, 1.75, o._ph), hop = Math.abs(Math.sin(o._ph * Math.PI * 9)) * .1;
+        o.fox.grp.position.set(x, hop, .012); o.tail.grp.position.set(x - .4, .3 + hop, .004);
+        for (let i = 0; i < 10; i++) { const f = o['fl' + i]; if (!f._on && x > f.P.x - .1 && x < f.P.x + .3) { f._on = true; sfx.pop(1 + i * .06); burstAt(f.grp, [0, .3, .05], ['#ffb3d1', '#c9a6ff', '#9fd0ff'][i % 3], 12, .5, .06, .8, -.3); tween(.45, q => f.grp.scale.setScalar(Math.max(.001, q)), E.back); } }
+        if (Math.random() < dt * 14) spark(wpos(o.tail.grp, -.3, .1, .05), '#ffd27a', (Math.random() - .5) * .2, .2, 0, 1.0);
+      }
+    },
     async action(o, id) {
       if (id === 'zainab') { bubble('“Run, little fox, run!”', o.zainab, 1.45, 1800); return; }
+      o._manual = true;
       for (let i = 0; i < 10; i++) { o['fl' + i].grp.scale.setScalar(.001); o['fl' + i]._on = false; }
       sfx.whoosh(); bubble('“Spring is coming!”', o.fox, .85, 2200);
       tween(2.6, p => { o.sun.grp.position.y = lerp(.3, 1.05, p); }, E.out);
@@ -961,21 +922,24 @@ const SP = [
         for (let i = 0; i < 10; i++) { const f = o['fl' + i]; if (!f._on && x > f.P.x - .1) { f._on = true; sfx.pop(1 + i * .08); burstAt(f.grp, [0, .3, .05], ['#ffb3d1', '#c9a6ff', '#9fd0ff'][i % 3], 14, .6, .3, .8, -.4); tween(.45, q => f.grp.scale.setScalar(Math.max(.001, q)), E.back); } }
       }, E.lin);
       await wait(400);
-      o.fox.grp.position.x = -1.35; o.tail.grp.position.x = -1.75; o.fox.grp.position.y = 0; o.tail.grp.position.y = .3;
+      o.fox.grp.position.x = -1.35; o.tail.grp.position.x = -1.75; o.fox.grp.position.y = 0; o.tail.grp.position.y = .3; o._manual = false; o._ph = 0;
     },
   },
   {
-    numeral: 'IX', title: 'Home Again', page: 17, mood: 'twilight', snow: .5,
-    hint: 'Tap Zainab at her window', button: () => 'Wave goodnight',
+    numeral: 'VII', title: 'Home Again', page: 13, mood: 'twilight', snow: .4, end: true,
+    shot: { pitch: .62, zoom: .88, ty: 1.15, sway: .07 },
+    hint: 'Tap Zainab’s little lantern', button: () => 'Lift the lantern together',
     paras: [
-      'The fox carried Zainab home on the warm wind of his tail, and set her down by her window just as the sky was turning pink at the edges.',
-      'Her scarf was gone, but her heart felt warmer than any scarf could make it.',
-      '“Goodnight, Lantern Fox,” she whispered, and waved to the faraway hills. And far, far away, a little golden light blinked back.',
+      'The fox carried Zainab home on the warm wind of his tail, just as the sky was turning pink at the edges. Her scarf was gone, but her heart felt warmer than any scarf could make it.',
+      'In the morning, on her windowsill, she found a tiny lantern no bigger than an acorn, tied with a thread of pink wool.',
+      'Now, whenever the first snow falls, she carries it out into the garden, holding hands with someone who loves her very much, and lifts it high towards the faraway hills. And a little golden light blinks back, once, twice, three times.',
+      '#That is the Lantern Fox, saying thank you.',
     ],
     ground(g) {
       g.fillStyle = N.snow; g.fillRect(0, 0, W, D);
       cut(g, N.snow2, g => { ell(g, 1.2, 2.0, 1.2, .5); ell(g, 3.2, 4.4, .8, .5); }, { shadow: false });
-      [[.6, 4.8], [.9, 4.3], [1.25, 3.85], [1.6, 3.5]].forEach(([x, y]) => dots(g, '#ffd27a', [[x, y]], .028));
+      cut(g, '#e7e3f6', g => { g.moveTo(1.55, D); g.bezierCurveTo(1.7, 4.3, 1.5, 3.6, 1.75, 2.9); g.lineTo(2.05, 2.9); g.bezierCurveTo(1.85, 3.6, 2.05, 4.3, 2.0, D); g.closePath(); }, { blur: 4, oy: 1 });
+      [[1.4, 4.9], [2.15, 4.6], [1.45, 4.1], [2.1, 3.7], [1.6, 3.3]].forEach(([x, y]) => dots(g, '#ffd27a', [[x, y]], .03));
     },
     layers: [
       { z: -2.3, x: 2, w: 3.8, h: 2.9, draw(g, w, h) { backdrop(g, w, h, [[0, '#1b2350'], [.6, '#5a4f93'], [1, '#e9a3b8']], g => skyStars(g, w, h, 30, 71, .5)); },
@@ -985,86 +949,53 @@ const SP = [
           const con = [[.3, .2], [.5, .35], [.7, .3], [.85, .5]].map(([a, d]) => [cx + Math.cos(a * 6) * d, cy + Math.sin(a * 6) * d]);
           stroke(g, 'rgba(255,240,200,.45)', .008, g => { g.moveTo(...con[0]); con.slice(1).forEach(p => g.lineTo(...p)); }, false); con.forEach(([x, y]) => twinkle(g, x, y, .04, '#fff3c4'));
         } }] },
-      { z: -1.9, x: 2, w: 3.8, h: 1.35, draw(g, w, h) { cut(g, '#3f4a86', g => { ell(g, .9, h + .3, 1.5, 1.45); ell(g, 3.0, h + .3, 1.4, 1.1); }); cut(g, '#cdd5f0', g => { ell(g, .9, h - 1.08, .55, .1); ell(g, 3.0, h - .74, .5, .1); }, { shadow: false }); for (let i = 0; i < 6; i++) pine(g, 1.7 + i * .3, h, .4, '#24305e', false); } },
-      { z: -.64, x: 2.85, w: 1.15, h: 2.15, draw(g, w, h) { roomArt(g, w, h); } },
-      { z: -.56, x: 2.85, w: 1.1, h: 2.2, draw: null, props: [
-        { id: 'zainab', x: 0, y: 0, w: 1.1, h: 2.2, tap: true, draw(g, w, h) { princess(g, w / 2, h, 1.25, { noScarf: true, noRight: true }); } },
-        { id: 'arm', x: .32, y: 1.32, w: .22, h: .6, px: .5, py: .05, dz: .006, draw(g, w, h) { g.scale(1.1, 1.1); armArt(g, .2, .55); } },
+      { z: -1.9, rise: 'grow', x: 2, w: 3.8, h: 1.35, draw(g, w, h) { cut(g, '#3f4a86', g => { ell(g, .9, h + .3, 1.5, 1.45); ell(g, 3.0, h + .3, 1.4, 1.1); }); cut(g, '#cdd5f0', g => { ell(g, .9, h - 1.08, .55, .1); ell(g, 3.0, h - .74, .5, .1); }, { shadow: false }); for (let i = 0; i < 6; i++) pine(g, 1.7 + i * .3, h, .4, '#24305e', false); } },
+      { z: -1.35, rise: 'grow', x: 3.05, w: 1.6, h: 1.9, draw(g, w, h) { castle(g, w / 2, h, .62); },
+        props: [{ id: 'cw', x: 0, y: 0, w: 1.6, h: 1.9, basic: true, opacity: .9, dz: .006, draw(g, w, h) { castleWindows(g, w / 2, h, .62, '#ffd27a', 'rgba(255,200,100,1)'); } }] },
+      { z: -.7, rise: 'swing', dir: 1, x: 2, w: 3.8, h: 1.0, draw(g, w, h) {
+        cut(g, '#2e5a52', g => { for (let x = .05; x < 1.2; x += .22) circ(g, x, h - .32, .2); rr(g, -.05, h - .35, 1.3, .4, 0); for (let x = 2.75; x < 3.85; x += .22) circ(g, x, h - .3, .19); rr(g, 2.6, h - .33, 1.25, .4, 0); });
+        cut(g, N.snow, g => { for (let x = .05; x < 1.2; x += .22) ell(g, x, h - .48, .13, .045); for (let x = 2.75; x < 3.85; x += .22) ell(g, x, h - .45, .12, .04); }, { shadow: false });
+        lampPost(g, 1.3, h - .02, .45); lampPost(g, 2.6, h - .02, .45);
+      }, props: Array.from({ length: 6 }, (_, i) => ({ id: 'sl' + i, x: -1.2 + i * .48, y: .3, w: .16, h: .2, basic: true, dz: -.06, draw(g, w, h) { skyLanternArt(g, w, h); } })) },
+      { z: -.1, rise: 'swing', dir: -1, x: 1.75, w: 2.0, h: 2.1, draw: null, props: [
+        { id: 'sham', x: -.42, y: 0, w: 1.0, h: 1.85, tap: true, draw(g, w, h) { shamroze(g, .45, h, .82); } },
+        { id: 'zainab', x: .32, y: 0, w: 1.0, h: 1.62, tap: true, dz: .02, draw(g, w, h) { princess(g, .5, h, .95, { noRight: true }); } },
+        { id: 'arm', x: .548, y: .97, w: .3, h: .7, px: .5, py: .05, dz: .026, tap: true, draw(g, w, h) { zArmArt(g, w, h); } },
       ] },
-      { z: -.45, x: 2.85, w: 1.9, h: 2.7, draw(g, w, h) { towerWall(g, w, h, { cx: .95, ww: .95, yb: 1.0, straight: .6 }, { top: .3 }); g.save(); g.translate(.03, h - 2.12); shutterArt(g, .42, 1.12, true); g.restore(); g.save(); g.translate(w - .45, h - 2.12); shutterArt(g, .42, 1.12, false); g.restore(); } },
-      { z: .55, x: 2, w: 3.8, h: 1.0, draw(g, w, h) { drift(g, 0, 2.0, h, .35); pine(g, .35, h, .75); pine(g, 3.55, h, .7); snowman(g, 1.25, h - .1, .55); } },
-      { z: 1.5, x: 2, w: 3.9, h: .55, draw(g, w, h) { drift(g, 0, 3.9, h, .28); } },
+      { z: 1.35, rise: 'drop', x: 2, w: 3.9, h: .9, draw(g, w, h) { drift(g, 0, 1.4, h, .35); drift(g, 2.5, 3.9, h, .35); pine(g, 3.6, h, .7); },
+        props: [{ id: 'end', x: -1.05, y: .3, w: 1.6, h: .48, dz: .02, draw(g, w, h) { ribbon(g, w, h, 'The End', .28, '#5a6fd0'); } }] },
     ],
     setup(o, sp) {
-      o.foxLight = glow('#ffc867', .55, .9); o.foxLight.position.set(.9 - 1.9, 1.38, .05); sp.hinges[1].add(o.foxLight);
-      o.winGlow = glow('#ffb46b', 1.2, .3); o.winGlow.position.set(0, 1.5, .05); sp.hinges[4].add(o.winGlow);
+      o.foxLight = glow('#ffc867', .4, .6); o.foxLight.position.set(-1.0, 1.15, .05); sp.hinges[1].add(o.foxLight);
+      o.cg = glow('#ffc867', .5, .9); o.cg.position.set(0, .52, .04); o.arm.grp.add(o.cg);
+      o.shGlow = glow('#ffc867', .5, .8); o.shGlow.position.set(-.05 + .46 * .82, .86 * .82, .04); o.sham.grp.add(o.shGlow);
+      o.sl = []; for (let i = 0; i < 6; i++) { const l = o['sl' + i]; l.gl = glow('#ffb04a', .45, .8); l.gl.position.set(0, .1, .01); l.grp.add(l.gl); l.ph = i / 6; o.sl.push(l); }
     },
-    lamp: o => ({ obj: o.zainab.grp, at: [0, 1.6, .5], i: 2.5 }),
-    reset(o) { o.arm.grp.rotation.z = -.35; },
-    tick(o, t) { o.wheel.grp.rotation.z = t * .05; if (!o._blink) o.foxLight.scale.setScalar(.5 + .05 * Math.sin(t * 2)); },
-    async action(o) {
-      bubble('“Goodnight, Lantern Fox!”', o.zainab, 2.1, 2600); sfx.chime([659, 784, 659]);
-      tween(1.8, p => { o.arm.grp.rotation.z = -.35 - .9 * Math.sin(p * Math.PI) + Math.sin(p * Math.PI * 6) * .3 * Math.sin(p * Math.PI); });
-      await wait(1100); o._blink = true;
-      for (let i = 0; i < 3; i++) { sfx.blink(); await tween(.45, p => o.foxLight.scale.setScalar(.5 + 1.0 * Math.sin(p * Math.PI))); await wait(180); }
-      o._blink = false; shootingStar(o.$h[0], [1.6, 2.6, .12], [-.6, 1.9, .12]);
-      burstAt(o.foxLight.parent, [o.foxLight.position.x, o.foxLight.position.y, .1], '#ffe7a8', 30, .7);
+    lamp: o => ({ obj: o.arm.grp, at: [0, .6, .4], i: 2.2 }),
+    reset(o) { o.arm.grp.rotation.z = -.45; o._boost = false; o._blink = false; },
+    async intro(o) { bubble('“Look, Zainab, there he is!”', o.sham, 1.85, 2200); },
+    tick(o, t, dt) {
+      o.wheel.grp.rotation.z = t * .05;
+      o.sl.forEach((l, i) => { l.ph += dt * .05 * (o._boost ? 2.6 : 1); if (l.ph > 1) l.ph -= 1; const p = l.ph, a = Math.min(1, p * 6) * (1 - Math.max(0, (p - .75) / .25));
+        l.grp.position.set(l.P.x + Math.sin(t * .8 + i * 2) * .12, .3 + p * 2.6, -.06 - p * .6); l.mesh.material.opacity = a; l.gl.material.opacity = a * .8; });
+      if (!o._blink) { const ph = t % 4, b = ph < 1.5 ? Math.abs(Math.sin(ph / .5 * Math.PI)) : 0; o.foxLight.scale.setScalar(.35 + .55 * b); o.foxLight.material.opacity = .45 + .55 * b; }
+      o.cg.material.opacity = .75 + .2 * Math.sin(t * 3); o.shGlow.material.opacity = .7 + .15 * Math.sin(t * 4.3);
+      if (Math.random() < dt * 8) spark(wpos(o.arm.grp, (Math.random() - .5) * .08, .55, .05), '#ffd27a', (Math.random() - .5) * .1, .3, 0, 1.4);
     },
-  },
-  {
-    numeral: 'X', title: 'A Gift on the Windowsill', page: 19, mood: 'morning', snow: .15, end: true,
-    hint: 'Tap the little lantern', button: o => o._opened ? 'Hold it up again' : 'Hold the little lantern',
-    paras: [
-      'When Zainab woke, the sun was shining and the air smelled, just faintly, of spring. She threw open her shutters.',
-      'And there on the windowsill sat a tiny lantern, no bigger than an acorn, tied with a thread of pink wool from her very own scarf. When she held it close, it glowed, warm and golden, like a little tail saying hello.',
-      'Now, whenever the first snow falls, she holds the lantern up to the window. And far away on the hills, a little golden light blinks back, once, twice, three times.',
-      '#That is the Lantern Fox, saying thank you.',
-    ],
-    ground(g) {
-      g.fillStyle = '#eef4fb'; g.fillRect(0, 0, W, D);
-      cut(g, '#cfe7b4', g => { ell(g, .7, 3.6, .7, .4); ell(g, 3.2, 4.4, .8, .45); ell(g, 2.2, 2.0, .9, .3); }, { blur: 4, oy: 1 });
-      const r = rng(91); for (let i = 0; i < 26; i++) dots(g, ['#ef7aa6', '#b98ae6', '#ffd27a', '#ffffff'][i % 4], [[r() * W, 1.5 + r() * 3.8]], .03);
-    },
-    layers: [
-      { z: -2.3, x: 2, w: 3.8, h: 2.9, draw(g, w, h) { backdrop(g, w, h, [[0, '#8fc8ee'], [.7, '#d9ecf7'], [1, '#fff1d6']], g => {
-        cut(g, '#fff3c4', g => circ(g, 3.05, .7, .28), { sc: 'rgba(255,230,160,1)', blur: 40, oy: 0 });
-        cloud2(g, .7, .7, .9); cloud2(g, 2.0, 1.0, .7);
-        stroke(g, '#4a5070', .018, g => { [[1.4, .55], [1.6, .62], [2.4, .45]].forEach(([x, y]) => { g.moveTo(x - .06, y - .03); g.quadraticCurveTo(x - .03, y - .06, x, y); g.quadraticCurveTo(x + .03, y - .06, x + .06, y - .03); }); }, false);
-        cut(g, '#cfe3c0', g => { ell(g, .8, h, 1.4, .95); ell(g, 3.1, h, 1.5, .8); }); cut(g, N.snow, g => { ell(g, .8, h - .82, .55, .12); ell(g, 3.1, h - .68, .5, .1); }, { shadow: false });
-      }); } },
-      { z: -1.0, x: 2.0, w: 1.3, h: 1.95, draw(g, w, h) { roomArt(g, w, h); } },
-      { z: -.9, x: 2.0, w: 1.2, h: 2.1, draw: null, props: [{ id: 'zainab', x: 0, y: 0, w: 1.1, h: 2.0, tap: true, draw(g, w, h) { princess(g, w / 2, h, 1.18, { noScarf: true }); } }] },
-      { z: -.78, x: 2, w: 3.8, h: 2.55, draw(g, w, h) {
-        towerWall(g, w, h, { cx: 1.9, ww: 1.0, yb: .95, straight: .62 }, { top: .32 });
-        g.save(); g.translate(1.9 - .5 - .47, h - 2.07); shutterArt(g, .45, 1.1, true); g.restore(); g.save(); g.translate(1.9 + .5 + .02, h - 2.07); shutterArt(g, .45, 1.1, false); g.restore();
-        windowBox(g, 1.9 - .58, 1.9 + .58, h - .88);
-      },
-        props: [{ id: 'charm', x: .3, y: .99, w: .2, h: .34, tap: true, dz: .03, draw(g, w, h) { charmArt(g, w, h); } }] },
-      { z: .45, x: 2, w: 3.8, h: .8, draw(g, w, h) { drift(g, 0, 1.5, h, .3); drift(g, 2.6, 3.8, h, .35); ['drop', 'crocus', 'drop', 'bell'].forEach((k, i) => { g.save(); g.translate(1.55 + i * .26, h - .42); flower(g, .3, .42, k); g.restore(); }); },
-        props: [
-          { id: 'robin', x: 1.2, y: .25, w: .42, h: .4, tap: true, dz: .02, draw(g, w, h) { robinArt(g, w, h); } },
-          { id: 'end', x: -.9, y: .3, w: 1.7, h: .5, dz: .03, draw(g, w, h) { ribbon(g, w, h, 'The End', .3, '#5a6fd0'); } },
-        ] },
-      { z: 1.5, x: 2, w: 3.9, h: .55, draw(g, w, h) { drift(g, 0, 3.9, h, .25); } },
-    ],
-    setup(o, sp) {
-      o.cg = glow('#ffc867', .45, .6); o.cg.position.set(0, .2, .03); o.charm.grp.add(o.cg);
-      o.hill = glow('#ffc867', .4, 0); o.hill.position.set(.8 - 1.9, .95, .05); sp.hinges[0].add(o.hill);
-    },
-    lamp: o => ({ obj: o.charm.grp, at: [0, .2, .4], i: 1.2 }),
-    reset(o) { o._opened = false; o.end.grp.scale.setScalar(.001); o.charm.grp.position.y = o.charm.P.y; o.cg.scale.setScalar(.45); o.hill.material.opacity = 0; },
-    tick(o, t) { if (!o._busy) o.cg.material.opacity = .55 + .15 * Math.sin(t * 3); o.robin.grp.rotation.z = Math.sin(t * 2.5) > .97 ? .15 : 0; },
     async action(o, id) {
-      if (id === 'robin') { bubble('“Tweet! Spring is here!”', o.robin, .45, 1600); sfx.chime([1568, 1760, 1568]); await tween(.4, p => { o.robin.grp.position.y = .25 + Math.sin(p * Math.PI) * .15; }); return; }
-      o._busy = true; sfx.sparkle();
-      await tween(.9, p => { o.charm.grp.position.y = o.charm.P.y + .35 * E.out(p); o.cg.scale.setScalar(lerp(.45, 1.3, p)); o.cg.material.opacity = 1; L.target = lerp(1.2, 6, p); });
-      burstAt(o.charm.grp, [0, .2, .05], '#ffd27a', 50, 1.0);
-      bubble('“Thank you, Lantern Fox.”', o.zainab, 2.0, 2600);
-      await wait(600);
-      for (let i = 0; i < 3; i++) { sfx.blink(); await tween(.45, p => { o.hill.material.opacity = Math.sin(p * Math.PI); o.hill.scale.setScalar(.4 + .5 * Math.sin(p * Math.PI)); }); await wait(160); }
-      if (!o._opened) { burstAt(o.end.grp, [0, .25, .1], '#ffe7a8', 40, 1.0); await tween(.7, p => o.end.grp.scale.setScalar(Math.max(.001, p)), E.back); }
-      await tween(.6, p => { o.charm.grp.position.y = o.charm.P.y + .35 * (1 - p); o.cg.scale.setScalar(lerp(1.3, .45, p)); L.target = lerp(6, 1.2, p); });
-      o._opened = true; o._busy = false;
+      if (id === 'sham') { bubble('“Sweet dreams, Princess Zainab.”', o.sham, 1.85, 2400); sfx.chime([659, 784, 988]); return; }
+      sfx.wish(); o._boost = true;
+      await tween(.7, p => { o.arm.grp.rotation.z = lerp(-.45, -.08, E.out(p)); o.cg.scale.setScalar(lerp(.5, 1.5, p)); L.target = lerp(2.2, 7, p); });
+      burstAt(o.arm.grp, [0, .55, .05], '#ffd27a', 70, 1.3);
+      bubble('“Thank you, Lantern Fox!”', o.zainab, 1.62, 2400);
+      o._blink = true;
+      for (let i = 0; i < 3; i++) { sfx.blink(); await tween(.45, p => { o.foxLight.scale.setScalar(.4 + 1.1 * Math.sin(p * Math.PI)); o.foxLight.material.opacity = 1; }); await wait(140); }
+      o._blink = false;
+      for (let i = 0; i < 3; i++) { sfx.firework(); burstAt(o.$h[2], [-.6 + i * .6, 2.3 + (i % 2) * .35, .2], ['#ffd27a', '#ff8fb8', '#9fe3ff'][i], 70, 1.5, .1, 1.7); await wait(330); }
+      shootingStar(o.$h[0], [1.5, 2.6, .12], [-.5, 2.0, .12]);
+      await wait(300); bubble('“Sweet dreams, Princess.”', o.sham, 1.85, 2200);
+      await tween(.9, p => { o.arm.grp.rotation.z = lerp(-.08, -.45, p); o.cg.scale.setScalar(lerp(1.5, .5, p)); L.target = lerp(7, 2.2, p); });
+      o._boost = false;
     },
   },
 ];
@@ -1234,9 +1165,23 @@ const snow = new THREE.Points(snowGeo, new THREE.PointsMaterial({ map: DOT, colo
 let snowTarget = 0;
 function updateSnow(dt, t) {
   snow.material.opacity = lerp(snow.material.opacity, snowTarget, 1 - Math.pow(.2, dt)); if (snow.material.opacity < .01) return;
-  for (let i = 0; i < SNOWN; i++) { const j = i * 3; snowPos[j + 1] -= snowSpd[i] * dt; snowPos[j] += Math.sin(t * .8 + snowPh[i]) * .12 * dt; if (snowPos[j + 1] < Y0) { snowPos[j + 1] = Y0 + 4.4; snowPos[j] = -.2 + Math.random() * 4.4; snowPos[j + 2] = -2.8 + Math.random() * 5.6; } }
+  for (let i = 0; i < SNOWN; i++) { const j = i * 3; snowPos[j + 1] -= snowSpd[i] * dt; snowPos[j] += (Math.sin(t * .8 + snowPh[i]) * .12 + wind * (.6 + snowSpd[i])) * dt; if (snowPos[j] > 4.6) snowPos[j] = -.3; if (snowPos[j + 1] < Y0) { snowPos[j + 1] = Y0 + 4.4; snowPos[j] = -.2 + Math.random() * 4.4; snowPos[j + 2] = -2.8 + Math.random() * 5.6; } }
   snowGeo.attributes.position.needsUpdate = true;
 }
+/* ---- a pooled spark system for embers, glints and trails */
+let wind = 0;
+const SPN = MOBILE ? 320 : 640, spP = new Float32Array(SPN * 3).fill(-50), spC = new Float32Array(SPN * 3), spB = new Float32Array(SPN * 3), spV = new Float32Array(SPN * 3), spL = new Float32Array(SPN), spM = new Float32Array(SPN).fill(1); let spI = 0;
+const spGeo = new THREE.BufferGeometry(); spGeo.setAttribute('position', new THREE.BufferAttribute(spP, 3)); spGeo.setAttribute('color', new THREE.BufferAttribute(spC, 3));
+const sparks = new THREE.Points(spGeo, new THREE.PointsMaterial({ map: DOT, size: .07, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); sparks.frustumCulled = false; scene.add(sparks);
+const tcol = new THREE.Color();
+function spark(p, color, vx, vy, vz, life) { const i = spI, j = i * 3; spI = (spI + 1) % SPN; spP[j] = p.x; spP[j + 1] = p.y; spP[j + 2] = p.z; spV[j] = vx; spV[j + 1] = vy; spV[j + 2] = vz; tcol.set(color); spB[j] = tcol.r; spB[j + 1] = tcol.g; spB[j + 2] = tcol.b; spL[i] = life; spM[i] = life; }
+function updateSparks(dt) {
+  for (let i = 0; i < SPN; i++) { const j = i * 3; if (spL[i] <= 0) { spC[j] = spC[j + 1] = spC[j + 2] = 0; continue; } spL[i] -= dt; const a = Math.sin(Math.max(0, spL[i] / spM[i]) * Math.PI);
+    spP[j] += (spV[j] + wind * .35) * dt; spP[j + 1] += spV[j + 1] * dt; spP[j + 2] += spV[j + 2] * dt; spC[j] = spB[j] * a; spC[j + 1] = spB[j + 1] * a; spC[j + 2] = spB[j + 2] * a; }
+  spGeo.attributes.position.needsUpdate = true; spGeo.attributes.color.needsUpdate = true;
+}
+const wpos = (obj, x, y, z) => obj.localToWorld(new THREE.Vector3(x, y, z));
+
 /* ---- sparkle bursts */
 const bursts = [];
 function burst(pos, color = '#fff3c4', n = 36, speed = 1.2, size = .08, life = 1.3, grav = -.6) {
@@ -1276,6 +1221,7 @@ function buildSpread(sp, si) {
   sp.o = {}; sp.hinges = []; sp.o.$h = sp.hinges;
   sp.layers.forEach((Ly, li) => {
     const hinge = new THREE.Group(); hinge.position.set(Ly.x, Y0 + .006 + li * .005, Ly.z); sp.root.add(hinge); sp.hinges.push(hinge);
+    hinge.userData.L = Ly; hinge.userData.base = hinge.position.clone(); hinge.userData.H = Math.max(Ly.h, ...(Ly.props || []).map(P => P.y + P.h)) + .1;
     if (Ly.draw) { const [c, g] = layerCanvas(Ly.w, Ly.h); Ly.draw(g, Ly.w, Ly.h); grain(c); hinge.add(paperMesh(c, Ly.w, Ly.h)); }
     (Ly.props || []).forEach(P => {
       const [c, g] = layerCanvas(P.w, P.h); P.draw(g, P.w, P.h); if (!P.basic) grain(c);
@@ -1300,11 +1246,22 @@ function tidy(n) { setTimeout(() => { ensure(n + 1); SP.forEach((_, i) => { if (
 function setRise(sp, p, rising) {
   const n = sp.hinges.length, stg = .09, span = 1 - (n - 1) * stg;
   sp.hinges.forEach((hg, i) => {
-    const q = clamp((p - (rising ? i : n - 1 - i) * stg) / span, 0, 1), r = rising ? E.back(q) : q;
-    hg.rotation.x = -(Math.PI / 2) * (1 - r); hg.visible = r > .004;
+    const Ly = hg.userData.L, q = clamp((p - (rising ? i : n - 1 - i) * stg) / span, 0, 1), r = rising ? (Ly.rise === 'drop' ? E.bounce(q) : E.back(q)) : q;
+    applyRise(hg, r);
     if (rising && q > 0 && !hg.userData.popped) { hg.userData.popped = true; sfx.pop(.7 + i * .12); }
   });
   sp.fx.visible = rising ? p > .6 : p > .97;
+}
+function applyRise(hg, r) {
+  const Ly = hg.userData.L, b = hg.userData.base, t = Ly.rise || 'fold', d = Ly.dir || 1;
+  hg.position.copy(b); hg.rotation.set(0, 0, 0); hg.scale.setScalar(1);
+  if (t === 'fold') hg.rotation.x = -(Math.PI / 2) * (1 - r);
+  else if (t === 'grow') hg.position.y = b.y - (1 - r) * hg.userData.H;
+  else if (t === 'drop') hg.position.y = b.y + (1 - r) * 3.4;
+  else if (t === 'swing') hg.rotation.y = (1 - r) * d * Math.PI / 2;
+  else if (t === 'spin') { hg.rotation.y = (1 - r) * Math.PI * 2; hg.scale.setScalar(Math.max(.001, Math.min(r, 1.15))); }
+  else if (t === 'slide') hg.position.x = b.x + (1 - r) * d * 4.6;
+  hg.visible = r > .004;
 }
 function rise(sp) { sp.hinges.forEach(h => h.userData.popped = false); return tween(1.6, p => setRise(sp, p, true)); }
 function fold(sp) { return tween(.55, p => setRise(sp, 1 - p, false), E.in); }
@@ -1337,6 +1294,7 @@ const sfx = (() => {
     wish() { [523, 659, 784, 988, 1175, 1568].forEach((f, i) => tone(f, f * 1.003, 1.2, .05, 'sine', i * .18)); },
     star() { tone(2400, 900, .7, .04, 'sine'); },
     blink() { tone(1320, 1320, .25, .05, 'triangle'); },
+    knock() { burstN('lowpass', 700, 200, .08, .2); burstN('lowpass', 700, 200, .08, .2, .16); },
     snore() { tone(90, 70, .8, .12, 'sawtooth'); burstN('lowpass', 300, 120, .8, .08); },
     step() { burstN('lowpass', 900, 300, .12, .08); },
     note(f) { tone(f, f * 1.002, .6, .06, 'triangle'); },
@@ -1350,7 +1308,7 @@ function lampFor(sp) { const l = sp.lamp?.(sp.o); if (l) { L.follow = l.obj; L.a
 function unpeel() { if (leaf.userData.peelFor != null) { rightPage.material.map = SP[leaf.userData.peelFor].rT; leaf.userData.peelFor = null; leaf.visible = false; } }
 function beginTurn(dir) {
   if (S.busy || S.acting) return null; const n = S.cur + dir; if (n < -1 || n >= SP.length) return null;
-  unpeel(); ensure(n); ensure(S.cur); S.busy = true; hideBubble(); L.target = 0; ui();
+  unpeel(); ensure(n); ensure(S.cur); S.busy = true; wind = 0; hideBubble(); L.target = 0; ui();
   const c = { dir, n, q: 0, kind: S.cur === -1 ? 'open' : n === -1 ? 'close' : 'turn', a: SP[S.cur], b: SP[n] };
   if (c.kind === 'open') { const sp = SP[0]; rightPage.material.map = sp.rT; leftPage.material.map = sp.lT; sp.root.visible = true; sp.reset?.(sp.o); setRise(sp, 0, true); }
   else if (c.kind === 'turn') {
@@ -1376,10 +1334,11 @@ async function endTurn(c, commit, full) {
   }, full ? E.inOut : E.out);
   const { a, b } = c;
   if (commit) {
-    if (c.kind === 'close') { a.root.visible = false; sfx.thud(); }
+    if (c.kind === 'close') { a.root.visible = false; sfx.thud(); applyShot(null); }
     else if (c.kind === 'turn') { a.root.visible = false; leaf.visible = false; if (c.dir > 0) leftPage.material.map = b.lT; else rightPage.material.map = b.rT; if (!rp) rp = rise(b); }
     try { navigator.vibrate?.(10); } catch (e) { }
-    S.cur = c.n; ui(); if (rp) await rp;
+    S.cur = c.n; applyShot(SP[S.cur]); ui(); if (rp) await rp;
+    const cs = SP[S.cur]; if (cs?.intro) setTimeout(() => { if (SP[S.cur] === cs && !S.busy) cs.intro(cs.o); }, 150);
     if (S.cur === 0 && !S.swiped) showSwipeHint();
   } else {
     if (c.kind === 'open') b.root.visible = false;
@@ -1454,7 +1413,8 @@ function placeBubble(now) {
 }
 
 /* ---- camera */
-const cam = { yaw: 0, pitch: .78, zoom: 1, tx: W / 2, dist: 14, tyaw: 0, tpitch: .78, intro: 1.3 };
+const cam = { yaw: 0, pitch: .78, zoom: 1, tx: W / 2, dist: 14, tyaw: 0, tpitch: .78, intro: 1.3, sz: 1, tsz: 1, ty: 1, tty: 1, sway: .05 };
+function applyShot(sp) { const s = sp?.shot || {}; cam.tpitch = portrait() ? (s.pitch ?? .78) : Math.max(.62, s.pitch ?? .78); cam.tsz = s.zoom ?? 1; cam.tty = s.ty ?? 1; cam.sway = s.sway ?? .05; }
 function insets() {
   if (!portrait()) return [0, 0];
   const top = document.querySelector('.top .chip').getBoundingClientRect().bottom + 4;
@@ -1514,12 +1474,13 @@ const peel = { amt: 0, hover: false };
 const wp = new THREE.Vector3();
 function frame(now) {
   const dt = Math.min(.05, (now - last) / 1000); last = now; const t = now / 1000;
-  runTweens(now); updateSnow(dt, t); updateBursts(dt);
+  runTweens(now); updateSnow(dt, t); updateBursts(dt); updateSparks(dt);
   const f = targetFrame(), k = 1 - Math.pow(.02, dt);
   cam.tx = lerp(cam.tx, f.fx, k * .8); cam.dist = lerp(cam.dist, f.dist, k * .8); cam.intro = lerp(cam.intro, 1, k * .5);
   cam.shift = lerp(cam.shift || 0, f.shift, k * .8); if (Math.abs(cam.shift) > .5) camera.setViewOffset(innerWidth, innerHeight, 0, cam.shift, innerWidth, innerHeight); else camera.clearViewOffset();
-  cam.yaw = lerp(cam.yaw, cam.tyaw + (ptrs.size || REDUCE ? 0 : Math.sin(now * .00018) * .05), k); cam.pitch = lerp(cam.pitch, cam.tpitch, k);
-  const d = cam.dist * cam.zoom * cam.intro, T = new THREE.Vector3(cam.tx, 1.0, .35);
+  cam.yaw = lerp(cam.yaw, cam.tyaw + (ptrs.size || REDUCE ? 0 : Math.sin(now * .00022) * cam.sway), k * .6); cam.pitch = lerp(cam.pitch, cam.tpitch, k * .6);
+  cam.sz = lerp(cam.sz, portrait() && S.cur >= 0 ? cam.tsz : 1, k * .6); cam.ty = lerp(cam.ty, S.cur >= 0 ? cam.tty : 1, k * .6);
+  const d = cam.dist * cam.zoom * cam.intro * cam.sz, T = new THREE.Vector3(cam.tx, cam.ty, .35);
   camera.position.set(T.x + d * Math.sin(cam.yaw) * Math.cos(cam.pitch), T.y + d * Math.sin(cam.pitch), T.z + d * Math.cos(cam.yaw) * Math.cos(cam.pitch)); camera.lookAt(T);
   if (L.follow) { L.follow.localToWorld(wp.copy(L.at)); lampLight.position.copy(wp); }
   lampLight.intensity = lerp(lampLight.intensity, L.target * (1 + .06 * Math.sin(t * 13) * Math.sin(t * 5)), 1 - Math.pow(.05, dt));
