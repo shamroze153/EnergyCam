@@ -383,6 +383,7 @@ textarea.bIn{font:italic 500 18px var(--font-book);line-height:1.4;resize:none}
         <div class="bLbl">Hair colour</div><div class="sws" data-key="h"></div>
         <div class="bLbl">Coat colour</div><div class="sws" data-key="c"></div>
         <div class="bLbl">Something special</div><div class="chips" data-key="a"></div>
+        <div class="bLbl">Their animal friend</div><div class="chips" data-key="p"></div>
       </section>
       <section class="bStep" data-step="2">
         <h3>Who is giving this book?</h3>
@@ -466,7 +467,7 @@ const E = {
 const BOOK = '"Cormorant Garamond", Georgia, serif', SC = '"Cormorant SC", "Cormorant Garamond", Georgia, serif', SCRIPT = '"Pinyon Script", cursive';
 
 /* ================================================================== who the book is for (set by the character builder) */
-const DEFAULT_CFG = { n: 'Zainab', nu: 'زینب', t: 'Princess', k: 'girl', s: '#dcab86', h: '#2b1a14', y: 'long', a: 'bow', c: '#cc2f3b', g: 'Shamroze', gu: 'شمروز', mu: '', ad: 'man', as: '#d6a07a',
+const DEFAULT_CFG = { p: 'fox', n: 'Zainab', nu: 'زینب', t: 'Princess', k: 'girl', s: '#dcab86', h: '#2b1a14', y: 'long', a: 'bow', c: '#cc2f3b', g: 'Shamroze', gu: 'شمروز', mu: '', ad: 'man', as: '#d6a07a',
   m: 'who makes the coldest nights feel warm.\nMay you always find the light,\nand always be the light\nfor someone else.' };
 const OPT = {
   t: [['Princess', 'Princess'], ['Prince', 'Prince'], ['', 'Just the name']],
@@ -476,6 +477,7 @@ const OPT = {
   y: [['long', 'Long'], ['curly', 'Curly'], ['bob', 'Bob'], ['bun', 'Bun'], ['short', 'Short'], ['hijab', 'Hijab']],
   c: ['#cc2f3b', '#7b52a8', '#2f8f8a', '#e46aa0', '#e8a23a', '#2f4f9a'],
   a: [['bow', 'Bow'], ['tiara', 'Tiara'], ['crown', 'Crown'], ['glasses', 'Glasses'], ['hat', 'Woolly hat'], ['none', 'Nothing']],
+  p: [['fox', 'Fox'], ['cat', 'Cat'], ['bunny', 'Bunny'], ['squirrel', 'Squirrel']],
   ad: [['man', 'A man'], ['woman', 'A woman'], ['womanh', 'A woman in hijab'], ['none', 'No grown-up']],
   as: ['#f3d2b8', '#e8b98f', '#d6a07a', '#c68a5e', '#a76a43', '#7a4a2c'],
 };
@@ -483,13 +485,19 @@ function sanitize(c) {
   const d = DEFAULT_CFG, o = { ...d }, col = v => /^#[0-9a-f]{6}$/i.test(v || '') ? v : null, pick = (k, v) => OPT[k].some(x => (Array.isArray(x) ? x[0] : x) === v) ? v : d[k];
   const txt = (v, n) => String(v ?? '').replace(/[<>{}]/g, '').replace(/\s+/g, ' ').trim().slice(0, n);
   o.n = txt(c.n, 18) || d.n; o.g = txt(c.g, 22) || d.g; o.nu = c.nu === undefined ? d.nu : txt(c.nu, 18); o.gu = c.gu === undefined ? d.gu : txt(c.gu, 22);
-  o.mu = String(c.mu ?? '').replace(/[<>{}]/g, '').split('\n').map(l => l.trim().slice(0, 70)).filter(Boolean).slice(0, 5).join('\n'); o.t = pick('t', c.t ?? d.t); o.k = pick('k', c.k); o.y = pick('y', c.y); o.a = pick('a', c.a); o.ad = pick('ad', c.ad);
+  o.mu = String(c.mu ?? '').replace(/[<>{}]/g, '').split('\n').map(l => l.trim().slice(0, 70)).filter(Boolean).slice(0, 5).join('\n'); o.t = pick('t', c.t ?? d.t); o.k = pick('k', c.k); o.y = pick('y', c.y); o.a = pick('a', c.a); o.ad = pick('ad', c.ad); o.p = pick('p', c.p);
   o.s = col(c.s) || d.s; o.h = col(c.h) || d.h; o.c = col(c.c) || d.c; o.as = col(c.as) || d.as;
   o.m = String(c.m ?? d.m).replace(/[<>{}]/g, '').split('\n').map(l => l.trim().slice(0, 60)).filter(Boolean).slice(0, 5).join('\n');
   return o;
 }
 let CFG = { ...DEFAULT_CFG };
 const tn = c => c.t ? c.t + ' ' + c.n : c.n;
+const PETS = {
+  fox: { a: 'fox', A: 'Fox', ua: 'لومڑی', f: true },
+  cat: { a: 'cat', A: 'Cat', ua: 'بلی', f: true },
+  bunny: { a: 'bunny', A: 'Bunny', ua: 'خرگوش', f: false },
+  squirrel: { a: 'squirrel', A: 'Squirrel', ua: 'گلہری', f: true },
+};
 let LANG = 'en';
 const URDU = '"Noto Nastaliq Urdu", "Jameel Noori Nastaleeq", serif';
 const UR_TITLE = { Princess: 'شہزادی', Prince: 'شہزادہ' };
@@ -501,19 +509,19 @@ const isUrText = str => /[؀-ۿ]/.test(str);
 /* short strings: English → Urdu (titles, hints, buttons, speech bubbles) */
 const DICT = {
   'Open the book': 'کتاب کھولیں', 'The End': 'ختم شد',
-  'For {TN}': '{TN} کے نام', 'The Coldest Night': 'سب سے ٹھنڈی رات', 'The Lantern Fox': 'لالٹین والی لومڑی', 'The Whispering Pines': 'سرگوشیاں کرتے دیودار',
+  'For {TN}': '{TN} کے نام', 'The Coldest Night': 'سب سے ٹھنڈی رات', 'The Lantern {A}': 'لالٹین {f:والی|والا} {ua}', 'The Whispering Pines': 'سرگوشیاں کرتے دیودار',
   'The Frozen Lake': 'جمی ہوئی جھیل', 'The Wishing Hill': 'دعاؤں والی پہاڑی', 'The First Light': 'پہلی روشنی', 'Home Again': 'گھر واپسی',
-  'Tap the castle': 'محل کو چھوئیں', 'Tap the shutters': 'کھڑکی کے پٹ چھوئیں', 'Tap the little fox': 'ننھی لومڑی کو چھوئیں', 'Tap the trees': 'درختوں کو چھوئیں',
-  'Tap {N} or the fox': '{N} یا لومڑی کو چھوئیں', 'Tap {N} to make a wish': 'دعا کے لیے {N} کو چھوئیں', 'Tap the fox': 'لومڑی کو چھوئیں', 'Tap {N}’s little lantern': '{N} کی ننھی لالٹین کو چھوئیں',
+  'Tap the castle': 'محل کو چھوئیں', 'Tap the shutters': 'کھڑکی کے پٹ چھوئیں', 'Tap the little {a}': '{f:ننھی|ننھے} {ua} کو چھوئیں', 'Tap the trees': 'درختوں کو چھوئیں',
+  'Tap {N} or the {a}': '{N} یا {ua} کو چھوئیں', 'Tap {N} to make a wish': 'دعا کے لیے {N} کو چھوئیں', 'Tap the {a}': '{ua} کو چھوئیں', 'Tap {N}’s little lantern': '{N} کی ننھی لالٹین کو چھوئیں',
   'Fireworks again': 'پھر سے آتش بازی', 'Light up the castle': 'محل روشن کریں', 'Close the shutters': 'پٹ بند کریں', 'Open the shutters': 'پٹ کھولیں',
-  'Hug the fox': 'لومڑی کو گلے لگائیں', 'Give him your scarf': 'اپنا مفلر دے دیں', 'Shake the pines': 'درخت ہلائیں', 'Twirl on the ice': 'برف پر گھومیں',
-  'Wish again': 'پھر سے دعا', 'Make a wish': 'دعا مانگیں', 'Follow the fox': 'لومڑی کے پیچھے چلیں', 'Lift the lantern together': 'مل کر لالٹین اٹھائیں',
+  'Hug the {a}': '{ua} کو گلے لگائیں', 'Give him your scarf': 'اپنا مفلر دے دیں', 'Shake the pines': 'درخت ہلائیں', 'Twirl on the ice': 'برف پر گھومیں',
+  'Wish again': 'پھر سے دعا', 'Make a wish': 'دعا مانگیں', 'Follow the {a}': '{ua} کے پیچھے چلیں', 'Lift the lantern together': 'مل کر لالٹین اٹھائیں',
   'Tap, tap… tap, tap.': 'ٹَک ٹَک… ٹَک ٹَک۔', '“Brrr… so cold…”': '“بررر… کتنی سردی ہے…”', '“Hello, little ones! We are friends.”': '“ننھے دوستو، ڈرو نہیں! ہم دوست ہیں۔”',
   '“Hello? Is somebody there?”': '“کوئی ہے؟ کون ہے وہاں؟”', '“I wish… for my friend to shine.”': '“میری دعا ہے… کہ میری دوست پھر سے جگمگا اٹھے۔”',
-  '“Look, {N}, there he is!”': '“دیکھو {N}، وہ رہی!”', '“Oh! That is so much better.”': '“آہا! اب کتنا اچھا لگ رہا ہے۔”', '“Run, little fox, run!”': '“بھاگو ننھی لومڑی، بھاگو!”',
+  '“Look, {N}, there he is!”': '“دیکھو {N}، {f:وہ رہی|وہ رہا}!”', '“Oh! That is so much better.”': '“آہا! اب کتنا اچھا لگ رہا ہے۔”', '“Run, little {a}, run!”': '“بھاگو {f:ننھی|ننھے} {ua}، بھاگو!”',
   '“Spring is coming!”': '“بہار آ رہی ہے!”', '“Sweet dreams, {TN}.”': '“میٹھے خواب، {TN}۔”', '“Sweet dreams, {TorN}.”': '“میٹھے خواب، {TorN}۔”',
-  '“Thank you, Lantern Fox!”': '“شکریہ، لالٹین والی لومڑی!”', '“This story is for you, {TN}.”': '“یہ کہانی تمہارے لیے ہے، {TN}۔”', '“Wheeeee!”': '“واہ! مزہ آ گیا!”',
-  '“Thank you, {TorN}.”': '“شکریہ، {TorN}۔”', '“You are very welcome, little fox.”': '“کوئی بات نہیں، ننھی لومڑی۔”',
+  '“Thank you, Lantern {A}!”': '“شکریہ، لالٹین {f:والی|والے} {ua}!”', '“This story is for you, {TN}.”': '“یہ کہانی تمہارے لیے ہے، {TN}۔”', '“Wheeeee!”': '“واہ! مزہ آ گیا!”',
+  '“Thank you, {TorN}.”': '“شکریہ، {TorN}۔”', '“You are very welcome, little {a}.”': '“کوئی بات نہیں، {f:ننھی|ننھے} {ua}۔”',
 };
 const TR = str => LANG === 'ur' ? (DICT[str] ?? str) : str;
 /* the story in Urdu, written for this book; {g:girl|boy} picks the verb ending */
@@ -521,32 +529,33 @@ const UR_PARAS = [null,
   ['سال کی سب سے ٹھنڈی رات تھی۔ برف اتنی آہستہ آہستہ گر رہی تھی کہ اُلّو بھی سرگوشیوں میں باتیں کر رہے تھے۔',
    'چھوٹے سے محل کے سب سے اونچے مینار میں {TN} {g:جاگ رہی تھی|جاگ رہا تھا}۔ ٹَک ٹَک، کوئی کھڑکی کے پٹ پر دستک دے رہا تھا۔ ٹَک ٹَک۔',
    'وہ بستر سے {g:اُتری|اُترا}، ٹھنڈے پتھریلے فرش پر دبے پاؤں {g:چلی|چلا} اور پٹ کی درز سے باہر جھانکا۔ نیچے خاموش باغ میں کوئی ننھی سی سنہری چیز اندھیرے میں چمک رہی تھی۔'],
-  ['جمے ہوئے فوارے کے پاس ایک لومڑی بیٹھی تھی، بلی سے بھی چھوٹی۔ اس کی دُم لالٹین کی طرح چمکتی تھی، مگر روشنی مدھم تھی اور ٹمٹما رہی تھی۔',
-   '“میں لالٹین والی لومڑی ہوں،” اس نے کانپتے ہوئے کہا۔ “ہر سردی میں بہار کی پہلی روشنی پہاڑیوں کے پار میں ہی لے کر جاتی ہوں۔ مگر شمالی ہوا نے میری دُم کو کاٹ کھایا ہے، اور میری روشنی بجھنے کو ہے۔”',
-   '{N} نے ایک پل بھی نہیں سوچا۔ اپنا سب سے گرم مفلر اُتارا اور لومڑی کے گرد لپیٹ دیا، بالکل کسی پیار بھری جپھی کی طرح۔'],
+  ['جمے ہوئے فوارے کے پاس ایک {ua} {f:بیٹھی تھی|بیٹھا تھا}، چائے کی پیالی سے بھی {f:چھوٹی|چھوٹا}۔ اس کی دُم لالٹین کی طرح چمکتی تھی، مگر روشنی مدھم تھی اور ٹمٹما رہی تھی۔',
+   '“میں لالٹین {f:والی|والا} {ua} ہوں،” اس نے کانپتے ہوئے کہا۔ “ہر سردی میں بہار کی پہلی روشنی پہاڑیوں کے پار میں ہی لے کر {f:جاتی|جاتا} ہوں۔ مگر شمالی ہوا نے میری دُم کو کاٹ کھایا ہے، اور میری روشنی بجھنے کو ہے۔”',
+   '{N} نے ایک پل بھی نہیں سوچا۔ اپنا سب سے گرم مفلر اُتارا اور {ua} کے گرد لپیٹ دیا، بالکل کسی پیار بھری جپھی کی طرح۔'],
   ['“تو پھر میں تمہارے ساتھ {g:چلوں گی|چلوں گا}،” {N} نے کہا، “تاکہ ہوا تمہاری روشنی پھر سے نہ بجھا سکے۔”',
    'دونوں دبے پاؤں سرگوشیاں کرتے دیوداروں میں داخل ہوئے، جہاں درختوں نے برف کے کوٹ پہن رکھے تھے اور ہر شاخ سانس روکے کھڑی تھی۔ برف کے ڈھیروں سے ننھی ننھی آنکھیں جھانک رہی تھیں۔ کہیں کچھ سرسرایا۔ کہیں کچھ ہلا۔',
-   '“ڈرو مت،” لومڑی نے کہا۔ “یہ تو بس دیکھنا چاہتے ہیں کہ رات کو یہاں چلنے کی ہمت کس میں ہے۔”'],
+   '“ڈرو مت،” {ua} نے کہا۔ “یہ تو بس دیکھنا چاہتے ہیں کہ رات کو یہاں چلنے کی ہمت کس میں ہے۔”'],
   ['جنگل کے اُس پار جھیل تھی، آئینے کی طرح چکنی اور جمی ہوئی۔ برف کے بہت نیچے ننھی مچھلیاں یوں چمک رہی تھیں جیسے آسمان سے گرے ستارے۔',
-   '“گھوم کر جائیں گے تو صبح ہو جائے گی،” لومڑی نے آہ بھری۔',
-   'تو {N} نے دستانے والا ہاتھ آگے بڑھایا، لومڑی نے اپنی دُم اس کی کلائی کے گرد لپیٹی، اور ایک، دو، تین! دونوں برف پر پھسلتے چلے گئے، اور اتنا ہنسے کہ چاند بھی دیکھنے نکل آیا کہ یہ کیسا شور ہے۔'],
-  ['سب سے اونچی پہاڑی کی چوٹی پر ساری دنیا چاندی جیسی اور خاموش تھی۔ لومڑی کی روشنی اب بس ایک ننھی سی چمک رہ گئی تھی۔',
+   '“گھوم کر جائیں گے تو صبح ہو جائے گی،” {ua} نے آہ بھری۔',
+   'تو {N} نے دستانے والا ہاتھ آگے بڑھایا، {ua} نے اپنی دُم اس کی کلائی کے گرد لپیٹی، اور ایک، دو، تین! دونوں برف پر پھسلتے چلے گئے، اور اتنا ہنسے کہ چاند بھی دیکھنے نکل آیا کہ یہ کیسا شور ہے۔'],
+  ['سب سے اونچی پہاڑی کی چوٹی پر ساری دنیا چاندی جیسی اور خاموش تھی۔ {ua} کی روشنی اب بس ایک ننھی سی چمک رہ گئی تھی۔',
    '“اسے صرف ایک ہی چیز دوبارہ روشن کر سکتی ہے،” اس نے سرگوشی کی۔ “ایک دعا، جو کوئی نیک دل مانگے۔”',
    '{N} نے آنکھیں بند کیں۔ نہ ہیرے مانگے، نہ بڑا محل، نہ اپنا ٹٹو۔ بس یہ دعا مانگی کہ اس کی دوست پھر سے جگمگا اٹھے۔',
    '#اور آسمان ناچنے لگا۔'],
-  ['آسمان پر ہرے اور جامنی رنگ کی لہریں دوڑنے لگیں، اور لومڑی کی دُم طلوعِ آفتاب کی طرح دہک اٹھی۔ وہ پہاڑی سے چھلانگ لگا کر دوڑی، اور جہاں جہاں اس کے پنجے پڑے، برف پگھل کر پھول بنتی گئی۔',
+  ['آسمان پر ہرے اور جامنی رنگ کی لہریں دوڑنے لگیں، اور {ua} کی دُم طلوعِ آفتاب کی طرح دہک اٹھی۔ وہ پہاڑی سے چھلانگ لگا کر {f:دوڑی|دوڑا}، اور جہاں جہاں اس کے پنجے پڑے، برف پگھل کر پھول بنتی گئی۔',
    '#سفید کلیاں۔ جامنی پھول۔ ناخن سے بھی چھوٹی نیلی گھنٹیاں۔',
-   '“بہار آ رہی ہے!” لومڑی نے پکارا۔ “بہار آ رہی ہے، اور تم {g:لے کر آئی ہو|لے کر آئے ہو}!”'],
-  ['لومڑی اپنی دُم کی گرم ہوا پر {N} کو گھر لے آئی، عین اُس وقت جب آسمان کے کنارے گلابی ہونے لگے تھے۔ مفلر تو چلا گیا تھا، مگر دل کسی بھی مفلر سے زیادہ گرم تھا۔',
+   '“بہار آ رہی ہے!” {ua} نے پکارا۔ “بہار آ رہی ہے، اور تم {g:لے کر آئی ہو|لے کر آئے ہو}!”'],
+  ['{ua} اپنی دُم کی گرم ہوا پر {N} کو گھر {f:لے آئی|لے آیا}، عین اُس وقت جب آسمان کے کنارے گلابی ہونے لگے تھے۔ مفلر تو چلا گیا تھا، مگر دل کسی بھی مفلر سے زیادہ گرم تھا۔',
    'صبح کھڑکی کی چوکھٹ پر اسے ایک ننھی سی لالٹین ملی، بلوط کے پھل سے بھی چھوٹی، گلابی اون کے دھاگے سے بندھی ہوئی۔',
    'اب جب بھی پہلی برف گرتی ہے، وہ یہ لالٹین لے کر باغ میں {g:جاتی|جاتا} ہے، کسی ایسے کا ہاتھ تھامے جو اس سے بہت پیار کرتا ہے، اور اسے دور پہاڑیوں کی طرف اونچا {g:کرتی|کرتا} ہے۔ اور جواب میں ایک ننھی سی سنہری روشنی جھپکتی ہے، ایک، دو، تین بار۔',
-   '#یہ لالٹین والی لومڑی ہے، جو شکریہ کہہ رہی ہے۔'],
+   '#یہ لالٹین {f:والی|والا} {ua} ہے، جو شکریہ کہہ {f:رہی|رہا} ہے۔'],
 ];
 function T(str) {
   const girl = CFG.k !== 'boy', ur = LANG === 'ur';
   const N = ur ? (CFG.nu || CFG.n) : CFG.n, G = ur ? (CFG.gu || CFG.g) : CFG.g, TT = ur ? (UR_TITLE[CFG.t] || '') : CFG.t;
-  const map = { N, T: TT, TN: TT ? TT + ' ' + N : N, TorN: TT || N, G, she: girl ? 'she' : 'he', She: girl ? 'She' : 'He', her: girl ? 'her' : 'his', Her: girl ? 'Her' : 'His', obj: girl ? 'her' : 'him' };
-  return String(str).replace(/\{g:([^|}]*)\|([^}]*)\}/g, (m, a, b) => girl ? a : b).replace(/\{(\w+)\}/g, (m, k) => map[k] ?? m);
+  const pet = PETS[CFG.p] || PETS.fox;
+  const map = { a: pet.a, A: pet.A, AU: pet.A.toUpperCase(), ua: pet.ua, N, T: TT, TN: TT ? TT + ' ' + N : N, TorN: TT || N, G, she: girl ? 'she' : 'he', She: girl ? 'She' : 'He', her: girl ? 'her' : 'his', Her: girl ? 'Her' : 'His', obj: girl ? 'her' : 'him' };
+  return String(str).replace(/\{f:([^|}]*)\|([^}]*)\}/g, (m, a, b) => pet.f ? a : b).replace(/\{g:([^|}]*)\|([^}]*)\}/g, (m, a, b) => girl ? a : b).replace(/\{(\w+)\}/g, (m, k) => map[k] ?? m);
 }
 const P = sp => {
   if (LANG !== 'ur') return [...sp.paras].map(T);
@@ -788,7 +797,7 @@ function foxHead(g, x, y, k, closed) {
   if (closed) stroke(g, '#1d1410', .013 * k, g => g.arc(x + .06 * k, y - .02 * k, .03 * k, .15 * Math.PI, .85 * Math.PI), false);
   else { dots(g, '#1d1410', [[x + .065 * k, y - .02 * k]], .026 * k); dots(g, '#fff', [[x + .073 * k, y - .028 * k]], .008 * k); }
 }
-function fox(g, cx, by, k = 1, pose = 'sit') {
+function foxArt(g, cx, by, k = 1, pose = 'sit') {
   const X = v => cx + v * k, Y = v => by - v * k;
   if (pose === 'sit') {
     cut(g, N.fox, g => { ell(g, X(-.1), Y(.24), .3 * k, .24 * k); ell(g, X(.06), Y(.5), .17 * k, .32 * k, .25); });
@@ -804,10 +813,90 @@ function fox(g, cx, by, k = 1, pose = 'sit') {
     foxHead(g, X(.36), Y(.56), k);
   }
 }
-function tailArt(g) {
+function foxTail(g) {
   cut(g, N.fox, g => { g.moveTo(.78, .3); g.bezierCurveTo(.6, .04, .25, .0, .08, .14); g.bezierCurveTo(.0, .22, .05, .35, .18, .36); g.bezierCurveTo(.4, .41, .6, .42, .78, .36); g.closePath(); });
   cut(g, N.foxW, g => { g.moveTo(.22, .07); g.bezierCurveTo(.1, .09, .01, .2, .07, .3); g.bezierCurveTo(.11, .37, .22, .37, .27, .34); g.bezierCurveTo(.2, .26, .2, .14, .26, .08); g.closePath(); }, { blur: 3, oy: 1 });
   stroke(g, N.fox2, .012, g => { for (let i = 0; i < 5; i++) { const x = .35 + i * .08; g.moveTo(x, .12 + i * .01); g.quadraticCurveTo(x + .06, .2, x + .02, .3); } }, false);
+}
+function fox(g, cx, by, k = 1, pose = 'sit') { ({ cat: catArt, bunny: bunnyArt, squirrel: squirrelArt }[CFG.p] || foxArt)(g, cx, by, k, pose); }
+function tailArt(g) { ({ cat: catTail, bunny: bunnyTail, squirrel: squirrelTail }[CFG.p] || foxTail)(g); }
+function catHead(g, x, y, k) {
+  const C1 = '#9aa3b5', C2 = '#6f7890';
+  cut(g, C1, g => { poly(g, [x - .14 * k, y - .03 * k, x - .11 * k, y - .27 * k, x - .02 * k, y - .12 * k]); poly(g, [x + .03 * k, y - .12 * k, x + .12 * k, y - .27 * k, x + .15 * k, y - .03 * k]); circ(g, x, y, .155 * k); });
+  cut(g, '#f2b8c6', g => { poly(g, [x - .11 * k, y - .08 * k, x - .1 * k, y - .21 * k, x - .05 * k, y - .12 * k]); poly(g, [x + .06 * k, y - .12 * k, x + .11 * k, y - .21 * k, x + .12 * k, y - .08 * k]); }, { shadow: false });
+  stroke(g, C2, .018 * k, g => { g.moveTo(x - .03 * k, y - .14 * k); g.lineTo(x - .02 * k, y - .08 * k); g.moveTo(x + .02 * k, y - .145 * k); g.lineTo(x + .02 * k, y - .085 * k); g.moveTo(x + .07 * k, y - .13 * k); g.lineTo(x + .06 * k, y - .08 * k); }, false);
+  cut(g, '#f4f1ec', g => ell(g, x + .07 * k, y + .05 * k, .085 * k, .06 * k), { blur: 3, oy: 1 });
+  cut(g, '#e88a9c', g => poly(g, [x + .1 * k, y + .015 * k, x + .14 * k, y + .015 * k, x + .12 * k, y + .045 * k]), { shadow: false });
+  cut(g, '#9fd56b', g => { ell(g, x - .02 * k, y - .02 * k, .03 * k, .024 * k); ell(g, x + .09 * k, y - .025 * k, .03 * k, .024 * k); }, { shadow: false });
+  dots(g, '#1d1410', [[x - .02 * k, y - .02 * k], [x + .09 * k, y - .025 * k]], .012 * k);
+  stroke(g, 'rgba(255,255,255,.75)', .006 * k, g => { g.moveTo(x + .12 * k, y + .05 * k); g.lineTo(x + .26 * k, y + .02 * k); g.moveTo(x + .12 * k, y + .065 * k); g.lineTo(x + .26 * k, y + .08 * k); }, false);
+}
+function catArt(g, cx, by, k = 1, pose = 'sit') {
+  const X = v => cx + v * k, Y = v => by - v * k, C1 = '#9aa3b5', C2 = '#6f7890';
+  if (pose === 'sit') {
+    cut(g, C1, g => { ell(g, X(-.08), Y(.22), .26 * k, .22 * k); ell(g, X(.06), Y(.5), .15 * k, .3 * k, .2); });
+    stroke(g, C2, .03 * k, g => { for (let i = 0; i < 3; i++) { g.moveTo(X(-.22 + i * .09), Y(.38)); g.quadraticCurveTo(X(-.18 + i * .09), Y(.26), X(-.24 + i * .09), Y(.12)); } }, false);
+    cut(g, C1, g => { rr(g, X(.03), Y(.5), .075 * k, .5 * k, .035 * k); rr(g, X(.15), Y(.5), .075 * k, .5 * k, .035 * k); });
+    cut(g, '#f4f1ec', g => { ell(g, X(.065), Y(.03), .05 * k, .03 * k); ell(g, X(.19), Y(.03), .05 * k, .03 * k); ell(g, X(.13), Y(.56), .09 * k, .18 * k, .2); }, { blur: 3, oy: 1 });
+    catHead(g, X(.1), Y(.82), k);
+  } else {
+    cut(g, C1, g => { ell(g, X(0), Y(.36), .36 * k, .13 * k); poly(g, [X(-.28), Y(.34), X(-.16), Y(.38), X(-.32), Y(.06), X(-.4), Y(.1)]); poly(g, [X(.14), Y(.34), X(.26), Y(.38), X(.42), Y(.08), X(.34), Y(.04)]); poly(g, [X(-.2), Y(.36), X(-.1), Y(.34), X(-.46), Y(.1), X(-.5), Y(.14)]); poly(g, [X(.18), Y(.36), X(.26), Y(.32), X(.52), Y(.12), X(.47), Y(.07)]); });
+    stroke(g, C2, .03 * k, g => { for (let i = 0; i < 4; i++) { g.moveTo(X(-.22 + i * .12), Y(.48)); g.lineTo(X(-.25 + i * .12), Y(.3)); } }, false);
+    cut(g, '#f4f1ec', g => ell(g, X(.2), Y(.3), .13 * k, .06 * k, -.2), { blur: 3, oy: 1 });
+    catHead(g, X(.38), Y(.54), k);
+  }
+}
+function catTail(g) {
+  stroke(g, '#9aa3b5', .075, g => { g.moveTo(.78, .32); g.bezierCurveTo(.55, .4, .3, .38, .2, .22); g.quadraticCurveTo(.14, .1, .24, .06); });
+  stroke(g, '#6f7890', .078, g => { g.moveTo(.78, .32); g.bezierCurveTo(.55, .4, .3, .38, .2, .22); g.quadraticCurveTo(.14, .1, .24, .06); }, false, [.04, .07]);
+}
+function bunnyHead(g, x, y, k, ears = 'up') {
+  const W = '#f4efe6';
+  if (ears === 'up') cut(g, W, g => { ell(g, x - .05 * k, y - .27 * k, .05 * k, .2 * k, -.12); ell(g, x + .06 * k, y - .28 * k, .05 * k, .2 * k, .14); });
+  else cut(g, W, g => { ell(g, x - .2 * k, y - .08 * k, .045 * k, .19 * k, -1.2); ell(g, x - .18 * k, y - .02 * k, .045 * k, .18 * k, -1.35); });
+  if (ears === 'up') cut(g, '#f2b8c6', g => { ell(g, x - .05 * k, y - .27 * k, .022 * k, .14 * k, -.12); ell(g, x + .06 * k, y - .28 * k, .022 * k, .14 * k, .14); }, { shadow: false });
+  cut(g, W, g => { circ(g, x, y, .15 * k); ell(g, x + .08 * k, y + .05 * k, .08 * k, .06 * k); });
+  dots(g, '#3a2418', [[x + .05 * k, y - .02 * k]], .024 * k); dots(g, '#fff', [[x + .057 * k, y - .028 * k]], .008 * k);
+  dots(g, '#e88a9c', [[x + .15 * k, y + .03 * k]], .02 * k); dots(g, 'rgba(240,140,160,.45)', [[x + .02 * k, y + .06 * k]], .03 * k);
+}
+function bunnyArt(g, cx, by, k = 1, pose = 'sit') {
+  const X = v => cx + v * k, Y = v => by - v * k, W = '#f4efe6', W2 = '#e6dccb';
+  if (pose === 'sit') {
+    cut(g, W, g => { ell(g, X(-.04), Y(.26), .28 * k, .26 * k); ell(g, X(.04), Y(.48), .2 * k, .26 * k); });
+    cut(g, W2, g => { ell(g, X(-.18), Y(.04), .14 * k, .05 * k); ell(g, X(.14), Y(.04), .09 * k, .04 * k); ell(g, X(.12), Y(.36), .05 * k, .04 * k); ell(g, X(.2), Y(.36), .05 * k, .04 * k); }, { blur: 3, oy: 1 });
+    bunnyHead(g, X(.1), Y(.74), k, 'up');
+  } else {
+    cut(g, W, g => { ell(g, X(-.02), Y(.36), .34 * k, .16 * k); ell(g, X(-.3), Y(.12), .14 * k, .05 * k, .3); ell(g, X(.32), Y(.12), .08 * k, .04 * k, -.3); });
+    bunnyHead(g, X(.34), Y(.52), k, 'back');
+  }
+}
+function bunnyTail(g) {
+  cut(g, '#fbf8f2', g => { circ(g, .68, .27, .1); circ(g, .54, .24, .085); circ(g, .41, .21, .07); circ(g, .3, .19, .055); circ(g, .21, .17, .04); }, { blur: 5, oy: 1 });
+  cut(g, '#eee6da', g => { circ(g, .7, .3, .05); circ(g, .55, .27, .04); }, { shadow: false });
+}
+function squirrelArt(g, cx, by, k = 1, pose = 'sit') {
+  const X = v => cx + v * k, Y = v => by - v * k, R = '#c0632e', R2 = '#9c4a20', B = '#f2dcc0';
+  const head = (x, y) => {
+    cut(g, R, g => { ell(g, x - .07 * k, y - .15 * k, .045 * k, .07 * k, -.2); ell(g, x + .07 * k, y - .16 * k, .045 * k, .07 * k, .2); circ(g, x, y, .14 * k); ell(g, x + .1 * k, y + .04 * k, .09 * k, .07 * k); });
+    stroke(g, R2, .02 * k, g => { g.moveTo(x - .08 * k, y - .22 * k); g.lineTo(x - .09 * k, y - .27 * k); g.moveTo(x + .08 * k, y - .23 * k); g.lineTo(x + .09 * k, y - .28 * k); }, false);
+    cut(g, B, g => ell(g, x + .09 * k, y + .07 * k, .07 * k, .045 * k), { blur: 2, oy: 1 });
+    dots(g, '#1d1410', [[x + .05 * k, y - .02 * k], [x + .18 * k, y + .04 * k]], .025 * k); dots(g, '#fff', [[x + .058 * k, y - .028 * k]], .008 * k);
+  };
+  if (pose === 'sit') {
+    cut(g, R, g => { ell(g, X(-.06), Y(.22), .24 * k, .21 * k); ell(g, X(.06), Y(.46), .15 * k, .27 * k, .15); });
+    cut(g, B, g => ell(g, X(.11), Y(.44), .085 * k, .19 * k, .15), { blur: 3, oy: 1 });
+    cut(g, R2, g => { ell(g, X(.16), Y(.52), .05 * k, .035 * k); ell(g, X(.2), Y(.46), .05 * k, .035 * k); ell(g, X(-.2), Y(.03), .12 * k, .04 * k); ell(g, X(.08), Y(.03), .07 * k, .035 * k); });
+    head(X(.1), Y(.78));
+  } else {
+    cut(g, R, g => { ell(g, X(0), Y(.34), .34 * k, .13 * k); poly(g, [X(-.24), Y(.3), X(-.12), Y(.34), X(-.36), Y(.06), X(-.42), Y(.1)]); poly(g, [X(.14), Y(.32), X(.24), Y(.36), X(.42), Y(.08), X(.34), Y(.05)]); });
+    cut(g, B, g => ell(g, X(.16), Y(.28), .14 * k, .06 * k, -.2), { blur: 3, oy: 1 });
+    head(X(.36), Y(.52));
+  }
+}
+function squirrelTail(g) {
+  cut(g, '#c0632e', g => { g.moveTo(.78, .34); g.bezierCurveTo(.62, .44, .3, .44, .14, .3); g.bezierCurveTo(-.02, .16, .1, -.02, .3, .04); g.bezierCurveTo(.2, .1, .22, .2, .36, .24); g.bezierCurveTo(.5, .28, .62, .24, .78, .26); g.closePath(); });
+  stroke(g, '#e08a4a', .014, g => { for (let i = 0; i < 6; i++) { const x = .25 + i * .09; g.moveTo(x, .3); g.quadraticCurveTo(x + .05, .36, x + .02, .4); } }, false);
+  cut(g, '#f2dcc0', g => { g.moveTo(.3, .04); g.bezierCurveTo(.16, .06, .08, .14, .12, .24); g.bezierCurveTo(.14, .16, .2, .1, .3, .07); g.closePath(); }, { blur: 2, oy: 1 });
 }
 function owl(g, cx, by, k) {
   const X = v => cx + v * k, Y = v => by - v * k;
@@ -1043,13 +1132,13 @@ const SP = [
     },
   },
   {
-    numeral: 'II', title: 'The Lantern Fox', page: 3, mood: 'night', snow: .6,
+    numeral: 'II', title: 'The Lantern {A}', page: 3, mood: 'night', snow: .6,
     shot: { pitch: .6, zoom: .8, ty: .85, sway: .07 },
     async intro(o) { bubble('“Brrr… so cold…”', o.fox, 1.2, 1800); },
-    hint: 'Tap the little fox', button: o => o._warm ? 'Hug the fox' : 'Give him your scarf',
+    hint: 'Tap the little {a}', button: o => o._warm ? 'Hug the {a}' : 'Give him your scarf',
     paras: [
-      'Beside the frozen fountain sat a fox no bigger than a cat. His tail glowed like a lantern, but the light was thin and flickering.',
-      '“I am the Lantern Fox,” he said, with a shiver. “Every winter I carry the first light of spring over the hills. But the north wind has nipped my tail, and my light is nearly out.”',
+      'Beside the frozen fountain sat a {a} no bigger than a teacup. His tail glowed like a lantern, but the light was thin and flickering.',
+      '“I am the Lantern {A},” he said, with a shiver. “Every winter I carry the first light of spring over the hills. But the north wind has nipped my tail, and my light is nearly out.”',
       '{N} did not think twice. {She} unwound {her} warmest scarf and wrapped it round him, snug as a hug.',
     ],
     ground(g) {
@@ -1105,7 +1194,7 @@ const SP = [
         burstAt(o.tail.grp, [-.38, .1, .05], '#ffcf6b', 50, 1.1);
         bubble('“Oh! That is so much better.”', o.fox, 1.25, 2400);
       } else {
-        bubble(id === 'zainab' ? '“You are very welcome, little fox.”' : '“Thank you, {TorN}.”', id === 'zainab' ? o.zainab : o.fox, id === 'zainab' ? 1.85 : 1.25, 2000);
+        bubble(id === 'zainab' ? '“You are very welcome, little {a}.”' : '“Thank you, {TorN}.”', id === 'zainab' ? o.zainab : o.fox, id === 'zainab' ? 1.85 : 1.25, 2000);
         sfx.chime([784, 988]);
         await tween(.5, p => { o.fox.grp.position.y = Math.sin(p * Math.PI) * .15; o.tail.grp.position.y = .14 + Math.sin(p * Math.PI) * .15; o.fscarf.grp.position.y = .66 + Math.sin(p * Math.PI) * .15; });
       }
@@ -1118,7 +1207,7 @@ const SP = [
     paras: [
       '“Then I shall come with you,” said {N}, “so the wind cannot blow you out again.”',
       'Together they crept into the Whispering Pines, where the trees wore coats of snow and every branch held its breath. Little eyes peeped from the drifts. Something rustled. Something twitched.',
-      '“Don’t be afraid,” said the fox. “They only want to see who is brave enough to walk here at night.”',
+      '“Don’t be afraid,” said the {a}. “They only want to see who is brave enough to walk here at night.”',
     ],
     ground(g) {
       g.fillStyle = N.snow; g.fillRect(0, 0, W, D);
@@ -1187,11 +1276,11 @@ const SP = [
   {
     numeral: 'IV', title: 'The Frozen Lake', page: 7, mood: 'night', snow: .35,
     shot: { pitch: 1.0, zoom: .9, ty: .8, sway: .05 },
-    hint: 'Tap {N} or the fox', button: () => 'Twirl on the ice',
+    hint: 'Tap {N} or the {a}', button: () => 'Twirl on the ice',
     paras: [
       'Beyond the woods lay the lake, frozen as smooth as a mirror. Deep beneath the ice, tiny fish glowed like dropped stars.',
-      '“Going all the way round would take until morning,” sighed the fox.',
-      'So {N} held out {her} mittened hand, the fox curled his tail around {her} wrist, and, one, two, three, away they slid across the ice, laughing so loudly that the moon came out to see what all the fuss was about.',
+      '“Going all the way round would take until morning,” sighed the {a}.',
+      'So {N} held out {her} mittened hand, the {a} curled his tail around {her} wrist, and, one, two, three, away they slid across the ice, laughing so loudly that the moon came out to see what all the fuss was about.',
     ],
     ground(g) {
       g.fillStyle = N.snow; g.fillRect(0, 0, W, D);
@@ -1246,7 +1335,7 @@ const SP = [
     async intro(o) { for (let i = 0; i < o.con.length; i++) { const st = o.con[i]; sfx.note(659 * Math.pow(2, i / 6)); burst(st.getWorldPosition(new THREE.Vector3()), '#fff6dc', 10, .3, .05, .8, 0); await tween(.35, p => st.scale.setScalar(lerp(.001, .3, E.back(p)))); } },
     hint: 'Tap {N} to make a wish', button: o => o._lit ? 'Wish again' : 'Make a wish',
     paras: [
-      'At the top of the highest hill the whole world was silver and still. The fox’s light had shrunk to the smallest glow.',
+      'At the top of the highest hill the whole world was silver and still. The {a}’s light had shrunk to the smallest glow.',
       '“Only one thing can light it again,” he whispered. “A wish, made by someone with a kind heart.”',
       '{N} closed {her} eyes. {She} did not wish for jewels, or a bigger castle, or a pony of {her} own. {She} wished that {her} friend would shine.',
       '#And the sky began to dance.',
@@ -1301,11 +1390,11 @@ const SP = [
   {
     numeral: 'VI', title: 'The First Light', page: 11, mood: 'dawn', snow: 0,
     shot: { pitch: .66, zoom: .88, ty: 1.0, sway: .1 },
-    hint: 'Tap the fox', button: () => 'Follow the fox',
+    hint: 'Tap the {a}', button: () => 'Follow the {a}',
     paras: [
-      'Ribbons of green and violet rippled across the sky, and the fox’s tail blazed like a sunrise. He leapt from the hilltop and ran, and everywhere his paws touched, the snow melted into flowers.',
+      'Ribbons of green and violet rippled across the sky, and the {a}’s tail blazed like a sunrise. He leapt from the hilltop and ran, and everywhere his paws touched, the snow melted into flowers.',
       '#Snowdrops. Crocuses. Bluebells no bigger than a fingernail.',
-      '“Spring is coming!” called the fox. “Spring is coming, and you brought it!”',
+      '“Spring is coming!” called the {a}. “Spring is coming, and you brought it!”',
     ],
     ground(g) {
       g.fillStyle = '#bfe0a2'; g.fillRect(0, 0, W, D);
@@ -1345,7 +1434,7 @@ const SP = [
       }
     },
     async action(o, id) {
-      if (id === 'zainab') { bubble('“Run, little fox, run!”', o.zainab, 1.45, 1800); return; }
+      if (id === 'zainab') { bubble('“Run, little {a}, run!”', o.zainab, 1.45, 1800); return; }
       o._manual = true;
       for (let i = 0; i < 10; i++) { o['fl' + i].grp.scale.setScalar(.001); o['fl' + i]._on = false; }
       sfx.whoosh(); bubble('“Spring is coming!”', o.fox, .85, 2200);
@@ -1364,10 +1453,10 @@ const SP = [
     shot: { pitch: .62, zoom: .88, ty: 1.15, sway: .07 },
     hint: 'Tap {N}’s little lantern', button: () => 'Lift the lantern together',
     paras: [
-      'The fox carried {N} home on the warm wind of his tail, just as the sky was turning pink at the edges. {Her} scarf was gone, but {her} heart felt warmer than any scarf could make it.',
+      'The {a} carried {N} home on the warm wind of his tail, just as the sky was turning pink at the edges. {Her} scarf was gone, but {her} heart felt warmer than any scarf could make it.',
       'In the morning, on {her} windowsill, {she} found a tiny lantern no bigger than an acorn, tied with a thread of pink wool.',
       'Now, whenever the first snow falls, {she} carries it out into the garden, holding hands with someone who loves {obj} very much, and lifts it high towards the faraway hills. And a little golden light blinks back, once, twice, three times.',
-      '#That is the Lantern Fox, saying thank you.',
+      '#That is the Lantern {A}, saying thank you.',
     ],
     ground(g) {
       g.fillStyle = N.snow; g.fillRect(0, 0, W, D);
@@ -1421,7 +1510,7 @@ const SP = [
       sfx.wish(); o._boost = true;
       await tween(.7, p => { o.arm.grp.rotation.z = lerp(-.45, -.08, E.out(p)); o.cg.scale.setScalar(lerp(.5, 1.5, p)); L.target = lerp(2.2, 7, p); });
       burstAt(o.arm.grp, [0, .55, .05], '#ffd27a', 70, 1.3);
-      bubble('“Thank you, Lantern Fox!”', o.zainab, 1.62, 2400);
+      bubble('“Thank you, Lantern {A}!”', o.zainab, 1.62, 2400);
       o._blink = true;
       for (let i = 0; i < 3; i++) { sfx.blink(); await tween(.45, p => { o.foxLight.scale.setScalar(.4 + 1.1 * Math.sin(p * Math.PI)); o.foxLight.material.opacity = 1; }); await wait(140); }
       o._blink = false;
@@ -1457,7 +1546,7 @@ function layoutUr(g, paras, x0, x1, y0, size) {
 }
 function leftPageUr(sp, g, w, h, x0, x1, cx, blue, ink) {
   g.direction = 'rtl'; g.textAlign = 'center'; g.textBaseline = 'alphabetic';
-  g.fillStyle = '#7d7f98'; g.font = `28px ${URDU}`; g.fillText('پہلی برف کی لومڑی', cx, 98);
+  g.fillStyle = '#7d7f98'; g.font = `28px ${URDU}`; g.fillText(T('پہلی برف {f:کی|کا} {ua}'), cx, 98);
   g.fillRect(x0, 128, x1 - x0, 1.5);
   [[x0 + 18, 158], [x1 - 18, 158]].forEach(([x, y]) => pxFlake(g, x, y, 14, 'rgba(45,63,122,.35)', 2));
   if (sp.dedication) {
@@ -1484,7 +1573,7 @@ function leftPageCanvas(sp) {
   const blue = '#2d3f7a', ink = '#22253a', x0 = 110, x1 = w - 128, cx = (x0 + x1) / 2;
   if (LANG === 'ur') { leftPageUr(sp, g, w, h, x0, x1, cx, blue, ink); gutter(g, w, h, 'L'); return c; }
   g.textAlign = 'center'; g.textBaseline = 'alphabetic';
-  g.fillStyle = '#7d7f98'; g.font = `24px ${SC}`; g.letterSpacing = '5px'; g.fillText('THE FOX OF THE FIRST SNOW', cx, 92); g.letterSpacing = '0px';
+  g.fillStyle = '#7d7f98'; g.font = `24px ${SC}`; g.letterSpacing = '5px'; g.fillText(T('THE {AU} OF THE FIRST SNOW'), cx, 92); g.letterSpacing = '0px';
   g.fillRect(x0, 110, x1 - x0, 1.5);
   [[x0 + 18, 150], [x1 - 18, 150]].forEach(([x, y]) => pxFlake(g, x, y, 14, 'rgba(45,63,122,.35)', 2));
   if (sp.dedication) {
@@ -1543,8 +1632,8 @@ function coverCanvas() {
   [[130, 120], [900, 120], [130, h - 120], [900, h - 120], [150, 700], [880, 700], [260, 470], [790, 930], [800, 470], [250, 930]].forEach(([x, y], i) => pxFlake(g, x, y, 10 + (i % 3) * 6, 'rgba(220,230,255,.45)', 1.6));
   const cx = (72 + w - 52) / 2; g.textAlign = 'center'; g.textBaseline = 'alphabetic';
   g.shadowColor = 'rgba(0,0,0,.5)'; g.shadowOffsetY = 2; g.shadowBlur = 3; g.fillStyle = silver;
-  if (LANG === 'ur') { g.direction = 'rtl'; g.font = `600 84px ${URDU}`; g.fillText('پہلی برف', cx, 235); g.fillText('کی لومڑی', cx, 365); g.direction = 'ltr'; }
-  else { g.font = `italic 500 96px ${BOOK}`; g.fillText('The Fox of', cx, 240); g.fillText('the First Snow', cx, 340); }
+  if (LANG === 'ur') { g.direction = 'rtl'; g.font = `600 84px ${URDU}`; g.fillText('پہلی برف', cx, 235); g.fillText(T('{f:کی|کا} {ua}'), cx, 365); g.direction = 'ltr'; }
+  else { g.font = `italic 500 96px ${BOOK}`; g.fillText(T('The {A} of'), cx, 240); g.fillText('the First Snow', cx, 340); }
   g.lineWidth = 4; g.strokeStyle = silver; g.beginPath(); g.arc(cx, 700, 220, 0, Math.PI * 2); g.stroke(); g.lineWidth = 1.5; g.beginPath(); g.arc(cx, 700, 202, 0, Math.PI * 2); g.stroke();
   g.shadowColor = 'transparent';
   const t = mk(440, 440), tg = t.getContext('2d'); tg._u = 150; tg.setTransform(150, 0, 0, 150, 0, 0); tg.save(); tg.translate(.38, 1.92); tailArt(tg); tg.restore(); fox(tg, 1.65, 2.62, 2.0);
@@ -1794,8 +1883,8 @@ function buildHook() {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(.18, .18), new THREE.MeshBasicMaterial({ map: pt, color: '#ffc867', transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
     m.rotation.x = -Math.PI / 2; m.rotation.z = -.15; m.position.set(-1.6 + i * .58, .004, 3.55 + (i % 2 ? .13 : -.13)); HOOK.g.add(m); HOOK.paws.push(m);
   }
-  const [fc, fg] = layerCanvas(.9, 1.0); fg.save(); fg.translate(.02, .52); fg.scale(.62, .62); tailArt(fg); fg.restore(); fox(fg, .5, 1.0, .82);
-  const fm = paperMesh(fc, .9, 1.0, .5, 0); HOOK.fox = new THREE.Group(); HOOK.fox.add(fm); HOOK.fox.position.set(3.75, 0, 3.3); HOOK.fox.scale.setScalar(1.25); HOOK.g.add(HOOK.fox);
+  const [fc, fg] = layerCanvas(.9, 1.0); HOOK.fc = fc; HOOK.drawPet = () => { fg.save(); fg.setTransform(1, 0, 0, 1, 0, 0); fg.clearRect(0, 0, fc.width, fc.height); fg.restore(); fg.save(); fg.translate(.02, .52); fg.scale(.62, .62); tailArt(fg); fg.restore(); fox(fg, .5, 1.0, .82); };
+  HOOK.drawPet(); const fm = paperMesh(fc, .9, 1.0, .5, 0); HOOK.fm = fm; HOOK.fox = new THREE.Group(); HOOK.fox.add(fm); HOOK.fox.position.set(3.75, 0, 3.3); HOOK.fox.scale.setScalar(1.25); HOOK.g.add(HOOK.fox);
   HOOK.foxGlow = glow('#ffb347', .7, .6); HOOK.foxGlow.position.set(-.2, .3, .05); HOOK.fox.add(HOOK.foxGlow);
   // a light sweep across the cover foil
   const sweep = new THREE.Mesh(new THREE.PlaneGeometry(BW - .2, BD - .2), new THREE.ShaderMaterial({
@@ -1810,13 +1899,14 @@ function hookTexts() {
   $('intro').lang = LANG;
   $('i1').innerHTML = '';
   const name = document.createElement('b'); name.textContent = T('{N}');
-  if (ur) $('i1').append('ایک ننھی لومڑی ', name, ' کا انتظار کر رہی ہے…');
-  else $('i1').append('A little fox is waiting for ', name, '…');
+  if (ur) $('i1').append(T('{f:ایک ننھی|ایک ننھا} {ua} '), name, T(' کا انتظار کر {f:رہی|رہا} ہے…'));
+  else $('i1').append(T('A little {a} is waiting for '), name, '…');
   $('i2').textContent = ur ? 'کتاب کھولنے کے لیے تین چمکتے برف کے گالے پکڑیں' : 'Catch the 3 glowing snowflakes to open the book';
   [...document.querySelectorAll('.iDots i')].forEach((d, i) => d.classList.toggle('on', i < HOOK.caught));
 }
 function hookActive() { return S.cur < 0 && S.cover < .02 && !HOOK.opening; }
-function resetHook() { HOOK.caught = 0; HOOK.opening = false; HOOK.flakes.forEach(f => { f.visible = true; f.userData.gone = false; f.scale.setScalar(1); }); $('intro').classList.remove('done'); hookTexts(); }
+function refreshHookPet() { if (!HOOK.drawPet) return; HOOK.drawPet(); HOOK.fm.material.map.needsUpdate = true; }
+function resetHook() { refreshHookPet(); HOOK.caught = 0; HOOK.opening = false; HOOK.flakes.forEach(f => { f.visible = true; f.userData.gone = false; f.scale.setScalar(1); }); $('intro').classList.remove('done'); hookTexts(); }
 function catchFlake(f) {
   if (f.userData.gone || HOOK.opening) return;
   f.userData.gone = true; HOOK.caught++; sfx.unlock(); sfx.note(659 * Math.pow(2, [0, 4, 7][HOOK.caught - 1] / 12)); sfx.sparkle();
@@ -1849,7 +1939,7 @@ function hookPick(e) {
   setRay(e);
   const hit = ray.intersectObjects(HOOK.flakes.filter(f => !f.userData.gone).map(f => f.userData.halo), false)[0];
   if (hit) { catchFlake(hit.object.parent); return true; }
-  if (ray.intersectObject(HOOK.fox, true).length) { bubble(LANG === 'ur' ? '“برف کے گالے پکڑو، {N}!”' : '“Catch the snowflakes, {N}!”', { grp: HOOK.fox }, 1.0, 2200); sfx.chime([784, 988]); tween(.4, p => { HOOK.fox.position.y = Math.sin(p * Math.PI) * .2; }); return true; }
+  if (ray.intersectObject(HOOK.fox, true).length) { bubble(LANG === 'ur' ? '“برف کے گالے پکڑو، {N}!”' : '“Catch the snowflakes, {N}!”', { grp: HOOK.fox }, 1.2, 2200); sfx.chime([784, 988]); tween(.4, p => { HOOK.fox.position.y = Math.sin(p * Math.PI) * .2; }); return true; }
   if (ray.intersectObject(coverPivot, true).length) { bubble(LANG === 'ur' ? '“پہلے برف کے گالے پکڑیں ✨”' : '“Catch the snowflakes first!”', { grp: HOOK.fox }, 1.0, 1800); tween(.5, p => { coverPivot.rotation.z = Math.sin(p * Math.PI * 3) * .03 * (1 - p); }); return true; }
   return false;
 }
@@ -1915,7 +2005,7 @@ function ui() {
   const sp = SP[S.cur], closed = S.cur < 0, lock = S.busy || S.acting;
   $('prev').disabled = closed || lock; $('next').disabled = S.cur >= SP.length - 1 || lock; $('act').disabled = lock; $('read').disabled = closed;
   $('act').textContent = T(TR(closed ? 'Open the book' : sp.button(sp.o)));
-  $('capTitle').textContent = closed ? (LANG === 'ur' ? 'پہلی برف کی لومڑی' : 'The Fox of the First Snow') : T(TR(sp.title));
+  $('capTitle').textContent = closed ? T(LANG === 'ur' ? 'پہلی برف {f:کی|کا} {ua}' : 'The {A} of the First Snow') : T(TR(sp.title));
   $('capSub').textContent = closed ? `Written by ${CFG.g} · for ${tn(CFG)}` : T(TR(sp.hint));
   $('capTitle').lang = $('capSub').lang = $('act').lang = LANG; $('act').style.fontFamily = LANG === 'ur' ? 'var(--font-urdu)' : '';
   $('where').textContent = closed ? 'The cover' : sp.dedication ? 'Dedication' : `${sp.numeral} · Page ${sp.page}`;
@@ -2194,9 +2284,7 @@ function drawPreview() {
   const r = rng(4); g.fillStyle = 'rgba(255,250,232,.8)'; for (let i = 0; i < 40; i++) { g.beginPath(); g.arc(r() * c.width, r() * c.height * .6, (r() * 1.4 + .4) * dpr, 0, 7); g.fill(); }
   g.setTransform(u, 0, 0, u, 0, 0); g._u = u; g.lineJoin = 'round'; g.lineCap = 'round';
   cut(g, '#eef3fb', g => ell(g, wu / 2, 2.42, wu * .62, .42), { blur: 14, oy: 0, sc: 'rgba(160,190,255,.6)' });
-  withCfg(draft, () => { princess(g, wu / 2 - .32, 2.2, 1.18, {}); });
-  g.save(); g.translate(wu / 2 + .3, 2.2 - .38); g.scale(.6, .6); tailArt(g); g.restore();
-  fox(g, wu / 2 + .62, 2.22, .66);
+  withCfg(draft, () => { princess(g, wu / 2 - .32, 2.2, 1.18, {}); g.save(); g.translate(wu / 2 + .3, 2.2 - .38); g.scale(.6, .6); tailArt(g); g.restore(); fox(g, wu / 2 + .62, 2.22, .66); });
 }
 function renderBuilder() {
   document.querySelectorAll('#builder .bStep').forEach(sec => sec.hidden = +sec.dataset.step !== bStep);
@@ -2208,7 +2296,7 @@ function renderBuilder() {
   $('bNameTag').textContent = draft.n.trim() ? tn({ ...draft, n: draft.n.trim() }) : ' ';
   $('bBack').textContent = bStep ? 'Back' : 'Cancel'; $('bNext').textContent = bStep === 3 ? 'Create the book' : 'Next';
   $('bNext').disabled = bStep === 0 && !draft.n.trim();
-  $('bSum').textContent = `“The Fox of the First Snow”, starring ${tn({ ...draft, n: draft.n.trim() || 'your child' })}, written by ${draft.g.trim() || 'you'}.`;
+  $('bSum').textContent = `“The ${PETS[draft.p]?.A || 'Fox'} of the First Snow”, starring ${tn({ ...draft, n: draft.n.trim() || 'your child' })}, written by ${draft.g.trim() || 'you'}.`;
   drawPreview();
 }
 function openBuilder() { draft = { ...CFG }; bStep = 0; $('settings').hidden = true; hideSwipeHint(); stopSpeak(); $('builder').hidden = false; renderBuilder(); setTimeout(() => { drawPreview(); $('bName').focus(); }, 60); }
@@ -2224,7 +2312,7 @@ $('bNext').onclick = () => { if (bStep < 3) { bStep++; renderBuilder(); $('build
 $('bClose').onclick = closeBuilder; $('mkBtn').onclick = openBuilder; $('setMake').onclick = openBuilder;
 addEventListener('resize', () => { if (!$('builder').hidden) drawPreview(); });
 function toast(msg, ms = 4200) { const t = $('toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => t.hidden = true, ms); }
-function namesUI() { if (HOOK.flakes.length) hookTexts(); document.querySelector('.top .chip span').textContent = `by ${CFG.g} · for ${tn(CFG)}`; }
+function namesUI() { if (HOOK.flakes.length) hookTexts(); document.querySelector('.top .chip b').textContent = T('The {A} of the First Snow'); document.title = T('The {A} of the First Snow'); document.querySelector('.top .chip span').textContent = `by ${CFG.g} · for ${tn(CFG)}`; }
 function rebuildBook() {
   stopSpeak(); hideBubble(); unpeel(); tweens.length = 0;
   SP.forEach((sp, i) => { if (sp.root) sp.root.visible = false; unbuild(i); });
@@ -2246,7 +2334,7 @@ async function createBook() {
 }
 function openReader() {
   const sp = SP[S.cur]; if (!sp) return;
-  document.querySelector('#reader .sheet').lang = LANG; $('rCh').textContent = sp.dedication ? (LANG === 'ur' ? 'انتساب' : 'DEDICATION') : numLabel(sp); $('rTitle').textContent = sp.dedication ? (LANG === 'ur' ? 'پہلی برف کی لومڑی' : 'The Fox of the First Snow') : T(TR(sp.title));
+  document.querySelector('#reader .sheet').lang = LANG; $('rCh').textContent = sp.dedication ? (LANG === 'ur' ? 'انتساب' : 'DEDICATION') : numLabel(sp); $('rTitle').textContent = sp.dedication ? T(LANG === 'ur' ? 'پہلی برف {f:کی|کا} {ua}' : 'The {A} of the First Snow') : T(TR(sp.title));
   $('rBody').replaceChildren(...P(sp).map(t => { const p = document.createElement('p'); if (t.startsWith('§')) { p.className = 'script'; t = t.slice(1); } else if (t.startsWith('#')) { p.className = 'center'; t = t.slice(1); } else if (sp.dedication) p.className = 'center'; p.textContent = t; return p; }));
   $('reader').hidden = false; $('rClose').focus();
 }
