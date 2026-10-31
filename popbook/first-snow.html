@@ -79,6 +79,8 @@ button:focus-visible{outline:2px solid var(--lantern);outline-offset:2px}
 .loader{position:fixed;inset:0;display:grid;place-items:center;background:var(--room);z-index:9;transition:opacity .8s}
 .loader div{font-family:var(--font-book);font-style:italic;font-size:24px;color:var(--muted)}
 .loader.gone{opacity:0;pointer-events:none}
+.story{--fs:18.5px;}
+.story[data-size="s"]{--fs:16.5px}.story[data-size="l"]{--fs:21.5px}
 .story{position:fixed;left:0;right:0;bottom:calc(74px + env(safe-area-inset-bottom,0px));z-index:2;
   padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px));pointer-events:none}
 .story .card{pointer-events:auto;position:relative;margin:0 auto;max-width:560px;background:rgba(247,243,234,.97);color:var(--ink);border-radius:18px;
@@ -89,7 +91,7 @@ button:focus-visible{outline:2px solid var(--lantern);outline-offset:2px}
 .sHead{display:flex;align-items:baseline;justify-content:center;gap:10px;text-align:center}
 .sHead span{font-family:var(--font-sc);letter-spacing:.14em;color:#2d3f7a;font-size:14px}
 .sHead h2{margin:0;font-family:var(--font-book);font-style:italic;font-weight:500;font-size:23px;line-height:1.15;text-wrap:balance}
-.sBody p{font-family:var(--font-book);font-weight:500;font-size:18.5px;line-height:1.42;margin:6px 0 0;text-indent:1.2em}
+.sBody p{font-family:var(--font-book);font-weight:500;font-size:var(--fs);line-height:1.42;margin:6px 0 0;text-indent:1.2em}
 .sBody p:first-child{text-indent:0}
 .sBody p:first-child::first-letter{font-size:2.4em;float:left;line-height:.85;margin:4px 6px 0 0;color:#2d3f7a;font-weight:600}
 .sBody p.center{text-align:center;text-indent:0;font-style:italic}
@@ -103,6 +105,68 @@ button:focus-visible{outline:2px solid var(--lantern);outline-offset:2px}
 .swipe svg{color:var(--lantern);animation:swipeMove 1.4s ease-in-out infinite}
 @keyframes swipeMove{0%,100%{transform:translateX(10px)}50%{transform:translateX(-10px)}}
 @media (prefers-reduced-motion:reduce){.swipe svg{animation:none}}
+.sHead{position:relative}
+.speak{position:absolute;right:-6px;top:0;width:34px;height:34px;border:0;border-radius:50%;background:transparent;color:#2d3f7a;display:grid;place-items:center;cursor:pointer}
+.speak[aria-pressed="true"]{background:rgba(255,200,103,.35)}
+.sBody p{transition:background .3s}
+.sBody p.speaking{background:rgba(255,200,103,.28);border-radius:6px;box-shadow:0 0 0 4px rgba(255,200,103,.28)}
+.seePic{display:none}
+/* story over picture */
+.story[data-layout="overlay"] .card{background:linear-gradient(to bottom,rgba(10,13,32,.0),rgba(10,13,32,.78) 54px,rgba(10,13,32,.9));color:#f4f2ff;box-shadow:none;
+  max-height:38vh;padding-top:30px;text-shadow:0 1px 3px rgba(0,0,0,.55)}
+.story[data-layout="overlay"] .grip span{background:rgba(255,255,255,.4)}
+.story[data-layout="overlay"] .sHead span,.story[data-layout="overlay"] .speak{color:var(--lantern)}
+.story[data-layout="overlay"] .sBody p:first-child::first-letter{color:var(--lantern)}
+.story[data-layout="overlay"] .sBody p.script{color:#ffd99a}
+.story[data-layout="overlay"] .sBody p.by{color:rgba(244,242,255,.75)}
+/* story first: a whole page of text before the picture */
+.story.full{top:calc(62px + env(safe-area-inset-top,0px));bottom:calc(74px + env(safe-area-inset-bottom,0px));display:flex}
+.story.full .card{flex:1;max-height:none;display:flex;flex-direction:column;padding:22px 22px 16px;border-radius:20px;
+  background:linear-gradient(#fbf8f1,#f2ede1);box-shadow:0 18px 50px rgba(0,0,0,.55)}
+.story.full .grip{display:none}
+.story.full .sHead{flex-direction:column;align-items:center;gap:2px;margin-bottom:8px}
+.story.full .sHead h2{font-size:30px}
+.story.full .sBody{flex:1;overflow:auto;padding-right:2px}
+.story.full .sBody p{font-size:calc(var(--fs) + 2px);line-height:1.5;margin-top:10px}
+.story.full .seePic{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;height:46px;border:0;border-radius:999px;background:var(--lantern);
+  color:#2a1a06;font:700 16px var(--font-ui);cursor:pointer;box-shadow:0 0 24px rgba(255,200,103,.45)}
+.story.full .seePic::after{content:"";width:8px;height:8px;border-right:2px solid currentColor;border-top:2px solid currentColor;transform:rotate(45deg)}
+.story.leaving{animation:storyOut .45s ease-in forwards}
+@keyframes storyOut{to{transform:translateY(105%);opacity:0}}
+/* settings sheet */
+.settings{position:fixed;inset:0;z-index:6;background:rgba(6,8,18,.55);display:flex;align-items:flex-end;justify-content:center;
+  padding-left:max(10px,env(safe-area-inset-left,0px));padding-right:max(10px,env(safe-area-inset-right,0px))}
+.setSheet{width:100%;max-width:520px;background:#141a35;color:var(--text);border:1px solid var(--panel-line);border-bottom:0;border-radius:22px 22px 0 0;
+  padding:10px 18px calc(18px + env(safe-area-inset-bottom,0px));box-shadow:0 -10px 40px rgba(0,0,0,.5);animation:sheetIn .35s ease-out}
+@keyframes sheetIn{from{transform:translateY(40px);opacity:0}}
+.setHandle{width:40px;height:4px;border-radius:2px;background:rgba(238,242,255,.25);margin:0 auto 10px}
+.setSheet h3{margin:0 0 12px;font-family:var(--font-book);font-style:italic;font-weight:500;font-size:24px;text-align:center}
+.layouts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:12px}
+.lay{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 6px;border-radius:14px;border:1.5px solid var(--panel-line);background:rgba(255,255,255,.03);
+  color:var(--text);cursor:pointer;text-align:center;min-width:0}
+.lay b{font-size:13.5px;font-weight:700;line-height:1.15}
+.lay small{font-size:11.5px;color:var(--muted);line-height:1.2}
+.lay[aria-checked="true"]{border-color:var(--lantern);background:rgba(255,200,103,.1)}
+.mini{position:relative;display:block;width:46px;height:72px;border-radius:7px;overflow:hidden;background:#2a3366;margin-bottom:4px;box-shadow:0 2px 8px rgba(0,0,0,.35)}
+.mini i{position:absolute;left:0;right:0}
+.mini .pic{background:radial-gradient(circle at 70% 30%,#ffd27a 0 4px,transparent 5px),linear-gradient(#2c3d86,#6a5aa8 70%,#e9eefa 71%)}
+.mini .txt{background:repeating-linear-gradient(#f4efe3 0 5px,#c9c2b0 5px 6px);}
+.m-split .pic{top:0;height:56%}.m-split .txt{bottom:0;height:44%;border-top:2px solid #f4efe3}
+.m-first .txt{inset:0;background:repeating-linear-gradient(#f4efe3 0 6px,#c9c2b0 6px 7px)}
+.m-first .arrow{right:4px;bottom:4px;left:auto;width:16px;height:16px;border-radius:50%;background:var(--lantern)}
+.m-over .pic{inset:0}.m-over .txt{bottom:0;height:40%;background:repeating-linear-gradient(rgba(10,13,32,.85) 0 5px,rgba(255,255,255,.7) 5px 6px)}
+.setRow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 2px;border-top:1px solid var(--panel-line);font-size:15px}
+.setRow small{display:block;font-size:12px;color:var(--muted)}
+.setRow input{width:44px;height:26px;appearance:none;-webkit-appearance:none;border-radius:999px;background:rgba(238,242,255,.2);position:relative;cursor:pointer;flex:none;transition:background .2s}
+.setRow input::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .2s}
+.setRow input:checked{background:var(--lantern)}.setRow input:checked::after{transform:translateX(18px)}
+.seg{display:flex;gap:4px;background:rgba(238,242,255,.08);border-radius:999px;padding:3px}
+.seg button{border:0;background:transparent;color:var(--text);border-radius:999px;width:42px;height:32px;cursor:pointer;font-family:var(--font-book);font-weight:600}
+.seg button[data-size="s"]{font-size:14px}.seg button[data-size="m"]{font-size:18px}.seg button[data-size="l"]{font-size:23px}
+.seg button[aria-checked="true"]{background:var(--lantern);color:#2a1a06}
+.setNote{margin:4px 0 0;font-size:12.5px;color:var(--muted);text-align:center}
+.done{display:block;width:100%;margin-top:12px;height:46px;border:0;border-radius:999px;background:var(--lantern);color:#2a1a06;font:700 16px var(--font-ui);cursor:pointer}
+@media (prefers-reduced-motion:reduce){.setSheet,.story.leaving{animation:none}}
 @media (max-width:560px){
   .dots{display:none} .chip span{display:none} #whereChip{display:none}
   .act{padding:0 14px;font-size:14px} #capSub{display:none} .icon{width:36px;height:36px}
@@ -123,8 +187,9 @@ button:focus-visible{outline:2px solid var(--lantern);outline-offset:2px}
 <section class="story" id="story" hidden>
   <div class="card" id="storyCard">
     <button class="grip" id="grip" aria-label="Hide the story text" aria-expanded="true"><span></span></button>
-    <div class="sHead"><span id="sNum"></span><h2 id="sTitle"></h2></div>
+    <div class="sHead"><span id="sNum"></span><h2 id="sTitle"></h2><button class="speak" id="speakBtn" aria-label="Read this page aloud" hidden><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 010 6"/></svg></button></div>
     <div class="sBody" id="sBody"></div>
+    <button class="seePic" id="seePic">See the picture</button>
   </div>
 </section>
 <div class="bar">
@@ -134,7 +199,7 @@ button:focus-visible{outline:2px solid var(--lantern);outline-offset:2px}
     <div class="cap"><div id="capTitle">The Fox of the First Snow</div><div id="capSub">Written by Shamroze</div></div>
     <button class="act" id="act">Open the book</button>
     <button class="icon" id="read" aria-label="Read this page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6.5C10 5 7 4.5 3.5 5v13c3.5-.5 6.5 0 8.5 1.5 2-1.5 5-2 8.5-1.5V5C17 4.5 14 5 12 6.5z"/><path d="M12 6.5v13"/></svg></button>
-    <button class="icon" id="snd" aria-label="Turn sound off" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path id="sndWave" d="M15.5 9a4 4 0 010 6M18 6.5a7.5 7.5 0 010 11"/><path id="sndOff" d="M16 9.5l5 5M21 9.5l-5 5" style="display:none"/></svg></button>
+    <button class="icon" id="setBtn" aria-label="Reading settings" aria-haspopup="dialog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18l4.5-12L12 18M4.6 14h5.8"/><path d="M14.5 18v-6.5a3 3 0 016 0V18M14.5 14.5h6"/></svg></button>
     <button class="icon" id="next" aria-label="Next page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
   </div>
 </div>
@@ -145,6 +210,23 @@ button:focus-visible{outline:2px solid var(--lantern);outline-offset:2px}
     <h2 id="rTitle"></h2>
     <div id="rBody"></div>
   </article>
+</div>
+<div class="settings" id="settings" hidden>
+  <div class="setSheet" role="dialog" aria-modal="true" aria-labelledby="setTitle">
+    <div class="setHandle"></div>
+    <h3 id="setTitle">How would you like to read?</h3>
+    <div class="layouts" role="radiogroup" aria-label="Reading layout">
+      <button class="lay" data-layout="split" role="radio"><span class="mini m-split"><i class="pic"></i><i class="txt"></i></span><b>Picture &amp; story</b><small>Scene on top, words below</small></button>
+      <button class="lay" data-layout="textfirst" role="radio"><span class="mini m-first"><i class="txt"></i><i class="arrow"></i></span><b>Story first</b><small>Read the page, then open the scene</small></button>
+      <button class="lay" data-layout="overlay" role="radio"><span class="mini m-over"><i class="pic"></i><i class="txt"></i></span><b>Story over picture</b><small>Full-screen scene, words on top</small></button>
+    </div>
+    <div class="setRow"><span>Text size</span>
+      <div class="seg" role="radiogroup" aria-label="Text size"><button data-size="s" role="radio" aria-label="Small">A</button><button data-size="m" role="radio" aria-label="Medium">A</button><button data-size="l" role="radio" aria-label="Large">A</button></div></div>
+    <label class="setRow" id="aloudRow"><span>Read the story aloud<small>A gentle voice reads each page</small></span><input type="checkbox" id="optAloud" role="switch"></label>
+    <label class="setRow"><span>Sound effects</span><input type="checkbox" id="optSound" role="switch" checked></label>
+    <p class="setNote" id="setNote" hidden>Layouts apply when the phone is held upright.</p>
+    <button class="done" id="setDone">Start reading</button>
+  </div>
 </div>
 <div class="loader" id="loader"><div>The snow is beginning to fall…</div></div>
 
@@ -1308,7 +1390,7 @@ function lampFor(sp) { const l = sp.lamp?.(sp.o); if (l) { L.follow = l.obj; L.a
 function unpeel() { if (leaf.userData.peelFor != null) { rightPage.material.map = SP[leaf.userData.peelFor].rT; leaf.userData.peelFor = null; leaf.visible = false; } }
 function beginTurn(dir) {
   if (S.busy || S.acting) return null; const n = S.cur + dir; if (n < -1 || n >= SP.length) return null;
-  unpeel(); ensure(n); ensure(S.cur); S.busy = true; wind = 0; hideBubble(); L.target = 0; ui();
+  unpeel(); stopSpeak(); ensure(n); ensure(S.cur); S.busy = true; wind = 0; hideBubble(); L.target = 0; ui();
   const c = { dir, n, q: 0, kind: S.cur === -1 ? 'open' : n === -1 ? 'close' : 'turn', a: SP[S.cur], b: SP[n] };
   if (c.kind === 'open') { const sp = SP[0]; rightPage.material.map = sp.rT; leftPage.material.map = sp.lT; sp.root.visible = true; sp.reset?.(sp.o); setRise(sp, 0, true); }
   else if (c.kind === 'turn') {
@@ -1339,7 +1421,8 @@ async function endTurn(c, commit, full) {
     try { navigator.vibrate?.(10); } catch (e) { }
     S.cur = c.n; applyShot(SP[S.cur]); ui(); if (rp) await rp;
     const cs = SP[S.cur]; if (cs?.intro) setTimeout(() => { if (SP[S.cur] === cs && !S.busy) cs.intro(cs.o); }, 150);
-    if (S.cur === 0 && !S.swiped) showSwipeHint();
+    if (S.cur === 0 && portrait() && !prefs.chosen) openSettings(); else if (S.cur === 0 && !S.swiped) showSwipeHint();
+    if (prefs.aloud && S.cur >= 0) setTimeout(speakPage, 300);
   } else {
     if (c.kind === 'open') b.root.visible = false;
     else if (c.kind === 'close') rp = rise(a);
@@ -1369,7 +1452,53 @@ function ui() {
 }
 $('prev').onclick = () => go(-1); $('next').onclick = () => go(1);
 $('act').onclick = () => { sfx.unlock(); act(); };
-$('snd').onclick = () => { sfx.on = !sfx.on; $('snd').setAttribute('aria-pressed', String(sfx.on)); $('snd').setAttribute('aria-label', sfx.on ? 'Turn sound off' : 'Turn sound on'); $('sndWave').style.display = sfx.on ? '' : 'none'; $('sndOff').style.display = sfx.on ? 'none' : ''; };
+/* ---- reading preferences (kept on this device) */
+const prefs = (() => { const d = { layout: 'split', size: 'm', aloud: false, sound: true, chosen: false }; try { return { ...d, ...JSON.parse(localStorage.getItem('fox-prefs') || '{}') }; } catch (e) { return d; } })();
+function savePrefs() { try { localStorage.setItem('fox-prefs', JSON.stringify(prefs)); } catch (e) { } }
+sfx.on = prefs.sound;
+let tfShow = false;
+function syncSettings() {
+  document.querySelectorAll('.lay').forEach(b => b.setAttribute('aria-checked', String(b.dataset.layout === prefs.layout)));
+  document.querySelectorAll('.seg button').forEach(b => b.setAttribute('aria-checked', String(b.dataset.size === prefs.size)));
+  $('optAloud').checked = prefs.aloud; $('optSound').checked = prefs.sound; $('aloudRow').hidden = !TTS; $('setNote').hidden = portrait();
+  $('story').dataset.layout = prefs.layout; $('story').dataset.size = prefs.size; $('speakBtn').hidden = !TTS;
+}
+function openSettings() { syncSettings(); $('settings').hidden = false; hideSwipeHint(); $('setDone').focus(); }
+function closeSettings() { $('settings').hidden = true; prefs.chosen = true; savePrefs(); if (S.cur >= 0 && !S.swiped) showSwipeHint(); }
+document.querySelectorAll('.lay').forEach(b => b.onclick = () => { prefs.layout = b.dataset.layout; tfShow = prefs.layout === 'textfirst'; savePrefs(); syncSettings(); storyFor = null; storyUI(); });
+document.querySelectorAll('.seg button').forEach(b => b.onclick = () => { prefs.size = b.dataset.size; savePrefs(); syncSettings(); });
+$('optAloud').onchange = e => { prefs.aloud = e.target.checked; savePrefs(); if (prefs.aloud) speakPage(); else stopSpeak(); };
+$('optSound').onchange = e => { prefs.sound = sfx.on = e.target.checked; savePrefs(); };
+$('setBtn').onclick = openSettings; $('setDone').onclick = closeSettings;
+$('settings').addEventListener('click', e => { if (e.target === $('settings')) closeSettings(); });
+$('seePic').onclick = () => {
+  stopSpeak(); const st = $('story'); st.classList.add('leaving');
+  setTimeout(() => { st.classList.remove('leaving'); tfShow = false; storyUI(); replayRise(); }, REDUCE ? 0 : 430);
+};
+function replayRise() {
+  const sp = SP[S.cur]; if (!sp || S.busy || S.acting) return;
+  S.busy = true; ui(); setRise(sp, 0, true);
+  rise(sp).then(() => { S.busy = false; ui(); sp.intro?.(sp.o); });
+}
+/* ---- read aloud with the device's own voice */
+const TTS = 'speechSynthesis' in window ? window.speechSynthesis : null;
+let ttsRun = 0;
+function pickVoice() { const vs = TTS.getVoices(); return vs.find(v => /en[-_]GB/i.test(v.lang) && /female|libby|sonia|serena|kate|martha|hazel/i.test(v.name)) || vs.find(v => /en[-_]GB/i.test(v.lang)) || vs.find(v => /^en/i.test(v.lang)) || null; }
+function stopSpeak() { ttsRun++; try { TTS?.cancel(); } catch (e) { } document.querySelectorAll('.sBody p.speaking').forEach(p => p.classList.remove('speaking')); $('speakBtn').setAttribute('aria-pressed', 'false'); }
+function speakPage() {
+  if (!TTS || S.cur < 0) return; stopSpeak(); storyFill();
+  const run = ++ttsRun, items = [...$('sBody').children]; let i = 0; $('speakBtn').setAttribute('aria-pressed', 'true');
+  const next = () => {
+    if (run !== ttsRun) return;
+    if (i >= items.length) { items.forEach(p => p.classList.remove('speaking')); $('speakBtn').setAttribute('aria-pressed', 'false'); return; }
+    items.forEach((p, k) => p.classList.toggle('speaking', k === i)); try { items[i].scrollIntoView({ block: 'nearest', behavior: REDUCE ? 'auto' : 'smooth' }); } catch (e) { }
+    const u = new SpeechSynthesisUtterance(items[i].textContent.replace(/[“”]/g, '"').replace(/~/g, '')), v = pickVoice();
+    if (v) u.voice = v; u.lang = v?.lang || 'en-GB'; u.rate = .9; u.pitch = 1.05; u.onend = () => { i++; next(); }; u.onerror = () => { i = items.length; next(); };
+    try { TTS.speak(u); } catch (e) { i = items.length; next(); }
+  };
+  next();
+}
+$('speakBtn').onclick = () => { if ($('speakBtn').getAttribute('aria-pressed') === 'true') stopSpeak(); else speakPage(); };
 let swipeT = 0;
 function showSwipeHint() { $('swipe').hidden = false; clearTimeout(swipeT); swipeT = setTimeout(hideSwipeHint, 5000); }
 function hideSwipeHint() { $('swipe').hidden = true; }
@@ -1379,24 +1508,34 @@ function openReader() {
   $('rBody').replaceChildren(...sp.paras.map(t => { const p = document.createElement('p'); if (t.startsWith('§')) { p.className = 'script'; t = t.slice(1); } else if (t.startsWith('#')) { p.className = 'center'; t = t.slice(1); } else if (sp.dedication) p.className = 'center'; p.textContent = t; return p; }));
   $('reader').hidden = false; $('rClose').focus();
 }
-$('read').onclick = () => { if (storyOn()) { const c = !$('story').classList.toggle('collapsed'); $('grip').setAttribute('aria-expanded', String(c)); } else openReader(); };
+$('read').onclick = () => { if (!storyOn()) { openReader(); return; } if (prefs.layout === 'textfirst') { tfShow = !tfShow; storyUI(); return; } const c = !$('story').classList.toggle('collapsed'); $('grip').setAttribute('aria-expanded', String(c)); };
 $('grip').onclick = () => { const c = !$('story').classList.toggle('collapsed'); $('grip').setAttribute('aria-expanded', String(c)); $('grip').setAttribute('aria-label', c ? 'Hide the story text' : 'Show the story text'); };
 const portrait = () => innerWidth / innerHeight < .95;
 const storyOn = () => portrait() && S.cur >= 0;
 let storyFor = null;
-function storyUI() {
-  const on = storyOn(); $('story').hidden = !on; $('hint').hidden = portrait();
-  if (!on || storyFor === S.cur) return; storyFor = S.cur; const sp = SP[S.cur];
+function storyFill() {
+  if (S.cur < 0 || storyFor === S.cur) return; storyFor = S.cur; const sp = SP[S.cur];
+  if (prefs.layout === 'textfirst') tfShow = true;
   $('sNum').textContent = sp.dedication ? '' : sp.numeral; $('sTitle').textContent = sp.dedication ? 'A Dedication' : sp.title;
-  $('sBody').replaceChildren(...sp.paras.map((t, i) => { const p = document.createElement('p');
+  $('sBody').replaceChildren(...sp.paras.map(t => { const p = document.createElement('p');
     if (sp.dedication) { p.className = t.startsWith('§') ? 'script' : 'by'; t = t.replace(/^[§#]/, ''); }
     else if (t.startsWith('#')) { p.className = 'center'; t = t.slice(1); }
     p.textContent = t; return p; }));
   if (sp.end) { const p = document.createElement('p'); p.className = 'center'; p.textContent = '~ The End ~'; $('sBody').append(p); }
-  $('storyCard').scrollTop = 0;
+  $('seePic').textContent = sp.dedication ? 'Open the first scene' : 'See the picture';
+  $('storyCard').scrollTop = 0; $('sBody').scrollTop = 0;
+}
+function storyUI() {
+  storyFill();
+  const on = storyOn(), st = $('story'), first = prefs.layout === 'textfirst';
+  st.dataset.layout = prefs.layout; st.dataset.size = prefs.size;
+  st.hidden = !on || (first && !tfShow); st.classList.toggle('full', on && first && tfShow);
+  if (st.classList.contains('full')) st.classList.remove('collapsed');
+  $('hint').hidden = portrait();
 } $('rClose').onclick = () => { $('reader').hidden = true; $('read').focus(); };
 $('reader').addEventListener('click', e => { if (e.target === $('reader')) $('reader').hidden = true; });
 addEventListener('keydown', e => {
+  if (!$('settings').hidden) { if (e.key === 'Escape') closeSettings(); return; }
   if (!$('reader').hidden) { if (e.key === 'Escape') $('reader').hidden = true; return; }
   if (e.key === 'ArrowRight') go(1); else if (e.key === 'ArrowLeft') go(-1);
   else if ((e.key === ' ' || e.key === 'Enter') && document.activeElement === canvas) { e.preventDefault(); sfx.unlock(); act(); }
@@ -1418,7 +1557,9 @@ function applyShot(sp) { const s = sp?.shot || {}; cam.tpitch = portrait() ? (s.
 function insets() {
   if (!portrait()) return [0, 0];
   const top = document.querySelector('.top .chip').getBoundingClientRect().bottom + 4;
-  const st = $('story'), edge = !st.hidden ? $('storyCard').getBoundingClientRect().top : document.querySelector('.pill').getBoundingClientRect().top;
+  const st = $('story'), pillTop = document.querySelector('.pill').getBoundingClientRect().top;
+  let edge = pillTop;
+  if (!st.hidden && !st.classList.contains('full')) { const ct = $('storyCard').getBoundingClientRect().top; edge = prefs.layout === 'overlay' ? pillTop - (pillTop - ct) * .3 : ct; }
   return [top, Math.max(0, innerHeight - edge + 6)];
 }
 function targetFrame() {
@@ -1500,10 +1641,10 @@ function frame(now) {
 /* ---- boot */
 async function boot() {
   try { await Promise.race([Promise.all([`500 40px "Cormorant Garamond"`, `italic 500 40px "Cormorant Garamond"`, `600 40px "Cormorant Garamond"`, `500 40px "Cormorant SC"`, `40px "Pinyon Script"`].map(f => document.fonts.load(f))), new Promise(r => setTimeout(r, 3500))]); } catch (e) { }
-  ensure(0); buildBook(); applyCover(); applyMood(moodNow); resize(); ui();
+  ensure(0); buildBook(); applyCover(); applyMood(moodNow); syncSettings(); resize(); ui();
   requestAnimationFrame(t => { last = t; frame(t); });
   $('loader').classList.add('gone'); setTimeout(() => { $('hint').style.opacity = 0; }, 7000);
-  window.__book = { go, act, S, SP, cam, peel }; setTimeout(() => ensure(1), 900);
+  window.__book = { go, act, S, SP, cam, peel, prefs, openSettings, closeSettings }; setTimeout(() => ensure(1), 900);
 }
 boot();
 </script>
