@@ -431,7 +431,9 @@ import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.m
 /* ================================================================== constants */
 const W = 4, D = 5.4, BT = 0.07, PB = 0.14, Y0 = BT + PB, BW = W + 0.14, BD = D + 0.28;
 const MOBILE = matchMedia('(pointer: coarse)').matches || Math.min(screen.width, screen.height) < 600;
-const U = MOBILE ? 150 : 200, PX = MOBILE ? [768, 1037] : [1024, 1382], PS = PX[0] / 1024;
+const PRINTQ = /[?&]print\b/.test(location.search);  // print mode: high-resolution renders for the printed book
+const U = PRINTQ ? 520 : MOBILE ? 150 : 200, PX = PRINTQ ? [2048, 2765] : MOBILE ? [768, 1037] : [1024, 1382], PS = PX[0] / 1024;
+let COLORING = false;  // line-art mode for the colouring page
 const REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const $ = id => document.getElementById(id);
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -570,8 +572,8 @@ const circ = (g, x, y, r) => { g.moveTo(x + r, y); g.arc(x, y, r, 0, Math.PI * 2
 const ell = (g, x, y, rx, ry, rot = 0) => { g.moveTo(x + rx * Math.cos(rot), y + rx * Math.sin(rot)); g.ellipse(x, y, rx, ry, rot, 0, Math.PI * 2); };
 const rr = (g, x, y, w, h, r = 0) => { r = Math.min(r, w / 2, h / 2); g.moveTo(x + r, y); g.lineTo(x + w - r, y); g.quadraticCurveTo(x + w, y, x + w, y + r); g.lineTo(x + w, y + h - r); g.quadraticCurveTo(x + w, y + h, x + w - r, y + h); g.lineTo(x + r, y + h); g.quadraticCurveTo(x, y + h, x, y + h - r); g.lineTo(x, y + r); g.quadraticCurveTo(x, y, x + r, y); g.closePath(); };
 const poly = (g, p) => { g.moveTo(p[0], p[1]); for (let i = 2; i < p.length; i += 2) g.lineTo(p[i], p[i + 1]); g.closePath(); };
-function cut(g, fill, build, o = {}) { g.save(); if (o.shadow !== false) { g.shadowColor = o.sc || 'rgba(20,24,60,.32)'; g.shadowBlur = o.blur ?? 8; g.shadowOffsetX = o.ox ?? 0; g.shadowOffsetY = o.oy ?? 3; } g.fillStyle = fill; g.beginPath(); build(g); g.fill(); g.restore(); }
-function stroke(g, color, width, build, shadow = true, dash) { g.save(); if (shadow) { g.shadowColor = 'rgba(20,24,60,.3)'; g.shadowBlur = 5; g.shadowOffsetY = 2; } g.strokeStyle = color; g.lineWidth = width; if (dash) g.setLineDash(dash); g.beginPath(); build(g); g.stroke(); g.restore(); }
+function cut(g, fill, build, o = {}) { if (COLORING) { if (typeof fill === 'string' && fill.startsWith('rgba')) return; g.save(); g.fillStyle = '#fff'; g.strokeStyle = '#1a1a1a'; g.lineWidth = .014; g.lineJoin = 'round'; g.beginPath(); build(g); g.fill(); g.stroke(); g.restore(); return; } g.save(); if (o.shadow !== false) { g.shadowColor = o.sc || 'rgba(20,24,60,.32)'; g.shadowBlur = o.blur ?? 8; g.shadowOffsetX = o.ox ?? 0; g.shadowOffsetY = o.oy ?? 3; } g.fillStyle = fill; g.beginPath(); build(g); g.fill(); g.restore(); }
+function stroke(g, color, width, build, shadow = true, dash) { if (COLORING) { if (String(color).startsWith('rgba')) return; color = '#1a1a1a'; shadow = false; } g.save(); if (shadow) { g.shadowColor = 'rgba(20,24,60,.3)'; g.shadowBlur = 5; g.shadowOffsetY = 2; } g.strokeStyle = color; g.lineWidth = width; if (dash) g.setLineDash(dash); g.beginPath(); build(g); g.stroke(); g.restore(); }
 const dots = (g, color, pts, r) => cut(g, color, g => pts.forEach(([x, y]) => circ(g, x, y, r)), { shadow: false });
 function text(g, str, x, y, size, o = {}) { const u = g._u; g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.font = `${o.style || ''} ${size * u}px ${o.font || BOOK}`; g.fillStyle = o.color || N.ink; g.textAlign = o.align || 'center'; g.textBaseline = o.base || 'middle'; if (o.glow) { g.shadowColor = o.glow; g.shadowBlur = 14; } g.fillText(str, x * u, y * u); g.restore(); }
 function heart(g, x, y, r) { g.moveTo(x, y + r); g.bezierCurveTo(x - r * 1.5, y - r * .1, x - r * .7, y - r * 1.25, x, y - r * .45); g.bezierCurveTo(x + r * .7, y - r * 1.25, x + r * 1.5, y - r * .1, x, y + r); g.closePath(); }
@@ -1637,7 +1639,7 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 const scene = new THREE.Scene(); scene.background = new THREE.Color('#1d140e'); scene.fog = new THREE.Fog('#1d140e', 20, 42);
 const camera = new THREE.PerspectiveCamera(30, 1, .1, 120);
 const hemi = new THREE.HemisphereLight('#fff3df', '#4a2e1a', 1.55); scene.add(hemi);
-const sun = new THREE.DirectionalLight('#fff0d8', 2.7); sun.position.set(-4.5, 10, 7.5); sun.castShadow = true; sun.shadow.mapSize.set(MOBILE ? 1024 : 2048, MOBILE ? 1024 : 2048);
+const sun = new THREE.DirectionalLight('#fff0d8', 2.7); sun.position.set(-4.5, 10, 7.5); sun.castShadow = true; sun.shadow.mapSize.set(PRINTQ ? 4096 : MOBILE ? 1024 : 2048, PRINTQ ? 4096 : MOBILE ? 1024 : 2048);
 Object.assign(sun.shadow.camera, { left: -7, right: 7, top: 7, bottom: -7, near: 2, far: 30 }); sun.shadow.bias = -.0005; sun.shadow.normalBias = .025; scene.add(sun);
 const fill = new THREE.DirectionalLight('#ffd6b0', .5); fill.position.set(6, 4, 3); scene.add(fill);
 const lampLight = new THREE.PointLight('#ffb766', 0, 7, 2); scene.add(lampLight);
@@ -2423,7 +2425,7 @@ const camT = new THREE.Vector3();
 /* adaptive quality: if frames run slow, lower resolution first, then soften shadows */
 const PERF = { t0: 0, n: 0, slow: 0, shadowsOff: false };
 function perfTick(now, covered) {
-  if (covered || document.hidden) { PERF.t0 = 0; return; }
+  if (PRINTQ || covered || document.hidden) { PERF.t0 = 0; return; }
   if (!PERF.t0) { PERF.t0 = now; PERF.n = 0; return; }
   PERF.n++; const el = now - PERF.t0; if (el < 2000) return;
   const fps = PERF.n * 1000 / el; PERF.t0 = now; PERF.n = 0;
@@ -2443,6 +2445,7 @@ function frame(now) {
   cam.shift = lerp(cam.shift || 0, f.shift, k * .8); if (Math.abs(cam.shift) > .5) camera.setViewOffset(innerWidth, innerHeight, 0, cam.shift, innerWidth, innerHeight); else camera.clearViewOffset();
   cam.yaw = lerp(cam.yaw, cam.tyaw + (ptrs.size || REDUCE ? 0 : Math.sin(now * .00022) * cam.sway), k * .6); cam.pitch = lerp(cam.pitch, cam.tpitch, k * .6);
   cam.sz = lerp(cam.sz, portrait() && S.cur >= 0 ? cam.tsz : 1, k * .6); cam.ty = lerp(cam.ty, S.cur >= 0 ? cam.tty : 1, k * .6);
+  if (PRINTQ && window.__print) Object.assign(cam, window.__print);
   const d = cam.dist * cam.zoom * cam.intro * cam.sz, T = camT.set(cam.tx, cam.ty, .35);
   camera.position.set(T.x + d * Math.sin(cam.yaw) * Math.cos(cam.pitch), T.y + d * Math.sin(cam.pitch), T.z + d * Math.cos(cam.yaw) * Math.cos(cam.pitch)); camera.lookAt(T);
   if (L.follow) { L.follow.localToWorld(wp.copy(L.at)); lampLight.position.copy(wp); }
@@ -2470,7 +2473,9 @@ async function boot() {
   ensure(0); buildBook(); buildHook(); applyCover(); applyMood(moodNow); syncSettings(); buildChips(); namesUI(); resize(); ui(); initVoices();
   requestAnimationFrame(t => { last = t; frame(t); });
   $('loader').classList.add('gone'); setTimeout(() => { $('hint').style.opacity = 0; }, 7000);
-  window.__book = { go, act, S, SP, cam, peel, prefs, HOOK, catchFlake, openSettings, closeSettings, openBuilder, openStudio, storeVoice, get CFG() { return CFG; } }; setTimeout(() => ensure(1), 900);
+  window.__book = { go, act, S, SP, cam, peel, prefs, HOOK, catchFlake, T, P, ensure,
+    draw: { princess, fox, tailArt, castle, pine, drift, moon, flake, shamroze, setColoring: v => { COLORING = v; } },
+    seek(i, x, y, z, s = .3) { ensure(i); const grp = new THREE.Group(); grp.position.set(x, y, z); const core = new THREE.Sprite(new THREE.SpriteMaterial({ map: flakeTex(), color: '#ffffff', transparent: true, depthWrite: false })); core.scale.setScalar(s); grp.add(glow('#cfe6ff', s * 2.2, .6), core); SP[i].root.add(grp); return true; }, openSettings, closeSettings, openBuilder, openStudio, storeVoice, get CFG() { return CFG; } }; setTimeout(() => ensure(1), 900);
 }
 boot();
 </script>
