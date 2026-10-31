@@ -3,6 +3,8 @@
 <meta name="description" content="An original interactive 3D pop-up storybook, written by Shamroze for Princess Zainab.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Cormorant+SC:wght@500&family=Pinyon+Script&family=Alegreya+Sans:wght@400;500;700&family=Noto+Nastaliq+Urdu:wght@400;600&display=swap">
 <style>
 /* Layout: one full-bleed 3D stage (a storybook on a table at night) with a title chip and a bottom control pill. */
@@ -246,9 +248,9 @@ textarea.bIn{font:italic 500 18px var(--font-book);line-height:1.4;resize:none}
 .tright{flex:none}
 .langBtn{pointer-events:auto;height:34px;min-width:52px;border-radius:999px;border:1px solid var(--panel-line);background:var(--panel);color:var(--text);cursor:pointer;padding:0 12px;
   font:600 14px var(--font-ui);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
-.langBtn:lang(ur){font:600 15px var(--font-urdu);line-height:1}
+.langBtn:lang(ur){font:600 15px system-ui,sans-serif;line-height:1}
 #langSeg button{width:auto;padding:0 14px;font:600 14px var(--font-ui)}
-#langSeg button[data-lang="ur"]{font:600 15px var(--font-urdu);line-height:1}
+#langSeg button[data-lang="ur"]{font:600 15px system-ui,sans-serif;line-height:1}
 .story[lang="ur"] .card{direction:rtl}
 .story[lang="ur"] .sHead span{font-family:var(--font-urdu);letter-spacing:0;font-size:14px}
 .story[lang="ur"] .sHead h2{font-family:var(--font-urdu);font-style:normal;font-weight:600;font-size:21px;line-height:1.9}
@@ -266,6 +268,21 @@ textarea.bIn{font:italic 500 18px var(--font-book);line-height:1.4;resize:none}
 .vWords[dir="rtl"]{font-family:var(--font-urdu);line-height:2.15;text-align:right;font-size:17px}
 .bIn.ur,textarea.bIn.ur{font-family:var(--font-urdu);line-height:2;font-style:normal}
 .bLbl small{text-transform:none;letter-spacing:0;opacity:.8}
+.intro{position:fixed;left:0;right:0;top:calc(66px + env(safe-area-inset-top,0px));z-index:2;text-align:center;pointer-events:none;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));animation:introIn 1.4s ease-out both}
+@keyframes introIn{from{opacity:0;transform:translateY(-8px)}}
+.intro .i1{margin:0 auto;max-width:520px;font-family:var(--font-book);font-style:italic;font-weight:500;font-size:clamp(22px,6vw,32px);line-height:1.2;color:#fff6e2;
+  text-shadow:0 2px 14px rgba(0,0,0,.6);text-wrap:balance}
+.intro .i1 b{color:var(--lantern);font-weight:600}
+.intro .i2{margin:8px auto 0;max-width:420px;font-size:15px;color:rgba(238,242,255,.82);text-shadow:0 1px 8px rgba(0,0,0,.7);text-wrap:balance}
+.intro .iDots{display:flex;justify-content:center;gap:10px;margin-top:12px}
+.intro .iDots i{width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,200,103,.75);transition:background .3s,box-shadow .3s,transform .3s}
+.intro .iDots i.on{background:var(--lantern);box-shadow:0 0 14px rgba(255,200,103,.9);transform:scale(1.15)}
+.intro[lang="ur"] .i1,.intro[lang="ur"] .i2{font-family:var(--font-urdu);font-style:normal;line-height:2;direction:rtl}
+.intro[lang="ur"] .i1{font-size:clamp(19px,5vw,26px)}
+.intro.done{animation:introOut .6s ease-in forwards}
+@keyframes introOut{to{opacity:0;transform:translateY(-10px)}}
+@media (prefers-reduced-motion:reduce){.intro,.intro.done{animation:none}}
 @media (max-width:560px){
   .langBtn{height:32px;padding:0 10px}
   .mkBtn{height:32px;padding:0 12px}
@@ -285,6 +302,11 @@ textarea.bIn{font:italic 500 18px var(--font-book);line-height:1.4;resize:none}
 <div class="toast" id="toast" hidden role="status"></div>
 <div class="vchip" id="vchip" hidden><span class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span><span id="vText"></span><button id="vPause" aria-label="Pause the voice"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></button></div>
 <div class="bubble" id="bubble" role="status" aria-live="polite"></div>
+<div class="intro" id="intro" hidden>
+  <p class="i1" id="i1"></p>
+  <p class="i2" id="i2"></p>
+  <div class="iDots" aria-hidden="true"><i></i><i></i><i></i></div>
+</div>
 <div class="hint" id="hint">Swipe the page to turn it · Tap the characters</div>
 <div class="swipe" id="swipe" hidden aria-hidden="true"><svg viewBox="0 0 48 24" width="48" height="24"><path d="M44 12H8M16 4l-8 8 8 8" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Swipe the page to turn it</span></div>
 <section class="story" id="story" hidden>
@@ -403,7 +425,7 @@ textarea.bIn{font:italic 500 18px var(--font-book);line-height:1.4;resize:none}
 <div class="loader" id="loader"><div>The snow is beginning to fall…</div></div>
 
 <script type="module">
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js';
 
 /* ================================================================== constants */
 const W = 4, D = 5.4, BT = 0.07, PB = 0.14, Y0 = BT + PB, BW = W + 0.14, BD = D + 0.28;
@@ -1519,7 +1541,8 @@ function edgeCanvas() { const c = mk(64, 64), g = c.getContext('2d'); g.fillStyl
 /* ================================================================== three.js scene */
 const canvas = $('stage');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, MOBILE ? 1.75 : 2));
+const DPR_MAX = Math.min(devicePixelRatio || 1, MOBILE ? 1.6 : 2); let dprNow = DPR_MAX;
+renderer.setPixelRatio(dprNow);
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 const scene = new THREE.Scene(); scene.background = new THREE.Color('#1d140e'); scene.fog = new THREE.Fog('#1d140e', 20, 42);
@@ -1672,7 +1695,8 @@ function unbuild(i) {
   for (let k = taps.length - 1; k >= 0; k--) if (taps[k].userData.spread === i) taps.splice(k, 1);
   sp.built = false;
 }
-function tidy(n) { setTimeout(() => { ensure(n + 1); SP.forEach((_, i) => { if (Math.abs(i - Math.max(n, 0)) > 2) unbuild(i); }); }, 200); }
+const idle = fn => (window.requestIdleCallback ? requestIdleCallback(fn, { timeout: 1500 }) : setTimeout(fn, 250));
+function tidy(n) { setTimeout(() => idle(() => { ensure(n + 1); SP.forEach((_, i) => { if (Math.abs(i - Math.max(n, 0)) > 2) unbuild(i); }); }), 300); }
 function setRise(sp, p, rising) {
   const n = sp.hinges.length, stg = .09, span = 1 - (n - 1) * stg;
   sp.hinges.forEach((hg, i) => {
@@ -1731,6 +1755,83 @@ const sfx = (() => {
   };
 })();
 
+/* ================================================================== the opening hook: snowflakes to catch, a fox on the table, a shimmering cover */
+const HOOK = { g: new THREE.Group(), flakes: [], paws: [], caught: 0, opening: false };
+scene.add(HOOK.g);
+function flakeTex() { const c = mk(128, 128), g = c.getContext('2d'); g._u = 1; flake(g, 64, 64, 50, '#ffffff', 6); dots(g, '#ffffff', [[64, 64]], 9); return new THREE.CanvasTexture(c); }
+function pawTex() { const c = mk(64, 64), g = c.getContext('2d'); g.fillStyle = '#fff'; g.beginPath(); ell(g, 32, 40, 13, 11); circ(g, 18, 24, 6); circ(g, 28, 17, 6); circ(g, 38, 17, 6); circ(g, 47, 24, 6); g.fill(); return new THREE.CanvasTexture(c); }
+function buildHook() {
+  const ft = flakeTex();
+  [[.35, 1.55, -1.55], [3.75, 1.7, .05], [1.35, 1.25, 1.55]].forEach(([x, y, z], i) => {
+    const grp = new THREE.Group(); grp.position.set(x, y, z); grp.userData = { base: new THREE.Vector3(x, y, z), i };
+    const halo = glow('#bfe0ff', 1.15, .7); const core = new THREE.Sprite(new THREE.SpriteMaterial({ map: ft, color: '#ffffff', transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+    core.scale.setScalar(.5); grp.add(halo, core); grp.userData.halo = halo; grp.userData.core = core; HOOK.g.add(grp); HOOK.flakes.push(grp);
+  });
+  const pt = pawTex();
+  for (let i = 0; i < 8; i++) {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(.18, .18), new THREE.MeshBasicMaterial({ map: pt, color: '#ffc867', transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+    m.rotation.x = -Math.PI / 2; m.rotation.z = -.15; m.position.set(-1.6 + i * .58, .004, 3.55 + (i % 2 ? .13 : -.13)); HOOK.g.add(m); HOOK.paws.push(m);
+  }
+  const [fc, fg] = layerCanvas(.9, 1.0); fg.save(); fg.translate(.02, .52); fg.scale(.62, .62); tailArt(fg); fg.restore(); fox(fg, .5, 1.0, .82);
+  const fm = paperMesh(fc, .9, 1.0, .5, 0); HOOK.fox = new THREE.Group(); HOOK.fox.add(fm); HOOK.fox.position.set(3.75, 0, 3.3); HOOK.fox.scale.setScalar(1.25); HOOK.g.add(HOOK.fox);
+  HOOK.foxGlow = glow('#ffb347', .7, .6); HOOK.foxGlow.position.set(-.2, .3, .05); HOOK.fox.add(HOOK.foxGlow);
+  // a light sweep across the cover foil
+  const sweep = new THREE.Mesh(new THREE.PlaneGeometry(BW - .2, BD - .2), new THREE.ShaderMaterial({
+    uniforms: { uTime: { value: 0 }, uAmp: { value: 1 } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: 'uniform float uTime; uniform float uAmp; varying vec2 vUv; void main(){ float x = vUv.x + vUv.y * .55; float c = fract(uTime * .16) * 2.6 - .6; float b = smoothstep(.16, 0., abs(x - c)); gl_FragColor = vec4(vec3(1., .86, .55) * b * .32 * uAmp, 1.); }',
+  }));
+  sweep.rotation.x = -Math.PI / 2; sweep.position.set(BW / 2, Y0 / 2 + BT / 2 + .003, 0); coverPivot.children[0].parent.add(sweep); HOOK.sweep = sweep;
+}
+function hookTexts() {
+  const ur = LANG === 'ur';
+  $('intro').lang = LANG;
+  $('i1').innerHTML = '';
+  const name = document.createElement('b'); name.textContent = T('{N}');
+  if (ur) $('i1').append('ایک ننھی لومڑی ', name, ' کا انتظار کر رہی ہے…');
+  else $('i1').append('A little fox is waiting for ', name, '…');
+  $('i2').textContent = ur ? 'کتاب کھولنے کے لیے تین چمکتے برف کے گالے پکڑیں' : 'Catch the 3 glowing snowflakes to open the book';
+  [...document.querySelectorAll('.iDots i')].forEach((d, i) => d.classList.toggle('on', i < HOOK.caught));
+}
+function hookActive() { return S.cur < 0 && S.cover < .02 && !HOOK.opening; }
+function resetHook() { HOOK.caught = 0; HOOK.opening = false; HOOK.flakes.forEach(f => { f.visible = true; f.userData.gone = false; f.scale.setScalar(1); }); $('intro').classList.remove('done'); hookTexts(); }
+function catchFlake(f) {
+  if (f.userData.gone || HOOK.opening) return;
+  f.userData.gone = true; HOOK.caught++; sfx.unlock(); sfx.note(659 * Math.pow(2, [0, 4, 7][HOOK.caught - 1] / 12)); sfx.sparkle();
+  burst(f.getWorldPosition(new THREE.Vector3()), '#dff0ff', 40, 1.4, .09, 1.2, -.4);
+  try { navigator.vibrate?.(12); } catch (e) { }
+  tween(.35, p => { f.scale.setScalar(1 + p * 1.2); f.userData.halo.material.opacity = .7 * (1 - p); f.userData.core.material.opacity = 1 - p; }).then(() => { f.visible = false; });
+  hookTexts();
+  if (HOOK.caught >= 3) openWithMagic();
+}
+async function openWithMagic() {
+  HOOK.opening = true; $('intro').classList.add('done'); sfx.wish();
+  const c = new THREE.Vector3(BW / 2, Y0 + .3, 0);
+  await tween(1.1, p => { for (let k = 0; k < 6; k++) { const a = p * 14 + k * 1.05, r = 2.4 * (1 - p) + .3; spark(new THREE.Vector3(c.x + Math.cos(a) * r, c.y + .2 + p * .8, c.z + Math.sin(a) * r * .7), ['#ffd27a', '#bfe0ff', '#ff9cc0'][k % 3], 0, .2, 0, .9); } });
+  burst(c, '#ffe7a8', 120, 2.2, .1, 1.8);
+  await go(1);
+}
+function hookTick(t, dt) {
+  const on = hookActive() || (S.cur < 0 && HOOK.opening && S.cover < .3);
+  HOOK.g.visible = S.cur < 0 && S.cover < .5; HOOK.sweep.visible = S.cur < 0 && S.cover < .3;
+  $('intro').hidden = !(S.cur < 0 && !S.busy && S.cover < .02) && !HOOK.opening;
+  if (!HOOK.g.visible) { book.position.y = 0; return; }
+  HOOK.sweep.material.uniforms.uTime.value = t;
+  book.position.y = on && !HOOK.opening ? Math.sin(t * 1.3) * .03 : lerp(book.position.y, 0, .2);
+  HOOK.flakes.forEach((f, i) => { if (f.userData.gone) return; const b = f.userData.base; f.position.set(b.x + Math.sin(t * .7 + i * 2) * .18, b.y + Math.sin(t * 1.4 + i) * .14, b.z + Math.cos(t * .6 + i) * .12); f.userData.core.material.rotation = t * .6 + i; f.userData.halo.material.opacity = .55 + .25 * Math.sin(t * 3 + i * 2); if (Math.random() < dt * 5) spark(f.position.clone(), '#dff0ff', (Math.random() - .5) * .2, -.15, (Math.random() - .5) * .2, 1.0); });
+  HOOK.paws.forEach((m, i) => { const ph = ((t * .9 - i * .32) % 4 + 4) % 4; m.material.opacity = ph < 1.2 ? Math.sin(ph / 1.2 * Math.PI) * .85 : 0; });
+  HOOK.fox.children[0].rotation.z = Math.sin(t * 2.2) * .03; HOOK.fox.position.y = Math.abs(Math.sin(t * 1.1)) * .03; HOOK.foxGlow.material.opacity = .45 + .2 * Math.sin(t * 5);
+  HOOK.fox.lookAt(camera.position.x, HOOK.fox.position.y, camera.position.z);
+}
+function hookPick(e) {
+  setRay(e);
+  const hit = ray.intersectObjects(HOOK.flakes.filter(f => !f.userData.gone).map(f => f.userData.halo), false)[0];
+  if (hit) { catchFlake(hit.object.parent); return true; }
+  if (ray.intersectObject(HOOK.fox, true).length) { bubble(LANG === 'ur' ? '“برف کے گالے پکڑو، {N}!”' : '“Catch the snowflakes, {N}!”', { grp: HOOK.fox }, 1.0, 2200); sfx.chime([784, 988]); tween(.4, p => { HOOK.fox.position.y = Math.sin(p * Math.PI) * .2; }); return true; }
+  if (ray.intersectObject(coverPivot, true).length) { bubble(LANG === 'ur' ? '“پہلے برف کے گالے پکڑیں ✨”' : '“Catch the snowflakes first!”', { grp: HOOK.fox }, 1.0, 1800); tween(.5, p => { coverPivot.rotation.z = Math.sin(p * Math.PI * 3) * .03 * (1 - p); }); return true; }
+  return false;
+}
+
 /* ================================================================== navigation */
 const S = { cur: -1, busy: false, acting: false, cover: 0 };
 function applyCover() { const c = S.cover; coverPivot.rotation.z = c * Math.PI; leftBlock.visible = leftPage.visible = c > .965; spine.scale.y = lerp(Y0 + BT + .002, Y0 - .03, E.inOut(clamp(c * 1.4, 0, 1))); }
@@ -1764,7 +1865,7 @@ async function endTurn(c, commit, full) {
   }, full ? E.inOut : E.out);
   const { a, b } = c;
   if (commit) {
-    if (c.kind === 'close') { a.root.visible = false; sfx.thud(); applyShot(null); }
+    if (c.kind === 'close') { a.root.visible = false; sfx.thud(); applyShot(null); resetHook(); }
     else if (c.kind === 'turn') { a.root.visible = false; leaf.visible = false; if (c.dir > 0) leftPage.material.map = b.lT; else rightPage.material.map = b.rT; if (!rp) rp = rise(b); }
     try { navigator.vibrate?.(10); } catch (e) { }
     S.cur = c.n; applyShot(SP[S.cur]); ui(); if (rp) await rp;
@@ -1821,7 +1922,7 @@ document.querySelectorAll('.seg button[data-size]').forEach(b => b.onclick = () 
 document.querySelectorAll('#langSeg button').forEach(b => b.onclick = () => setLang(b.dataset.lang));
 $('langBtn').onclick = () => setLang(LANG === 'ur' ? 'en' : 'ur');
 LANG = prefs.lang === 'ur' ? 'ur' : 'en';
-function langUI() { const b = $('langBtn'); b.textContent = LANG === 'ur' ? 'English' : 'اردو'; b.lang = LANG === 'ur' ? 'en' : 'ur'; b.setAttribute('aria-label', LANG === 'ur' ? 'Read in English' : 'Read in Urdu'); document.documentElement.lang = LANG === 'ur' ? 'ur' : 'en'; }
+function langUI() { hookTexts(); const b = $('langBtn'); b.textContent = LANG === 'ur' ? 'English' : 'اردو'; b.lang = LANG === 'ur' ? 'en' : 'ur'; b.setAttribute('aria-label', LANG === 'ur' ? 'Read in English' : 'Read in Urdu'); document.documentElement.lang = LANG === 'ur' ? 'ur' : 'en'; }
 async function setLang(l) {
   if (l === LANG || S.busy || S.acting) return;
   if (l === 'ur') { toast('اردو تیار ہو رہی ہے…', 2200); await ensureUrduFont(); }
@@ -2101,14 +2202,14 @@ $('bNext').onclick = () => { if (bStep < 3) { bStep++; renderBuilder(); $('build
 $('bClose').onclick = closeBuilder; $('mkBtn').onclick = openBuilder; $('setMake').onclick = openBuilder;
 addEventListener('resize', () => { if (!$('builder').hidden) drawPreview(); });
 function toast(msg, ms = 4200) { const t = $('toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => t.hidden = true, ms); }
-function namesUI() { document.querySelector('.top .chip span').textContent = `by ${CFG.g} · for ${tn(CFG)}`; }
+function namesUI() { if (HOOK.flakes.length) hookTexts(); document.querySelector('.top .chip span').textContent = `by ${CFG.g} · for ${tn(CFG)}`; }
 function rebuildBook() {
   stopSpeak(); hideBubble(); unpeel(); tweens.length = 0;
   SP.forEach((sp, i) => { if (sp.root) sp.root.visible = false; unbuild(i); });
   S.cur = -1; S.busy = false; S.acting = false; S.cover = 0; applyCover(); leaf.visible = false; applyShot(null); snowTarget = 0; L.target = 0; storyFor = null;
   ensure(0); rightPage.material.map = SP[0].rT; leftPage.material.map = SP[0].lT; leafFront.material.map = SP[0].rT; leafBack.material.map = SP[0].lTm;
   const old = coverMatG.map; coverMatG.map = pageTex(coverCanvas()); coverMatG.needsUpdate = true; old?.dispose();
-  toMood('warm', .8); namesUI(); ui(); setTimeout(() => ensure(1), 600);
+  toMood('warm', .8); resetHook(); namesUI(); ui(); setTimeout(() => ensure(1), 600);
 }
 async function createBook() {
   CFG = sanitize({ ...draft, n: draft.n.trim(), g: draft.g.trim() }); const code = encCfg(CFG);
@@ -2222,7 +2323,7 @@ canvas.addEventListener('dblclick', () => { cam.tpitch = .78; cam.zoom = 1; });
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
 function setRay(e) { ndc.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ndc, camera); }
 function hitAt(e) { setRay(e); return ray.intersectObjects(taps.filter(m => m.userData.spread === S.cur && m.parent.visible && m.parent.parent.visible), false)[0]; }
-function pick(e) { if (S.cur < 0) { setRay(e); if (ray.intersectObject(coverPivot, true).length) go(1); return; } const h = hitAt(e); if (h) act(h.object.userData.id); }
+function pick(e) { if (S.cur < 0) { if (hookActive()) hookPick(e); return; } const h = hitAt(e); if (h) act(h.object.userData.id); }
 let hoverT = 0;
 function hover(e) { const now = performance.now(); if (now - hoverT < 60) return; hoverT = now; canvas.style.cursor = (S.cur >= 0 ? hitAt(e) : null) ? 'pointer' : 'grab'; peel.hover = S.cur >= 0 && e.clientX > innerWidth * .62 && e.clientY > innerHeight * .5; }
 function resize() { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); storyUI(); }
@@ -2230,6 +2331,20 @@ addEventListener('resize', resize);
 
 /* ---- main loop */
 let last = performance.now();
+const camT = new THREE.Vector3();
+/* adaptive quality: if frames run slow, lower resolution first, then soften shadows */
+const PERF = { t0: 0, n: 0, slow: 0, shadowsOff: false };
+function perfTick(now, covered) {
+  if (covered || document.hidden) { PERF.t0 = 0; return; }
+  if (!PERF.t0) { PERF.t0 = now; PERF.n = 0; return; }
+  PERF.n++; const el = now - PERF.t0; if (el < 2000) return;
+  const fps = PERF.n * 1000 / el; PERF.t0 = now; PERF.n = 0;
+  if (fps < 40) {
+    PERF.slow++;
+    if (dprNow > 1.01) { dprNow = Math.max(1, dprNow - .25); renderer.setPixelRatio(dprNow); resize(); }
+    else if (!PERF.shadowsOff && PERF.slow > 2) { PERF.shadowsOff = true; sun.shadow.mapSize.set(512, 512); sun.shadow.map?.dispose(); sun.shadow.map = null; }
+  } else if (fps > 57 && dprNow < DPR_MAX - .01 && PERF.slow < 2) { dprNow = Math.min(DPR_MAX, dprNow + .25); renderer.setPixelRatio(dprNow); resize(); }
+}
 const peel = { amt: 0, hover: false };
 const wp = new THREE.Vector3();
 function frame(now) {
@@ -2240,7 +2355,7 @@ function frame(now) {
   cam.shift = lerp(cam.shift || 0, f.shift, k * .8); if (Math.abs(cam.shift) > .5) camera.setViewOffset(innerWidth, innerHeight, 0, cam.shift, innerWidth, innerHeight); else camera.clearViewOffset();
   cam.yaw = lerp(cam.yaw, cam.tyaw + (ptrs.size || REDUCE ? 0 : Math.sin(now * .00022) * cam.sway), k * .6); cam.pitch = lerp(cam.pitch, cam.tpitch, k * .6);
   cam.sz = lerp(cam.sz, portrait() && S.cur >= 0 ? cam.tsz : 1, k * .6); cam.ty = lerp(cam.ty, S.cur >= 0 ? cam.tty : 1, k * .6);
-  const d = cam.dist * cam.zoom * cam.intro * cam.sz, T = new THREE.Vector3(cam.tx, cam.ty, .35);
+  const d = cam.dist * cam.zoom * cam.intro * cam.sz, T = camT.set(cam.tx, cam.ty, .35);
   camera.position.set(T.x + d * Math.sin(cam.yaw) * Math.cos(cam.pitch), T.y + d * Math.sin(cam.pitch), T.z + d * Math.cos(cam.yaw) * Math.cos(cam.pitch)); camera.lookAt(T);
   if (L.follow) { L.follow.localToWorld(wp.copy(L.at)); lampLight.position.copy(wp); }
   lampLight.intensity = lerp(lampLight.intensity, L.target * (1 + .06 * Math.sin(t * 13) * Math.sin(t * 5)), 1 - Math.pow(.05, dt));
@@ -2254,17 +2369,20 @@ function frame(now) {
       setLeaf(0, 1, peel.amt);
     } else unpeel();
   } else if (!S.busy) unpeel();
-  renderer.render(scene, camera); placeBubble(now); requestAnimationFrame(frame);
+  hookTick(t, dt);
+  const covered = !$('builder').hidden || !$('studio').hidden || $('story').classList.contains('full');
+  if (!covered) renderer.render(scene, camera);
+  placeBubble(now); perfTick(now, covered); requestAnimationFrame(frame);
 }
 
 /* ---- boot */
 async function boot() {
-  try { await Promise.race([Promise.all([`500 40px "Cormorant Garamond"`, `italic 500 40px "Cormorant Garamond"`, `600 40px "Cormorant Garamond"`, `500 40px "Cormorant SC"`, `40px "Pinyon Script"`].map(f => document.fonts.load(f))), new Promise(r => setTimeout(r, 3500))]); } catch (e) { }
+  try { await Promise.race([Promise.all([`500 40px "Cormorant Garamond"`, `italic 500 40px "Cormorant Garamond"`, `600 40px "Cormorant Garamond"`, `500 40px "Cormorant SC"`, `40px "Pinyon Script"`].map(f => document.fonts.load(f))), new Promise(r => setTimeout(r, 1800))]); } catch (e) { }
   if (LANG === 'ur') await ensureUrduFont(); langUI();
-  ensure(0); buildBook(); applyCover(); applyMood(moodNow); syncSettings(); buildChips(); namesUI(); resize(); ui(); initVoices();
+  ensure(0); buildBook(); buildHook(); applyCover(); applyMood(moodNow); syncSettings(); buildChips(); namesUI(); resize(); ui(); initVoices();
   requestAnimationFrame(t => { last = t; frame(t); });
   $('loader').classList.add('gone'); setTimeout(() => { $('hint').style.opacity = 0; }, 7000);
-  window.__book = { go, act, S, SP, cam, peel, prefs, openSettings, closeSettings, openBuilder, openStudio, storeVoice, get CFG() { return CFG; } }; setTimeout(() => ensure(1), 900);
+  window.__book = { go, act, S, SP, cam, peel, prefs, HOOK, catchFlake, openSettings, closeSettings, openBuilder, openStudio, storeVoice, get CFG() { return CFG; } }; setTimeout(() => ensure(1), 900);
 }
 boot();
 </script>
