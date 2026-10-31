@@ -1,0 +1,1170 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#10152a">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html,body{margin:0}
+body{font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<title>Alice Pop-Up Edition</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="An interactive 3D pop-up edition of Alice's Adventures in Wonderland: turn the pages, watch the scenes stand up, and tap the characters.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700&display=swap">
+<style>
+/* Layout: one full-bleed 3D stage (a book on a library table) with a floating title chip and a bottom control pill. */
+:root{
+  --table:#1d140e;        /* dark walnut room */
+  --panel:rgba(29,20,14,.78);
+  --panel-line:rgba(233,214,178,.16);
+  --paper:#f4ead3;
+  --ink:#2a1d14;
+  --gilt:#e0b45c;
+  --cloth:#8e2b27;        /* 1865 Macmillan red cloth */
+  --text:#f5ecdc;
+  --muted:rgba(245,236,220,.62);
+  --font-book:"IM Fell English", "Iowan Old Style", Georgia, serif;
+  --font-sc:"IM Fell English SC", "IM Fell English", Georgia, serif;
+  --font-ui:"Alegreya Sans", "Segoe UI", system-ui, sans-serif;
+  color-scheme:dark;
+}
+html,body{height:100%}
+[hidden]{display:none!important}
+body{background:var(--table);color:var(--text);font-family:var(--font-ui);overflow:hidden;-webkit-font-smoothing:antialiased}
+#stage{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;outline:none}
+.vignette{position:fixed;inset:0;pointer-events:none;background:radial-gradient(120% 90% at 50% 45%,transparent 55%,rgba(8,5,3,.55) 100%)}
+
+.top{position:fixed;left:0;right:0;top:0;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;
+  padding-top:calc(14px + env(safe-area-inset-top,0px));
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));pointer-events:none}
+.chip{pointer-events:auto;display:flex;align-items:baseline;gap:10px;background:var(--panel);border:1px solid var(--panel-line);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-radius:999px;padding:8px 16px;min-width:0}
+.chip b{font-family:var(--font-book);font-weight:400;font-size:17px;white-space:nowrap}
+.chip span{font-family:var(--font-sc);font-size:13px;letter-spacing:.08em;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#where{font-family:var(--font-sc);font-size:13px;letter-spacing:.08em;color:var(--muted)}
+
+.bar{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:center;pointer-events:none;
+  padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.pill{pointer-events:auto;display:flex;align-items:center;gap:6px;width:100%;max-width:680px;background:var(--panel);
+  border:1px solid var(--panel-line);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-radius:999px;padding:6px}
+.icon{flex:none;width:40px;height:40px;border-radius:50%;border:0;background:transparent;color:var(--text);display:grid;place-items:center;cursor:pointer}
+.icon:hover{background:rgba(245,236,220,.08)}
+.icon:disabled{opacity:.3;cursor:default;background:transparent}
+.icon svg{width:20px;height:20px}
+.dots{display:flex;gap:6px;padding:0 6px;flex:none}
+.dots i{width:6px;height:6px;border-radius:50%;background:rgba(245,236,220,.25);transition:all .3s}
+.dots i.on{width:18px;border-radius:3px;background:var(--gilt)}
+.cap{flex:1;min-width:0;padding:0 6px;line-height:1.2}
+.cap div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#capTitle{font-family:var(--font-book);font-size:17px}
+#capSub{font-size:13px;color:var(--muted)}
+.act{flex:none;height:40px;border-radius:999px;border:0;padding:0 18px;background:var(--gilt);color:#2a1a0c;
+  font-family:var(--font-ui);font-weight:700;font-size:15px;cursor:pointer;white-space:nowrap;transition:transform .15s,filter .15s}
+.act:hover{filter:brightness(1.07)}
+.act:active{transform:scale(.97)}
+.act:disabled{filter:grayscale(.6) brightness(.8);cursor:default}
+button:focus-visible{outline:2px solid var(--gilt);outline-offset:2px}
+
+.bubble{position:fixed;left:0;top:0;max-width:240px;background:#fffaf0;color:var(--ink);font-family:var(--font-book);font-style:italic;
+  font-size:17px;line-height:1.25;padding:10px 14px;border-radius:16px;box-shadow:0 8px 24px rgba(0,0,0,.35);pointer-events:none;
+  opacity:0;transition:opacity .25s;transform:translate(-50%,-100%);text-wrap:balance}
+.bubble::after{content:"";position:absolute;left:50%;bottom:-8px;margin-left:-8px;border:8px solid transparent;border-bottom:0;border-top-color:#fffaf0}
+.bubble.show{opacity:1}
+
+.reader{position:fixed;inset:0;display:grid;place-items:center;background:rgba(10,6,4,.55);z-index:5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:24px}
+.sheet{position:relative;width:100%;max-width:560px;max-height:80vh;overflow:auto;background:var(--paper);color:var(--ink);border-radius:6px;
+  padding:36px 34px 30px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.sheet .ch{font-family:var(--font-sc);letter-spacing:.14em;color:#8a3a2a;text-align:center;font-size:15px}
+.sheet h2{font-family:var(--font-book);font-weight:400;font-size:30px;text-align:center;margin:6px 0 18px;text-wrap:balance}
+.sheet p{font-family:var(--font-book);font-size:19px;line-height:1.55;margin:0 0 10px;text-indent:1.4em;max-width:65ch}
+.sheet p:first-of-type{text-indent:0}
+.sheet p.verse{font-style:italic;text-align:center;text-indent:0}
+.sheet .close{position:absolute;top:10px;right:10px;color:var(--ink)}
+.sheet .close:hover{background:rgba(42,29,20,.08)}
+
+.hint{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(86px + env(safe-area-inset-bottom,0px));font-size:14px;color:var(--muted);
+  background:var(--panel);border:1px solid var(--panel-line);border-radius:999px;padding:6px 14px;white-space:nowrap;transition:opacity .6s;pointer-events:none}
+.loader{position:fixed;inset:0;display:grid;place-items:center;background:var(--table);z-index:9;transition:opacity .6s}
+.loader div{font-family:var(--font-book);font-style:italic;font-size:22px;color:var(--muted)}
+.loader.gone{opacity:0;pointer-events:none}
+
+@media (max-width:560px){
+  .dots{display:none}
+  .chip span{display:none}
+  #whereChip{display:none}
+  .act{padding:0 14px;font-size:14px}
+  #capSub{display:none}
+  .icon{width:36px;height:36px}
+}
+@media (max-width:440px){ .cap{display:none} .act{flex:1} }
+@media (prefers-reduced-motion:reduce){ .bubble,.hint,.loader,.dots i{transition:none} }
+</style>
+
+<canvas id="stage" tabindex="0" aria-label="3D pop-up book. Use the arrow keys to turn pages and the space bar to play the scene."></canvas>
+<div class="vignette"></div>
+
+<div class="top">
+  <div class="chip"><b>Alice's Adventures in Wonderland</b><span>Lewis Carroll · Pop-up edition</span></div>
+  <div class="chip" id="whereChip"><span id="where">The cover</span></div>
+</div>
+
+<div class="bubble" id="bubble" role="status" aria-live="polite"></div>
+<div class="hint" id="hint">Drag to look around · Tap the characters</div>
+
+<div class="bar">
+  <div class="pill">
+    <button class="icon" id="prev" aria-label="Previous page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>
+    <div class="dots" id="dots"></div>
+    <div class="cap"><div id="capTitle">Alice's Adventures in Wonderland</div><div id="capSub">Lewis Carroll, 1865</div></div>
+    <button class="act" id="act">Open the book</button>
+    <button class="icon" id="read" aria-label="Read this page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6.5C10 5 7 4.5 3.5 5v13c3.5-.5 6.5 0 8.5 1.5 2-1.5 5-2 8.5-1.5V5C17 4.5 14 5 12 6.5z"/><path d="M12 6.5v13"/></svg></button>
+    <button class="icon" id="snd" aria-label="Turn sound off" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path id="sndWave" d="M15.5 9a4 4 0 010 6M18 6.5a7.5 7.5 0 010 11"/><path id="sndOff" d="M16 9.5l5 5M21 9.5l-5 5" style="display:none"/></svg></button>
+    <button class="icon" id="next" aria-label="Next page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
+  </div>
+</div>
+
+<div class="reader" id="reader" hidden>
+  <article class="sheet" role="dialog" aria-modal="true" aria-labelledby="rTitle">
+    <button class="icon close" id="rClose" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    <div class="ch" id="rCh"></div>
+    <h2 id="rTitle"></h2>
+    <div id="rBody"></div>
+  </article>
+</div>
+
+<div class="loader" id="loader"><div>Binding the pages…</div></div>
+
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+
+/* ------------------------------------------------------------------ constants */
+const W = 4, D = 5.4;                 // page size (x across, z down the page)
+const BT = 0.07, PB = 0.14;           // board thickness, page-block thickness
+const Y0 = BT + PB;                   // page surface height
+const BW = W + 0.14, BD = D + 0.28;   // board size
+const U = 200;                        // canvas px per unit for paper layers
+const PX = [1024, 1382];              // page texture size
+const REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = id => document.getElementById(id);
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const E = {
+  inOut: t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2,
+  out: t => 1 - Math.pow(1 - t, 3),
+  in: t => t * t,
+  back: t => { const c1 = 1.9, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); },
+  lin: t => t,
+};
+
+/* ------------------------------------------------------------------ palette for the paper art */
+const C = {
+  ink: '#2a1d14', skin: '#f6d0b1', blush: 'rgba(232,110,110,.42)', white: '#fffaf1', gold: '#e2b347',
+  red: '#c93b33', blue: '#4f8fd0', yellow: '#f2c33f', black: '#24202c', leaf: '#4f9a4a', leaf2: '#74ba5c',
+  leaf3: '#3a7a42', trunk: '#7a4b2a', pink: '#f2a7b8', teal: '#3d6f75', cream: '#f7edd6',
+};
+
+/* ------------------------------------------------------------------ canvas helpers */
+function mk(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+const NOISE = (() => {
+  const c = mk(256, 256), g = c.getContext('2d'), d = g.createImageData(256, 256);
+  for (let i = 0; i < d.data.length; i += 4) { const v = 128 + (Math.random() - .5) * 255; d.data[i] = d.data[i + 1] = d.data[i + 2] = v; d.data[i + 3] = 255; }
+  g.putImageData(d, 0, 0); return c;
+})();
+function layerCanvas(w, h) {
+  const c = mk(Math.round(w * U), Math.round(h * U)), g = c.getContext('2d');
+  g.setTransform(U, 0, 0, U, 0, 0); g.lineJoin = 'round'; g.lineCap = 'round'; g._u = U; return [c, g];
+}
+function grain(c, a = .07) {
+  const g = c.getContext('2d'); g.save(); g.setTransform(1, 0, 0, 1, 0, 0);
+  g.globalCompositeOperation = 'source-atop'; g.globalAlpha = a; g.fillStyle = g.createPattern(NOISE, 'repeat');
+  g.fillRect(0, 0, c.width, c.height); g.restore();
+}
+const circ = (g, x, y, r) => { g.moveTo(x + r, y); g.arc(x, y, r, 0, Math.PI * 2); };
+const ell = (g, x, y, rx, ry, rot = 0) => { g.moveTo(x + rx * Math.cos(rot), y + rx * Math.sin(rot)); g.ellipse(x, y, rx, ry, rot, 0, Math.PI * 2); };
+const rr = (g, x, y, w, h, r = 0) => {
+  r = Math.min(r, w / 2, h / 2); g.moveTo(x + r, y); g.lineTo(x + w - r, y); g.quadraticCurveTo(x + w, y, x + w, y + r);
+  g.lineTo(x + w, y + h - r); g.quadraticCurveTo(x + w, y + h, x + w - r, y + h); g.lineTo(x + r, y + h);
+  g.quadraticCurveTo(x, y + h, x, y + h - r); g.lineTo(x, y + r); g.quadraticCurveTo(x, y, x + r, y); g.closePath();
+};
+const poly = (g, p) => { g.moveTo(p[0], p[1]); for (let i = 2; i < p.length; i += 2) g.lineTo(p[i], p[i + 1]); g.closePath(); };
+function cut(g, fill, build, o = {}) {
+  g.save();
+  if (o.shadow !== false) { g.shadowColor = o.sc || 'rgba(45,25,10,.34)'; g.shadowBlur = o.blur ?? 8; g.shadowOffsetX = o.ox ?? 0; g.shadowOffsetY = o.oy ?? 3; }
+  g.fillStyle = fill; g.beginPath(); build(g); g.fill(); g.restore();
+}
+function stroke(g, color, width, build, shadow = true, dash) {
+  g.save(); if (shadow) { g.shadowColor = 'rgba(45,25,10,.3)'; g.shadowBlur = 5; g.shadowOffsetY = 2; }
+  g.strokeStyle = color; g.lineWidth = width; if (dash) g.setLineDash(dash); g.beginPath(); build(g); g.stroke(); g.restore();
+}
+const dots = (g, color, pts, r) => cut(g, color, g => pts.forEach(([x, y]) => circ(g, x, y, r)), { shadow: false });
+function text(g, str, x, y, size, o = {}) {
+  const u = g._u; g.save(); g.setTransform(1, 0, 0, 1, 0, 0);
+  g.font = `${o.style || ''} ${size * u}px ${o.font || '"IM Fell English", Georgia, serif'}`;
+  g.fillStyle = o.color || C.ink; g.textAlign = o.align || 'center'; g.textBaseline = o.base || 'middle';
+  if (o.ls) g.letterSpacing = o.ls * u + 'px';
+  g.fillText(str, x * u, y * u); g.restore();
+}
+function heart(g, x, y, r) { g.moveTo(x, y + r); g.bezierCurveTo(x - r * 1.5, y - r * .1, x - r * .7, y - r * 1.25, x, y - r * .45); g.bezierCurveTo(x + r * .7, y - r * 1.25, x + r * 1.5, y - r * .1, x, y + r); g.closePath(); }
+function spade(g, x, y, r) {
+  g.moveTo(x, y - r); g.bezierCurveTo(x + r * 1.3, y - r * .1, x + r * .8, y + r * .95, x, y + r * .35);
+  g.bezierCurveTo(x - r * .8, y + r * .95, x - r * 1.3, y - r * .1, x, y - r); g.closePath();
+  g.moveTo(x, y + r * .15); g.lineTo(x + r * .32, y + r); g.lineTo(x - r * .32, y + r); g.closePath();
+}
+
+/* ------------------------------------------------------------------ scenery pieces */
+function cloud(g, x, y, s, col = C.white) { cut(g, col, g => { circ(g, x, y, .18 * s); circ(g, x + .2 * s, y - .08 * s, .22 * s); circ(g, x + .42 * s, y, .17 * s); rr(g, x - .1 * s, y - .02 * s, .62 * s, .16 * s, .08 * s); }, { blur: 6, oy: 2 }); }
+function tree(g, x, by, s, c1 = C.leaf, c2 = C.leaf2, trunk = C.trunk) {
+  cut(g, trunk, g => poly(g, [x - .09 * s, by, x - .05 * s, by - .95 * s, x + .05 * s, by - .95 * s, x + .09 * s, by]));
+  cut(g, c1, g => { circ(g, x, by - 1.18 * s, .42 * s); circ(g, x - .33 * s, by - .97 * s, .3 * s); circ(g, x + .34 * s, by - 1 * s, .3 * s); circ(g, x + .02 * s, by - 1.52 * s, .3 * s); });
+  cut(g, c2, g => { circ(g, x - .12 * s, by - 1.28 * s, .2 * s); circ(g, x + .2 * s, by - 1.06 * s, .15 * s); circ(g, x - .3 * s, by - .95 * s, .12 * s); }, { blur: 5, oy: 2 });
+}
+function bushRow(g, x0, x1, by, r, col) { cut(g, col, g => { for (let x = x0; x <= x1 + .001; x += r * 1.3) circ(g, x, by - r * .55 + Math.sin(x * 7) * r * .15, r); rr(g, x0 - r, by - r * .6, x1 - x0 + 2 * r, r * .7, 0); }); }
+function daisy(g, x, y, r) { cut(g, C.white, g => { for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2; ell(g, x + Math.cos(a) * r * .9, y + Math.sin(a) * r * .9, r * .55, r * .3, a); } }, { blur: 3, oy: 1 }); dots(g, C.yellow, [[x, y]], r * .45); }
+function mushroom(g, x, by, s, cap = '#d8473b') {
+  cut(g, C.cream, g => rr(g, x - .06 * s, by - .3 * s, .12 * s, .3 * s, .04 * s));
+  cut(g, cap, g => { g.moveTo(x - .24 * s, by - .26 * s); g.quadraticCurveTo(x, by - .62 * s, x + .24 * s, by - .26 * s); g.closePath(); });
+  dots(g, C.white, [[x - .1 * s, by - .34 * s], [x + .05 * s, by - .42 * s], [x + .13 * s, by - .31 * s]], .035 * s);
+}
+function tufts(g, x0, x1, by, h, col) { cut(g, col, g => { for (let x = x0; x < x1; x += h * .35) { const k = .6 + .4 * Math.abs(Math.sin(x * 13)); poly(g, [x, by, x + h * .12, by - h * k, x + h * .24, by]); } }, { blur: 4, oy: 1 }); }
+function arch(g, w, h, r = 1.2) { g.moveTo(.06, h); g.lineTo(.06, r); g.quadraticCurveTo(.06, .04, r, .04); g.lineTo(w - r, .04); g.quadraticCurveTo(w - .06, .04, w - .06, r); g.lineTo(w - .06, h); g.closePath(); }
+function backdrop(g, w, h, stops, paint) {
+  const gr = g.createLinearGradient(0, 0, 0, h); stops.forEach(([o, c]) => gr.addColorStop(o, c));
+  cut(g, gr, g => arch(g, w, h), { blur: 10, oy: 4 });
+  g.save(); g.beginPath(); arch(g, w, h); g.clip(); paint(g); g.restore();
+  stroke(g, 'rgba(255,255,255,.55)', .025, g => arch(g, w, h), false);
+}
+
+/* ------------------------------------------------------------------ characters */
+function alice(g, cx, by, k = 1) {
+  const X = v => cx + v * k, Y = v => by - v * k;
+  cut(g, C.yellow, g => { rr(g, X(-.21), Y(1.42), .42 * k, .44 * k, .12 * k); circ(g, X(0), Y(1.36), .21 * k); });
+  cut(g, '#fbf7ef', g => { rr(g, X(-.14), Y(.5), .09 * k, .48 * k, .03 * k); rr(g, X(.05), Y(.5), .09 * k, .48 * k, .03 * k); });
+  cut(g, C.black, g => { ell(g, X(-.1), Y(.03), .09 * k, .045 * k); ell(g, X(.1), Y(.03), .09 * k, .045 * k); });
+  cut(g, C.skin, g => { rr(g, X(-.29), Y(1.04), .075 * k, .42 * k, .035 * k); rr(g, X(.215), Y(1.04), .075 * k, .42 * k, .035 * k); });
+  cut(g, C.blue, g => { g.moveTo(X(-.15), Y(1.13)); g.lineTo(X(.15), Y(1.13)); g.lineTo(X(.4), Y(.46)); g.quadraticCurveTo(X(0), Y(.36), X(-.4), Y(.46)); g.closePath(); circ(g, X(-.18), Y(1.06), .085 * k); circ(g, X(.18), Y(1.06), .085 * k); });
+  cut(g, C.white, g => { g.moveTo(X(-.11), Y(.92)); g.lineTo(X(.11), Y(.92)); g.lineTo(X(.29), Y(.5)); g.quadraticCurveTo(X(0), Y(.43), X(-.29), Y(.5)); g.closePath(); rr(g, X(-.09), Y(1.12), .18 * k, .22 * k, .03 * k); }, { blur: 4, oy: 2 });
+  cut(g, C.skin, g => { rr(g, X(-.04), Y(1.21), .08 * k, .1 * k, .02 * k); circ(g, X(0), Y(1.33), .165 * k); });
+  cut(g, C.yellow, g => ell(g, X(0), Y(1.45), .18 * k, .085 * k), { blur: 3, oy: 1 });
+  stroke(g, C.black, .045 * k, g => g.arc(X(0), Y(1.36), .2 * k, Math.PI * 1.12, Math.PI * 1.88));
+  dots(g, C.ink, [[X(-.06), Y(1.32)], [X(.06), Y(1.32)]], .02 * k);
+  dots(g, C.blush, [[X(-.1), Y(1.27)], [X(.1), Y(1.27)]], .032 * k);
+  stroke(g, C.ink, .013 * k, g => g.arc(X(0), Y(1.27), .04 * k, .2 * Math.PI, .8 * Math.PI), false);
+}
+function rabbit(g, cx, by, k = 1) {
+  const X = v => cx + v * k, Y = v => by - v * k;
+  cut(g, C.white, g => { ell(g, X(-.08), Y(1.2), .065 * k, .25 * k, -.12); ell(g, X(.08), Y(1.2), .065 * k, .25 * k, .12); });
+  cut(g, C.pink, g => { ell(g, X(-.08), Y(1.18), .03 * k, .17 * k, -.12); ell(g, X(.08), Y(1.18), .03 * k, .17 * k, .12); }, { shadow: false });
+  cut(g, C.white, g => { ell(g, X(-.12), Y(.04), .13 * k, .05 * k); ell(g, X(.12), Y(.04), .13 * k, .05 * k); ell(g, X(0), Y(.36), .23 * k, .33 * k); });
+  cut(g, '#3c6e7e', g => { g.moveTo(X(-.22), Y(.78)); g.lineTo(X(.22), Y(.78)); g.lineTo(X(.27), Y(.22)); g.lineTo(X(.12), Y(.3)); g.lineTo(X(0), Y(.5)); g.lineTo(X(-.12), Y(.3)); g.lineTo(X(-.27), Y(.22)); g.closePath(); });
+  cut(g, C.red, g => rr(g, X(-.1), Y(.76), .2 * k, .3 * k, .05 * k), { blur: 3, oy: 1 });
+  dots(g, C.gold, [[X(0), Y(.66)], [X(0), Y(.57)]], .018 * k);
+  cut(g, C.white, g => { poly(g, [X(-.12), Y(.78), X(0), Y(.66), X(.12), Y(.78)]); circ(g, X(0), Y(.92), .19 * k); ell(g, X(.07), Y(.86), .08 * k, .06 * k); });
+  dots(g, '#e0607a', [[X(.06), Y(.97)]], .03 * k);
+  dots(g, C.pink, [[X(.14), Y(.87)]], .022 * k);
+  cut(g, '#3c6e7e', g => { ell(g, X(.2), Y(.6), .06 * k, .16 * k, -.9); });
+  cut(g, C.gold, g => circ(g, X(.33), Y(.52), .1 * k));
+  cut(g, C.cream, g => circ(g, X(.33), Y(.52), .074 * k), { shadow: false });
+  stroke(g, C.ink, .012 * k, g => { g.moveTo(X(.33), Y(.52)); g.lineTo(X(.33), Y(.58)); g.moveTo(X(.33), Y(.52)); g.lineTo(X(.37), Y(.5)); }, false);
+  stroke(g, C.gold, .012 * k, g => { g.moveTo(X(.33), Y(.62)); g.quadraticCurveTo(X(.2), Y(.75), X(.05), Y(.62)); }, false);
+}
+function sister(g, cx, by, k = 1) {
+  const X = v => cx + v * k, Y = v => by - v * k;
+  cut(g, '#7d5ba6', g => { g.moveTo(X(-.1), Y(.75)); g.lineTo(X(.12), Y(.75)); g.quadraticCurveTo(X(.5), Y(.15), X(.55), Y(0)); g.lineTo(X(-.45), Y(0)); g.quadraticCurveTo(X(-.35), Y(.2), X(-.1), Y(.75)); g.closePath(); });
+  cut(g, '#5a3a2a', g => { circ(g, X(0), Y(.95), .17 * k); rr(g, X(-.17), Y(.98), .34 * k, .3 * k, .1 * k); });
+  cut(g, C.skin, g => circ(g, X(.02), Y(.93), .13 * k));
+  cut(g, '#5a3a2a', g => ell(g, X(.0), Y(1.03), .15 * k, .06 * k), { shadow: false });
+  cut(g, C.white, g => { poly(g, [X(-.05), Y(.5), X(.25), Y(.58), X(.27), Y(.42), X(-.03), Y(.36)]); }, { blur: 4, oy: 2 });
+  stroke(g, '#c9b89a', .008 * k, g => { g.moveTo(X(.11), Y(.54)); g.lineTo(X(.12), Y(.39)); }, false);
+  cut(g, C.skin, g => { circ(g, X(-.04), Y(.43), .04 * k); circ(g, X(.26), Y(.5), .04 * k); });
+  stroke(g, C.ink, .012 * k, g => { g.moveTo(X(-.03), Y(.92)); g.lineTo(X(.01), Y(.92)); g.moveTo(X(.06), Y(.92)); g.lineTo(X(.1), Y(.92)); }, false);
+}
+function catBody(g) {
+  const body = g => { ell(g, .6, .38, .4, .16); circ(g, 1.02, .28, .2); poly(g, [.88, .16, .86, .0, 1.0, .1]); poly(g, [1.06, .1, 1.18, .01, 1.17, .17]); };
+  stroke(g, '#b56ab8', .09, g => { g.moveTo(.28, .42); g.bezierCurveTo(.08, .44, .02, .6, .14, .74); });
+  stroke(g, '#7d3f93', .092, g => { g.moveTo(.28, .42); g.bezierCurveTo(.08, .44, .02, .6, .14, .74); }, false, [.05, .06]);
+  cut(g, '#b56ab8', body);
+  g.save(); g.beginPath(); body(g); g.clip();
+  for (let x = .12; x < 1.0; x += .12) { g.fillStyle = '#7d3f93'; g.beginPath(); poly(g, [x, 0, x + .05, 0, x - .03, .8, x - .08, .8]); g.fill(); }
+  g.restore();
+  cut(g, '#f4b9cc', g => { poly(g, [.9, .14, .89, .05, .96, .11]); poly(g, [1.09, .1, 1.15, .05, 1.14, .14]); }, { shadow: false });
+  cut(g, '#d48ad6', g => { ell(g, .52, .55, .07, .04); ell(g, .74, .55, .07, .04); }, { blur: 3, oy: 1 });
+}
+function grinArt(g) {
+  cut(g, '#e9e04a', g => { ell(g, .12, .08, .06, .045); ell(g, .32, .08, .06, .045); });
+  cut(g, C.ink, g => { ell(g, .12, .08, .012, .04); ell(g, .32, .08, .012, .04); }, { shadow: false });
+  const mouth = g => { g.moveTo(.02, .14); g.quadraticCurveTo(.22, .36, .42, .14); g.quadraticCurveTo(.22, .21, .02, .14); g.closePath(); };
+  cut(g, C.white, mouth, { blur: 6, oy: 2 });
+  g.save(); g.beginPath(); mouth(g); g.clip();
+  stroke(g, '#a99aa6', .007, g => { for (let i = 1; i < 9; i++) { const x = .02 + i * .044; g.moveTo(x, .1); g.lineTo(x, .3); } g.moveTo(.02, .2); g.quadraticCurveTo(.22, .28, .42, .2); }, false);
+  g.restore();
+  stroke(g, '#7d3f93', .008, g => mouth(g), false);
+}
+function hatter(g, cx, by, k = 1) {
+  const X = v => cx + v * k, Y = v => by - v * k;
+  cut(g, '#c9a14a', g => { rr(g, X(-.16), Y(.6), .14 * k, .58 * k, .03 * k); rr(g, X(.02), Y(.6), .14 * k, .58 * k, .03 * k); });
+  cut(g, C.black, g => { ell(g, X(-.1), Y(.03), .11 * k, .045 * k); ell(g, X(.1), Y(.03), .11 * k, .045 * k); });
+  cut(g, '#3f7d5a', g => { g.moveTo(X(-.2), Y(1.15)); g.lineTo(X(.2), Y(1.15)); g.lineTo(X(.3), Y(.45)); g.lineTo(X(.1), Y(.55)); g.lineTo(X(-.1), Y(.55)); g.lineTo(X(-.3), Y(.45)); g.closePath(); ell(g, X(-.25), Y(.95), .07 * k, .22 * k, .25); ell(g, X(.25), Y(.95), .07 * k, .22 * k, -.25); });
+  cut(g, '#e8c35a', g => poly(g, [X(-.08), Y(1.12), X(.08), Y(1.12), X(.06), Y(.6), X(-.06), Y(.6)]), { blur: 3, oy: 1 });
+  cut(g, C.red, g => { poly(g, [X(0), Y(1.1), X(-.12), Y(1.17), X(-.12), Y(1.03)]); poly(g, [X(0), Y(1.1), X(.12), Y(1.17), X(.12), Y(1.03)]); });
+  dots(g, C.white, [[X(-.08), Y(1.12)], [X(.08), Y(1.08)]], .012 * k);
+  cut(g, C.skin, g => { circ(g, X(-.3), Y(.75), .05 * k); circ(g, X(.3), Y(.75), .05 * k); circ(g, X(0), Y(1.3), .15 * k); ell(g, X(.04), Y(1.27), .05 * k, .035 * k); });
+  cut(g, '#d9772f', g => { circ(g, X(-.16), Y(1.26), .07 * k); circ(g, X(.16), Y(1.26), .07 * k); circ(g, X(-.13), Y(1.36), .06 * k); circ(g, X(.13), Y(1.36), .06 * k); });
+  dots(g, C.ink, [[X(-.05), Y(1.33)], [X(.06), Y(1.33)]], .018 * k);
+  stroke(g, C.ink, .013 * k, g => g.arc(X(0), Y(1.24), .05 * k, .15 * Math.PI, .85 * Math.PI), false);
+  cut(g, '#6b4b3a', g => { ell(g, X(0), Y(1.43), .27 * k, .05 * k); poly(g, [X(-.17), Y(1.43), X(.17), Y(1.43), X(.21), Y(1.98), X(-.21), Y(1.98)]); ell(g, X(0), Y(1.98), .21 * k, .04 * k); });
+  cut(g, '#e8c35a', g => poly(g, [X(-.175), Y(1.5), X(.175), Y(1.5), X(.18), Y(1.6), X(-.18), Y(1.6)]), { shadow: false });
+  cut(g, C.white, g => rr(g, X(.04), Y(1.72), .14 * k, .12 * k, .01 * k), { blur: 3, oy: 1 });
+  text(g, '10/6', X(.11), Y(1.66), .055 * k, { color: C.ink });
+}
+function hare(g, cx, by, k = 1) {
+  const X = v => cx + v * k, Y = v => by - v * k;
+  cut(g, '#b07d52', g => { ell(g, X(-.1), Y(1.55), .06 * k, .26 * k, -.25); ell(g, X(.1), Y(1.55), .06 * k, .26 * k, .25); });
+  cut(g, '#e8b9a0', g => { ell(g, X(-.1), Y(1.53), .028 * k, .18 * k, -.25); ell(g, X(.1), Y(1.53), .028 * k, .18 * k, .25); }, { shadow: false });
+  cut(g, '#b07d52', g => { ell(g, X(-.12), Y(.05), .13 * k, .05 * k); ell(g, X(.12), Y(.05), .13 * k, .05 * k); ell(g, X(0), Y(.55), .26 * k, .5 * k); });
+  cut(g, '#c7d6e8', g => { g.moveTo(X(-.24), Y(1.0)); g.lineTo(X(.24), Y(1.0)); g.lineTo(X(.3), Y(.45)); g.lineTo(X(-.3), Y(.45)); g.closePath(); });
+  cut(g, '#f2e3cf', g => ell(g, X(0), Y(.62), .12 * k, .25 * k), { blur: 3 });
+  cut(g, '#b07d52', g => { circ(g, X(0), Y(1.17), .2 * k); ell(g, X(.08), Y(1.1), .1 * k, .07 * k); });
+  cut(g, C.white, g => { circ(g, X(-.06), Y(1.22), .05 * k); circ(g, X(.08), Y(1.22), .05 * k); }, { shadow: false });
+  dots(g, C.ink, [[X(-.05), Y(1.22)], [X(.09), Y(1.21)]], .02 * k);
+  dots(g, C.pink, [[X(.15), Y(1.12)]], .025 * k);
+  stroke(g, '#e8c35a', .02 * k, g => { g.moveTo(X(-.15), Y(1.36)); g.lineTo(X(.05), Y(1.3)); g.moveTo(X(-.08), Y(1.38)); g.lineTo(X(.12), Y(1.3)); });
+}
+function queen(g, cx, by, k = 1) {
+  const X = v => cx + v * k, Y = v => by - v * k;
+  cut(g, C.red, g => { g.moveTo(X(-.2), Y(1.15)); g.lineTo(X(.2), Y(1.15)); g.quadraticCurveTo(X(.5), Y(.4), X(.48), Y(0)); g.lineTo(X(-.48), Y(0)); g.quadraticCurveTo(X(-.5), Y(.4), X(-.2), Y(1.15)); g.closePath(); });
+  cut(g, '#f7efe2', g => poly(g, [X(-.1), Y(1.1), X(.1), Y(1.1), X(.2), Y(0), X(-.2), Y(0)]), { blur: 4, oy: 2 });
+  cut(g, C.red, g => { heart(g, X(0), Y(.85), .06 * k); heart(g, X(0), Y(.55), .07 * k); heart(g, X(0), Y(.22), .08 * k); }, { shadow: false });
+  cut(g, C.black, g => ell(g, X(0), Y(1.43), .2 * k, .15 * k));
+  cut(g, C.red, g => { poly(g, [X(-.2), Y(1.1), X(-.48), Y(1.42), X(-.4), Y(1.48), X(-.12), Y(1.0)]); poly(g, [X(.2), Y(1.1), X(.48), Y(1.42), X(.4), Y(1.48), X(.12), Y(1.0)]); });
+  cut(g, C.skin, g => { circ(g, X(-.45), Y(1.5), .055 * k); circ(g, X(.45), Y(1.5), .055 * k); circ(g, X(0), Y(1.34), .16 * k); });
+  cut(g, C.white, g => { for (let i = -3; i <= 3; i++) circ(g, X(i * .06), Y(1.16 - Math.abs(i) * .005), .05 * k); });
+  cut(g, C.gold, g => poly(g, [X(-.15), Y(1.46), X(-.15), Y(1.62), X(-.08), Y(1.53), X(0), Y(1.66), X(.08), Y(1.53), X(.15), Y(1.62), X(.15), Y(1.46)]));
+  dots(g, C.red, [[X(0), Y(1.52)]], .025 * k);
+  stroke(g, C.ink, .018 * k, g => { g.moveTo(X(-.1), Y(1.41)); g.lineTo(X(-.03), Y(1.38)); g.moveTo(X(.1), Y(1.41)); g.lineTo(X(.03), Y(1.38)); }, false);
+  dots(g, C.ink, [[X(-.06), Y(1.34)], [X(.06), Y(1.34)]], .02 * k);
+  cut(g, '#7a1f1f', g => ell(g, X(0), Y(1.25), .045 * k, .035 * k), { shadow: false });
+}
+function cardMan(g, cx, by, k, n) {
+  const X = v => cx + v * k, Y = v => by - v * k;
+  cut(g, C.black, g => { rr(g, X(-.12), Y(.42), .04 * k, .4 * k, .02 * k); rr(g, X(.08), Y(.42), .04 * k, .4 * k, .02 * k); ell(g, X(-.13), Y(.03), .07 * k, .035 * k); ell(g, X(.13), Y(.03), .07 * k, .035 * k); });
+  stroke(g, C.black, .035 * k, g => { g.moveTo(X(-.26), Y(.9)); g.lineTo(X(-.42), Y(.72)); g.moveTo(X(.26), Y(.9)); g.lineTo(X(.42), Y(1.05)); });
+  stroke(g, '#8a5a34', .03 * k, g => { g.moveTo(X(.4), Y(1.0)); g.lineTo(X(.55), Y(1.25)); });
+  cut(g, C.red, g => ell(g, X(.58), Y(1.3), .045 * k, .07 * k, .5));
+  cut(g, '#fbf8f0', g => rr(g, X(-.28), Y(1.15), .56 * k, .75 * k, .05 * k));
+  stroke(g, '#c9bfb0', .012 * k, g => rr(g, X(-.25), Y(1.12), .5 * k, .69 * k, .04 * k), false);
+  const pos = { 2: [[0, .95], [0, .6]], 5: [[-.12, .98], [.12, .98], [0, .77], [-.12, .56], [.12, .56]], 7: [[-.12, 1.0], [.12, 1.0], [0, .89], [-.12, .78], [.12, .78], [-.12, .56], [.12, .56]] }[n];
+  cut(g, C.black, g => pos.forEach(([x, y]) => spade(g, X(x), Y(y), .055 * k)), { shadow: false });
+  text(g, String(n), X(-.2), Y(1.07), .07 * k, { color: C.black });
+  cut(g, C.skin, g => circ(g, X(0), Y(1.27), .13 * k));
+  cut(g, '#5a3a2a', g => { g.arc(X(0), Y(1.29), .135 * k, Math.PI, 0); g.closePath(); }, { shadow: false });
+  dots(g, C.ink, [[X(-.045), Y(1.25)], [X(.045), Y(1.25)]], .016 * k);
+}
+function teapot(g) {
+  stroke(g, '#c6d6ea', .045, g => { g.moveTo(.12, .22); g.bezierCurveTo(-.02, .2, -.02, .42, .14, .4); });
+  cut(g, '#c6d6ea', g => { g.moveTo(.42, .3); g.quadraticCurveTo(.5, .3, .6, .12); g.lineTo(.62, .14); g.quadraticCurveTo(.55, .36, .44, .42); g.closePath(); });
+  cut(g, '#e9f0f8', g => { ell(g, .28, .32, .19, .16); rr(g, .14, .46, .28, .03, .01); });
+  cut(g, '#c6d6ea', g => { ell(g, .28, .17, .14, .04); circ(g, .28, .1, .035); });
+  cut(g, '#4f6fb3', g => { circ(g, .22, .3, .035); circ(g, .33, .35, .03); circ(g, .3, .24, .022); }, { shadow: false });
+}
+function dormouse(g) {
+  cut(g, '#9a8574', g => { circ(g, .07, .1, .055); circ(g, .23, .1, .055); circ(g, .15, .2, .12); });
+  cut(g, C.pink, g => { circ(g, .07, .1, .03); circ(g, .23, .1, .03); }, { shadow: false });
+  stroke(g, C.ink, .01, g => { g.moveTo(.09, .19); g.quadraticCurveTo(.11, .21, .13, .19); g.moveTo(.17, .19); g.quadraticCurveTo(.19, .21, .21, .19); }, false);
+  dots(g, C.pink, [[.15, .24]], .018);
+}
+function rose(g) {
+  cut(g, '#fffdf8', g => { for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; circ(g, .13 + Math.cos(a) * .055, .13 + Math.sin(a) * .055, .06); } circ(g, .13, .13, .07); }, { blur: 3, oy: 1 });
+  stroke(g, '#d4c8c0', .01, g => { g.arc(.13, .13, .045, 0, Math.PI * 1.6); g.moveTo(.13 + .022, .13); g.arc(.13, .13, .022, 0, Math.PI * 1.5); }, false);
+}
+
+/* ------------------------------------------------------------------ the book's content (public-domain text, Lewis Carroll, 1865) */
+const SP = [
+  {
+    chapter: 'CHAPTER I.', title: 'Down the Rabbit-Hole', page: 3,
+    hint: 'Tap the White Rabbit', button: () => 'Follow the White Rabbit',
+    paras: [
+      'Alice was beginning to get very tired of sitting by her sister on the bank, and of having nothing to do: once or twice she had peeped into the book her sister was reading, but it had no pictures or conversations in it, “and what is the use of a book,” thought Alice “without pictures or conversations?”',
+      'So she was considering in her own mind … whether the pleasure of making a daisy-chain would be worth the trouble of getting up and picking the daisies, when suddenly a White Rabbit with pink eyes ran close by her.',
+      'There was nothing so very remarkable in that; nor did Alice think it so very much out of the way to hear the Rabbit say to itself, “Oh dear! Oh dear! I shall be late!”',
+    ],
+    ground(g) {
+      g.fillStyle = '#8cc46c'; g.fillRect(0, 0, W, D);
+      cut(g, '#a3d37f', g => { ell(g, .8, 1.4, .9, .5); ell(g, 3.2, 2.2, .8, .45); ell(g, 1.2, 4.6, 1.1, .5); }, { shadow: false });
+      cut(g, '#e3cf9a', g => { g.moveTo(1.7, D); g.bezierCurveTo(1.9, 4.4, 1.2, 3.8, 1.9, 3.0); g.lineTo(2.2, 3.0); g.bezierCurveTo(1.6, 3.8, 2.4, 4.4, 2.3, D); g.closePath(); }, { blur: 4, oy: 1 });
+      cut(g, '#6b4a2e', g => ell(g, 3.1, 3.32, .4, .25));
+      cut(g, '#2e1c10', g => ell(g, 3.1, 3.34, .32, .19), { shadow: false });
+      [[.5, 3.6], [.9, 4.9], [2.8, 4.7], [3.6, 4.1], [3.5, 5.1], [.4, 2.6], [2.6, 2.3], [1.3, 2.2]].forEach(([x, y]) => daisy(g, x, y, .06));
+    },
+    layers: [
+      { z: -2.3, x: 2, w: 3.8, h: 2.9, draw(g, w, h) {
+        backdrop(g, w, h, [[0, '#8fcbe3'], [.75, '#e3f1df']], g => {
+          cut(g, '#ffd95a', g => circ(g, 2.95, .75, .3), { sc: 'rgba(255,200,80,.6)', blur: 20, oy: 0 });
+          cloud(g, .6, .8, 1); cloud(g, 1.9, 1.15, .8);
+          cut(g, '#b5d99a', g => { ell(g, .7, h, 1.3, .95); ell(g, 2.9, h, 1.6, 1.1); });
+          cut(g, '#8fc274', g => { ell(g, 1.6, h, 1.5, .62); ell(g, 3.6, h, .9, .5); });
+          tree(g, 3.3, h - .35, .45, '#5f9e55', '#7fbd68');
+        });
+      } },
+      { z: -1.3, x: 2, w: 3.8, h: 2.6, draw(g, w, h) {
+        bushRow(g, 1.9, 3.7, h, .22, '#5ea653');
+        tree(g, .75, h, 1.35);
+        sister(g, 1.35, h, .9);
+      } },
+      { z: -0.3, x: 1.15, w: 1.1, h: 1.8, draw(g, w, h) { alice(g, .55, h, 1.0); tufts(g, .1, 1.0, h, .18, '#5ea653'); } },
+      { z: 0.45, x: 2, w: 3.8, h: 0.6, draw(g, w, h) { tufts(g, .05, .7, h, .3, '#4f9a4a'); tufts(g, 3.4, 3.75, h, .26, '#4f9a4a'); },
+        props: [{ id: 'rabbit', x: -.05, y: 0, w: .95, h: 1.5, tap: true, draw(g, w, h) { rabbit(g, .4, h, .98); } }] },
+      { z: 0.9, x: 3.1, w: .95, h: .3, draw(g, w, h) { cut(g, '#7a5233', g => { g.moveTo(.05, h); g.quadraticCurveTo(w / 2, -.05, w - .05, h); g.closePath(); }); tufts(g, .1, .85, h, .14, '#5ea653'); } },
+      { z: 1.75, x: 2, w: 3.9, h: .75, draw(g, w, h) {
+        tufts(g, 0, 1.1, h, .35, '#3f8a42'); tufts(g, 2.9, 3.9, h, .32, '#3f8a42');
+        mushroom(g, .45, h, 1.1); mushroom(g, 3.45, h, .8, '#e0884a');
+        daisy(g, .9, h - .3, .07); daisy(g, 3.1, h - .35, .07); daisy(g, 3.7, h - .25, .06);
+      } },
+    ],
+    reset(o) { o.rabbit.grp.position.set(o.rabbit.P.x, 0, o.rabbit.grp.position.z); o.rabbit.grp.rotation.z = 0; },
+    async action(o) {
+      const r = o.rabbit.grp, x0 = o.rabbit.P.x;
+      bubble('Oh dear! Oh dear! I shall be late!', o.rabbit, 1.55, 2300); sfx.chime([880, 740, 660]);
+      for (let i = 0; i < 3; i++) {
+        const a = x0 + i * .4, b = a + .4;
+        await tween(.38, p => { r.position.x = lerp(a, b, p); r.position.y = Math.sin(p * Math.PI) * .32; r.rotation.z = -Math.sin(p * Math.PI) * .12; });
+        sfx.pop(.5);
+      }
+      await tween(.55, p => { r.position.y = -1.6 * p; }, E.in);
+      await wait(900);
+      r.position.x = x0;
+      await tween(.6, p => { r.position.y = lerp(-1.6, 0, p); }, E.back);
+    },
+  },
+  {
+    chapter: 'CHAPTER I, CONTINUED', title: 'Drink Me', page: 5,
+    hint: 'Tap Alice, or the cake', button: o => o._small ? 'Eat the cake' : 'Drink me',
+    paras: [
+      'There seemed to be no use in waiting by the little door, so she went back to the table, half hoping she might find another key on it … this time she found a little bottle on it, (“which certainly was not here before,” said Alice,) and round the neck of the bottle was a paper label, with the words “DRINK ME,” beautifully printed on it in large letters.',
+      '“What a curious feeling!” said Alice; “I must be shutting up like a telescope.”',
+      'And so it was indeed: she was now only ten inches high, and her face brightened up at the thought that she was now the right size for going through the little door into that lovely garden.',
+    ],
+    ground(g) {
+      const s = .4; for (let y = 0; y < D; y += s) for (let x = 0; x < W; x += s) { g.fillStyle = ((x / s + y / s) | 0) % 2 ? '#2f2b3b' : '#efe2c4'; g.fillRect(x, y, s + .002, s + .002); }
+      cut(g, 'rgba(140,40,40,.9)', g => rr(g, 1.4, 2.3, 1.2, D - 2.3, 0), { blur: 6, oy: 2 });
+      stroke(g, C.gold, .03, g => { g.moveTo(1.47, 2.3); g.lineTo(1.47, D); g.moveTo(2.53, 2.3); g.lineTo(2.53, D); }, false);
+    },
+    layers: [
+      { z: -2.3, x: 2, w: 3.8, h: 2.9, draw(g, w, h) {
+        backdrop(g, w, h, [[0, '#2f5b61'], [1, '#4e8a8f']], g => {
+          for (let i = 0; i < 4; i++) {
+            const x = .5 + i * .95;
+            cut(g, '#244a4f', g => { g.moveTo(x - .32, h); g.lineTo(x - .32, 1.1); g.arc(x, 1.1, .32, Math.PI, 0); g.lineTo(x + .32, h); g.closePath(); });
+            stroke(g, C.gold, .03, g => { g.moveTo(x - .32, h); g.lineTo(x - .32, 1.1); g.arc(x, 1.1, .32, Math.PI, 0); g.lineTo(x + .32, h); }, false);
+            stroke(g, '#c9a14a', .012, g => { g.moveTo(x, 0); g.lineTo(x, .55); }, false);
+            cut(g, '#ffd27a', g => { circ(g, x, .62, .08); }, { sc: 'rgba(255,210,120,.9)', blur: 22, oy: 0 });
+          }
+          cut(g, '#1f3f43', g => rr(g, 0, h - .25, w, .25, 0), { shadow: false });
+        });
+      } },
+      { z: -1.5, x: 2, w: 3.8, h: 2.35, draw(g, w, h) {
+        cut(g, '#3d2a1c', g => { g.moveTo(2.78, h); g.lineTo(2.78, h - .55); g.arc(3.02, h - .55, .24, Math.PI, 0); g.lineTo(3.26, h); g.closePath(); });
+        cut(g, '#9ad07a', g => { g.moveTo(2.84, h); g.lineTo(2.84, h - .53); g.arc(3.02, h - .53, .18, Math.PI, 0); g.lineTo(3.2, h); g.closePath(); }, { shadow: false });
+        dots(g, '#f4a7c0', [[2.95, h - .4], [3.08, h - .25], [2.93, h - .15]], .03);
+        cut(g, '#a8693c', g => { g.moveTo(3.2, h); g.lineTo(3.2, h - .53); g.lineTo(3.36, h - .5); g.lineTo(3.36, h + .01); g.closePath(); });
+        dots(g, C.gold, [[3.3, h - .25]], .025);
+        cut(g, '#b8322f', g => { g.moveTo(w, 0); g.lineTo(w, h); g.quadraticCurveTo(3.55, h - .4, 3.45, h - .9); g.quadraticCurveTo(3.4, .6, 3.2, .25); g.lineTo(3.2, 0); g.closePath(); g.moveTo(0, 0); g.lineTo(0, h); g.quadraticCurveTo(.3, 1.2, .55, .25); g.lineTo(.55, 0); g.closePath(); });
+        stroke(g, '#8f2523', .02, g => { for (let x = 3.35; x < w; x += .12) { g.moveTo(x, .3); g.quadraticCurveTo(x + .05, 1.2, x + .02, h - .1); } for (let x = .08; x < .5; x += .12) { g.moveTo(x, .3); g.lineTo(x - .02, h - .4); } }, false);
+        cut(g, '#c9433d', g => { for (let x = 0; x < w + .1; x += .32) circ(g, x + .16, .2, .17); rr(g, 0, 0, w, .2, 0); });
+        stroke(g, C.gold, .025, g => { for (let x = 0; x < w; x += .32) { g.moveTo(x + .16, .37); g.lineTo(x + .16, .45); } }, false);
+      } },
+      { z: -0.15, x: 2.75, w: 1.5, h: 1.3, draw(g, w, h) {
+        const top = h - 1.05;
+        stroke(g, '#a9dbe6', .04, g => { g.moveTo(.3, h); g.lineTo(.4, top); g.moveTo(.75, h); g.lineTo(.75, top); g.moveTo(1.2, h); g.lineTo(1.1, top); });
+        cut(g, 'rgba(190,232,242,.95)', g => rr(g, .1, top - .05, 1.3, .08, .03));
+        cut(g, C.gold, g => { circ(g, .38, top - .1, .04); rr(g, .4, top - .115, .22, .03, .01); rr(g, .56, top - .115, .03, .06, .005); rr(g, .5, top - .115, .03, .05, .005); });
+      },
+        props: [{ id: 'bottle', x: .25, y: 1.06, w: .3, h: .5, px: .5, py: 0, draw(g, w, h) {
+          cut(g, 'rgba(120,180,220,.95)', g => { rr(g, .07, .18, .16, .3, .04); rr(g, .12, .06, .06, .14, .02); });
+          cut(g, '#8a5a34', g => rr(g, .115, .02, .07, .06, .015));
+          cut(g, C.white, g => rr(g, .06, .26, .18, .13, .01), { blur: 2, oy: 1 });
+          text(g, 'DRINK', .15, .3, .038, { font: '"IM Fell English SC", Georgia, serif' }); text(g, 'ME', .15, .35, .038, { font: '"IM Fell English SC", Georgia, serif' });
+        } }] },
+      { z: 0.3, x: 1.25, w: 1.1, h: 1.8, draw: null,
+        props: [{ id: 'alice', x: 0, y: 0, w: 1.0, h: 1.7, tap: true, draw(g, w, h) { alice(g, .5, h, 1.0); } }] },
+      { z: 1.6, x: 2, w: 3.9, h: .62, draw(g, w, h) {
+        cut(g, 'rgba(200,236,245,.9)', g => rr(g, 3.0, h - .4, .62, .4, .03));
+        cut(g, '#d79a5a', g => rr(g, 3.08, h - .3, .46, .22, .05));
+        cut(g, '#fff0f0', g => rr(g, 3.08, h - .32, .46, .07, .03), { blur: 2, oy: 1 });
+        text(g, 'EAT ME', 3.31, h - .17, .07, { font: '"IM Fell English SC", Georgia, serif', color: '#5a2a1a' });
+        dots(g, C.red, [[3.12, h - .34], [3.5, h - .34]], .025);
+      },
+        props: [{ id: 'cake', x: 1.35, y: 0, w: .7, h: .5, tap: true, draw() {} }] },
+    ],
+    reset(o) { o._small = false; o.alice.grp.scale.setScalar(1); o.bottle.grp.rotation.z = 0; },
+    async action(o, id) {
+      const a = o.alice.grp, b = o.bottle.grp;
+      if (!o._small && id !== 'cake') {
+        sfx.gliss(900, 300, .9);
+        await tween(.35, p => { b.rotation.z = .5 * Math.sin(p * Math.PI); });
+        bubble('What a curious feeling! I must be shutting up like a telescope.', o.alice, 1.7, 2600);
+        await tween(1.1, p => { a.scale.setScalar(lerp(1, .34, p)); a.rotation.z = Math.sin(p * 18) * .04 * (1 - p); }, E.inOut);
+        o._small = true;
+      } else if (o._small) {
+        sfx.gliss(250, 1000, 1.0);
+        await tween(1.0, p => { a.scale.setScalar(lerp(.34, 1.3, p)); }, E.out);
+        bubble('Curiouser and curiouser!', o.alice, 1.7, 2200);
+        await tween(.5, p => { a.scale.setScalar(lerp(1.3, 1, p)); }, E.back);
+        o._small = false;
+      } else { bubble('She ought to drink the bottle first.', o.alice, 1.7, 1800); }
+    },
+  },
+  {
+    chapter: 'CHAPTER VI.', title: 'Pig and Pepper', page: 7,
+    hint: 'Tap the Cheshire Cat', button: o => o._gone ? 'Bring the Cat back' : 'Make the Cat vanish',
+    paras: [
+      '“Would you tell me, please, which way I ought to go from here?” “That depends a good deal on where you want to get to,” said the Cat.',
+      '“All right,” said the Cat; and this time it vanished quite slowly, beginning with the end of the tail, and ending with the grin, which remained some time after the rest of it had gone.',
+      '“Well! I’ve often seen a cat without a grin,” thought Alice; “but a grin without a cat! It’s the most curious thing I ever saw in my life!”',
+    ],
+    ground(g) {
+      g.fillStyle = '#466f4e'; g.fillRect(0, 0, W, D);
+      cut(g, '#3a5f43', g => { ell(g, .7, 2.0, .8, .4); ell(g, 3.3, 3.6, .7, .5); }, { shadow: false });
+      cut(g, '#c8a46a', g => { g.moveTo(.4, D); g.bezierCurveTo(1.2, 4.2, 2.6, 4.0, 2.2, 3.0); g.bezierCurveTo(2.0, 2.4, 2.8, 2.0, 3.0, 1.4); g.lineTo(3.3, 1.4); g.bezierCurveTo(3.1, 2.1, 2.4, 2.5, 2.6, 3.0); g.bezierCurveTo(3.0, 4.2, 1.6, 4.5, 1.0, D); g.closePath(); }, { blur: 4, oy: 1 });
+      [[.4, 3.2], [3.6, 4.8], [.9, 4.4], [3.7, 2.4]].forEach(([x, y], i) => mushroom(g, x, y, .5, i % 2 ? '#e0884a' : '#d8473b'));
+      cut(g, '#d9a441', g => { [[1.2, 3.4], [2.9, 4.6], [.6, 1.6], [3.4, 1.0]].forEach(([x, y]) => ell(g, x, y, .07, .035, .6)); }, { blur: 3, oy: 1 });
+    },
+    layers: [
+      { z: -2.3, x: 2, w: 3.8, h: 2.9, draw(g, w, h) {
+        backdrop(g, w, h, [[0, '#4b3f8a'], [.6, '#8a62a8'], [1, '#f0a3a0']], g => {
+          dots(g, '#fff6d8', [[.5, .5], [1.1, .3], [1.6, .7], [2.4, .4], [3.4, .6], [2.9, .25], [.9, .9]], .02);
+          cut(g, '#fff3c4', g => { g.arc(2.9, .8, .26, Math.PI * .5, Math.PI * 1.5); g.arc(2.82, .8, .2, Math.PI * 1.5, Math.PI * .5, true); g.closePath(); }, { sc: 'rgba(255,240,190,.8)', blur: 18, oy: 0 });
+          cut(g, '#4b3f7a', g => { for (let x = -.1; x < w; x += .45) { circ(g, x, h - .55 - Math.sin(x * 3) * .12, .32); rr(g, x - .3, h - .6, .6, .7, 0); } });
+          cut(g, '#3a3065', g => { for (let x = .15; x < w; x += .6) circ(g, x, h - .2, .3); });
+        });
+      } },
+      { z: -1.4, x: 2, w: 3.8, h: 2.75, draw(g, w, h) {
+        cut(g, '#5b3a2a', g => { g.moveTo(2.95, h); g.bezierCurveTo(3.15, h - .9, 2.85, h - 1.4, 3.1, h - 2.0); g.lineTo(3.4, h - 2.1); g.bezierCurveTo(3.25, h - 1.3, 3.55, h - .8, 3.45, h); g.closePath(); });
+        stroke(g, '#5b3a2a', .14, g => { g.moveTo(3.15, h - 1.88); g.bezierCurveTo(2.7, h - 2.0, 2.2, h - 1.92, 1.25, h - 2.02); });
+        stroke(g, '#5b3a2a', .06, g => { g.moveTo(1.6, h - 1.98); g.lineTo(1.4, h - 2.25); g.moveTo(2.3, h - 1.95); g.lineTo(2.45, h - 2.3); }, false);
+        cut(g, '#2f6b4a', g => { circ(g, 3.3, h - 2.35, .42); circ(g, 3.6, h - 2.05, .3); circ(g, 2.95, h - 2.25, .28); circ(g, 1.3, h - 2.3, .2); circ(g, 2.45, h - 2.35, .18); });
+        cut(g, '#3f8a5c', g => { circ(g, 3.2, h - 2.45, .2); circ(g, 3.6, h - 2.15, .14); }, { blur: 4 });
+        cut(g, '#8a5a34', g => rr(g, .55, h - 1.25, .07, 1.25, .02));
+        cut(g, '#e6c98f', g => { poly(g, [.3, h - 1.2, .95, h - 1.2, 1.08, h - 1.1, .95, h - 1.0, .3, h - 1.0]); poly(g, [.85, h - .9, .2, h - .9, .07, h - .8, .2, h - .7, .85, h - .7]); });
+        text(g, 'THIS WAY', .64, h - 1.1, .085, { font: '"IM Fell English SC", Georgia, serif', color: '#5a3a2a' });
+        text(g, 'THAT WAY', .48, h - .8, .085, { font: '"IM Fell English SC", Georgia, serif', color: '#5a3a2a' });
+      },
+        props: [
+          { id: 'cat', x: 0, y: 1.78 - .02, w: 1.3, h: .8, tap: true, live: true, draw(g) { catBody(g); } },
+          { id: 'grin', x: .37, y: 2.12, w: .44, h: .32, tap: true, dz: .03, draw(g) { grinArt(g); } },
+        ] },
+      { z: 0.2, x: 1.2, w: 1.1, h: 1.8, draw: null, props: [{ id: 'alice', x: 0, y: 0, w: 1.0, h: 1.7, draw(g, w, h) { alice(g, .5, h, 1.0); } }] },
+      { z: 1.5, x: 2, w: 3.9, h: .85, draw(g, w, h) {
+        cut(g, '#2f6b4a', g => { for (let i = 0; i < 6; i++) ell(g, .3 + i * .1, h - .25, .05, .3, -.6 + i * .25); for (let i = 0; i < 6; i++) ell(g, 3.3 + i * .1, h - .25, .05, .3, -.6 + i * .25); });
+        mushroom(g, .95, h, 1.2); mushroom(g, 3.05, h, 1.4, '#e0884a'); mushroom(g, 3.5, h, .7);
+      } },
+    ],
+    reset(o) { o._gone = false; setVanish(o.cat, 0); o.grin.grp.position.y = o.grin.P.y; },
+    async action(o) {
+      if (!o._gone) {
+        sfx.sparkle();
+        await tween(2.0, p => setVanish(o.cat, p), E.inOut);
+        o._gone = true;
+        bubble('“Well! I’ve often seen a cat without a grin, but a grin without a cat!”', o.alice, 1.7, 3000);
+      } else {
+        sfx.sparkle();
+        await tween(1.4, p => setVanish(o.cat, 1 - p), E.inOut);
+        o._gone = false;
+      }
+    },
+    tick(o, t) { o.grin.grp.position.y = o.grin.P.y + Math.sin(t * 2.2) * (o._gone ? .05 : .008); },
+  },
+  {
+    chapter: 'CHAPTER VII.', title: 'A Mad Tea-Party', page: 9,
+    hint: 'Tap the teapot', button: () => 'Pour the tea',
+    paras: [
+      'There was a table set out under a tree in front of the house, and the March Hare and the Hatter were having tea at it: a Dormouse was sitting between them, fast asleep.',
+      'The table was a large one, but the three were all crowded together at one corner of it: “No room! No room!” they cried out when they saw Alice coming. “There’s plenty of room!” said Alice indignantly, and she sat down in a large arm-chair at one end of the table.',
+      '*“Twinkle, twinkle, little bat! How I wonder what you’re at!”',
+    ],
+    ground(g) {
+      g.fillStyle = '#9ccc6e'; g.fillRect(0, 0, W, D);
+      for (let y = 0; y < D; y += .5) { g.fillStyle = 'rgba(255,255,255,.07)'; g.fillRect(0, y, W, .25); }
+      cut(g, '#e6d3a8', g => ell(g, 2, 2.4, 1.9, .55), { blur: 4, oy: 1 });
+      [[.4, 3.6], [3.6, 3.4], [.8, 4.8], [3.2, 4.9], [2.0, 4.3]].forEach(([x, y]) => daisy(g, x, y, .06));
+    },
+    layers: [
+      { z: -2.3, x: 2, w: 3.8, h: 2.9, draw(g, w, h) {
+        backdrop(g, w, h, [[0, '#f6c77a'], [1, '#fcefd0']], g => {
+          tree(g, .55, h, 1.15, '#5f9e55', '#7fbd68');
+          cut(g, '#b07d52', g => { ell(g, 2.25, .75, .09, .4, -.2); ell(g, 2.75, .72, .09, .4, .2); });
+          cut(g, '#e8b9a0', g => { ell(g, 2.25, .78, .04, .28, -.2); ell(g, 2.75, .75, .04, .28, .2); }, { shadow: false });
+          cut(g, '#f2e1c0', g => rr(g, 1.65, 1.45, 1.75, h - 1.45, 0));
+          cut(g, '#a8774f', g => { g.moveTo(1.45, 1.55); g.quadraticCurveTo(2.5, .7, 3.6, 1.55); g.closePath(); });
+          stroke(g, '#8a5a3a', .015, g => { for (let x = 1.7; x < 3.4; x += .09) { g.moveTo(x, 1.5); g.quadraticCurveTo(x + .03, 1.35, x - .02, 1.2 + Math.abs(x - 2.5) * .25); } }, false);
+          cut(g, '#6b8fb3', g => { rr(g, 1.85, 1.75, .35, .35, .04); rr(g, 2.85, 1.75, .35, .35, .04); });
+          cut(g, '#8a5a34', g => { rr(g, 2.35, 1.95, .35, h - 1.95, .15); });
+        });
+      } },
+      { z: -1.0, x: 2, w: 3.8, h: 2.15, draw(g, w, h) { hatter(g, 1.3, h, .95); hare(g, 2.75, h, .95); } },
+      { z: -0.55, x: 2, w: 3.7, h: 1.05, draw(g, w, h) {
+        const top = h - .82;
+        cut(g, '#8a5a34', g => { rr(g, .25, top, .07, .82, .02); rr(g, 3.38, top, .07, .82, .02); });
+        cut(g, '#fbf6ec', g => { g.moveTo(.1, top); g.lineTo(3.6, top); g.lineTo(3.6, top + .42); for (let x = 3.6; x > .1; x -= .14) g.quadraticCurveTo(x - .07, top + .55, x - .14, top + .42); g.closePath(); });
+        g.save(); g.beginPath(); rr(g, .1, top, 3.5, .5, 0); g.clip();
+        g.fillStyle = 'rgba(79,111,179,.18)'; for (let x = .1; x < 3.6; x += .14) g.fillRect(x, top, .07, .5); for (let y = top; y < top + .5; y += .14) g.fillRect(.1, y, 3.5, .07);
+        g.restore();
+        const cupAt = (x, col) => { cut(g, C.white, g => ell(g, x, top - .01, .14, .03)); cut(g, col, g => { g.moveTo(x - .09, top - .16); g.lineTo(x + .09, top - .16); g.quadraticCurveTo(x + .09, top - .02, x, top - .02); g.quadraticCurveTo(x - .09, top - .02, x - .09, top - .16); g.closePath(); }); stroke(g, col, .02, g => { g.arc(x + .11, top - .1, .04, -1.4, 1.4); }, false); };
+        cupAt(.6, '#e8a0b4'); cupAt(1.25, '#9ec5e8'); cupAt(2.54, '#a3d37f');
+        cut(g, '#e9f0f8', g => ell(g, 3.15, top - .02, .22, .04));
+        cut(g, '#d97a3a', g => { ell(g, 3.08, top - .06, .07, .03); ell(g, 3.22, top - .06, .07, .03); });
+      },
+        props: [
+          { id: 'dormouse', x: .15, y: .8, w: .3, h: .32, dz: .006, draw(g) { dormouse(g); } },
+          { id: 'pot', x: .45, y: .82, w: .64, h: .5, px: .9, py: 0, tap: true, dz: .016, draw(g) { teapot(g); } },
+          { id: 'stream', x: .69, y: 1.1, w: .05, h: .17, py: 1, dz: .02, draw(g, w, h) { cut(g, '#9a5a2a', g => rr(g, .01, 0, .03, h, .015), { shadow: false }); } },
+        ] },
+      { z: 0.5, x: .85, w: 1.1, h: 1.8, draw: null, props: [{ id: 'alice', x: 0, y: 0, w: 1.0, h: 1.7, draw(g, w, h) { alice(g, .5, h, 1.0); } }] },
+      { z: 1.6, x: 2, w: 3.9, h: .6, draw(g, w, h) { tufts(g, 0, 1.0, h, .3, '#4f9a4a'); tufts(g, 2.8, 3.9, h, .3, '#4f9a4a'); daisy(g, .5, h - .3, .07); daisy(g, 3.4, h - .28, .07); daisy(g, 3.0, h - .2, .05); } },
+    ],
+    reset(o) { o.pot.grp.rotation.z = 0; o.dormouse.grp.position.y = o.dormouse.P.y; o.stream.grp.scale.y = .001; o.stream.grp.visible = false; },
+    async action(o) {
+      const pot = o.pot.grp, dm = o.dormouse.grp, st = o.stream.grp, y0 = o.dormouse.P.y;
+      tween(.5, p => { dm.position.y = y0 + .3 * p; }, E.back);
+      bubble('“Twinkle, twinkle, little bat! How I wonder what you’re at!”', o.dormouse, .6, 2600);
+      sfx.chime([660, 880, 990, 880]);
+      await tween(.55, p => { pot.rotation.z = -.55 * p; }, E.inOut);
+      st.visible = true; sfx.pour();
+      await tween(.25, p => { st.scale.y = Math.max(.001, p); });
+      await wait(900);
+      await tween(.2, p => { st.scale.y = Math.max(.001, 1 - p); });
+      st.visible = false;
+      await tween(.5, p => { pot.rotation.z = -.55 * (1 - p); }, E.inOut);
+      await wait(600);
+      await tween(.4, p => { dm.position.y = y0 + .3 * (1 - p); }, E.in);
+    },
+  },
+  {
+    chapter: 'CHAPTER VIII.', title: 'The Queen’s Croquet-Ground', page: 11,
+    hint: 'Tap the Queen', button: o => o._red ? 'Start over' : 'Paint the roses red',
+    paras: [
+      'A large rose-tree stood near the entrance of the garden: the roses growing on it were white, but there were three gardeners at it, busily painting them red.',
+      '“Would you tell me,” said Alice, a little timidly, “why you are painting those roses?” Five and Seven said nothing, but looked at Two. Two began in a low voice, “Why the fact is, you see, Miss, this here ought to have been a red rose-tree, and we put a white one in by mistake.”',
+    ],
+    end: 'The end of this preview',
+    ground(g) {
+      for (let y = 0; y < D; y += .45) { g.fillStyle = ((y / .45) | 0) % 2 ? '#86c464' : '#94cf70'; g.fillRect(0, y, W, .46); }
+      cut(g, '#e8d6a8', g => { g.moveTo(0, 4.6); g.bezierCurveTo(1.2, 4.2, 2.6, 4.9, W, 4.4); g.lineTo(W, 4.75); g.bezierCurveTo(2.6, 5.2, 1.2, 4.6, 0, 4.95); g.closePath(); }, { blur: 4, oy: 1 });
+      stroke(g, C.white, .035, g => { [[.7, 3.2], [2.0, 3.6], [3.3, 3.1], [1.4, 2.5]].forEach(([x, y]) => { g.moveTo(x - .14, y); g.arc(x, y, .14, Math.PI, 0); }); });
+      cut(g, C.red, g => { heart(g, .5, 1.8, .08); heart(g, 3.6, 2.2, .07); heart(g, 2.6, 4.0, .06); }, { blur: 3, oy: 1 });
+    },
+    layers: [
+      { z: -2.3, x: 2, w: 3.8, h: 2.9, draw(g, w, h) {
+        backdrop(g, w, h, [[0, '#f2b8c2'], [1, '#fbe7d5']], g => {
+          cut(g, '#e3a8b3', g => { rr(g, 1.4, .9, 1.2, 1.3, 0); rr(g, 1.25, .55, .3, 1.6, 0); rr(g, 2.45, .55, .3, 1.6, 0); poly(g, [1.2, .58, 1.4, .25, 1.6, .58]); poly(g, [2.4, .58, 2.6, .25, 2.8, .58]); });
+          cut(g, C.red, g => { heart(g, 1.4, .18, .05); heart(g, 2.6, .18, .05); }, { shadow: false });
+          cut(g, '#c98a96', g => { rr(g, 1.85, 1.5, .3, .7, .15); });
+          [.45, 3.5].forEach(x => { cut(g, C.trunk, g => rr(g, x - .03, h - .9, .06, .9, .02)); cut(g, '#4f8f4a', g => heart(g, x, h - 1.15, .3)); });
+          cut(g, '#5a9c50', g => { for (let x = 0; x < w; x += .3) circ(g, x, h - .1, .2); });
+        });
+      } },
+      { z: -1.2, x: 1.6, w: 2.4, h: 2.5, draw(g, w, h) {
+        cut(g, C.trunk, g => poly(g, [1.1, h, 1.15, h - 1.0, 1.25, h - 1.0, 1.3, h]));
+        cut(g, '#3d7d45', g => { circ(g, 1.2, h - 1.6, .62); circ(g, .7, h - 1.35, .45); circ(g, 1.7, h - 1.35, .45); circ(g, 1.2, h - 2.0, .4); });
+        cut(g, '#4f9455', g => { circ(g, .95, h - 1.75, .25); circ(g, 1.5, h - 1.55, .22); }, { blur: 5 });
+      },
+        props: [[-.45, 1.25], [-.1, 1.05], [.3, 1.2], [.55, 1.0], [-.65, .95], [0, 1.55], [.35, 1.65], [-.35, 1.65], [.1, 1.95]].map(([x, y], i) => (
+          { id: 'rose' + i, x, y, w: .26, h: .26, py: .5, dz: .02 + i * .001, tint: true, draw(g) { rose(g); } })) },
+      { z: -0.2, x: 2.1, w: 3.0, h: 1.65, draw(g, w, h) { cardMan(g, .5, h, 1.0, 2); cardMan(g, 1.4, h, .95, 5); cardMan(g, 2.25, h, 1.0, 7);
+        cut(g, '#8a8f99', g => rr(g, 2.62, h - .28, .28, .28, .03)); cut(g, C.red, g => ell(g, 2.76, h - .28, .14, .04), { shadow: false }); } },
+      { z: 0.6, x: 3.2, w: 1.2, h: 1.9, draw: null, props: [{ id: 'queen', x: 0, y: 0, w: 1.1, h: 1.75, tap: true, draw(g, w, h) { queen(g, .55, h, 1.0); } }] },
+      { z: 1.6, x: 2, w: 3.9, h: .8, draw(g, w, h) {
+        bushRow(g, .1, 1.1, h, .2, '#3f8a42');
+        stroke(g, '#f08aa4', .05, g => { g.moveTo(.95, h - .05); g.lineTo(1.0, h - .45); g.moveTo(1.12, h - .05); g.lineTo(1.08, h - .45); });
+        cut(g, '#f08aa4', g => { ell(g, 1.05, h - .55, .2, .12); }); stroke(g, '#f08aa4', .05, g => { g.moveTo(1.2, h - .6); g.quadraticCurveTo(1.35, h - .85, 1.3, h - .7); });
+        cut(g, '#f08aa4', g => circ(g, 1.31, h - .74, .06)); cut(g, C.ink, g => poly(g, [1.35, h - .74, 1.42, h - .7, 1.36, h - .68]), { shadow: false });
+        cut(g, '#8a6a4a', g => { g.arc(1.6, h, .14, Math.PI, 0); g.closePath(); }); stroke(g, '#5a4430', .02, g => { for (let a = 3.3; a < 6.2; a += .3) { g.moveTo(1.6 + Math.cos(a) * .12, h + Math.sin(a) * .12); g.lineTo(1.6 + Math.cos(a) * .2, h + Math.sin(a) * .2); } }, false);
+        bushRow(g, 2.9, 3.8, h, .2, '#3f8a42');
+        cut(g, C.red, g => { heart(g, 3.1, h - .45, .07); heart(g, 3.5, h - .5, .06); }, { blur: 3, oy: 1 });
+      } },
+    ],
+    reset(o) { o._red = false; for (let i = 0; i < 9; i++) { o['rose' + i].mesh.material.color.set('#ffffff'); o['rose' + i].grp.scale.setScalar(1); } o.queen.grp.rotation.z = 0; },
+    async action(o, id) {
+      if (id === 'queen') { bubble('“Off with their heads!”', o.queen, 1.75, 1800); await shake(o.queen.grp); return; }
+      if (o._red) { sfx.gliss(600, 300, .4); for (let i = 0; i < 9; i++) o['rose' + i].mesh.material.color.set('#ffffff'); o._red = false; return; }
+      const red = new THREE.Color('#e3302b');
+      for (let i = 0; i < 9; i++) {
+        const r = o['rose' + i]; sfx.pop(.9 + i * .05);
+        await tween(.18, p => { r.mesh.material.color.lerpColors(new THREE.Color('#ffffff'), red, p); r.grp.scale.setScalar(1 + Math.sin(p * Math.PI) * .35); });
+      }
+      o._red = true;
+      bubble('“Off with their heads!”', o.queen, 1.75, 2200);
+      await shake(o.queen.grp);
+    },
+  },
+];
+async function shake(grp) { sfx.thud(); await tween(.7, p => { grp.rotation.z = Math.sin(p * Math.PI * 6) * .07 * (1 - p); }); }
+
+/* ------------------------------------------------------------------ page textures */
+function pageTex(c, mirror = false) {
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+  if (mirror) { t.repeat.x = -1; t.offset.x = 1; }
+  return t;
+}
+function paperBase(g, w, h) {
+  g.fillStyle = '#f4ead3'; g.fillRect(0, 0, w, h);
+  const rg = g.createRadialGradient(w / 2, h / 2, h * .25, w / 2, h / 2, h * .8);
+  rg.addColorStop(0, 'rgba(255,255,255,0)'); rg.addColorStop(1, 'rgba(150,105,55,.2)'); g.fillStyle = rg; g.fillRect(0, 0, w, h);
+  g.save(); g.globalAlpha = .05; g.fillStyle = g.createPattern(NOISE, 'repeat'); g.fillRect(0, 0, w, h); g.restore();
+}
+function gutter(g, w, h, side) {
+  const x0 = side === 'L' ? w : 0, x1 = side === 'L' ? w - 120 : 120;
+  const lg = g.createLinearGradient(x0, 0, x1, 0); lg.addColorStop(0, 'rgba(60,35,15,.42)'); lg.addColorStop(.35, 'rgba(60,35,15,.1)'); lg.addColorStop(1, 'rgba(60,35,15,0)');
+  g.fillStyle = lg; g.fillRect(Math.min(x0, x1), 0, 120, h);
+}
+function leftPageCanvas(sp) {
+  const [w, h] = PX, c = mk(w, h), g = c.getContext('2d');
+  paperBase(g, w, h);
+  const red = '#8a3a2a', ink = '#2b2018', x0 = 104, x1 = w - 124;
+  g.textAlign = 'center'; g.textBaseline = 'alphabetic'; g.fillStyle = '#7a6a58';
+  g.font = '22px "IM Fell English SC", Georgia, serif'; g.letterSpacing = '4px';
+  g.fillText("ALICE'S ADVENTURES IN WONDERLAND", (x0 + x1) / 2, 92);
+  g.fillRect(x0, 108, x1 - x0, 1.5);
+  g.fillStyle = red; g.font = '32px "IM Fell English SC", Georgia, serif'; g.letterSpacing = '6px';
+  g.fillText(sp.chapter, (x0 + x1) / 2, 196);
+  g.letterSpacing = '0px'; g.fillStyle = ink; g.font = 'italic 58px "IM Fell English", Georgia, serif';
+  g.fillText(sp.title + '.', (x0 + x1) / 2, 268);
+  const cx = (x0 + x1) / 2; g.strokeStyle = red; g.lineWidth = 1.5;
+  g.beginPath(); g.moveTo(cx - 90, 306); g.lineTo(cx - 14, 306); g.moveTo(cx + 14, 306); g.lineTo(cx + 90, 306); g.stroke();
+  g.fillStyle = red; g.beginPath(); g.moveTo(cx, 298); g.lineTo(cx + 8, 306); g.lineTo(cx, 314); g.lineTo(cx - 8, 306); g.closePath(); g.fill();
+
+  // justified body with a drop cap
+  let size = 41, out;
+  for (let tries = 0; tries < 12; tries++) { out = layout(g, sp.paras, x0, x1, 384, size); if (out.end < (sp.end ? 1180 : 1235)) break; size -= 1.5; }
+  out.draw();
+  if (sp.end) {
+    g.fillStyle = red; g.font = 'italic 30px "IM Fell English", Georgia, serif'; g.textAlign = 'center';
+    g.fillText('— ' + sp.end + ' —', cx, 1240);
+  }
+  g.fillStyle = '#7a6a58'; g.font = '26px "IM Fell English", Georgia, serif'; g.textAlign = 'center';
+  g.fillText(String(sp.page), cx, 1318);
+  gutter(g, w, h, 'L');
+  return c;
+}
+function layout(g, paras, x0, x1, y0, size) {
+  const lh = Math.round(size * 1.45), font = `${size}px "IM Fell English", Georgia, serif`, ifont = `italic ${size}px "IM Fell English", Georgia, serif`;
+  const lines = []; let y = y0, li = 0; const indent = size * 1.3;
+  g.font = font; g.letterSpacing = '0px';
+  let first = paras[0], dropTxt = '';
+  const m = first.match(/^([“"]?\w)/); dropTxt = m ? m[1] : first[0];
+  const dropFont = `${Math.round(lh * 2.55)}px "IM Fell English", Georgia, serif`;
+  g.font = dropFont; const dropW = g.measureText(dropTxt).width + 16; g.font = font;
+  paras.forEach((raw, pi) => {
+    const verse = raw.startsWith('*'); let p = verse ? raw.slice(1) : raw;
+    if (pi === 0) p = p.slice(dropTxt.length);
+    g.font = verse ? ifont : font;
+    const words = p.split(' ').filter(Boolean), sp = g.measureText(' ').width;
+    let cur = [], curW = 0, firstLine = true;
+    const avail = () => (x1 - x0) - (pi === 0 && li < 3 ? dropW : 0) - (firstLine && pi > 0 && !verse ? indent : 0);
+    const off = () => (pi === 0 && li < 3 ? dropW : 0) + (firstLine && pi > 0 && !verse ? indent : 0);
+    const push = last => { lines.push({ words: cur.slice(), x: x0 + off(), avail: avail(), y, last, verse, font: verse ? ifont : font }); y += lh; li++; cur = []; curW = 0; firstLine = false; };
+    words.forEach(wd => { const ww = g.measureText(wd).width; if (cur.length && curW + sp + ww > avail()) push(false); curW += (cur.length ? sp : 0) + ww; cur.push(wd); });
+    if (cur.length) push(true);
+    if (verse) y += lh * .2;
+  });
+  return {
+    end: y, draw() {
+      g.fillStyle = '#8a3a2a'; g.font = dropFont; g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+      g.fillText(dropTxt, x0 - 4, y0 + lh * 2 + 4);
+      g.fillStyle = '#2b2018';
+      lines.forEach(L => {
+        g.font = L.font; const ws = L.words.map(w => g.measureText(w).width), tot = ws.reduce((a, b) => a + b, 0);
+        if (L.verse) { g.textAlign = 'center'; g.fillText(L.words.join(' '), (x0 + x1) / 2, L.y); g.textAlign = 'left'; return; }
+        const gap = (L.last || L.words.length < 2) ? g.measureText(' ').width : (L.avail - tot) / (L.words.length - 1);
+        let x = L.x; L.words.forEach((w, i) => { g.fillText(w, x, L.y); x += ws[i] + gap; });
+      });
+    },
+  };
+}
+function rightPageCanvas(sp) {
+  const [w, h] = PX, c = mk(w, h), g = c.getContext('2d');
+  g.save(); g.setTransform(w / W, 0, 0, w / W, 0, 0); g._u = w / W; g.lineJoin = 'round'; g.lineCap = 'round'; sp.ground(g); g.restore();
+  grain(c, .06); gutter(g, w, h, 'R');
+  return c;
+}
+function coverCanvas() {
+  const w = 1024, h = Math.round(1024 * BD / BW), c = mk(w, h), g = c.getContext('2d');
+  g.fillStyle = '#8e2b27'; g.fillRect(0, 0, w, h);
+  g.save(); g.globalAlpha = .12; g.strokeStyle = '#000';
+  for (let i = 0; i < w + h; i += 4) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i - h, h); g.stroke(); }
+  g.globalAlpha = .07; g.strokeStyle = '#fff'; for (let i = 0; i < w + h; i += 6) { g.beginPath(); g.moveTo(i - h, 0); g.lineTo(i, h); g.stroke(); }
+  g.restore();
+  const sh = g.createLinearGradient(0, 0, 70, 0); sh.addColorStop(0, 'rgba(0,0,0,.35)'); sh.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = sh; g.fillRect(0, 0, 70, h);
+  const gold = g.createLinearGradient(0, 0, w, h); gold.addColorStop(0, '#f3d27e'); gold.addColorStop(.5, '#c99a3e'); gold.addColorStop(1, '#f0cf7a');
+  g.strokeStyle = gold; g.lineWidth = 5; g.strokeRect(70, 50, w - 120, h - 100); g.lineWidth = 2; g.strokeRect(86, 66, w - 152, h - 132);
+  const cx = (70 + w - 50) / 2;
+  g.fillStyle = gold; g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+  g.shadowColor = 'rgba(0,0,0,.45)'; g.shadowOffsetY = 2; g.shadowBlur = 2;
+  g.font = 'italic 92px "IM Fell English", Georgia, serif'; g.fillText("Alice’s Adventures", cx, 250);
+  g.font = 'italic 92px "IM Fell English", Georgia, serif'; g.fillText('in Wonderland', cx, 355);
+  g.lineWidth = 4; g.strokeStyle = gold; g.beginPath(); g.arc(cx, 720, 210, 0, Math.PI * 2); g.stroke();
+  g.lineWidth = 1.5; g.beginPath(); g.arc(cx, 720, 192, 0, Math.PI * 2); g.stroke();
+  g.shadowColor = 'transparent';
+  const t = mk(420, 420), tg = t.getContext('2d'); tg.setTransform(140, 0, 0, 140, 0, 0); tg._u = 140; rabbit(tg, 1.4, 2.65, 1.65);
+  tg.setTransform(1, 0, 0, 1, 0, 0); tg.globalCompositeOperation = 'source-in'; tg.fillStyle = gold; tg.fillRect(0, 0, 420, 420);
+  g.shadowColor = 'rgba(0,0,0,.45)'; g.shadowOffsetY = 2; g.shadowBlur = 2; g.drawImage(t, cx - 210, 720 - 220);
+  g.font = '40px "IM Fell English SC", Georgia, serif'; g.letterSpacing = '10px'; g.fillText('LEWIS CARROLL', cx, 1080);
+  g.font = '26px "IM Fell English SC", Georgia, serif'; g.letterSpacing = '8px'; g.fillText('A POP-UP EDITION', cx, 1160);
+  g.font = '22px "IM Fell English SC", Georgia, serif'; g.fillText('WITH FIVE MOVING SCENES', cx, 1200);
+  return c;
+}
+function endpaperCanvas() {
+  const c = mk(512, 512), g = c.getContext('2d'); g.fillStyle = '#2f5d62'; g.fillRect(0, 0, 512, 512);
+  g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = 'rgba(224,180,92,.35)';
+  for (let y = 0; y < 512; y += 64) for (let x = 0; x < 512; x += 64) { const o = (y / 64) % 2 ? 32 : 0; g.beginPath(); ((x + y) / 64) % 2 ? heart(g, x + o + 16, y + 30, 10) : spade(g, x + o + 16, y + 30, 11); g.fill(); }
+  return c;
+}
+function woodCanvas() {
+  const c = mk(1024, 1024), g = c.getContext('2d');
+  for (let i = 0; i < 8; i++) { const v = i % 2 ? '#4a2f1d' : '#55361f'; g.fillStyle = v; g.fillRect(0, i * 128, 1024, 128); g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(0, i * 128, 1024, 2); }
+  g.globalAlpha = .18;
+  for (let i = 0; i < 260; i++) { const y = Math.random() * 1024; g.strokeStyle = Math.random() < .5 ? '#2a170c' : '#7a5232'; g.lineWidth = Math.random() * 2 + .5; g.beginPath(); g.moveTo(0, y); for (let x = 0; x <= 1024; x += 64) g.lineTo(x, y + Math.sin(x * .01 + i) * 4); g.stroke(); }
+  return c;
+}
+function edgeCanvas() {
+  const c = mk(64, 64), g = c.getContext('2d'); g.fillStyle = '#efe4cc'; g.fillRect(0, 0, 64, 64);
+  for (let y = 0; y < 64; y += 2) { g.fillStyle = `rgba(120,95,60,${.1 + Math.random() * .15})`; g.fillRect(0, y, 64, 1); }
+  return c;
+}
+
+/* ------------------------------------------------------------------ three.js scene */
+const canvas = $('stage');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#1d140e');
+scene.fog = new THREE.Fog('#1d140e', 20, 42);
+const camera = new THREE.PerspectiveCamera(30, 1, .1, 120);
+
+scene.add(new THREE.HemisphereLight('#fff3df', '#4a2e1a', 1.55));
+const sun = new THREE.DirectionalLight('#fff0d8', 2.7);
+sun.position.set(-4.5, 10, 7.5);
+sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -7, right: 7, top: 7, bottom: -7, near: 2, far: 30 });
+sun.shadow.bias = -.0005; sun.shadow.normalBias = .025;
+scene.add(sun);
+const fill = new THREE.DirectionalLight('#ffd6b0', .5); fill.position.set(6, 4, 3); scene.add(fill);
+
+const book = new THREE.Group(); scene.add(book);
+const sh = m => { m.castShadow = true; m.receiveShadow = true; return m; };
+const lam = o => new THREE.MeshLambertMaterial(o);
+
+let tableMat, clothMat, edgeMat, coverMat, endMat, rightPage, leftPage, leftBlock, coverPivot, spine, leaf, leafFront, leafBack, leafBase;
+function buildBook() {
+  const wood = pageTex(woodCanvas()); wood.wrapS = wood.wrapT = THREE.RepeatWrapping; wood.repeat.set(6, 6);
+  tableMat = lam({ map: wood });
+  const table = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), tableMat); table.rotation.x = -Math.PI / 2; table.receiveShadow = true; scene.add(table);
+
+  clothMat = lam({ color: '#7d2422' });
+  edgeMat = lam({ map: pageTex(edgeCanvas()) });
+  coverMat = new THREE.MeshStandardMaterial({ map: pageTex(coverCanvas()), roughness: .75, metalness: .05 });
+  const ep = pageTex(endpaperCanvas()); ep.wrapS = ep.wrapT = THREE.RepeatWrapping; ep.repeat.set(3, 4);
+  endMat = lam({ map: ep });
+
+  const back = sh(new THREE.Mesh(new THREE.BoxGeometry(BW, BT, BD), clothMat)); back.position.set(BW / 2, BT / 2, 0); book.add(back);
+  const rb = sh(new THREE.Mesh(new THREE.BoxGeometry(W, PB, D), edgeMat)); rb.position.set(W / 2, BT + PB / 2, 0); book.add(rb);
+  leftBlock = sh(new THREE.Mesh(new THREE.BoxGeometry(W, PB, D), edgeMat)); leftBlock.position.set(-W / 2, BT + PB / 2, 0); book.add(leftBlock);
+
+  const gR = new THREE.PlaneGeometry(W, D); gR.rotateX(-Math.PI / 2); gR.translate(W / 2, 0, 0);
+  const gL = new THREE.PlaneGeometry(W, D); gL.rotateX(-Math.PI / 2); gL.translate(-W / 2, 0, 0);
+  rightPage = new THREE.Mesh(gR, lam({ map: SP[0].rT })); rightPage.position.y = Y0 + .001; rightPage.receiveShadow = true; book.add(rightPage);
+  leftPage = new THREE.Mesh(gL, lam({ map: SP[0].lT })); leftPage.position.y = Y0 + .001; leftPage.receiveShadow = true; book.add(leftPage);
+
+  coverPivot = new THREE.Group(); coverPivot.position.set(0, (Y0 + BT) / 2, 0); book.add(coverPivot);
+  const cover = sh(new THREE.Mesh(new THREE.BoxGeometry(BW, BT, BD), [clothMat, clothMat, coverMat, endMat, clothMat, clothMat]));
+  cover.position.set(BW / 2, Y0 / 2, 0); coverPivot.add(cover);
+
+  const spg = new THREE.BoxGeometry(.06, 1, BD); spg.translate(0, .5, 0);
+  spine = sh(new THREE.Mesh(spg, clothMat)); spine.position.set(-.03, 0, 0); book.add(spine);
+
+  const SEG = 32; const lg = new THREE.PlaneGeometry(W, D, SEG, 1); lg.rotateX(-Math.PI / 2); lg.translate(W / 2, 0, 0);
+  leafBase = Float32Array.from(lg.attributes.position.array);
+  leafFront = new THREE.Mesh(lg, lam({ map: SP[0].rT, side: THREE.FrontSide })); leafFront.castShadow = true;
+  leafBack = new THREE.Mesh(lg, lam({ map: SP[0].lTm, side: THREE.BackSide }));
+  leaf = new THREE.Group(); leaf.position.y = Y0 + .004; leaf.add(leafFront, leafBack); leaf.visible = false; book.add(leaf);
+  leaf.userData.SEG = SEG;
+}
+function setLeaf(t, dir) {
+  const SEG = leaf.userData.SEG, ds = W / SEG, theta = t * Math.PI, k = .55 * Math.sin(Math.PI * t) * dir;
+  const X = [0], Yv = [0]; let x = 0, y = 0;
+  for (let i = 1; i <= SEG; i++) { const s = (i - .5) * ds, phi = theta - k * (s / W); x += Math.cos(phi) * ds; y += Math.sin(phi) * ds; X.push(x); Yv.push(y); }
+  const pos = leafFront.geometry.attributes.position;
+  for (let v = 0; v < pos.count; v++) { const j = Math.round(leafBase[v * 3] / ds); pos.setXYZ(v, X[j], Yv[j] + .0005 * j, leafBase[v * 3 + 2]); }
+  pos.needsUpdate = true; leafFront.geometry.computeVertexNormals(); leafFront.geometry.computeBoundingSphere();
+}
+
+/* ------------------------------------------------------------------ pop-up spreads */
+const taps = [];
+function paperMesh(c, w, h, px = .5, py = 0) {
+  const geo = new THREE.PlaneGeometry(w, h); geo.translate((.5 - px) * w, (.5 - py) * h, 0);
+  const t = pageTex(c); t.anisotropy = 4;
+  const m = new THREE.Mesh(geo, lam({ map: t, alphaTest: .5, alphaToCoverage: true, side: THREE.DoubleSide }));
+  m.castShadow = true; m.receiveShadow = true; return m;
+}
+function buildSpread(sp, si) {
+  sp.lc = leftPageCanvas(sp); sp.lT = pageTex(sp.lc); sp.lTm = pageTex(sp.lc, true);
+  sp.rT = pageTex(rightPageCanvas(sp));
+  sp.root = new THREE.Group(); sp.root.visible = false; book.add(sp.root);
+  sp.o = {}; sp.hinges = [];
+  sp.layers.forEach((L, li) => {
+    const hinge = new THREE.Group(); hinge.position.set(L.x, Y0 + .006 + li * .005, L.z); sp.root.add(hinge); sp.hinges.push(hinge);
+    if (L.draw) { const [c, g] = layerCanvas(L.w, L.h); L.draw(g, L.w, L.h); grain(c); hinge.add(paperMesh(c, L.w, L.h)); }
+    (L.props || []).forEach(P => {
+      const [c, g] = layerCanvas(P.w, P.h); P.draw(g, P.w, P.h); grain(c);
+      const m = paperMesh(c, P.w, P.h, P.px ?? .5, P.py ?? 0);
+      const grp = new THREE.Group(); grp.position.set(P.x, P.y, P.dz ?? .012); grp.add(m); hinge.add(grp);
+      const rec = { grp, mesh: m, P, canvas: c };
+      if (P.live) { rec.orig = mk(c.width, c.height); rec.orig.getContext('2d').drawImage(c, 0, 0); }
+      if (P.tint) m.material = m.material.clone();
+      sp.o[P.id] = rec;
+      if (P.tap) { m.userData = { spread: si, id: P.id }; taps.push(m); }
+    });
+  });
+}
+function setVanish(rec, p) {
+  const c = rec.canvas, g = c.getContext('2d'), w = c.width, h = c.height;
+  g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, w, h); g.drawImage(rec.orig, 0, 0);
+  if (p > 0) {
+    const x = p * (w * 1.25) - w * .1, soft = w * .18;
+    g.globalCompositeOperation = 'destination-out';
+    const gr = g.createLinearGradient(x - soft, 0, x, 0); gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = '#000'; g.fillRect(0, 0, Math.max(0, x - soft), h); g.fillStyle = gr; g.fillRect(x - soft, 0, soft, h);
+  }
+  g.restore(); rec.mesh.material.map.needsUpdate = true;
+}
+function setRise(sp, p, rising) {
+  const n = sp.hinges.length, stg = .1, span = 1 - (n - 1) * stg;
+  sp.hinges.forEach((hg, i) => {
+    const q = clamp((p - (rising ? i : n - 1 - i) * stg) / span, 0, 1), r = rising ? E.back(q) : q;
+    hg.rotation.x = -(Math.PI / 2) * (1 - r); hg.visible = r > .004;
+    if (rising && q > 0 && !hg.userData.popped) { hg.userData.popped = true; sfx.pop(.7 + i * .12); }
+  });
+}
+function rise(sp) { sp.hinges.forEach(h => h.userData.popped = false); return tween(1.5, p => setRise(sp, p, true)); }
+function fold(sp) { return tween(.55, p => setRise(sp, 1 - p, false), E.in); }
+
+/* ------------------------------------------------------------------ tweens */
+const tweens = [];
+function tween(dur, fn, ease = E.lin) { return new Promise(res => tweens.push({ t0: performance.now(), d: dur * (REDUCE ? .35 : 1) * 1000, fn, ease, res })); }
+const wait = ms => tween(ms / 1000, () => {});
+function runTweens(now) {
+  for (let i = tweens.length - 1; i >= 0; i--) { const t = tweens[i], p = Math.min(1, (now - t.t0) / t.d); t.fn(t.ease(p)); if (p >= 1) { tweens.splice(i, 1); t.res(); } }
+}
+
+/* ------------------------------------------------------------------ sound (synthesised, no files) */
+const sfx = (() => {
+  let ac = null, on = true, nb = null;
+  const ctx = () => { if (!on) return null; try { if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)(); if (ac.state === 'suspended') ac.resume(); } catch (e) { return null; } return ac; };
+  const noise = a => { if (nb) return nb; nb = a.createBuffer(1, a.sampleRate, a.sampleRate); const d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; return nb; };
+  const env = (a, g, t, peak, dur) => { g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + dur * .25); g.gain.exponentialRampToValueAtTime(.0001, t + dur); };
+  const burst = (type, f0, f1, dur, peak) => { const a = ctx(); if (!a) return; const t = a.currentTime, s = a.createBufferSource(); s.buffer = noise(a); const f = a.createBiquadFilter(); f.type = type; f.Q.value = .9; f.frequency.setValueAtTime(f0, t); f.frequency.exponentialRampToValueAtTime(f1, t + dur); const g = a.createGain(); env(a, g, t, peak, dur); s.connect(f).connect(g).connect(a.destination); s.start(t); s.stop(t + dur + .05); };
+  const tone = (f0, f1, dur, peak, type = 'sine', delay = 0) => { const a = ctx(); if (!a) return; const t = a.currentTime + delay, o = a.createOscillator(); o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur); const g = a.createGain(); env(a, g, t, peak, dur); o.connect(g).connect(a.destination); o.start(t); o.stop(t + dur + .05); };
+  return {
+    get on() { return on; }, set on(v) { on = v; },
+    unlock() { ctx(); },
+    flip() { burst('bandpass', 500, 2600, .7, .28); },
+    pop(r = 1) { burst('highpass', 1800 * r, 3000 * r, .06, .12); tone(420 * r, 160 * r, .09, .08); },
+    thud() { tone(110, 50, .3, .3); burst('lowpass', 400, 120, .2, .2); },
+    chime(fs) { fs.forEach((f, i) => tone(f, f * 1.002, .35, .07, 'triangle', i * .12)); },
+    gliss(a, b, d) { tone(a, b, d, .07, 'triangle'); },
+    sparkle() { [1200, 1500, 1800, 2200, 2600].forEach((f, i) => tone(f, f * 1.01, .25, .04, 'sine', i * .09)); },
+    pour() { burst('lowpass', 900, 500, 1.1, .09); },
+  };
+})();
+
+/* ------------------------------------------------------------------ state + navigation */
+const S = { cur: -1, busy: false, acting: false, cover: 0, read: false };
+function applyCover() {
+  const c = S.cover;
+  coverPivot.rotation.z = c * Math.PI;
+  const open = c > .965; leftBlock.visible = leftPage.visible = open;
+  const sy = lerp(Y0 + BT + .002, Y0 - .03, E.inOut(clamp(c * 1.4, 0, 1))); spine.scale.y = sy;
+}
+async function go(dir) {
+  if (S.busy || S.acting) return;
+  const n = S.cur + dir; if (n < -1 || n >= SP.length) return;
+  S.busy = true; hideBubble(); ui();
+  if (S.cur === -1) await openCover();
+  else if (n === -1) await closeCover();
+  else await turn(dir);
+  S.cur = n; S.busy = false; ui();
+}
+async function openCover() {
+  const sp = SP[0]; rightPage.material.map = sp.rT; leftPage.material.map = sp.lT;
+  sp.root.visible = true; sp.reset?.(sp.o); setRise(sp, 0, true);
+  sfx.flip(); sfx.thud(); let rp = null;
+  await tween(1.6, p => { S.cover = p; applyCover(); if (p > .62 && !rp) rp = rise(sp); }, E.inOut);
+  S.cur = 0; ui(); await rp;
+}
+async function closeCover() {
+  const sp = SP[0]; await fold(sp); sp.root.visible = false; sfx.flip();
+  await tween(1.3, p => { S.cover = 1 - p; applyCover(); }, E.inOut); sfx.thud();
+}
+async function turn(dir) {
+  const a = SP[S.cur], b = SP[S.cur + dir];
+  await fold(a); a.root.visible = false;
+  b.root.visible = true; b.reset?.(b.o); setRise(b, 0, true);
+  leaf.visible = true; sfx.flip(); let rp = null;
+  if (dir > 0) {
+    rightPage.material.map = b.rT; leafFront.material.map = a.rT; leafBack.material.map = b.lTm; setLeaf(0, 1);
+    await tween(1.15, p => { setLeaf(p, 1); if (p > .74 && !rp) rp = rise(b); }, E.inOut);
+    leftPage.material.map = b.lT;
+  } else {
+    leftPage.material.map = b.lT; leafFront.material.map = b.rT; leafBack.material.map = a.lTm; setLeaf(1, -1);
+    await tween(1.15, p => setLeaf(1 - p, -1), E.inOut);
+    rightPage.material.map = b.rT; rp = rise(b);
+  }
+  leaf.visible = false; S.cur += dir; ui(); await rp; S.cur -= dir;
+}
+async function act(id) {
+  if (S.busy || S.acting) return;
+  if (S.cur < 0) { go(1); return; }
+  const sp = SP[S.cur]; S.acting = true; ui();
+  try { await sp.action(sp.o, id); } finally { S.acting = false; ui(); }
+}
+
+/* ------------------------------------------------------------------ UI */
+const dotsEl = $('dots');
+for (let i = -1; i < SP.length; i++) dotsEl.appendChild(document.createElement('i'));
+function ui() {
+  const sp = SP[S.cur], closed = S.cur < 0, lock = S.busy || S.acting;
+  $('prev').disabled = closed || lock; $('next').disabled = S.cur >= SP.length - 1 || lock;
+  $('act').disabled = lock; $('read').disabled = closed;
+  $('act').textContent = closed ? 'Open the book' : sp.button(sp.o);
+  $('capTitle').textContent = closed ? "Alice’s Adventures in Wonderland" : sp.title;
+  $('capSub').textContent = closed ? 'Lewis Carroll, 1865 · with five moving scenes' : sp.hint;
+  $('where').textContent = closed ? 'The cover' : `${sp.chapter.replace(/\.$/, '')} · Page ${sp.page}`;
+  [...dotsEl.children].forEach((d, i) => d.classList.toggle('on', i === S.cur + 1));
+}
+$('prev').onclick = () => go(-1);
+$('next').onclick = () => go(1);
+$('act').onclick = () => { sfx.unlock(); act(); };
+$('snd').onclick = () => {
+  sfx.on = !sfx.on; $('snd').setAttribute('aria-pressed', String(sfx.on)); $('snd').setAttribute('aria-label', sfx.on ? 'Turn sound off' : 'Turn sound on');
+  $('sndWave').style.display = sfx.on ? '' : 'none'; $('sndOff').style.display = sfx.on ? 'none' : '';
+};
+function openReader() {
+  const sp = SP[S.cur]; if (!sp) return;
+  $('rCh').textContent = sp.chapter; $('rTitle').textContent = sp.title;
+  $('rBody').replaceChildren(...sp.paras.map(t => { const p = document.createElement('p'); if (t.startsWith('*')) { p.className = 'verse'; t = t.slice(1); } p.textContent = t; return p; }));
+  $('reader').hidden = false; $('rClose').focus();
+}
+$('read').onclick = openReader;
+$('rClose').onclick = () => { $('reader').hidden = true; $('read').focus(); };
+$('reader').addEventListener('click', e => { if (e.target === $('reader')) $('reader').hidden = true; });
+addEventListener('keydown', e => {
+  if (!$('reader').hidden) { if (e.key === 'Escape') $('reader').hidden = true; return; }
+  if (e.key === 'ArrowRight') go(1); else if (e.key === 'ArrowLeft') go(-1);
+  else if ((e.key === ' ' || e.key === 'Enter') && document.activeElement === canvas) { e.preventDefault(); sfx.unlock(); act(); }
+});
+
+/* speech bubble anchored to a 3D prop */
+const bubbleEl = $('bubble'); let bub = null;
+function bubble(txt, rec, yUnits, ms) { bubbleEl.textContent = txt; bub = { rec, y: yUnits, until: performance.now() + ms }; bubbleEl.classList.add('show'); }
+function hideBubble() { bub = null; bubbleEl.classList.remove('show'); }
+const tmpV = new THREE.Vector3();
+function placeBubble(now) {
+  if (!bub) return; if (now > bub.until) { hideBubble(); return; }
+  bub.rec.grp.localToWorld(tmpV.set(0, bub.y + .06, 0)).project(camera);
+  const x = (tmpV.x * .5 + .5) * innerWidth, y = (-tmpV.y * .5 + .5) * innerHeight;
+  const half = Math.min(120, bubbleEl.offsetWidth / 2);
+  bubbleEl.style.left = clamp(x, half + 12, innerWidth - half - 12) + 'px'; bubbleEl.style.top = clamp(y, 90, innerHeight) + 'px';
+}
+
+/* ------------------------------------------------------------------ camera: framing + drag to look around */
+const cam = { yaw: 0, pitch: .78, zoom: 1, tx: W / 2, dist: 14, tyaw: 0, tpitch: .78, intro: 1.3 };
+function targetFrame() {
+  const aspect = innerWidth / innerHeight, portrait = aspect < .95, closed = S.cur < 0 && S.cover < .5;
+  const vt = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)), ht = vt * aspect;
+  const fx = closed ? BW / 2 : portrait ? W / 2 + .1 : 0;
+  const halfW = closed ? 2.9 : portrait ? 2.55 : 4.75;
+  const halfH = closed ? 3.2 : portrait ? 3.6 : 3.95;
+  return { fx, dist: Math.max(halfW / ht, halfH / vt) };
+}
+const ptrs = new Map(); let dragMoved = 0, pinch0 = 0, zoom0 = 1;
+canvas.addEventListener('pointerdown', e => { canvas.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); dragMoved = 0; if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch0 = Math.hypot(a.x - b.x, a.y - b.y); zoom0 = cam.zoom; } });
+canvas.addEventListener('pointermove', e => {
+  const p = ptrs.get(e.pointerId);
+  if (!p) { hover(e); return; }
+  const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
+  if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; cam.zoom = clamp(zoom0 * pinch0 / Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)), .6, 1.4); dragMoved += 99; return; }
+  dragMoved += Math.abs(dx) + Math.abs(dy);
+  cam.tyaw = clamp(cam.tyaw - dx * .005, -.75, .75); cam.tpitch = clamp(cam.tpitch + dy * .004, .3, 1.2);
+});
+const endPtr = e => {
+  if (ptrs.has(e.pointerId) && ptrs.size === 1 && dragMoved < 6) { sfx.unlock(); pick(e); }
+  ptrs.delete(e.pointerId);
+};
+canvas.addEventListener('pointerup', endPtr); canvas.addEventListener('pointercancel', e => ptrs.delete(e.pointerId));
+canvas.addEventListener('wheel', e => { e.preventDefault(); cam.zoom = clamp(cam.zoom * (1 + e.deltaY * .001), .6, 1.4); }, { passive: false });
+canvas.addEventListener('dblclick', () => { cam.tyaw = 0; cam.tpitch = .78; cam.zoom = 1; });
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+function hitAt(e) {
+  ndc.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ndc, camera);
+  const live = taps.filter(m => m.userData.spread === S.cur && m.parent.parent.visible);
+  return ray.intersectObjects(live, false)[0];
+}
+function pick(e) {
+  if (S.cur < 0) { const r = (ray.setFromCamera(ndc.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1), camera), ray.intersectObject(coverPivot, true)); if (r.length) go(1); return; }
+  const h = hitAt(e); if (h) act(h.object.userData.id);
+}
+let hoverT = 0;
+function hover(e) { const now = performance.now(); if (now - hoverT < 60) return; hoverT = now; canvas.style.cursor = (S.cur >= 0 ? hitAt(e) : null) ? 'pointer' : 'grab'; }
+
+function resize() { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); }
+addEventListener('resize', resize);
+
+/* ------------------------------------------------------------------ main loop */
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  runTweens(now);
+  const f = targetFrame(), k = 1 - Math.pow(.02, dt);
+  cam.tx = lerp(cam.tx, f.fx, k * .8); cam.dist = lerp(cam.dist, f.dist, k * .8);
+  cam.intro = lerp(cam.intro, 1, k * .5);
+  cam.yaw = lerp(cam.yaw, cam.tyaw + (ptrs.size || REDUCE ? 0 : Math.sin(now * .00018) * .05), k); cam.pitch = lerp(cam.pitch, cam.tpitch, k);
+  const d = cam.dist * cam.zoom * cam.intro, T = new THREE.Vector3(cam.tx, 1.0, .35);
+  camera.position.set(T.x + d * Math.sin(cam.yaw) * Math.cos(cam.pitch), T.y + d * Math.sin(cam.pitch), T.z + d * Math.cos(cam.yaw) * Math.cos(cam.pitch));
+  camera.lookAt(T);
+  const sp = SP[S.cur]; if (sp && sp.tick && !S.busy) sp.tick(sp.o, now / 1000);
+  renderer.render(scene, camera);
+  placeBubble(now);
+  requestAnimationFrame(frame);
+}
+
+/* ------------------------------------------------------------------ boot */
+async function boot() {
+  try {
+    await Promise.race([
+      Promise.all(['40px "IM Fell English"', 'italic 40px "IM Fell English"', '40px "IM Fell English SC"'].map(f => document.fonts.load(f))),
+      new Promise(r => setTimeout(r, 3500)),
+    ]);
+  } catch (e) { /* fall back to Georgia */ }
+  SP.forEach(buildSpread);
+  buildBook(); applyCover(); resize(); ui();
+  requestAnimationFrame(t => { last = t; frame(t); });
+  $('loader').classList.add('gone');
+  setTimeout(() => { $('hint').style.opacity = 0; }, 7000);
+  window.__book = { go, act, S, SP, cam, leafAt(t, dir = 1) { leaf.visible = true; leafFront.material.map = SP[0].rT; leafBack.material.map = SP[1].lTm; setLeaf(t, dir); } };
+}
+boot();
+</script>
+</body>
+</html>
