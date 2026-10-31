@@ -206,6 +206,41 @@ textarea.bIn{font:italic 500 18px var(--font-book);line-height:1.4;resize:none}
 .bBack{flex:none;height:48px;padding:0 20px;border-radius:999px;border:1.5px solid var(--panel-line);background:transparent;color:var(--text);font:600 15px var(--font-ui);cursor:pointer}
 .bNext{flex:1;height:48px;border-radius:999px;border:0;background:var(--lantern);color:#2a1a06;font:700 16px var(--font-ui);cursor:pointer;box-shadow:0 0 24px rgba(255,200,103,.35)}
 .bNext:disabled{filter:grayscale(.6) brightness(.75);box-shadow:none}
+.vchip{position:fixed;left:50%;top:calc(60px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:3;display:flex;align-items:center;gap:10px;
+  max-width:calc(100% - 32px);background:rgba(16,21,42,.86);border:1px solid rgba(255,200,103,.45);color:#ffe2a8;border-radius:999px;padding:6px 6px 6px 14px;
+  font:600 14px var(--font-ui);box-shadow:0 8px 24px rgba(0,0,0,.35);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.vchip #vText{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vchip button{flex:none;width:30px;height:30px;border-radius:50%;border:0;background:var(--lantern);color:#2a1a06;display:grid;place-items:center;cursor:pointer}
+.bars{display:flex;align-items:flex-end;gap:2px;height:16px;flex:none}
+.bars i{width:3px;height:100%;border-radius:2px;background:var(--lantern);animation:bar 1s ease-in-out infinite}
+.bars i:nth-child(2){animation-delay:-.2s}.bars i:nth-child(3){animation-delay:-.45s}.bars i:nth-child(4){animation-delay:-.7s}.bars i:nth-child(5){animation-delay:-.3s}
+@keyframes bar{0%,100%{transform:scaleY(.25)}50%{transform:scaleY(1)}}
+.vchip.paused .bars i{animation-play-state:paused}
+.stCount{font-size:13px;color:var(--muted)}
+.stH{margin:0;font-family:var(--font-book);font-style:italic;font-weight:500;font-size:28px}
+.stSub{margin:4px 0 12px;color:var(--muted);font-size:14.5px;line-height:1.45}
+.stTip{background:rgba(255,200,103,.1);border:1px solid rgba(255,200,103,.35);border-radius:12px;padding:10px 12px;font-size:13.5px;line-height:1.5;margin-bottom:14px}
+.stTip b{color:#ffe2a8}
+.vRow{border:1px solid var(--panel-line);border-radius:16px;padding:12px 14px;margin-bottom:10px;background:rgba(255,255,255,.03)}
+.vRow.recorded{border-color:rgba(130,220,160,.5)}
+.vHead{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.vHead b{font-family:var(--font-book);font-style:italic;font-weight:500;font-size:19px}
+.vStat{flex:none;font-size:12px;border-radius:999px;padding:3px 9px;background:rgba(238,242,255,.1);color:var(--muted)}
+.vRow.recorded .vStat{background:rgba(130,220,160,.18);color:#a8f0c0}
+.vRow details{margin:8px 0}
+.vRow summary{cursor:pointer;color:var(--lantern);font-size:13.5px}
+.vWords{margin-top:8px;background:#f7f3ea;color:var(--ink);border-radius:10px;padding:10px 12px;font-family:var(--font-book);font-size:18px;line-height:1.5;max-height:46vh;overflow:auto}
+.vWords p{margin:0 0 8px}
+.vBtns{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.vBtns button{height:38px;border-radius:999px;padding:0 14px;border:1.5px solid var(--panel-line);background:transparent;color:var(--text);font:600 14px var(--font-ui);cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.vBtns button.main{background:var(--lantern);border-color:var(--lantern);color:#2a1a06}
+.vBtns button.rec{background:#e2455f;border-color:#e2455f;color:#fff}
+.vBtns button:disabled{opacity:.5;cursor:default}
+.vMsg{font-size:13px;color:var(--muted);margin-top:6px;min-height:0}
+.vMsg:empty{display:none}
+.vLive{display:flex;align-items:center;gap:10px;margin-top:8px;color:#ffb3c0;font:700 15px var(--font-ui);font-variant-numeric:tabular-nums}
+.vLive .dot{width:10px;height:10px;border-radius:50%;background:#e2455f;animation:bar 1s infinite}
+@media (prefers-reduced-motion:reduce){.bars i,.vLive .dot{animation:none}}
 @media (max-width:560px){
   .mkBtn{height:32px;padding:0 12px}
   .dots{display:none} .chip span{display:none} #whereChip{display:none}
@@ -222,6 +257,7 @@ textarea.bIn{font:italic 500 18px var(--font-book);line-height:1.4;resize:none}
   <div class="tright"><button class="mkBtn" id="mkBtn">Make your own</button><div class="chip" id="whereChip"><span id="where">The cover</span></div></div>
 </div>
 <div class="toast" id="toast" hidden role="status"></div>
+<div class="vchip" id="vchip" hidden><span class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span><span id="vText"></span><button id="vPause" aria-label="Pause the voice"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></button></div>
 <div class="bubble" id="bubble" role="status" aria-live="polite"></div>
 <div class="hint" id="hint">Swipe the page to turn it · Tap the characters</div>
 <div class="swipe" id="swipe" hidden aria-hidden="true"><svg viewBox="0 0 48 24" width="48" height="24"><path d="M44 12H8M16 4l-8 8 8 8" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Swipe the page to turn it</span></div>
@@ -288,12 +324,28 @@ textarea.bIn{font:italic 500 18px var(--font-book);line-height:1.4;resize:none}
       <section class="bStep" data-step="3">
         <h3>Your book is ready</h3>
         <p class="bSum" id="bSum"></p>
-        <ul class="bList"><li>7 pop-up scenes with the child as the hero</li><li>Name and words changed on every page</li><li>Your name on the cover and your message inside</li></ul>
+        <ul class="bList"><li>7 pop-up scenes with the child as the hero</li><li>Name and words changed on every page</li><li>Your name on the cover and your message inside</li><li>Next, if you like: read the story in your own voice (Aa › Read it in your own voice)</li></ul>
         <p class="bShare"><b>To share it:</b> after you create it, use this page’s <b>Share</b> menu and copy the link. That link opens this child’s own book.</p>
       </section>
     </div>
     <div class="bFoot"><button class="bBack" id="bBack">Back</button><button class="bNext" id="bNext">Next</button></div>
   </div>
+</div>
+<div class="builder" id="studio" hidden>
+  <div class="bWrap" role="dialog" aria-modal="true" aria-labelledby="stHead">
+    <div class="bTop">
+      <button class="icon" id="stClose" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      <span class="stCount" id="stCount"></span>
+    </div>
+    <div class="bBody">
+      <h3 class="stH" id="stHead">Read it in your voice</h3>
+      <p class="stSub" id="stSub"></p>
+      <div class="stTip" id="stTip"></div>
+      <div id="stRows"></div>
+    </div>
+    <div class="bFoot"><button class="bNext" id="stDone">Done</button></div>
+  </div>
+  <input type="file" id="voFile" accept="audio/*,video/mp4,video/webm,.m4a,.mp3,.wav,.ogg,.opus,.aac,.amr,.3gp,.webm" hidden>
 </div>
 <div class="settings" id="settings" hidden>
   <div class="setSheet" role="dialog" aria-modal="true" aria-labelledby="setTitle">
@@ -306,8 +358,10 @@ textarea.bIn{font:italic 500 18px var(--font-book);line-height:1.4;resize:none}
     </div>
     <div class="setRow"><span>Text size</span>
       <div class="seg" role="radiogroup" aria-label="Text size"><button data-size="s" role="radio" aria-label="Small">A</button><button data-size="m" role="radio" aria-label="Medium">A</button><button data-size="l" role="radio" aria-label="Large">A</button></div></div>
+    <label class="setRow" id="famRow" hidden><span>Play the family voice<small id="famSub">Recorded for this book</small></span><input type="checkbox" id="optFamily" role="switch" checked></label>
     <label class="setRow" id="aloudRow"><span>Read the story aloud<small>A gentle voice reads each page</small></span><input type="checkbox" id="optAloud" role="switch"></label>
     <label class="setRow"><span>Sound effects</span><input type="checkbox" id="optSound" role="switch" checked></label>
+    <button class="setRow linkRow" id="setVoice" hidden><span>Read it in your own voice<small>Record each page for the child to hear</small></span><span aria-hidden="true">›</span></button>
     <button class="setRow linkRow" id="setMake"><span>Make this book for your child<small>Name, look and your message</small></span><span aria-hidden="true">›</span></button>
     <p class="setNote" id="setNote" hidden>Layouts apply when the phone is held upright.</p>
     <button class="done" id="setDone">Start reading</button>
@@ -1585,7 +1639,7 @@ async function endTurn(c, commit, full) {
     S.cur = c.n; applyShot(SP[S.cur]); ui(); if (rp) await rp;
     const cs = SP[S.cur]; if (cs?.intro) setTimeout(() => { if (SP[S.cur] === cs && !S.busy) cs.intro(cs.o); }, 150);
     if (S.cur === 0 && portrait() && !prefs.chosen) openSettings(); else if (S.cur === 0 && !S.swiped) showSwipeHint();
-    if (prefs.aloud && S.cur >= 0) setTimeout(speakPage, 300);
+    if (S.cur >= 0) setTimeout(() => readPage(false), 300);
   } else {
     if (c.kind === 'open') b.root.visible = false;
     else if (c.kind === 'close') rp = rise(a);
@@ -1616,7 +1670,7 @@ function ui() {
 $('prev').onclick = () => go(-1); $('next').onclick = () => go(1);
 $('act').onclick = () => { sfx.unlock(); act(); };
 /* ---- reading preferences (kept on this device) */
-const prefs = (() => { const d = { layout: 'split', size: 'm', aloud: false, sound: true, chosen: false }; try { return { ...d, ...JSON.parse(localStorage.getItem('fox-prefs') || '{}') }; } catch (e) { return d; } })();
+const prefs = (() => { const d = { layout: 'split', size: 'm', aloud: false, sound: true, chosen: false, family: true }; try { return { ...d, ...JSON.parse(localStorage.getItem('fox-prefs') || '{}') }; } catch (e) { return d; } })();
 function savePrefs() { try { localStorage.setItem('fox-prefs', JSON.stringify(prefs)); } catch (e) { } }
 sfx.on = prefs.sound;
 let tfShow = false;
@@ -1624,13 +1678,16 @@ function syncSettings() {
   document.querySelectorAll('.lay').forEach(b => b.setAttribute('aria-checked', String(b.dataset.layout === prefs.layout)));
   document.querySelectorAll('.seg button').forEach(b => b.setAttribute('aria-checked', String(b.dataset.size === prefs.size)));
   $('optAloud').checked = prefs.aloud; $('optSound').checked = prefs.sound; $('aloudRow').hidden = !TTS; $('setNote').hidden = portrait();
+  const nv = voiceCount(); $('famRow').hidden = !nv; $('optFamily').checked = prefs.family; $('famSub').textContent = `${nv} of ${SP.length} pages recorded by ${CFG.g}`; $('setVoice').hidden = !VOICE.canRecord;
   $('story').dataset.layout = prefs.layout; $('story').dataset.size = prefs.size; $('speakBtn').hidden = !TTS;
 }
 function openSettings() { syncSettings(); $('settings').hidden = false; hideSwipeHint(); $('setDone').focus(); }
 function closeSettings() { $('settings').hidden = true; prefs.chosen = true; savePrefs(); if (S.cur >= 0 && !S.swiped) showSwipeHint(); }
 document.querySelectorAll('.lay').forEach(b => b.onclick = () => { prefs.layout = b.dataset.layout; tfShow = prefs.layout === 'textfirst'; savePrefs(); syncSettings(); storyFor = null; storyUI(); });
 document.querySelectorAll('.seg button').forEach(b => b.onclick = () => { prefs.size = b.dataset.size; savePrefs(); syncSettings(); });
-$('optAloud').onchange = e => { prefs.aloud = e.target.checked; savePrefs(); if (prefs.aloud) speakPage(); else stopSpeak(); };
+$('optAloud').onchange = e => { prefs.aloud = e.target.checked; savePrefs(); if (prefs.aloud) readPage(true); else stopSpeak(); };
+$('optFamily').onchange = e => { prefs.family = e.target.checked; savePrefs(); if (!prefs.family) stopFamily(); };
+$('setVoice').onclick = () => { $('settings').hidden = true; openStudio(); };
 $('optSound').onchange = e => { prefs.sound = sfx.on = e.target.checked; savePrefs(); };
 $('setBtn').onclick = openSettings; $('setDone').onclick = closeSettings;
 $('settings').addEventListener('click', e => { if (e.target === $('settings')) closeSettings(); });
@@ -1647,7 +1704,7 @@ function replayRise() {
 const TTS = 'speechSynthesis' in window ? window.speechSynthesis : null;
 let ttsRun = 0;
 function pickVoice() { const vs = TTS.getVoices(); return vs.find(v => /en[-_]GB/i.test(v.lang) && /female|libby|sonia|serena|kate|martha|hazel/i.test(v.name)) || vs.find(v => /en[-_]GB/i.test(v.lang)) || vs.find(v => /^en/i.test(v.lang)) || null; }
-function stopSpeak() { ttsRun++; try { TTS?.cancel(); } catch (e) { } document.querySelectorAll('.sBody p.speaking').forEach(p => p.classList.remove('speaking')); $('speakBtn').setAttribute('aria-pressed', 'false'); }
+function stopSpeak() { stopFamily(); ttsRun++; try { TTS?.cancel(); } catch (e) { } document.querySelectorAll('.sBody p.speaking').forEach(p => p.classList.remove('speaking')); $('speakBtn').setAttribute('aria-pressed', 'false'); }
 function speakPage() {
   if (!TTS || S.cur < 0) return; stopSpeak(); storyFill();
   const run = ++ttsRun, items = [...$('sBody').children]; let i = 0; $('speakBtn').setAttribute('aria-pressed', 'true');
@@ -1661,10 +1718,185 @@ function speakPage() {
   };
   next();
 }
-$('speakBtn').onclick = () => { if ($('speakBtn').getAttribute('aria-pressed') === 'true') stopSpeak(); else speakPage(); };
+$('speakBtn').onclick = () => { if ($('speakBtn').getAttribute('aria-pressed') === 'true') stopSpeak(); else readPage(true); };
 let swipeT = 0;
 function showSwipeHint() { $('swipe').hidden = false; clearTimeout(swipeT); swipeT = setTimeout(hideSwipeHint, 5000); }
 function hideSwipeHint() { $('swipe').hidden = true; }
+/* ---- family voice: recordings made for this book, played when a page opens */
+const VOICE = { mode: 'local', art: null, canRecord: false, live: !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder) };
+let VOX = { books: {} };
+const localUrl = {};
+const VO = new Audio(); VO.preload = 'auto';
+function fnv(str) { let h = 0x811c9dc5; for (const ch of str) { h ^= ch.codePointAt(0); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(36); }
+const bookId = () => 'b' + fnv((CFG.n + '|' + CFG.g).toLowerCase());
+const voicePages = () => VOX.books[bookId()]?.pages || {};
+const voiceCount = () => Object.keys(voicePages()).length;
+function voiceUrl(i) { const e = voicePages()[i]; if (!e) return null; return localUrl[bookId() + ':' + i] || (e.path ? e.path : null); }
+const idb = (() => {
+  let dbp; const open = () => dbp ??= new Promise((res, rej) => { const r = indexedDB.open('fox-voices', 1); r.onupgradeneeded = () => r.result.createObjectStore('v'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+  const tx = async (mode, fn) => { const d = await open(); return new Promise((res, rej) => { const t = d.transaction('v', mode), q = fn(t.objectStore('v')); t.oncomplete = () => res(q?.result); t.onerror = () => rej(t.error); }); };
+  return { get: k => tx('readonly', s => s.get(k)), put: (k, v) => tx('readwrite', s => s.put(v, k)), del: k => tx('readwrite', s => s.delete(k)), keys: () => tx('readonly', s => s.getAllKeys()) };
+})();
+async function initVoices() {
+  try {
+    if (window.claude?.use) {
+      VOICE.mode = 'artifact'; VOICE.live = false;
+      const [art, user] = await Promise.all([claude.use('artifact'), claude.use('user')]);
+      VOICE.art = art; let edit = false; try { edit = !!(await user?.canEdit()); } catch (e) { }
+      VOICE.canRecord = !!art && edit;
+      try { const r = await fetch('voices/index.json', { cache: 'no-store' }); if (r.ok) { const j = await r.json(); if (j && typeof j.books === 'object') VOX = j; } } catch (e) { }
+    } else {
+      VOICE.mode = 'local'; VOICE.canRecord = true;
+      try { for (const k of await idb.keys()) { const v = await idb.get(k); if (!v?.blob) continue; const [bid, i] = String(k).split(':'); (VOX.books[bid] ??= { pages: {} }).pages[i] = { dur: v.dur || 0, local: true }; localUrl[k] = URL.createObjectURL(v.blob); } } catch (e) { }
+    }
+  } catch (e) { }
+  syncSettings();
+}
+function stopFamily() { try { VO.pause(); } catch (e) { } $('vchip').hidden = true; }
+function readerName() { const g = CFG.g.trim(); return g ? `${g} is reading` : 'Your family is reading'; }
+async function playFamily(i) {
+  const url = voiceUrl(i); if (!url) return false;
+  stopFamily(); try { TTS?.cancel(); } catch (e) { }
+  VO.src = url; $('vText').textContent = readerName(); $('vchip').classList.remove('paused'); $('vchip').hidden = false; $('speakBtn').setAttribute('aria-pressed', 'true');
+  try { await VO.play(); return true; }
+  catch (e) { $('vchip').classList.add('paused'); $('vText').textContent = `Tap to hear ${CFG.g.trim() || 'your family'}`; return true; }
+}
+VO.onended = () => { $('vchip').hidden = true; $('speakBtn').setAttribute('aria-pressed', 'false'); };
+$('vPause').onclick = () => { if (VO.paused) { VO.play().catch(() => { }); $('vchip').classList.remove('paused'); $('vText').textContent = readerName(); } else { VO.pause(); $('vchip').classList.add('paused'); } };
+$('vchip').onclick = e => { if (e.target.closest('#vPause')) return; if (VO.paused) $('vPause').click(); };
+function readPage(force) {
+  if (S.cur < 0) return;
+  if (prefs.family && voiceUrl(S.cur)) { playFamily(S.cur); return; }
+  if (force || prefs.aloud) speakPage();
+}
+/* studio: one row per page */
+let stBusy = null, rec = null;
+const pageLabel = (sp, i) => sp.dedication ? 'Dedication' : `${sp.numeral} · ${sp.title}`;
+const fmtDur = d => d ? `${Math.floor(d / 60)}:${String(Math.round(d % 60)).padStart(2, '0')}` : '';
+function openStudio() { stopSpeak(); $('studio').hidden = false; renderStudio(); }
+function closeStudio() { if (rec) stopLive(true); $('studio').hidden = true; syncSettings(); }
+function renderStudio() {
+  const n = voiceCount(), pages = voicePages();
+  $('stCount').textContent = `${n} of ${SP.length} recorded`;
+  $('stSub').textContent = `${CFG.g.trim() ? CFG.g.trim() + '’s' : 'Your'} voice will play when ${tn(CFG)} opens each page. ${SP.length} pages, about 4 minutes in all.`;
+  $('stTip').innerHTML = VOICE.live
+    ? '<b>Tip:</b> find a quiet room, open the words, tap <b>Record</b> and read slowly. Smile while you read; children can hear it.'
+    : '<b>How to record:</b> open the words for a page, record yourself reading them with your phone’s voice recorder or a WhatsApp voice note, then tap <b>Upload recording</b> and pick that file. MP3, M4A, WAV and WebM work best.';
+  $('stRows').replaceChildren(...SP.map((sp, i) => {
+    const e = pages[i], row = document.createElement('div'); row.className = 'vRow' + (e ? ' recorded' : ''); row.dataset.i = i;
+    const head = document.createElement('div'); head.className = 'vHead';
+    const b = document.createElement('b'); b.textContent = T(pageLabel(sp, i)); const st = document.createElement('span'); st.className = 'vStat'; st.textContent = e ? `Recorded ${fmtDur(e.dur)}`.trim() : 'Not recorded';
+    head.append(b, st);
+    const det = document.createElement('details'); const sum = document.createElement('summary'); sum.textContent = 'Show the words to read';
+    const words = document.createElement('div'); words.className = 'vWords'; P(sp).forEach(t => { const pp = document.createElement('p'); pp.textContent = t.replace(/^[§#]/, ''); words.append(pp); });
+    if (sp.end) { const pp = document.createElement('p'); pp.textContent = 'The End.'; words.append(pp); }
+    det.append(sum, words); if (rec?.i === i) det.open = true;
+    const btns = document.createElement('div'); btns.className = 'vBtns';
+    const mk = (label, cls, fn) => { const x = document.createElement('button'); x.type = 'button'; x.textContent = label; if (cls) x.className = cls; x.onclick = fn; x.disabled = !!stBusy && stBusy !== i; return x; };
+    if (rec?.i === i) btns.append(mk('Stop and save', 'rec', () => stopLive(false)));
+    else {
+      if (VOICE.live) btns.append(mk(e ? 'Record again' : 'Record', e ? '' : 'main', () => startLive(i, det)));
+      btns.append(mk(e ? 'Replace with a file' : 'Upload recording', VOICE.live || e ? '' : 'main', () => { $('voFile').dataset.i = i; $('voFile').value = ''; $('voFile').click(); }));
+      if (e) { btns.append(mk('Play', '', () => playFamily(i)), mk('Remove', '', () => removeVoice(i))); }
+    }
+    const msg = document.createElement('div'); msg.className = 'vMsg'; msg.id = 'vMsg' + i;
+    row.append(head, det, btns, msg);
+    if (rec?.i === i) { const live = document.createElement('div'); live.className = 'vLive'; live.innerHTML = '<span class="dot"></span><span id="vTimer">0:00</span>'; row.insertBefore(live, msg); }
+    return row;
+  }));
+}
+function rowMsg(i, t) { const m = $('vMsg' + i); if (m) m.textContent = t; }
+async function probeDuration(blob) { try { const ac = new (window.AudioContext || window.webkitAudioContext)(); const buf = await ac.decodeAudioData(await blob.arrayBuffer()); ac.close(); return buf.duration; } catch (e) { return 0; } }
+async function transcode(file, onP) {
+  const ac = new (window.AudioContext || window.webkitAudioContext)();
+  let buf; try { buf = await ac.decodeAudioData(await file.arrayBuffer()); } catch (e) { ac.close(); throw new Error('decode'); }
+  if (!window.MediaRecorder) { ac.close(); throw new Error('encode'); }
+  const dest = ac.createMediaStreamDestination(), src = ac.createBufferSource(); src.buffer = buf; src.connect(dest);
+  const mime = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm'].find(m => MediaRecorder.isTypeSupported?.(m));
+  const mr = new MediaRecorder(dest.stream, mime ? { mimeType: mime, audioBitsPerSecond: 64000 } : {}), chunks = [];
+  mr.ondataavailable = e => e.data.size && chunks.push(e.data); const stopped = new Promise(r => mr.onstop = r);
+  mr.start(500); src.start(); const t0 = ac.currentTime, iv = setInterval(() => onP(Math.min(1, (ac.currentTime - t0) / buf.duration)), 400);
+  await new Promise(r => src.onended = r); clearInterval(iv); mr.stop(); await stopped; ac.close();
+  const type = (mr.mimeType || chunks[0]?.type || 'audio/webm').split(';')[0];
+  return { blob: new Blob(chunks, { type }), ext: type.includes('mp4') ? 'mp4' : 'webm', dur: buf.duration };
+}
+function extFor(file) {
+  const n = (file.name || '').toLowerCase(), t = file.type || '';
+  if (/\.mp3$/.test(n) || /audio\/mp(eg|3)/.test(t)) return 'mp3';
+  if (/\.(m4a|mp4)$/.test(n) || /audio\/(mp4|x-m4a)|video\/mp4/.test(t)) return 'mp4';
+  if (/\.webm$/.test(n) || /webm/.test(t)) return 'webm';
+  if ((/\.wav$/.test(n) || /wav/.test(t)) && file.size < 6e6) return 'wav';
+  return null;
+}
+$('voFile').onchange = async e => {
+  const f = e.target.files?.[0], i = +$('voFile').dataset.i; if (!f || Number.isNaN(i)) return;
+  if (f.size > 25e6) { rowMsg(i, 'That file is over 25 MB. Please use a shorter recording.'); return; }
+  stBusy = i; renderStudio(); rowMsg(i, 'Getting your recording ready…');
+  try {
+    let blob = f, ext = extFor(f), dur = 0;
+    if (!ext) { const r = await transcode(f, p => rowMsg(i, `Converting your recording… ${Math.round(p * 100)}%`)); blob = r.blob; ext = r.ext; dur = r.dur; }
+    else dur = await probeDuration(f);
+    if (blob.size > 15e6) throw new Error('size');
+    await storeVoice(i, blob, ext, dur);
+  } catch (err) {
+    stBusy = null; renderStudio();
+    rowMsg(i, err.message === 'decode' ? 'This phone can’t open that kind of file. Please save it as MP3 or M4A and try again.' : err.message === 'size' ? 'That recording is too big. Please keep each page under 2 minutes.' : 'Something went wrong while saving. Please try again.');
+  }
+};
+async function storeVoice(i, blob, ext, dur) {
+  const bid = bookId();
+  if (VOICE.mode === 'artifact') {
+    if (!VOICE.art) throw new Error('save');
+    rowMsg(i, 'Saving to the book…');
+    const book = VOX.books[bid] ??= { name: CFG.n, pages: {} }, old = book.pages[i]?.path;
+    const path = `voices/${bid}/p${i}-${Date.now().toString(36)}.${ext}`;
+    book.name = CFG.n; book.pages[i] = { path, dur: Math.round(dur * 10) / 10 };
+    const files = { [path]: new Blob([blob]), 'voices/index.json': { content: JSON.stringify(VOX), contentType: 'application/json' } };
+    if (old && old !== path) files[old] = null;
+    try { await VOICE.art.publish(files); }
+    catch (err) {
+      if (old) book.pages[i].path = old; else delete book.pages[i];
+      const c = err?.code; stBusy = null; renderStudio();
+      rowMsg(i, c === 'capability_disabled' ? 'Saving voices is off while the book is shared publicly. Turn public sharing off, record, then share again.' : c === 'not_writer' || c === 'not_granted' ? 'Only the book’s owner or editors can add voices.' : c === 'too_large' ? 'That recording is too big to save.' : c === 'conflict' ? 'The book was just updated somewhere else. It will reload; please try again.' : 'Could not save. Please try again in a moment.');
+      return;
+    }
+    localUrl[bid + ':' + i] = URL.createObjectURL(blob);
+  } else {
+    await idb.put(bid + ':' + i, { blob, dur, ext });
+    (VOX.books[bid] ??= { pages: {} }).pages[i] = { dur, local: true };
+    localUrl[bid + ':' + i] = URL.createObjectURL(blob);
+  }
+  stBusy = null; renderStudio(); rowMsg(i, 'Saved. This voice now plays when the page opens.'); syncSettings();
+}
+async function removeVoice(i) {
+  const bid = bookId(), book = VOX.books[bid], e = book?.pages[i]; if (!e) return;
+  stBusy = i; renderStudio(); stopFamily();
+  try {
+    if (VOICE.mode === 'artifact') { delete book.pages[i]; await VOICE.art.publish({ ...(e.path ? { [e.path]: null } : {}), 'voices/index.json': { content: JSON.stringify(VOX), contentType: 'application/json' } }); }
+    else await idb.del(bid + ':' + i);
+    delete book.pages[i]; delete localUrl[bid + ':' + i];
+  } catch (err) { book.pages[i] = e; rowMsg(i, 'Could not remove it. Please try again.'); }
+  stBusy = null; renderStudio(); syncSettings();
+}
+/* recording inside the page, where the browser allows the microphone (e.g. when the book is hosted on your own website) */
+async function startLive(i, det) {
+  let stream; try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); }
+  catch (e) { VOICE.live = false; renderStudio(); rowMsg(i, 'The microphone is not available here, so please upload a recording instead.'); return; }
+  const mime = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm'].find(m => MediaRecorder.isTypeSupported?.(m));
+  const mr = new MediaRecorder(stream, mime ? { mimeType: mime, audioBitsPerSecond: 64000 } : {}), chunks = [];
+  mr.ondataavailable = e => e.data.size && chunks.push(e.data);
+  rec = { i, mr, stream, chunks, t0: performance.now() }; stBusy = i; mr.start(500); renderStudio();
+  rec.iv = setInterval(() => { const el = $('vTimer'); if (el) el.textContent = fmtDur((performance.now() - rec.t0) / 1000) || '0:00'; if (performance.now() - rec.t0 > 180000) stopLive(false); }, 250);
+}
+async function stopLive(discard) {
+  const r = rec; if (!r) return; rec = null; clearInterval(r.iv);
+  const stopped = new Promise(res => r.mr.onstop = res); r.mr.stop(); await stopped; r.stream.getTracks().forEach(t => t.stop());
+  if (discard) { stBusy = null; renderStudio(); return; }
+  const type = (r.mr.mimeType || 'audio/webm').split(';')[0], blob = new Blob(r.chunks, { type }), dur = (performance.now() - r.t0) / 1000;
+  try { await storeVoice(r.i, blob, type.includes('mp4') ? 'mp4' : 'webm', dur); } catch (e) { stBusy = null; renderStudio(); rowMsg(r.i, 'Could not save. Please try again.'); }
+}
+$('stClose').onclick = closeStudio; $('stDone').onclick = closeStudio;
+
 /* ---- the character builder */
 let draft = null, bStep = 0;
 function withCfg(c, fn) { const saved = CFG; CFG = c; try { fn(); } finally { CFG = saved; } }
@@ -1761,6 +1993,7 @@ function storyUI() {
 } $('rClose').onclick = () => { $('reader').hidden = true; $('read').focus(); };
 $('reader').addEventListener('click', e => { if (e.target === $('reader')) $('reader').hidden = true; });
 addEventListener('keydown', e => {
+  if (!$('studio').hidden) { if (e.key === 'Escape') closeStudio(); return; }
   if (!$('builder').hidden) { if (e.key === 'Escape') closeBuilder(); return; }
   if (!$('settings').hidden) { if (e.key === 'Escape') closeSettings(); return; }
   if (!$('reader').hidden) { if (e.key === 'Escape') $('reader').hidden = true; return; }
@@ -1868,10 +2101,10 @@ function frame(now) {
 /* ---- boot */
 async function boot() {
   try { await Promise.race([Promise.all([`500 40px "Cormorant Garamond"`, `italic 500 40px "Cormorant Garamond"`, `600 40px "Cormorant Garamond"`, `500 40px "Cormorant SC"`, `40px "Pinyon Script"`].map(f => document.fonts.load(f))), new Promise(r => setTimeout(r, 3500))]); } catch (e) { }
-  ensure(0); buildBook(); applyCover(); applyMood(moodNow); syncSettings(); buildChips(); namesUI(); resize(); ui();
+  ensure(0); buildBook(); applyCover(); applyMood(moodNow); syncSettings(); buildChips(); namesUI(); resize(); ui(); initVoices();
   requestAnimationFrame(t => { last = t; frame(t); });
   $('loader').classList.add('gone'); setTimeout(() => { $('hint').style.opacity = 0; }, 7000);
-  window.__book = { go, act, S, SP, cam, peel, prefs, openSettings, closeSettings, openBuilder, get CFG() { return CFG; } }; setTimeout(() => ensure(1), 900);
+  window.__book = { go, act, S, SP, cam, peel, prefs, openSettings, closeSettings, openBuilder, openStudio, storeVoice, get CFG() { return CFG; } }; setTimeout(() => ensure(1), 900);
 }
 boot();
 </script>
