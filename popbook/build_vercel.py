@@ -35,6 +35,7 @@ TAIL = '\n</body>\n</html>\n'
 META = {
     'book': ('The Fox of the First Snow', 'A 3D pop-up storybook where your child is the hero. Swipe the pages, hear it in English or Urdu, even in your own voice.', '/og-image.png', '/favicon.svg'),
     'frog': ('The Queen and the Frog', 'A 3D pop-up storybook by Shamroze for Queen Zainab: a golden ball, a brave frog and a little kindness magic.', '/og-image.png', '/favicon.svg'),
+    'race': ('Queen Zainab Runs', 'A 3D pop-up storybook by Shamroze for Queen Zainab: a splashy rain race with Mikaal, won with a helping hand.', '/og-image.png', '/favicon.svg'),
     'alice': ('Alice Pop-Up Edition', 'An interactive 3D pop-up edition of Alice’s Adventures in Wonderland.', '/og-image.png', '/favicon.svg'),
 }
 
@@ -75,6 +76,7 @@ An interactive 3D pop-up storybook where the child is the hero. Static site: pla
 no build step and no server code. Three.js and the fonts load from public CDNs.
 
 - `/` the storybook (English and Urdu, character builder, family voice)
+- `/race` Queen Zainab Runs (a rain race with Mikaal, English and Urdu)
 - `/frog` The Queen and the Frog (Shamroze for Queen Zainab, English and Urdu)
 - `/alice` the Alice in Wonderland pop-up demo
 
@@ -83,7 +85,7 @@ no build step and no server code. Three.js and the fonts load from public CDNs.
 1. Go to github.com, click **New repository**, give it a name (for example `fox-storybook`),
    keep it Public or Private, and click **Create repository**.
 2. On the new repository page click **uploading an existing file**.
-3. Drag in **everything inside this folder** (`index.html`, `frog`, `alice`, `favicon.svg`,
+3. Drag in **everything inside this folder** (`index.html`, `race`, `frog`, `alice`, `favicon.svg`,
    `og-image.png`, `vercel.json`, `README.md`) and click **Commit changes**.
 
 Or with git:
@@ -149,6 +151,8 @@ def main():
     (OUT / 'alice' / 'index.html').write_text(wrap((HERE / 'index.html').read_text(), 'alice'))
     (OUT / 'frog').mkdir()
     (OUT / 'frog' / 'index.html').write_text(wrap((HERE / 'frog-prince.html').read_text(), 'frog'))
+    (OUT / 'race').mkdir()
+    (OUT / 'race' / 'index.html').write_text(wrap((HERE / 'zainab-runs.html').read_text(), 'race'))
     (OUT / 'favicon.svg').write_text(FAVICON)
     (OUT / 'vercel.json').write_text(VERCEL)
     (OUT / '.gitignore').write_text('.vercel\n.DS_Store\nnode_modules\n')
