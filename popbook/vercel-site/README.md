@@ -4,6 +4,7 @@ An interactive 3D pop-up storybook where the child is the hero. Static site: pla
 no build step and no server code. Three.js and the fonts load from public CDNs.
 
 - `/` the storybook (English and Urdu, character builder, family voice)
+- `/frog` The Queen and the Frog (Shamroze for Queen Zainab, English and Urdu)
 - `/alice` the Alice in Wonderland pop-up demo
 
 ## 1. Put it on GitHub
@@ -11,7 +12,7 @@ no build step and no server code. Three.js and the fonts load from public CDNs.
 1. Go to github.com, click **New repository**, give it a name (for example `fox-storybook`),
    keep it Public or Private, and click **Create repository**.
 2. On the new repository page click **uploading an existing file**.
-3. Drag in **everything inside this folder** (`index.html`, `alice`, `favicon.svg`,
+3. Drag in **everything inside this folder** (`index.html`, `frog`, `alice`, `favicon.svg`,
    `og-image.png`, `vercel.json`, `README.md`) and click **Commit changes**.
 
 Or with git:
