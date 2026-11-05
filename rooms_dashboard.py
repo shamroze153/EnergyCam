@@ -24,6 +24,7 @@ work here by design: it is granted the timestamp column and nothing more.
 """
 import os
 from datetime import timedelta, timezone
+from urllib.parse import quote
 
 import numpy as np
 import pandas as pd
@@ -358,6 +359,21 @@ def drawn_room(row, ink):
              empty_label)
 
 
+def linked(html, room):
+    """Make a card open that room below.
+
+    Streamlit cannot attach a click handler to raw HTML, but it does read the
+    query string, so the card becomes a link to this same page carrying the
+    room's name. Clicking reloads and the detail panel opens on it, which is
+    what clicking a room is supposed to do.
+    """
+    # The anchor matters as much as the query string. Without it the page
+    # reloads with the room selected and the reader sees nothing happen,
+    # because the panel that changed is further down than they are looking.
+    return ('<a href="?room=%s#roomdetail" style="text-decoration:none;'
+            'display:contents;">%s</a>' % (quote(room), html))
+
+
 def room_card(row, recent, now):
     """A room with a unit in it. These are the ones that can cost money."""
     ink = INK[row["level"]]
@@ -563,6 +579,15 @@ watched = df[~df["has_unit"]]
 acting = df[df["level"].isin(["Red", "Amber"])]
 silent_rooms = df[df["level"] == "Fault"]
 
+# Two different jobs, and they stop being the same job the moment a unit is
+# calibrated. Where the unit is in frame, this will become "running in an empty
+# room" -- waste, stated, with nobody sent anywhere. Where it is out of frame,
+# it will always need a person to walk past and look, however good the
+# detection gets. Today both read "go and check", so saying which is which is
+# also saying which of these rooms is worth re-aiming a camera for.
+in_frame = acting[acting["ac"] == "visible"]
+out_of_frame = acting[acting["ac"] == "hidden"]
+
 if acting.empty:
     st.markdown(
         '<div style="background:#F1F7EA;border:1px solid #CDE0B6;'
@@ -584,11 +609,24 @@ else:
         ' threshold, with a unit in it</span></div>'
         % (len(acting), "" if len(acting) == 1 else "s"),
         unsafe_allow_html=True)
-    st.markdown(
-        '<div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:6px;">'
-        '%s</div>'
-        % "".join(room_card(row, recent, now) for _, row in acting.iterrows()),
-        unsafe_allow_html=True)
+    for group, title, note in (
+            (in_frame, "Unit is in frame",
+             "the camera can see this one; once it is calibrated these will"
+             " say whether it was actually running"),
+            (out_of_frame, "Unit is out of frame",
+             "the camera cannot see it, so somebody has to walk past and"
+             " look")):
+        if group.empty:
+            continue
+        st.markdown(
+            '<div style="font-size:.68rem;letter-spacing:.13em;color:#8A949A;'
+            'margin:10px 0 5px;">%s &middot; <span style="letter-spacing:0;'
+            'text-transform:none;">%s</span></div>'
+            '<div style="display:flex;flex-wrap:wrap;gap:12px;">%s</div>'
+            % (title.upper(), note,
+               "".join(linked(room_card(row, recent, now), row["room"])
+                       for _, row in group.iterrows())),
+            unsafe_allow_html=True)
 
 if not silent_rooms.empty:
     # Not the same job, and not for the same person: a camera that stopped
@@ -643,7 +681,8 @@ st.markdown(
     unsafe_allow_html=True)
 st.markdown(
     '<div style="display:flex;flex-wrap:wrap;gap:12px;">%s</div>'
-    % "".join(room_card(row, recent, now) for _, row in cooled.iterrows()),
+    % "".join(linked(room_card(row, recent, now), row["room"])
+              for _, row in cooled.iterrows()),
     unsafe_allow_html=True)
 
 st.markdown(
@@ -665,7 +704,8 @@ for zone in [z for z in ZONE_ORDER if z in set(watched["zone"])] + \
         '<div style="font-size:.66rem;letter-spacing:.14em;color:#8A949A;'
         'margin:15px 0 3px;">%s%s</div>%s%s'
         % (zone.upper(), note,
-           "".join(lane(row) for _, row in here.iterrows()),
+           "".join(linked(lane(row), row["room"])
+                   for _, row in here.iterrows()),
            hour_axis(now)),
         unsafe_allow_html=True)
 
@@ -674,6 +714,118 @@ st.caption("Bands show the last %d hours: green where people were seen, grey"
            " Every air conditioner is drawn dashed with a question mark"
            " because none has been calibrated — that is unknown, not off."
            % STRIP_HOURS)
+
+# ---- one room, in detail --------------------------------------------------
+#
+# Placed here, under the action list, because it is where a click lands. Any
+# card on the page is a link carrying its room name in the query string, so
+# clicking one reloads the page with that room open right where the reader was
+# already looking, rather than somewhere they have to go and find.
+
+picked = st.query_params.get("room")
+names = list(df["room"])
+if picked not in names:
+    picked = list(acting["room"])[0] if not acting.empty else names[0]
+
+st.markdown(
+    '<div id="roomdetail" style="font-size:1.12rem;font-weight:720;'
+    'margin:2px 0 2px;">One room, close up</div>'
+    '<div style="font-size:.72rem;color:#8A949A;margin-bottom:6px;">'
+    'click any room on this page, or pick one</div>', unsafe_allow_html=True)
+
+chosen = st.selectbox("Room", names, index=names.index(picked),
+                      label_visibility="collapsed")
+if chosen != picked:
+    st.query_params["room"] = chosen
+
+row = df[df["room"] == chosen].iloc[0]
+day_start = now - pd.Timedelta(hours=DETAIL_HOURS)
+day = status_minutes(recent, chosen, day_start, now)
+mine = recent[recent["room"] == chosen]
+busy = mine[mine["status"] == "occupied"]
+
+if busy.empty:
+    peak, peak_at, first_at, last_at = "\u2014", "nobody seen", "\u2014", "\u2014"
+else:
+    local_times = to_local(busy["timestamp"])
+    top = busy["people"].idxmax()
+    peak = int(busy.loc[top, "people"])
+    peak_at = "at %s" % to_local(busy.loc[[top], "timestamp"]).iloc[0].strftime("%H:%M")
+    first_at = local_times.min().strftime("%H:%M")
+    last_at = local_times.max().strftime("%H:%M")
+
+st.markdown(
+    '<div style="display:flex;gap:11px;flex-wrap:wrap;margin:6px 0 12px;">'
+    '%s%s%s%s%s</div>' % (
+        figure_row("First seen", first_at, "earliest person today"),
+        figure_row("Last seen", last_at, "latest person today"),
+        figure_row("Most at once", peak, peak_at),
+        figure_row("Used", spell(day.get("occupied", 0.0)),
+                   "empty %s" % spell(day.get("empty", 0.0))),
+        figure_row("Unaccounted", spell(day.get("unknown", 0.0)),
+                   "camera did not answer")),
+    unsafe_allow_html=True)
+
+st.markdown(
+    strip_svg(slot_states(recent, chosen, now, DETAIL_HOURS, DETAIL_SLOTS),
+              height=26, radius=5) + day_axis(now),
+    unsafe_allow_html=True)
+
+if not busy.empty:
+    by_hour = busy.copy()
+    by_hour["hour"] = to_local(by_hour["timestamp"]).dt.strftime("%H:00")
+    peaks = by_hour.groupby("hour")["people"].max().reset_index()
+    figure = px.bar(peaks, x="hour", y="people",
+                    labels={"hour": "", "people": "people"},
+                    color_discrete_sequence=["#7BAE48"])
+    figure.update_layout(height=220, margin=dict(l=0, r=0, t=14, b=0),
+                         plot_bgcolor="#FFFFFF", showlegend=False,
+                         yaxis=dict(gridcolor="#F0F0F0"))
+    st.plotly_chart(figure, use_container_width=True)
+    st.caption("The most people seen at once in each hour. Readings are a"
+               " couple of minutes apart, so a visit shorter than that can"
+               " fall between two of them and leave no mark.")
+
+# ---- and the same room's habits, over a week -----------------------------
+#
+# One day is an anecdote. The useful question about a room is not when it
+# filled today but when it usually fills, because that is what a cleaning
+# round, a switch-off time or an argument about a thermostat gets planned
+# against. It needs several days before it means anything, and says so until
+# it has them.
+try:
+    week = load_history()
+except psycopg2.Error:
+    week = pd.DataFrame()
+
+if not week.empty:
+    theirs = week[week["room"] == chosen].copy()
+    if not theirs.empty:
+        theirs["when"] = to_local(theirs["timestamp"])
+        theirs["day"] = theirs["when"].dt.date
+        theirs["minute"] = theirs["when"].dt.hour * 60 + theirs["when"].dt.minute
+        by_day = theirs.groupby("day").agg(
+            arrives=("minute", "min"), leaves=("minute", "max"),
+            busiest=("people", "max")).reset_index()
+        clock = lambda m: "%02d:%02d" % divmod(int(round(m)), 60)
+        if len(by_day) < 2:
+            st.caption("Only one day recorded so far \u2014 a usual pattern"
+                       " needs a few more before it means anything.")
+        else:
+            st.markdown(
+                '<div style="font-size:.84rem;font-weight:650;margin:14px 0 6px;">'
+                'On a usual day <span style="font-weight:400;color:#8A949A;">'
+                '(%d days recorded)</span></div>'
+                '<div style="display:flex;gap:11px;flex-wrap:wrap;">%s%s%s</div>'
+                % (len(by_day),
+                   figure_row("First arrival", clock(by_day["arrives"].mean()),
+                              "earliest %s" % clock(by_day["arrives"].min())),
+                   figure_row("Last to leave", clock(by_day["leaves"].mean()),
+                              "latest %s" % clock(by_day["leaves"].max())),
+                   figure_row("Busiest it gets",
+                              int(by_day["busiest"].max()),
+                              "typically %d" % round(by_day["busiest"].mean()))),
+                unsafe_allow_html=True)
 
 st.divider()
 
@@ -737,55 +889,6 @@ st.markdown(
 st.caption("Change any of these assumptions in the `assumptions` block of"
            " rooms.yaml \u2014 they are kept there, not in the code, so they"
            " can be argued with.")
-
-st.divider()
-
-# ---- one room, in detail --------------------------------------------------
-st.markdown(
-    '<div style="font-size:1.12rem;font-weight:720;margin-bottom:2px;">'
-    'A single room, over a day</div>', unsafe_allow_html=True)
-
-chosen = st.selectbox("Room", list(df["room"]), label_visibility="collapsed")
-row = df[df["room"] == chosen].iloc[0]
-day = status_minutes(recent, chosen, day_start, now)
-mine = recent[recent["room"] == chosen]
-busy = mine[mine["status"] == "occupied"]
-
-st.markdown(
-    '<div style="display:flex;gap:11px;flex-wrap:wrap;margin:6px 0 12px;">'
-    '%s%s%s%s</div>' % (
-        figure_row("Used", spell(day.get("occupied", 0.0)),
-                   "out of the last %dh" % DETAIL_HOURS),
-        figure_row("Empty", spell(day.get("empty", 0.0)),
-                   row["unit_note"]),
-        figure_row("Most at once",
-                   int(busy["people"].max()) if not busy.empty else "\u2014",
-                   "highest count recorded"),
-        figure_row("Unaccounted", spell(day.get("unknown", 0.0)),
-                   "camera did not answer")),
-    unsafe_allow_html=True)
-
-st.markdown(
-    strip_svg(slot_states(recent, chosen, now, DETAIL_HOURS, DETAIL_SLOTS),
-              height=26, radius=5) + day_axis(now),
-    unsafe_allow_html=True)
-
-if busy.empty:
-    st.caption("Nobody was seen in this room in the last %dh." % DETAIL_HOURS)
-else:
-    by_hour = busy.copy()
-    by_hour["hour"] = to_local(by_hour["timestamp"]).dt.strftime("%H:00")
-    peaks = by_hour.groupby("hour")["people"].max().reset_index()
-    figure = px.bar(peaks, x="hour", y="people",
-                    labels={"hour": "", "people": "people"},
-                    color_discrete_sequence=["#7BAE48"])
-    figure.update_layout(height=230, margin=dict(l=0, r=0, t=10, b=0),
-                         plot_bgcolor="#FFFFFF", showlegend=False,
-                         yaxis=dict(gridcolor="#F0F0F0"))
-    st.plotly_chart(figure, use_container_width=True)
-    st.caption("The most people seen at once in each hour. Readings are a"
-               " couple of minutes apart, so a visit shorter than that can"
-               " fall between two of them and leave no mark.")
 
 st.divider()
 
