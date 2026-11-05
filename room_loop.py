@@ -46,7 +46,7 @@ import psycopg2
 import yaml
 from dotenv import load_dotenv
 
-from privacy_blur import count_people
+from privacy_blur import anonymize, count_people
 from test_camera import build_url, grab
 
 PKT = timezone(timedelta(hours=5))
@@ -60,6 +60,7 @@ PKT = timezone(timedelta(hours=5))
 ANAMORPHIC = {(960, 1080): (1920, 1080)}
 
 STATE_FILE = "room_state.json"
+SNAPSHOT_DIR = "snapshots"
 
 # How often to record that the loop is alive. The single-room system beat every
 # half hour, which it could afford: it wrote a row every thirty seconds, so a
@@ -328,8 +329,13 @@ def recorder_login(key, rec):
 
 
 def sample(room, rec, model, imgsz, iou, timeout):
-    """Take one frame from each of a room's cameras. Returns (people, answered)."""
-    people, answered = 0, 0
+    """One frame from each of a room's cameras.
+
+    Returns the count, how many cameras answered, and the frame worth keeping
+    -- the one with the most people in it, since a room is best shown by the
+    camera that can see somebody rather than the one that happens to be first.
+    """
+    people, answered, keep = 0, 0, None
     want_main = rec.get("stream", "sub") == "main"
     for channel in room.channels:
         url = build_url(rec["host"], channel, rec["user"], rec["password"],
@@ -339,9 +345,34 @@ def sample(room, rec, model, imgsz, iou, timeout):
         if frame is None:
             continue
         answered += 1
-        people = max(people, count_people(widen(frame), model,
-                                          imgsz=imgsz, iou=iou))
-    return people, answered
+        wide = widen(frame)
+        here = count_people(wide, model, imgsz=imgsz, iou=iou)
+        if keep is None or here > people:
+            keep = wide
+        people = max(people, here)
+    return people, answered, keep
+
+
+def save_snapshot(room, frame, model, folder=SNAPSHOT_DIR):
+    """Keep one blurred still per room, overwritten each pass.
+
+    Deliberately narrow. It is blurred with the same pass the alert snapshots
+    use, so faces and screens are gone before it touches the disk; it is a
+    still rather than a stream; only the rooms with a unit get one, because
+    those are the ones somebody has a reason to look at before going home; it
+    is overwritten rather than accumulated, so there is no archive of the
+    building to lose; and it never goes near the database, which holds counts
+    and nothing else by design.
+
+    That design was reviewed. Pictures are a different kind of data from
+    counts, so this stays off unless rooms.yaml turns it on.
+    """
+    os.makedirs(folder, exist_ok=True)
+    safe = "".join(c if c.isalnum() else "_" for c in room.name)
+    path = os.path.join(folder, "%s.jpg" % safe)
+    temp = path + ".tmp"
+    cv2.imwrite(temp, anonymize(frame, model))
+    os.replace(temp, path)   # never leave a half-written picture to be read
 
 
 def save_state(rooms, path, now):
@@ -465,6 +496,12 @@ def main():
         user, password = recorder_login(key, recorders[key])
         recorders[key]["user"], recorders[key]["password"] = user, password
 
+    snapshots = bool(yaml.safe_load(open(args.config))
+                     .get("snapshots", {}).get("enabled", False))
+    if snapshots:
+        print(">> snapshots on: one blurred still per air-conditioned room,"
+              " in %s/, overwritten each pass" % SNAPSHOT_DIR)
+
     cameras = sum(len(r.channels) for r in rooms)
     print(">> %d rooms, %d cameras, %d recorder(s): %s"
           % (len(rooms), cameras, len(used), ", ".join(sorted(used))))
@@ -487,9 +524,13 @@ def main():
         started = time.time()
         for room in rooms:
             now = datetime.now(PKT)
-            people, answered = sample(room, recorders[room.recorder], model,
-                                      args.imgsz, args.iou, args.timeout)
+            people, answered, frame = sample(room, recorders[room.recorder],
+                                             model, args.imgsz, args.iou,
+                                             args.timeout)
             room.observe(people, answered, now)
+            if snapshots and frame is not None and room.ac in ("visible",
+                                                               "hidden"):
+                save_snapshot(room, frame, model)
         now = datetime.now(PKT)
         elapsed = time.time() - started
         report(rooms, now, cycle, elapsed)

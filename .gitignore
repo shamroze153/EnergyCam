@@ -29,3 +29,5 @@ gemma_checks.jsonl
 scan_*/
 review_frames/
 room_state.json
+
+snapshots/

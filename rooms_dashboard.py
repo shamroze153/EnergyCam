@@ -23,6 +23,7 @@ DASHBOARD_DATABASE_URL in .env. The camera machine's own credential will not
 work here by design: it is granted the timestamp column and nothing more.
 """
 import os
+import time
 from datetime import timedelta, timezone
 from urllib.parse import quote
 
@@ -40,6 +41,8 @@ PKT = timezone(timedelta(hours=5))
 # a slow cycle, and past that nothing here should be acted on: the tiles would
 # still be sitting in their last known state, looking perfectly current.
 STALE_AFTER_MINUTES = 11
+
+SNAPSHOT_DIR = "snapshots"
 
 STRIP_HOURS = 8
 STRIP_SLOTS = 96                      # five minutes each
@@ -850,6 +853,47 @@ if not week.empty:
                 unsafe_allow_html=True)
 
 st.divider()
+
+# ---- the walk round, without the walk ------------------------------------
+#
+# The use for this is concrete: it is ten past seven, the office is emptying,
+# and somebody wants to see the rooms before they go home rather than walk the
+# floor. A still from each one answers that; a video stream would not answer it
+# any better and would be a far larger thing to have built.
+#
+# Blurred before it was written, one per air-conditioned room, overwritten each
+# pass, never in the database. The loop only produces these when rooms.yaml
+# turns them on, so this section simply is not there otherwise.
+
+shots = []
+if os.path.isdir(SNAPSHOT_DIR):
+    for _, room in cooled.iterrows():
+        safe = "".join(c if c.isalnum() else "_" for c in room["room"])
+        path = os.path.join(SNAPSHOT_DIR, "%s.jpg" % safe)
+        if os.path.exists(path):
+            shots.append((room, path, (time.time() - os.path.getmtime(path)) / 60))
+
+if shots:
+    with st.expander("Look at the rooms (%d blurred stills)" % len(shots)):
+        st.caption(
+            "Faces, screens, keyboards and phones are blurred before the file"
+            " is written \u2014 the same pass that blurs an alert snapshot."
+            " One still per room, overwritten every pass, kept on this machine"
+            " and never sent to the database.")
+        for start in range(0, len(shots), 4):
+            for column, (room, path, age) in zip(
+                    st.columns(4), shots[start:start + 4]):
+                column.image(path, use_container_width=True)
+                column.markdown(
+                    '<div style="font-size:.78rem;font-weight:600;color:%s;'
+                    'margin-top:-6px;">%s</div>'
+                    '<div style="font-size:.66rem;color:#9AA3A8;">%s'
+                    ' &middot; %s</div>'
+                    % (INK[room["level"]]["fg"], room["room"],
+                       room["headline"], "%d min old" % age if age >= 1
+                       else "just now"),
+                    unsafe_allow_html=True)
+    st.divider()
 
 # ---- what the empty cooled-room time would amount to ----------------------
 #

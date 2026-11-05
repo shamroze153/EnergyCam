@@ -39,6 +39,21 @@
 # calibrated unit, so the state is measured rather than supposed, and a record
 # of somebody acting on an alert, so the difference is attributable to this
 # system rather than to the weather.
+# A blurred still per air-conditioned room, so somebody leaving at seven can
+# look before they walk. Off by default, and narrow when on: blurred with the
+# same pass the alert snapshots use, so faces and screens are gone before the
+# file is written; a still, not a stream; only rooms with a unit; overwritten
+# each pass rather than accumulated, so no archive of the building builds up;
+# and never near the database, which holds counts and nothing else by design.
+#
+# Pictures are a different kind of data from counts, and the review that set
+# this system's handling rules was about counts. Turning this on is worth a
+# word with whoever signed that off, and with HR -- not because it is
+# dangerous, but because it is a change they should hear about from you rather
+# than notice later.
+snapshots:
+  enabled: false
+
 assumptions:
   unit_kw: 1.2                 # a split unit while it is actually cooling
   tariff_rs_per_kwh: 55        # replace with the effective rate off the bill
