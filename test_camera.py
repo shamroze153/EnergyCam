@@ -17,15 +17,19 @@ if the light is too small to see in the saved frame.
 import os
 import sys
 import time
+from urllib.parse import quote
 
 os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
 import cv2  # noqa: E402  (must follow the env var above)
 
 
 def build_url(host, channel, user, password, main=False):
+    # The password sits in front of the @ that separates credentials from host,
+    # so an @ or # inside it splits the URL in the wrong place unless escaped.
     stream = 1 if main else 2
     return "rtsp://%s:%s@%s:554/Streaming/Channels/%d%02d" % (
-        user, password, host, int(channel), stream)
+        quote(user, safe=""), quote(password, safe=""), host,
+        int(channel), stream)
 
 
 def main():
