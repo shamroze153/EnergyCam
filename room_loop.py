@@ -54,6 +54,23 @@ ANAMORPHIC = {(960, 1080): (1920, 1080)}
 
 STATE_FILE = "room_state.json"
 
+# The two errors here do not cost the same. Counting someone who is not there
+# wastes nobody's time: the room reads occupied and no alert goes out, and the
+# only loss is a saving not made. Missing someone who is there starts an empty
+# clock in a room that is not empty, and three-quarters of an hour later sends
+# somebody to switch off an air conditioner over an occupied desk. This system
+# has already sent one alert calling an occupied room empty, and that is the
+# kind of mistake people remember about a system rather than about an alert.
+#
+# So where the two trade off, take the more sensitive setting. 640 was chosen
+# here to keep a forty-eight camera pass short, which optimised the wrong side
+# of that trade: a person at the far end of a room, half behind a desk, is
+# perhaps sixty pixels tall once the frame is scaled to 640. The single-room
+# system this grew out of ran every detection at 1280 and did not have the
+# problem. A pass takes a couple of minutes instead of one, against a question
+# measured in forty-five.
+DETECT_SIZE = 1280
+
 
 class Room:
     """One room, and what the last pass over its cameras established."""
@@ -253,8 +270,9 @@ def main():
     ap.add_argument("--room", action="append",
                     help="only this room (repeatable)")
     ap.add_argument("--once", action="store_true", help="one cycle, then stop")
-    ap.add_argument("--imgsz", type=int, default=640,
-                    help="detector input size (default 640)")
+    ap.add_argument("--imgsz", type=int, default=DETECT_SIZE,
+                    help="detector input size (default %d); lower is faster"
+                         % DETECT_SIZE)
     ap.add_argument("--timeout", type=float, default=5.0,
                     help="seconds to wait for a frame (default 5)")
     ap.add_argument("--min-cycle", type=float, default=60.0,
