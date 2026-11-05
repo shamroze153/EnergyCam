@@ -107,6 +107,14 @@ def compare(args):
         out = os.path.join(OUT_DIR, label)
         os.makedirs(out, exist_ok=True)
         model = YOLO(model_name)
+        # The first inference a model does is slower than the rest: weights get
+        # moved and buffers allocated on the way through. Timing that alongside
+        # the real work makes the first setting compared look slow and every
+        # later one look fast, which is an ordering artefact rather than a
+        # difference between them -- and on a handful of frames it is most of
+        # the number. So warm it up before starting the clock.
+        warmup = cv2.imread(os.path.join(FRAME_DIR, frames[0]))
+        model(warmup, classes=[0], conf=conf, imgsz=size, verbose=False)
         started, found = time.time(), 0
         for name in frames:
             frame = cv2.imread(os.path.join(FRAME_DIR, name))
