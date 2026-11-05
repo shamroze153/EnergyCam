@@ -1,0 +1,183 @@
+# 140-H, recorder NVR 4 (192.168.67.57) -- 32 channels, all live.
+#
+# Every channel here is watched. The ac: label does not decide whether a camera
+# is used; it decides what that camera's room is allowed to claim:
+#
+#   visible   the unit is in frame -> "empty, and still running" can be stated
+#             outright, so the alert names waste rather than asking anyone to
+#             go and look.
+#   hidden    the room has a unit the camera cannot see -> the alert can only
+#             say the room has been empty a while; somebody walks past and
+#             checks the unit.
+#   none      there is no unit here at all. The cameras still run and still
+#             count people -- that history is worth having -- but the room
+#             never raises an air-conditioner alert, because there is nothing
+#             in it to switch off.
+#   unknown   nobody has said yet. Deliberately not given a default: guessing
+#             "none" on a room that does have a unit silently drops it from
+#             the thing this system exists to do.
+#
+# Several cameras can cover one room. A room counts as empty only when every
+# one of its cameras agrees it is empty -- one camera seeing a person is enough
+# to keep the room occupied, because a person out of one camera's view is still
+# a person in the room.
+#
+# empty_after_minutes is how long a room stays empty before it is worth saying
+# anything. Short enough to catch a real lapse, long enough that stepping out
+# for a few minutes does not set it off.
+#
+# Credentials are NOT in this file. They come from .env, which is not committed.
+
+recorders:
+  nvr4:
+    host: 192.168.67.57
+    user_env: NVR4_USER
+    pass_env: NVR4_PASS
+    stream: sub          # 640x360, enough to find people
+    note: >
+      Covers the cafe, the basement, the solar array and the utility yards.
+      The offices at 140-H -- Admin, Marketing, Room 10 -- are on a different
+      recorder, DVR 2, which this laptop cannot reach yet.
+
+rooms:
+
+  # ---- rooms with a unit in frame -------------------------------------------
+
+  - name: Mosque
+    recorder: nvr4
+    channels: [6]
+    ac: visible
+    empty_after_minutes: 20
+    note: >
+      Worth doing first. A prayer room fills and empties on a fixed schedule,
+      so a unit left running after everyone leaves is both the easiest waste to
+      spot and the most regular. Twenty minutes rather than forty-five: the
+      room is reliably empty between prayers.
+
+  - name: Prompt Cafe
+    recorder: nvr4
+    channels: [13, 14, 15, 20]
+    ac: visible
+    empty_after_minutes: 45
+    note: >
+      Four cameras on one space. All four must read empty before the room does.
+
+  # ---- rooms with a unit the camera cannot see ------------------------------
+
+  - name: Basement
+    recorder: nvr4
+    channels: [21, 23, 24, 25]
+    ac: hidden
+    empty_after_minutes: 45
+
+  - name: Basement Meeting Room
+    recorder: nvr4
+    channels: [22]
+    ac: hidden
+    empty_after_minutes: 30
+    note: >
+      A meeting room empties all at once and the unit gets left on. If its unit
+      can be brought into frame, this one is worth re-aiming the camera for --
+      it would move from "go and check" to "this is running on an empty room".
+
+  # ---- not yet established --------------------------------------------------
+
+  - name: Gaming Area
+    recorder: nvr4
+    channels: [2, 8, 12]
+    ac: unknown
+    empty_after_minutes: 45
+    note: >
+      Written down as ac=no, but that was the old two-way label and could have
+      meant either "no unit here" or "unit not in frame". An indoor room people
+      sit in usually has one. Needs an answer, and whether these three cameras
+      are one area or three.
+
+  - name: Pantry
+    recorder: nvr4
+    channels: [16, 17, 18]
+    ac: unknown
+    empty_after_minutes: 45
+    note: >
+      Same question as the gaming area.
+
+  # ---- no unit to switch off; watched for occupancy only --------------------
+
+  - name: Cafe Stairs
+    recorder: nvr4
+    channels: [1]
+    ac: none
+    empty_after_minutes: null
+
+  - name: Cafe Hand Washing
+    recorder: nvr4
+    channels: [3]
+    ac: none
+    empty_after_minutes: null
+
+  - name: Ablution Area
+    recorder: nvr4
+    channels: [4]
+    ac: none
+    empty_after_minutes: null
+
+  - name: Cafe Shoe Rack
+    recorder: nvr4
+    channels: [5]
+    ac: none
+    empty_after_minutes: null
+
+  - name: AC Outdoor Units
+    recorder: nvr4
+    channels: [7]
+    ac: none
+    empty_after_minutes: null
+    note: >
+      The condenser yard. No unit to switch off here, but this is the one
+      camera on the recorder pointed at whether the machines are actually
+      working: a condenser fan turns when its indoor unit is calling for
+      cooling and stops when it is not. That makes it a possible second opinion
+      for the rooms labelled hidden, which is exactly what they lack. Rotation
+      does not show in a single frame, so it would need two frames a moment
+      apart and a check of what changed between them -- unproven here, and
+      worth trying only after the rooms above are running.
+
+  - name: Atrium Glass
+    recorder: nvr4
+    channels: [9]
+    ac: none
+    empty_after_minutes: null
+
+  - name: Outside
+    recorder: nvr4
+    channels: [10]
+    ac: none
+    empty_after_minutes: null
+
+  - name: Prompt Cafe Gate
+    recorder: nvr4
+    channels: [11]
+    ac: none
+    empty_after_minutes: null
+
+  - name: Inverter Room
+    recorder: nvr4
+    channels: [19, 28]
+    ac: none
+    empty_after_minutes: null
+
+  - name: RO Street
+    recorder: nvr4
+    channels: [27]
+    ac: none
+    empty_after_minutes: null
+
+  - name: Solar Array
+    recorder: nvr4
+    channels: [26, 29, 30, 31, 32]
+    ac: none
+    empty_after_minutes: null
+    note: >
+      Five cameras on the roof. Nothing to switch off, but a person on the roof
+      is a cleaning visit, and the date and time of one is a fact nobody
+      currently records.

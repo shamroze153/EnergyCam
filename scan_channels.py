@@ -181,8 +181,8 @@ def main():
                  " indicator light or flap\n")
         fh.write("#   ac=hidden  the room has one, but this camera cannot"
                  " see it\n")
-        fh.write("#   ac=none    nothing here to switch off: stairs,"
-                 " corridor, parking, outdoors\n")
+        fh.write("#   ac=none    no unit here at all: stairs, corridor,"
+                 " parking, outdoors\n")
         fh.write("#\n")
         fh.write("# Every channel gets watched either way. The label only"
                  " decides what we can say:\n")
@@ -190,7 +190,8 @@ def main():
                  " report the waste outright\n")
         fh.write("#   ac=hidden  empty room -> ask someone to walk past and"
                  " check the unit\n")
-        fh.write("#   ac=none    left out of the room list\n")
+        fh.write("#   ac=none    still watched and still counted, but never"
+                 " raises an alert\n")
         fh.write("#\n")
         fh.write("# ch 3   = Marketing      ac=yes\n")
         fh.write("#\n")
