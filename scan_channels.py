@@ -125,9 +125,27 @@ def main():
 
     map_path = os.path.join(outdir, "channel_map.txt")
     with open(map_path, "w") as fh:
-        fh.write("# %s -- write the room name after each channel.\n" % host)
-        fh.write("# Add ac=yes if the air conditioner is visible in the"
-                 " frame, ac=no if it is not.\n")
+        fh.write("# %s -- one line per live channel.\n" % host)
+        fh.write("#\n")
+        fh.write("# Write the room name, then how the air conditioner sits"
+                 " in the picture:\n")
+        fh.write("#   ac=yes     in frame, near enough to read its"
+                 " indicator light or flap\n")
+        fh.write("#   ac=hidden  the room has one, but this camera cannot"
+                 " see it\n")
+        fh.write("#   ac=none    nothing here to switch off: stairs,"
+                 " corridor, parking, outdoors\n")
+        fh.write("#\n")
+        fh.write("# Every channel gets watched either way. The label only"
+                 " decides what we can say:\n")
+        fh.write("#   ac=yes     empty room and the unit still running ->"
+                 " report the waste outright\n")
+        fh.write("#   ac=hidden  empty room -> ask someone to walk past and"
+                 " check the unit\n")
+        fh.write("#   ac=none    left out of the room list\n")
+        fh.write("#\n")
+        fh.write("# ch 3   = Marketing      ac=yes\n")
+        fh.write("#\n")
         for ch in live:
             fh.write("ch %-3d = \n" % ch)
 
