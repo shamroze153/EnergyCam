@@ -70,7 +70,7 @@ def _mostly_inside_ac(x1, y1, x2, y2, ac_zones, ratio=0.5):
     return False
 
 
-def count_people(frame, model, conf=None):
+def count_people(frame, model, conf=None, imgsz=None):
     """How many people this frame contains, at the same confidence used for blurring.
 
     The blur step and the occupancy step used to disagree: anything detected at
@@ -78,9 +78,14 @@ def count_people(frame, model, conf=None):
     threshold, so a person could be pixelated in a snapshot captioned 'room empty'.
     unified_system calls this before sending such an alert. If a person is visible
     enough to need blurring, the room is not empty.
+
+    imgsz trades accuracy for speed. The default is high because snapshots are
+    rare and a small far-off screen has to be caught. The room loop passes a
+    lower one: it is looking for people, not phone screens, and it has tens of
+    cameras to get through before any of the counts mean anything.
     """
     results = model(frame, classes=[PERSON], conf=conf or DETECT_CONF,
-                    imgsz=DETECT_IMGSZ, verbose=False)
+                    imgsz=imgsz or DETECT_IMGSZ, verbose=False)
     return int(len(results[0].boxes))
 
 
