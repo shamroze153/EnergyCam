@@ -20,6 +20,7 @@ rooms.yaml. Nothing is written to the database unless --db is passed, so the
 first run against a live recorder changes nothing anywhere.
 """
 import argparse
+import contextlib
 import json
 import os
 import sys
@@ -28,12 +29,17 @@ from datetime import datetime, timedelta, timezone
 
 # Joining a stream part way through means ffmpeg decodes a few frames against a
 # reference it never received, and it says so on stderr every single time. Those
-# are the frames grab() is deliberately throwing away, so the complaints are
-# correct and useless: on a pass over forty-eight cameras they ran to roughly
-# five times the length of the output anyone wanted to read, which is its own
-# kind of failure -- a report nobody scrolls back through is a report nobody
-# reads. Set OPENCV_FFMPEG_LOGLEVEL yourself to see them again when diagnosing.
-os.environ.setdefault("OPENCV_FFMPEG_LOGLEVEL", "-8")
+# are the frames grab() throws away on purpose, so the complaints are correct
+# and useless: over forty-eight cameras they ran to several times the length of
+# the report underneath them, and a report nobody scrolls back through is a
+# report nobody reads.
+#
+# Asking OpenCV to quieten ffmpeg did not work. The value for silence is -8, and
+# the build here reads this setting as an unsigned number, so a negative one is
+# not accepted. 0 is ffmpeg's next quietest level and does get through. It is
+# left in because it costs nothing, but it is not what does the work: see
+# muffled() below, which closes the door the messages actually come out of.
+os.environ.setdefault("OPENCV_FFMPEG_LOGLEVEL", "0")
 
 import cv2  # noqa: E402  (must follow the env var above)
 import psycopg2
@@ -83,6 +89,32 @@ DETECT_SIZE = 1280
 # Lowering this merges two boxes drawn on one person. It is the knob for an
 # over-count, and confidence is not: see privacy_blur.DETECT_IOU.
 DETECT_IOU = 0.7
+
+
+@contextlib.contextmanager
+def muffled():
+    """Silence the decoder for the duration of one capture.
+
+    These messages are written by ffmpeg itself, in C, straight to file
+    descriptor 2. Nothing done in Python intercepts them: they are already past
+    sys.stderr by the time they appear. So the descriptor itself is pointed at
+    nowhere and put back afterwards.
+
+    Deliberately wrapped around the capture alone, and not the whole cycle. A
+    Python traceback also goes to stderr, and a loop that hides its own crash
+    while continuing to print neat cycle reports would be far worse than a
+    noisy one.
+    """
+    sys.stderr.flush()
+    saved = os.dup(2)
+    blackhole = os.open(os.devnull, os.O_WRONLY)
+    try:
+        os.dup2(blackhole, 2)
+        yield
+    finally:
+        os.dup2(saved, 2)
+        os.close(blackhole)
+        os.close(saved)
 
 
 def fail_config(message):
@@ -294,7 +326,8 @@ def sample(room, rec, model, imgsz, iou, timeout):
     for channel in room.channels:
         url = build_url(rec["host"], channel, rec["user"], rec["password"],
                         want_main, rec.get("brand", "hikvision"))
-        frame, _ = grab(url, max_seconds=timeout)
+        with muffled():
+            frame, _ = grab(url, max_seconds=timeout)
         if frame is None:
             continue
         answered += 1
