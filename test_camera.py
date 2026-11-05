@@ -19,7 +19,8 @@ import sys
 import time
 from urllib.parse import quote
 
-os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
+os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = (
+    "rtsp_transport;tcp|stimeout;6000000")
 import cv2  # noqa: E402  (must follow the env var above)
 
 
@@ -30,6 +31,50 @@ def build_url(host, channel, user, password, main=False):
     return "rtsp://%s:%s@%s:554/Streaming/Channels/%d%02d" % (
         quote(user, safe=""), quote(password, safe=""), host,
         int(channel), stream)
+
+
+# A flat frame is almost certainly one the decoder has not filled in yet, so
+# this is the line between "still warming up" and "a real picture".
+FLAT = 12.0
+
+
+def grab(url, min_frames=10, max_seconds=6.0, flat=FLAT):
+    """Open a stream and return a frame that has actually been decoded.
+
+    H.265 only carries a whole picture in a keyframe; the frames between one
+    keyframe and the next say what moved, nothing more. Joining a stream part
+    way through means the first reads decode against a reference that was
+    never received, and what comes back is a flat grey rectangle with a few
+    motion artefacts on it. It is a valid frame as far as OpenCV is concerned,
+    which is why reading once and trusting it is wrong.
+
+    So read until the picture has some contrast in it, and keep the last frame
+    either way: a genuinely dark room looks flat too, and a dark picture of the
+    room is still more use than none.
+    """
+    cap = cv2.VideoCapture(url, cv2.CAP_FFMPEG)
+    if not cap.isOpened():
+        return None, "no stream"
+
+    frame, decoded, misses = None, 0, 0
+    deadline = time.time() + max_seconds
+    while time.time() < deadline:
+        ok, f = cap.read()
+        if not ok or f is None:
+            misses += 1
+            if misses >= 20:
+                break
+            time.sleep(0.05)
+            continue
+        misses = 0
+        frame, decoded = f, decoded + 1
+        if decoded >= min_frames and float(f.std()) >= flat:
+            break
+    cap.release()
+
+    if frame is None:
+        return None, "no frames"
+    return frame, "ok" if float(frame.std()) >= flat else "flat"
 
 
 def main():
@@ -50,16 +95,13 @@ def main():
     print(">> opening %s" % shown)
 
     t0 = time.time()
-    cap = cv2.VideoCapture(url, cv2.CAP_FFMPEG)
-    if not cap.isOpened():
+    frame, status = grab(url)
+    if status == "no stream":
         print(">> FAILED to open the stream (%.1fs)" % (time.time() - t0))
         print(">> usual causes: wrong password, RTSP disabled on the recorder,")
         print("   this account not allowed to stream, or no route to the host.")
         sys.exit(1)
-
-    ok, frame = cap.read()
-    cap.release()
-    if not ok or frame is None:
+    if frame is None:
         print(">> connected, but no frame arrived. The channel may be empty,")
         print("   or that camera may be offline on the recorder.")
         sys.exit(1)
@@ -68,6 +110,9 @@ def main():
     out = "frame_%s.jpg" % label.replace(" ", "_")
     cv2.imwrite(out, frame)
     print(">> OK  %dx%d  in %.1fs  ->  %s" % (w, h, time.time() - t0, out))
+    if status == "flat":
+        print(">> note: hardly any contrast in this frame. Either the room is")
+        print("   dark, or the picture never finished decoding. Run it again.")
     if w < 800:
         print(">> note: this is a small picture. Fine for spotting people, but the")
         print("   AC's indicator light may be too small. Re-run with --main to compare.")

@@ -28,7 +28,7 @@ os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = (
 import cv2  # noqa: E402  (must follow the env var above)
 import numpy as np  # noqa: E402
 
-from test_camera import build_url
+from test_camera import build_url, grab
 
 TILE_W, TILE_H, COLS = 320, 180, 4
 
@@ -50,20 +50,6 @@ def parse_channels(spec):
             seen.add(c)
             ordered.append(c)
     return ordered
-
-
-def grab(url, warmup=5):
-    """Open, read past the first partial frames, keep the last good one."""
-    cap = cv2.VideoCapture(url, cv2.CAP_FFMPEG)
-    if not cap.isOpened():
-        return None, "no stream"
-    frame = None
-    for _ in range(warmup):
-        ok, f = cap.read()
-        if ok and f is not None:
-            frame = f
-    cap.release()
-    return (frame, "ok") if frame is not None else (None, "no frames")
 
 
 def contact_sheet(tiles):
@@ -126,7 +112,9 @@ def main():
             h, w = frame.shape[:2]
             name = "ch%02d_%s.jpg" % (ch, which)
             cv2.imwrite(os.path.join(outdir, name), frame)
-            print("   ch %-3d %dx%d  %s" % (ch, w, h, name))
+            flat = "  (flat -- dark room, or never decoded)" if (
+                status == "flat") else ""
+            print("   ch %-3d %dx%d  %s%s" % (ch, w, h, name, flat))
             live.append(ch)
         else:
             print("   ch %-3d %s" % (ch, status))
