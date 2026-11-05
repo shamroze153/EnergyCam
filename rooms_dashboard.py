@@ -127,6 +127,12 @@ def minutes_since(when, now):
 def grade(row, now):
     """Green, Amber, Red or Fault -- and the sentence that goes with it."""
     if row["status"] == "unknown" or pd.isna(row["status"]):
+        # A room with no row at all has not been looked at yet -- it was added
+        # to rooms.yaml and the loop has not reached it, or has not run since.
+        # That is not the same as a camera that was asked and stayed silent,
+        # and only one of them means somebody should go and look at a camera.
+        if pd.isna(row["timestamp"]):
+            return "Fault", "not sampled yet"
         return "Fault", "camera did not answer"
     if row["status"] == "occupied":
         people = int(row["people"]) if pd.notna(row["people"]) else 0
@@ -158,8 +164,15 @@ def show_page(df, now, empty_message, note=None):
     graded = df.apply(lambda r: grade(r, now), axis=1)
     df["level"] = [g[0] for g in graded]
     df["detail"] = [g[1] for g in graded]
-    df["age"] = df["timestamp"].apply(
-        lambda t: "%d min ago" % minutes_since(t, now))
+    # A room listed in rooms.yaml that the loop has not reached yet has no row
+    # at all, so there is no last-change time to report. "never" rather than a
+    # number, and certainly rather than a crash that takes the whole page down
+    # for the twenty-nine rooms that are fine.
+    def age(when):
+        passed = minutes_since(when, now)
+        return "never" if passed is None else "%d min ago" % passed
+
+    df["age"] = df["timestamp"].apply(age)
     df = df.sort_values(by=["level", "room"],
                         key=lambda c: c.map(ORDER) if c.name == "level" else c)
     st.dataframe(
@@ -217,7 +230,13 @@ if beat_age is None or beat_age > STALE_AFTER_MINUTES:
 else:
     st.caption("Loop reported %d min ago." % beat_age)
 
-df = rooms.merge(latest, on="room", how="left")
+# Both sides carry a recorder column, and pandas resolves that by renaming
+# them recorder_x and recorder_y rather than failing, so the collision only
+# shows up later as a KeyError for a column that was there a moment ago.
+# rooms.yaml is the authority on which recorder a room is on -- the database
+# only repeats what it was told -- so the stored copy is dropped on the way in.
+df = rooms.merge(latest.drop(columns=["recorder"]), on="room", how="left")
+assert "recorder" in df.columns, "the recorder column collided again"
 df["status"] = df["status"].fillna("unknown")
 
 counts = df.apply(lambda r: grade(r, now)[0], axis=1)
