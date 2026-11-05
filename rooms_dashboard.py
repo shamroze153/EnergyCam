@@ -15,6 +15,10 @@ counted and kept, and never shown as needing anything, because there is nothing
 in those rooms to switch off.
 
     streamlit run rooms_dashboard.py
+
+Connects as energycam_dashboard, which reads and cannot write, via
+DASHBOARD_DATABASE_URL in .env. The camera machine's own credential will not
+work here, by design: it is granted the timestamp column and nothing more.
 """
 import os
 from datetime import datetime, timedelta, timezone
@@ -35,13 +39,27 @@ STALE_AFTER_MINUTES = 11
 st.set_page_config(page_title="EnergyCam — Rooms", layout="wide", page_icon="🏢")
 st_autorefresh(interval=30000, key="rooms_refresh")
 
-try:
-    DATABASE_URL = st.secrets["DATABASE_URL"]
-except Exception:
-    from dotenv import load_dotenv
-    load_dotenv()
-    DATABASE_URL = os.getenv("DATABASE_URL")
-DB_SSLMODE = os.getenv("DB_SSLMODE", "require")
+def _setting(name):
+    try:
+        if name in st.secrets:
+            return st.secrets[name]
+    except Exception:
+        pass
+    return os.getenv(name)
+
+
+from dotenv import load_dotenv  # noqa: E402
+load_dotenv()
+
+# The dashboard reads with its own credential, not the camera machine's.
+# energycam_app is granted SELECT on the timestamp column alone -- enough to
+# confirm its writes are landing, not enough to reconstruct who was in which
+# room. That is the whole point of the split, so the right response to the
+# permission error it produces here is a second credential, never a wider grant
+# on the first. energycam_dashboard reads and cannot write.
+DATABASE_URL = _setting("DASHBOARD_DATABASE_URL") or _setting("DATABASE_URL")
+USING_APP_CREDENTIAL = not _setting("DASHBOARD_DATABASE_URL")
+DB_SSLMODE = _setting("DB_SSLMODE") or "require"
 
 
 @st.cache_data(ttl=20)
@@ -165,8 +183,22 @@ except FileNotFoundError:
     st.error("rooms.yaml not found. Run this from the project folder.")
     st.stop()
 except psycopg2.Error as e:
-    st.error("Database unreachable (%s). The driver's message is withheld"
-             " because it contains connection details." % type(e).__name__)
+    if getattr(e, "pgcode", None) == "42501" and USING_APP_CREDENTIAL:
+        st.error(
+            "This is connecting as the camera machine, which is not allowed to"
+            " read room data -- it can see the timestamp column and nothing"
+            " else, so that a machine in a corridor cupboard cannot answer who"
+            " was in which room.\n\n"
+            "Add a second line to .env with the read-only role from"
+            " sql/02_roles.sql:\n\n"
+            "    DASHBOARD_DATABASE_URL=...energycam_dashboard...\n\n"
+            "Take the existing DATABASE_URL and replace the username and"
+            " password with energycam_dashboard's. Do not widen the camera"
+            " machine's grants to make this page work.")
+    else:
+        st.error("Database unreachable (%s). The driver's message is withheld"
+                 " because it contains connection details."
+                 % type(e).__name__)
     st.stop()
 
 now = pd.Timestamp.now(tz="UTC")
