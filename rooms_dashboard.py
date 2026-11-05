@@ -553,6 +553,59 @@ st.markdown(header_band(campus, df, beat_age), unsafe_allow_html=True)
 cooled = df[df["has_unit"]]
 watched = df[~df["has_unit"]]
 
+# ---- the only question this page exists to answer -------------------------
+#
+# Which room should somebody walk to, right now. Everything else here is
+# background: how the building has been, what it might be worth, what one room
+# did yesterday. That is all worth having and none of it is the job, so it
+# comes after. A page whose first screen is a summary makes the reader find
+# the task; a page whose first screen is the task does not.
+acting = df[df["level"].isin(["Red", "Amber"])]
+silent_rooms = df[df["level"] == "Fault"]
+
+if acting.empty:
+    st.markdown(
+        '<div style="background:#F1F7EA;border:1px solid #CDE0B6;'
+        'border-left:6px solid #3D6E15;border-radius:13px;padding:17px 20px;'
+        'margin-bottom:14px;">'
+        '<div style="font-size:1.16rem;font-weight:740;color:#3D6E15;">'
+        'Nothing to do right now</div>'
+        '<div style="font-size:.8rem;color:#3D6E15;opacity:.8;margin-top:3px;">'
+        'Every air-conditioned room is either in use or has not been empty'
+        ' long enough to be worth a walk.</div></div>',
+        unsafe_allow_html=True)
+else:
+    st.markdown(
+        '<div style="display:flex;align-items:baseline;gap:10px;'
+        'margin:2px 0 9px;">'
+        '<span style="font-size:1.34rem;font-weight:780;color:#9B2C2C;">'
+        'Go and check %d room%s</span>'
+        '<span style="font-size:.74rem;color:#8A949A;">empty past its own'
+        ' threshold, with a unit in it</span></div>'
+        % (len(acting), "" if len(acting) == 1 else "s"),
+        unsafe_allow_html=True)
+    st.markdown(
+        '<div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:6px;">'
+        '%s</div>'
+        % "".join(room_card(row, recent, now) for _, row in acting.iterrows()),
+        unsafe_allow_html=True)
+
+if not silent_rooms.empty:
+    # Not the same job, and not for the same person: a camera that stopped
+    # answering is for whoever looks after cameras. Kept off the walking list
+    # so it cannot be mistaken for a room to go and stand in.
+    st.markdown(
+        '<div style="background:#F3F3F3;border:1px solid #DCDCDC;'
+        'border-radius:10px;padding:10px 14px;margin:8px 0 16px;'
+        'font-size:.8rem;color:#5A5A5A;">'
+        '<b>%d camera%s not answering</b> &mdash; %s. These rooms are reported'
+        ' as unknown rather than empty, because nobody looked.</div>'
+        % (len(silent_rooms), "" if len(silent_rooms) == 1 else "s",
+           ", ".join(silent_rooms["room"])),
+        unsafe_allow_html=True)
+
+st.divider()
+
 # Room-hours, not hours: the empty time of every air-conditioned room added
 # together, so fourteen rooms over eight hours can and should exceed eight.
 # The note under the figure says so, because "61h over the last 8h" reads like
@@ -565,30 +618,28 @@ watched = df[~df["has_unit"]]
 # room there is to ask about -- from real readings, available today.
 empty_slots = sum(1 for _, row in cooled.iterrows()
                   for state in row["slots"] if state == "empty")
-needing = int((df["level"].isin(["Red", "Amber"])).sum())
-silent = int((df["level"] == "Fault").sum())
 
 st.markdown(
     '<div style="display:flex;gap:11px;flex-wrap:wrap;margin-bottom:16px;">'
     '%s%s%s%s</div>' % (
-        figure_row("Rooms wanting action", needing,
-                   "empty past their own threshold",
-                   "#A33434" if needing else "#14181B"),
         figure_row("Air-conditioned rooms", len(cooled),
-                   "%d watched for occupancy only" % len(watched)),
+                   "%d more watched for occupancy only" % len(watched)),
+        figure_row("In use right now",
+                   int((df["status"] == "occupied").sum()),
+                   "of %d rooms watched" % len(df)),
         figure_row("Empty cooled-room time", spell(empty_slots * 5),
                    "added up across %d rooms, last %dh"
                    % (len(cooled), STRIP_HOURS)),
-        figure_row("Cameras not answering", silent,
-                   "rooms reported as unknown, not empty",
-                   "#6A6A6A" if silent else "#14181B")),
+        figure_row("Cameras not answering", len(silent_rooms),
+                   "reported as unknown, not empty",
+                   "#6A6A6A" if len(silent_rooms) else "#14181B")),
     unsafe_allow_html=True)
 
 st.markdown(
     '<div style="display:flex;align-items:baseline;gap:10px;margin:4px 0 9px;">'
-    '<span style="font-size:1.12rem;font-weight:720;">Air-conditioned rooms'
-    '</span><span style="font-size:.72rem;color:#8A949A;">%d rooms &middot;'
-    ' these are the ones that can waste anything</span></div>' % len(cooled),
+    '<span style="font-size:1.12rem;font-weight:720;">Every air-conditioned'
+    ' room</span><span style="font-size:.72rem;color:#8A949A;">%d rooms'
+    ' &middot; the ones above appear here too</span></div>' % len(cooled),
     unsafe_allow_html=True)
 st.markdown(
     '<div style="display:flex;flex-wrap:wrap;gap:12px;">%s</div>'
