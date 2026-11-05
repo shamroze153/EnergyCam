@@ -44,6 +44,33 @@ recorders:
       and until what time. The offices at 140-H, where the units actually run
       late, are on DVR 2.
 
+  dvr2:
+    host: 192.168.67.74
+    brand: dahua         # confirmed: the Hikvision path answers 404 here
+    user_env: DVR2_USER
+    pass_env: DVR2_PASS
+    stream: main         # the sub stream is 352x288, too small to work with
+    channels: 16
+    dhcp_warning: true
+    note: >
+      Sixteen channels, and the offices are on this one. Three things about it
+      differ from NVR 4 and all three matter.
+
+      Most channels come back 960x1080. That is 1080N: the recorder keeps half
+      the horizontal detail and stretches it back on playback, so the picture
+      arrives squashed sideways. Fed in as-is, a standing person is a tall thin
+      column and the detector is being shown a shape it was never trained on.
+      These frames need widening to 1920x1080 before anything looks at them.
+
+      The sizes are not uniform -- channel 8 is 960x576, channels 11 and 12 are
+      1280x720 and need no correction. So the widening has to be decided per
+      frame from its own dimensions, not once per recorder.
+
+      Its address is handed out by DHCP, so it is borrowed, not owned. Ask for
+      a reservation on fc:b6:9d:72:8f:48, or the system goes quiet one morning
+      for a reason nobody will think to look for.
+    rooms_pending: true
+
 rooms:
 
   # ---- rooms with a unit in frame -------------------------------------------

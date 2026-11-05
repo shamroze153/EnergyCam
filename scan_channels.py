@@ -7,6 +7,7 @@ command and leaves you a single contact sheet to label.
     python scan_channels.py 192.168.67.57 energycam MYPASSWORD
     python scan_channels.py 192.168.67.57 energycam MYPASSWORD --channels 1-32
     python scan_channels.py 192.168.67.57 energycam MYPASSWORD --main
+    python scan_channels.py 192.168.67.57 energycam MYPASSWORD --brand dahua
 
 Each channel is opened, read, and closed before the next one starts, so the
 recorder is never serving more than one stream at a time. That is the same
@@ -33,6 +34,31 @@ import numpy as np  # noqa: E402
 from test_camera import PATHS, build_url, grab, probe
 
 TILE_W, TILE_H, COLS = 320, 180, 4
+
+# Recorders number their channels from 1 with no gaps, so a run of dead ones
+# means the end of the recorder rather than a run of broken cameras. Stopping
+# there matters: a Dahua that is asked for channels it does not have starts
+# refusing outright after a while, and a locked-out account looks exactly like
+# a wrong password to whoever picks this up next.
+STOP_AFTER_DEAD = 4
+BRAND_FILE = "recorder.txt"
+
+
+def remembered_brand(outdir):
+    path = os.path.join(outdir, BRAND_FILE)
+    if not os.path.exists(path):
+        return None
+    for line in open(path):
+        if line.startswith("brand="):
+            brand = line.split("=", 1)[1].strip()
+            if brand in PATHS:
+                return brand
+    return None
+
+
+def remember_brand(outdir, brand):
+    with open(os.path.join(outdir, BRAND_FILE), "w") as fh:
+        fh.write("brand=%s\n" % brand)
 
 
 def parse_channels(spec):
@@ -122,6 +148,7 @@ def main():
     brand = take_value(argv, "--brand")
     if brand and brand not in PATHS:
         sys.exit("--brand must be one of: %s" % ", ".join(sorted(PATHS)))
+    stop_after = int(take_value(argv, "--stop-after", STOP_AFTER_DEAD))
     outdir = take_value(argv, "--out")
     args = [a for a in argv if a != "--main"]
     if len(args) != 3:
@@ -135,11 +162,15 @@ def main():
     os.makedirs(outdir, exist_ok=True)
 
     which = "main" if want_main else "sub"
+    brand = brand or remembered_brand(outdir)
     print(">> %s, channels %s, %s stream -> %s/"
           % (host, spec, which, outdir))
+    if brand:
+        print(">> %s, from an earlier pass" % brand)
 
-    tiles, live = [], []
+    tiles, live, scanned, dead_run = [], [], [], 0
     for ch in channels:
+        scanned.append(ch)
         if brand:
             frame, status = grab(
                 build_url(host, ch, user, password, want_main, brand))
@@ -151,6 +182,7 @@ def main():
                                          verbose=True)
             if found:
                 brand = found
+                remember_brand(outdir, brand)
                 print(">> this recorder speaks %s; using it for the rest"
                       % brand)
         if frame is not None:
@@ -161,9 +193,18 @@ def main():
                 status == "flat") else ""
             print("   ch %-3d %dx%d  %s%s" % (ch, w, h, name, flat))
             live.append(ch)
+            dead_run = 0
         else:
             print("   ch %-3d %s" % (ch, status))
+            dead_run += 1
         tiles.append((ch, frame, status))
+        if stop_after and dead_run >= stop_after:
+            print(">> %d dead channels in a row -- this is the end of the"
+                  " recorder." % dead_run)
+            print("   Stopping rather than asking for channels it does not"
+                  " have, which is what gets an account locked out.")
+            print("   Pass --stop-after 0 to scan the whole range anyway.")
+            break
 
     # Draw the sheet from every frame in the folder, not just this pass, so a
     # recorder scanned in two halves still gives one picture of the whole
@@ -171,7 +212,7 @@ def main():
     failed = {ch: status for ch, frame, status in tiles if frame is None}
     found = saved_frames(outdir, which)
     sheet_tiles = []
-    for ch in sorted(set(found) | set(channels)):
+    for ch in sorted(set(found) | set(scanned)):
         if ch in found:
             sheet_tiles.append((ch, cv2.imread(found[ch]), "ok"))
         else:
@@ -212,7 +253,8 @@ def main():
         for ch in sorted(rows):
             fh.write("ch %-3d = %s\n" % (ch, rows[ch]))
 
-    print(">> %d of %d channels are live" % (len(live), len(channels)))
+    print(">> %d of %d channels scanned are live"
+          % (len(live), len(scanned)))
     if kept:
         print(">> kept %d room name(s) from an earlier pass" % kept)
     print(">> open %s, then fill in %s" % (sheet_path, map_path))
