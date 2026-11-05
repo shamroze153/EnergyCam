@@ -20,7 +20,9 @@ channel_map.txt listing the live channels for you to write room names next to.
 A channel with no camera on it can take several seconds to give up, so a full
 32-channel scan is a couple of minutes. Leave it running.
 """
+import glob
 import os
+import re
 import sys
 
 os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = (
@@ -71,6 +73,16 @@ def contact_sheet(tiles):
         y, x = row * TILE_H, col * TILE_W
         sheet[y:y + TILE_H, x:x + TILE_W] = tile
     return sheet
+
+
+def saved_frames(outdir, which):
+    """Every channel already captured in this folder, from any pass."""
+    found = {}
+    for path in glob.glob(os.path.join(outdir, "ch*_%s.jpg" % which)):
+        match = re.match(r"ch(\d+)_", os.path.basename(path))
+        if match:
+            found[int(match.group(1))] = path
+    return found
 
 
 def load_map(path):
@@ -139,8 +151,19 @@ def main():
             print("   ch %-3d %s" % (ch, status))
         tiles.append((ch, frame, status))
 
+    # Draw the sheet from every frame in the folder, not just this pass, so a
+    # recorder scanned in two halves still gives one picture of the whole
+    # recorder rather than a sheet of only the half scanned last.
+    failed = {ch: status for ch, frame, status in tiles if frame is None}
+    found = saved_frames(outdir, which)
+    sheet_tiles = []
+    for ch in sorted(set(found) | set(channels)):
+        if ch in found:
+            sheet_tiles.append((ch, cv2.imread(found[ch]), "ok"))
+        else:
+            sheet_tiles.append((ch, None, failed.get(ch, "not scanned")))
     sheet_path = os.path.join(outdir, "contact_sheet.jpg")
-    cv2.imwrite(sheet_path, contact_sheet(tiles))
+    cv2.imwrite(sheet_path, contact_sheet(sheet_tiles))
 
     # A recorder is usually scanned in more than one pass, so keep the room
     # names from the earlier passes instead of starting the map over.
