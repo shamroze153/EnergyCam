@@ -52,6 +52,14 @@ GRANT USAGE, SELECT ON SEQUENCE public.room_events_id_seq TO energycam_app;
 
 GRANT SELECT ON public.room_events TO energycam_dashboard;
 
+-- The dashboard also needs the heartbeat, which sql/02_roles.sql gave only to
+-- the watchdog and the keepalive. With change-based recording, no recent rows
+-- is the normal state of a quiet building at night -- it is the beat, and only
+-- the beat, that tells a dashboard whether anything is still watching. Without
+-- this the dashboard would show a calm, entirely stale picture of a system
+-- that stopped hours ago, which is worse than showing nothing.
+GRANT SELECT ON public.heartbeat TO energycam_dashboard;
+
 -- ----------------------------------------------- 3. close the public REST API
 -- Supabase publishes everything in `public` through PostgREST to `anon` and
 -- `authenticated`. Occupancy data says who was in a building and when, which
@@ -68,6 +76,7 @@ DROP POLICY IF EXISTS app_insert_rooms ON public.room_events;
 DROP POLICY IF EXISTS app_delete_rooms ON public.room_events;
 DROP POLICY IF EXISTS app_read_rooms   ON public.room_events;
 DROP POLICY IF EXISTS dash_read_rooms  ON public.room_events;
+DROP POLICY IF EXISTS dash_read_hb      ON public.heartbeat;
 
 CREATE POLICY app_insert_rooms ON public.room_events
     FOR INSERT TO energycam_app       WITH CHECK (true);
@@ -76,6 +85,8 @@ CREATE POLICY app_delete_rooms ON public.room_events
 CREATE POLICY app_read_rooms   ON public.room_events
     FOR SELECT TO energycam_app       USING (true);
 CREATE POLICY dash_read_rooms  ON public.room_events
+    FOR SELECT TO energycam_dashboard USING (true);
+CREATE POLICY dash_read_hb     ON public.heartbeat
     FOR SELECT TO energycam_dashboard USING (true);
 
 -- ------------------------------------------------------------ 4. what to check

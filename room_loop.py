@@ -61,7 +61,15 @@ ANAMORPHIC = {(960, 1080): (1920, 1080)}
 
 STATE_FILE = "room_state.json"
 
-HEARTBEAT_SECONDS = 1800
+# How often to record that the loop is alive. The single-room system beat every
+# half hour, which it could afford: it wrote a row every thirty seconds, so a
+# gap in those rows already said it had stopped. This one writes only when a
+# room changes, and an office at 3am changes nothing for hours, so silence
+# proves nothing on its own. The beat is the only thing separating "nothing
+# changed" from "nothing was watching", and half an hour of either looking
+# identical is too long when the dashboard is meant to show whether the system
+# is up. A row is a timestamp; twelve an hour costs nothing.
+HEARTBEAT_SECONDS = 300
 RETENTION_DAYS = 90
 RETENTION_SECONDS = 24 * 3600
 
