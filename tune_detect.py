@@ -24,6 +24,12 @@ Options worth trying:
     --models yolov8n.pt,yolov8s.pt     s is slower and sees more
     --sizes 640,1280                   bigger finds smaller and further people
     --confs 0.25,0.4                   lower finds more, and invents more
+    --ious 0.7,0.5                     lower merges two boxes on one person
+
+Confidence and overlap are not interchangeable. Confidence decides how faint a
+detection may be, so raising it to clear a duplicate box also drops the distant
+half-hidden person -- an over-count traded for an under-count, which is the
+wrong way round. Overlap only removes a box drawn on top of another one.
 
 These frames have faces in them and are not blurred. Keep the folders local.
 """
@@ -95,15 +101,17 @@ def compare(args):
 
     from ultralytics import YOLO
 
-    settings = [(m, int(s), float(c))
+    settings = [(m, int(s), float(c), float(i))
                 for m in args.models.split(",")
                 for s in args.sizes.split(",")
-                for c in args.confs.split(",")]
+                for c in args.confs.split(",")
+                for i in args.ious.split(",")]
     print(">> %d frame(s), %d setting(s)" % (len(frames), len(settings)))
 
     totals = {}
-    for model_name, size, conf in settings:
-        label = "%s_sz%d_conf%s" % (model_name.replace(".pt", ""), size, conf)
+    for model_name, size, conf, iou in settings:
+        label = "%s_sz%d_conf%s_iou%s" % (model_name.replace(".pt", ""),
+                                          size, conf, iou)
         out = os.path.join(OUT_DIR, label)
         os.makedirs(out, exist_ok=True)
         model = YOLO(model_name)
@@ -114,12 +122,13 @@ def compare(args):
         # difference between them -- and on a handful of frames it is most of
         # the number. So warm it up before starting the clock.
         warmup = cv2.imread(os.path.join(FRAME_DIR, frames[0]))
-        model(warmup, classes=[0], conf=conf, imgsz=size, verbose=False)
+        model(warmup, classes=[0], conf=conf, imgsz=size, iou=iou,
+              verbose=False)
         started, found = time.time(), 0
         for name in frames:
             frame = cv2.imread(os.path.join(FRAME_DIR, name))
             results = model(frame, classes=[0], conf=conf, imgsz=size,
-                            verbose=False)
+                            iou=iou, verbose=False)
             boxes = results[0].boxes.xyxy.tolist()
             found += len(boxes)
             drawn = frame.copy()
@@ -163,6 +172,9 @@ def main():
     ap.add_argument("--models", default="yolov8n.pt,yolov8s.pt")
     ap.add_argument("--sizes", default="640,1280")
     ap.add_argument("--confs", default="0.25")
+    ap.add_argument("--ious", default="0.7",
+                    help="overlap allowed between two boxes; lower merges"
+                         " duplicates (default 0.7)")
     args = ap.parse_args()
     (capture if args.mode == "capture" else compare)(args)
 

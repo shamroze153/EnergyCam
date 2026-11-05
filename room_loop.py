@@ -71,6 +71,10 @@ STATE_FILE = "room_state.json"
 # measured in forty-five.
 DETECT_SIZE = 1280
 
+# Lowering this merges two boxes drawn on one person. It is the knob for an
+# over-count, and confidence is not: see privacy_blur.DETECT_IOU.
+DETECT_IOU = 0.7
+
 
 class Room:
     """One room, and what the last pass over its cameras established."""
@@ -165,7 +169,7 @@ def recorder_login(key, rec):
     return user, password
 
 
-def sample(room, rec, model, imgsz, timeout):
+def sample(room, rec, model, imgsz, iou, timeout):
     """Take one frame from each of a room's cameras. Returns (people, answered)."""
     people, answered = 0, 0
     want_main = rec.get("stream", "sub") == "main"
@@ -176,7 +180,8 @@ def sample(room, rec, model, imgsz, timeout):
         if frame is None:
             continue
         answered += 1
-        people = max(people, count_people(widen(frame), model, imgsz=imgsz))
+        people = max(people, count_people(widen(frame), model,
+                                          imgsz=imgsz, iou=iou))
     return people, answered
 
 
@@ -273,6 +278,9 @@ def main():
     ap.add_argument("--imgsz", type=int, default=DETECT_SIZE,
                     help="detector input size (default %d); lower is faster"
                          % DETECT_SIZE)
+    ap.add_argument("--iou", type=float, default=DETECT_IOU,
+                    help="box overlap allowed (default %s); lower merges"
+                         " duplicates" % DETECT_IOU)
     ap.add_argument("--timeout", type=float, default=5.0,
                     help="seconds to wait for a frame (default 5)")
     ap.add_argument("--min-cycle", type=float, default=60.0,
@@ -311,7 +319,7 @@ def main():
         for room in rooms:
             now = datetime.now(PKT)
             people, answered = sample(room, recorders[room.recorder], model,
-                                      args.imgsz, args.timeout)
+                                      args.imgsz, args.iou, args.timeout)
             room.observe(people, answered, now)
         now = datetime.now(PKT)
         elapsed = time.time() - started

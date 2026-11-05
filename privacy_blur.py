@@ -11,6 +11,14 @@ CELL_PHONE = 67
 BLUR_CLASSES = [PERSON, TV_MONITOR, LAPTOP, KEYBOARD, CELL_PHONE]
 
 DETECT_CONF = 0.25     # lower = blur more (but more false boxes)
+
+# How much two boxes of the same class may overlap before one is thrown away.
+# This is the knob for a person counted twice, and it is not the confidence
+# knob. Confidence decides how faint a detection may be, so raising it to clear
+# a duplicate also discards the far-off, half-hidden person the room most needs
+# seen -- trading a harmless over-count for the one error that matters. This
+# only ever removes a box sitting on top of another box.
+DETECT_IOU = 0.7       # ultralytics' own default
 DETECT_IMGSZ = 1280    # high resolution catches small/far screens (snapshots are rare, so speed is fine)
 
 # Fixed areas to ALWAYS blur (x1, y1, x2, y2) in full-resolution pixels.
@@ -70,7 +78,7 @@ def _mostly_inside_ac(x1, y1, x2, y2, ac_zones, ratio=0.5):
     return False
 
 
-def count_people(frame, model, conf=None, imgsz=None):
+def count_people(frame, model, conf=None, imgsz=None, iou=None):
     """How many people this frame contains, at the same confidence used for blurring.
 
     The blur step and the occupancy step used to disagree: anything detected at
@@ -85,7 +93,8 @@ def count_people(frame, model, conf=None, imgsz=None):
     cameras to get through before any of the counts mean anything.
     """
     results = model(frame, classes=[PERSON], conf=conf or DETECT_CONF,
-                    imgsz=imgsz or DETECT_IMGSZ, verbose=False)
+                    imgsz=imgsz or DETECT_IMGSZ, iou=iou or DETECT_IOU,
+                    verbose=False)
     return int(len(results[0].boxes))
 
 
