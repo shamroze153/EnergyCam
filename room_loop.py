@@ -26,7 +26,16 @@ import sys
 import time
 from datetime import datetime, timedelta, timezone
 
-import cv2
+# Joining a stream part way through means ffmpeg decodes a few frames against a
+# reference it never received, and it says so on stderr every single time. Those
+# are the frames grab() is deliberately throwing away, so the complaints are
+# correct and useless: on a pass over forty-eight cameras they ran to roughly
+# five times the length of the output anyone wanted to read, which is its own
+# kind of failure -- a report nobody scrolls back through is a report nobody
+# reads. Set OPENCV_FFMPEG_LOGLEVEL yourself to see them again when diagnosing.
+os.environ.setdefault("OPENCV_FFMPEG_LOGLEVEL", "-8")
+
+import cv2  # noqa: E402  (must follow the env var above)
 import yaml
 from dotenv import load_dotenv
 
@@ -155,14 +164,27 @@ def sample(room, rec, model, imgsz, timeout):
 
 
 def save_state(rooms, path, now):
-    payload = {
-        "saved_at": now.isoformat(),
-        "rooms": {r.name: {"status": r.status,
-                           "people": r.people,
-                           "empty_since": (r.empty_since.isoformat()
-                                           if r.empty_since else None)}
-                  for r in rooms},
-    }
+    """Update this run's rooms in the state file, leaving the others alone.
+
+    A run is often a subset -- one recorder, or one room, while something is
+    being checked. Writing only that subset would drop every other room's
+    empty-since time, so a quick --room check would silently reset the clocks
+    on twenty-nine rooms it never looked at.
+    """
+    known = {}
+    if os.path.exists(path):
+        try:
+            known = json.load(open(path)).get("rooms", {})
+        except (ValueError, json.JSONDecodeError):
+            pass
+    for room in rooms:
+        known[room.name] = {
+            "status": room.status,
+            "people": room.people,
+            "empty_since": (room.empty_since.isoformat()
+                            if room.empty_since else None),
+        }
+    payload = {"saved_at": now.isoformat(), "rooms": known}
     tmp = path + ".tmp"
     with open(tmp, "w") as fh:
         json.dump(payload, fh, indent=2)
