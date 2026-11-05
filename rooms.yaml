@@ -69,9 +69,137 @@ recorders:
       Its address is handed out by DHCP, so it is borrowed, not owned. Ask for
       a reservation on fc:b6:9d:72:8f:48, or the system goes quiet one morning
       for a reason nobody will think to look for.
-    rooms_pending: true
 
 rooms:
+
+  # ===========================================================================
+  # DVR 2 -- the offices. Thirteen of its sixteen cameras have a unit in frame.
+  # ===========================================================================
+
+  # ---- never alerted on, whatever the cameras see ---------------------------
+  #
+  # These two are cooled around the clock on purpose, and the cooling is not
+  # waste: it is what keeps the equipment alive. They are empty of people
+  # almost all the time, so on occupancy alone they would be the loudest
+  # rooms in the building -- every night, every weekend, "empty for hours and
+  # still running".
+  #
+  # That alarm would be wrong in the one direction that actually costs money.
+  # Everything else here risks a wasted walk down a corridor; acting on this
+  # one risks a server room with its cooling switched off. Alerting and
+  # trusting people to ignore it is not a safeguard, because an alert that is
+  # correct to ignore teaches everyone to ignore the rest as well.
+  #
+  # So they are watched -- the occupancy history is worth having, and a person
+  # in the data centre at 3am is worth knowing about -- and they never alert.
+
+  - name: UPS Room
+    recorder: dvr2
+    channels: [5]
+    ac: visible
+    alert: never
+    empty_after_minutes: null
+    note: >
+      Battery life falls off sharply with temperature. Cooling here is not
+      discretionary.
+
+  - name: Data Centre Operations
+    recorder: dvr2
+    channels: [6]
+    ac: visible
+    alert: never
+    empty_after_minutes: null
+
+  # ---- offices: unit in frame -----------------------------------------------
+
+  - name: DL Department
+    recorder: dvr2
+    channels: [1]
+    ac: visible
+    empty_after_minutes: 45
+
+  - name: HR Room
+    recorder: dvr2
+    channels: [2]
+    ac: visible
+    empty_after_minutes: 45
+
+  - name: Marketing
+    recorder: dvr2
+    channels: [3, 13]
+    ac: visible
+    empty_after_minutes: 45
+    note: >
+      Two cameras, written down as "marketingroom" and "marketing". Grouped on
+      the assumption they are one room, and that way round on purpose: if two
+      cameras really do watch one room and are treated as two, then one of them
+      seeing an empty half of the room raises "empty, and still running" while
+      somebody is sitting in the other half. Grouping two separate rooms by
+      mistake only costs a missed alert. Worth confirming, but the cost of
+      being wrong is not symmetric.
+
+  - name: Creative Room
+    recorder: dvr2
+    channels: [4]
+    ac: visible
+    empty_after_minutes: 45
+
+  - name: Admin Room
+    recorder: dvr2
+    channels: [9]
+    ac: visible
+    empty_after_minutes: 45
+
+  - name: AutoOS
+    recorder: dvr2
+    channels: [10, 14]
+    ac: visible
+    empty_after_minutes: 45
+    note: Two cameras assumed to be one room, as with Marketing.
+
+  - name: IT Head Room
+    recorder: dvr2
+    channels: [11]
+    ac: visible
+    empty_after_minutes: 30
+    note: >
+      A single-occupant office empties completely and predictably, so thirty
+      minutes rather than forty-five.
+
+  - name: Wellows
+    recorder: dvr2
+    channels: [15, 16]
+    ac: visible
+    empty_after_minutes: 45
+    note: Two cameras assumed to be one room, as with Marketing.
+
+  # ---- lobbies: no unit -----------------------------------------------------
+
+  - name: First Floor Lobby
+    recorder: dvr2
+    channels: [7]
+    ac: none
+    empty_after_minutes: null
+
+  - name: Lobby 1
+    recorder: dvr2
+    channels: [8]
+    ac: none
+    empty_after_minutes: null
+
+  - name: Lobby
+    recorder: dvr2
+    channels: [12]
+    ac: none
+    empty_after_minutes: null
+    note: >
+      Three lobbies written down under three different names and kept apart on
+      that basis. Nothing turns on it -- none of them has a unit -- so the only
+      cost of being wrong is a confusing name on the dashboard.
+
+  # ===========================================================================
+  # NVR 4 -- the cafe, basement, solar array and utility yards.
+  # ===========================================================================
 
   # ---- rooms with a unit in frame -------------------------------------------
 
