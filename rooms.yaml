@@ -30,6 +30,7 @@
 
 recorders:
   nvr4:
+    campus: 140-H
     host: 192.168.67.57
     brand: hikvision     # decides the RTSP path; confirmed by scanning
     user_env: NVR4_USER
@@ -45,6 +46,7 @@ recorders:
       late, are on DVR 2.
 
   dvr2:
+    campus: 140-H
     host: 192.168.67.74
     brand: dahua         # confirmed: the Hikvision path answers 404 here
     user_env: DVR2_USER
