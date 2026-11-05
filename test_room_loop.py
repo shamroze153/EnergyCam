@@ -18,6 +18,9 @@ for name, module in (
         ("cv2", types.SimpleNamespace(resize=lambda *a, **k: None,
                                       INTER_LINEAR=1)),
         ("dotenv", types.SimpleNamespace(load_dotenv=lambda: None)),
+        # Stubbed so the state machine can be checked anywhere, including on a
+        # machine with no database driver installed. Nothing here touches it.
+        ("psycopg2", types.SimpleNamespace(Error=Exception, connect=None)),
         ("privacy_blur", types.SimpleNamespace(count_people=lambda *a, **k: 0)),
         ("test_camera", types.SimpleNamespace(build_url=lambda *a, **k: "",
                                               grab=lambda *a, **k: (None, "")))):

@@ -36,6 +36,7 @@ from datetime import datetime, timedelta, timezone
 os.environ.setdefault("OPENCV_FFMPEG_LOGLEVEL", "-8")
 
 import cv2  # noqa: E402  (must follow the env var above)
+import psycopg2
 import yaml
 from dotenv import load_dotenv
 
@@ -53,6 +54,14 @@ PKT = timezone(timedelta(hours=5))
 ANAMORPHIC = {(960, 1080): (1920, 1080)}
 
 STATE_FILE = "room_state.json"
+
+HEARTBEAT_SECONDS = 1800
+RETENTION_DAYS = 90
+RETENTION_SECONDS = 24 * 3600
+
+# Same code unified_system uses, so run_system.bat can tell a misconfiguration
+# apart from a crash and stop retrying instead of looping on it forever.
+EXIT_CONFIG = 78
 
 # The two errors here do not cost the same. Counting someone who is not there
 # wastes nobody's time: the room reads occupied and no alert goes out, and the
@@ -76,6 +85,111 @@ DETECT_SIZE = 1280
 DETECT_IOU = 0.7
 
 
+def fail_config(message):
+    print("\n>> CONFIGURATION PROBLEM\n>> %s\n" % message)
+    sys.exit(EXIT_CONFIG)
+
+
+def safe_error(e):
+    """Describe a failure without repeating the driver's message.
+
+    psycopg2 writes the host, port, user and database name into its error text,
+    and this prints to a console that gets photographed and pasted into chats.
+    The type and the standard error code are enough to act on.
+    """
+    code = getattr(e, "pgcode", None)
+    return type(e).__name__ + (" [%s]" % code if code else "")
+
+
+def connect():
+    return psycopg2.connect(os.environ["DATABASE_URL"],
+                            sslmode=os.getenv("DB_SSLMODE", "require"))
+
+
+def verify_database():
+    """Fail now, loudly, rather than silently recording nothing for a week."""
+    if not os.getenv("DATABASE_URL"):
+        fail_config("DATABASE_URL is not set in .env. Run with --no-db to"
+                    " watch the rooms without recording anything.")
+    try:
+        conn = connect()
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT to_regclass('public.room_events')")
+            missing = cursor.fetchone()[0] is None
+            cursor.close()
+        finally:
+            conn.close()
+    except psycopg2.Error as e:
+        fail_config("Cannot reach the database (%s). Check DATABASE_URL in"
+                    " .env. The driver's own message is withheld because it"
+                    " contains connection details." % safe_error(e))
+    if missing:
+        fail_config("The room_events table does not exist. An administrator"
+                    " runs sql/04_rooms.sql once in the Supabase SQL editor;"
+                    " this machine deliberately cannot create tables.")
+
+
+def record(rows):
+    """Insert one cycle's changes. False means they did not land."""
+    if not rows:
+        return True
+    try:
+        conn = connect()
+        try:
+            cursor = conn.cursor()
+            cursor.executemany(
+                "INSERT INTO room_events (timestamp, recorder, room, status,"
+                " people, empty_since, ac_state)"
+                " VALUES (%s, %s, %s, %s, %s, %s, %s)", rows)
+            conn.commit()
+            cursor.close()
+        finally:
+            conn.close()
+        return True
+    except psycopg2.Error as e:
+        print(">> database write failed: %s" % safe_error(e))
+        return False
+
+
+def beat():
+    try:
+        conn = connect()
+        try:
+            cursor = conn.cursor()
+            cursor.execute("INSERT INTO heartbeat (timestamp) VALUES (%s)",
+                           (datetime.now(PKT),))
+            conn.commit()
+            cursor.close()
+        finally:
+            conn.close()
+        return True
+    except psycopg2.Error as e:
+        print(">> heartbeat failed: %s" % safe_error(e))
+        return False
+
+
+def sweep():
+    try:
+        conn = connect()
+        try:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM room_events WHERE timestamp <"
+                           " NOW() - make_interval(days => %s)",
+                           (RETENTION_DAYS,))
+            gone = cursor.rowcount
+            conn.commit()
+            cursor.close()
+        finally:
+            conn.close()
+        print(">> retention: %d row(s) older than %d days removed"
+              % (gone, RETENTION_DAYS))
+        return True
+    except psycopg2.Error as e:
+        print(">> retention sweep failed: %s" % safe_error(e))
+        return False
+
+
 class Room:
     """One room, and what the last pass over its cameras established."""
 
@@ -90,6 +204,10 @@ class Room:
         self.people = None
         self.empty_since = None
         self.detail = "not sampled yet"
+        self.recorded = None            # what the database last heard
+
+    def state(self):
+        return (self.status, self.people)
 
     @property
     def watched_for_waste(self):
@@ -286,10 +404,17 @@ def main():
     ap.add_argument("--min-cycle", type=float, default=60.0,
                     help="shortest gap between cycles, seconds (default 60)")
     ap.add_argument("--state", default=STATE_FILE)
+    ap.add_argument("--no-db", action="store_true",
+                    help="watch and print, but record nothing")
     args = ap.parse_args()
 
     load_dotenv()
     recorders, rooms = load_rooms(args.config, args.recorder, args.room)
+
+    if args.no_db:
+        print(">> --no-db: nothing will be recorded")
+    else:
+        verify_database()
 
     used = {r.recorder for r in rooms}
     for key in used:
@@ -313,6 +438,9 @@ def main():
                                                       args.min_cycle / 60 * 3))
 
     cycle = 0
+    # Sweep on the first pass rather than a day in: a machine restarted daily
+    # would otherwise never reach the interval and never delete anything.
+    last_beat, last_sweep = 0.0, 0.0
     while True:
         cycle += 1
         started = time.time()
@@ -325,6 +453,23 @@ def main():
         elapsed = time.time() - started
         report(rooms, now, cycle, elapsed)
         save_state(rooms, args.state, now)
+
+        if not args.no_db:
+            changed = [r for r in rooms if r.state() != r.recorded]
+            if record([(now, r.recorder, r.name, r.status, r.people,
+                        r.empty_since, None) for r in changed]):
+                # Only once the insert has landed. Marking them recorded on a
+                # failed write would drop the change silently, and the next
+                # cycle, seeing no difference, would never write it either:
+                # the room would simply go missing from its own history.
+                for room in changed:
+                    room.recorded = room.state()
+                if changed:
+                    print(">> recorded %d change(s)" % len(changed))
+            if time.time() - last_beat >= HEARTBEAT_SECONDS and beat():
+                last_beat = time.time()
+            if time.time() - last_sweep >= RETENTION_SECONDS and sweep():
+                last_sweep = time.time()
 
         if args.once:
             return
