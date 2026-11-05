@@ -24,3 +24,8 @@ __pycache__/
 
 # Gemma 4 room-check log
 gemma_checks.jsonl
+
+# survey output and runtime state (local to one machine, not the project)
+scan_*/
+review_frames/
+room_state.json
