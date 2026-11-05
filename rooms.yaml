@@ -36,8 +36,12 @@ recorders:
     stream: sub          # 640x360, enough to find people
     note: >
       Covers the cafe, the basement, the solar array and the utility yards.
-      The offices at 140-H -- Admin, Marketing, Room 10 -- are on a different
-      recorder, DVR 2, which this laptop cannot reach yet.
+      Worth being plain about what this recorder is for: of its seventeen
+      rooms, two have a unit in frame and two have one out of frame. The other
+      thirteen have no air conditioner at all. So the saving here is small, and
+      what this recorder mostly produces is occupancy -- which room is used,
+      and until what time. The offices at 140-H, where the units actually run
+      late, are on DVR 2.
 
 rooms:
 
@@ -80,28 +84,24 @@ rooms:
       can be brought into frame, this one is worth re-aiming the camera for --
       it would move from "go and check" to "this is running on an empty room".
 
-  # ---- not yet established --------------------------------------------------
+  # ---- no unit to switch off; watched for occupancy only --------------------
 
   - name: Gaming Area
     recorder: nvr4
     channels: [2, 8, 12]
-    ac: unknown
-    empty_after_minutes: 45
+    ac: none
+    empty_after_minutes: null
     note: >
-      Written down as ac=no, but that was the old two-way label and could have
-      meant either "no unit here" or "unit not in frame". An indoor room people
-      sit in usually has one. Needs an answer, and whether these three cameras
-      are one area or three.
+      Asked and answered: no unit in here. Confirmed rather than assumed,
+      because the survey's original ac=no could have meant either thing.
 
   - name: Pantry
     recorder: nvr4
     channels: [16, 17, 18]
-    ac: unknown
-    empty_after_minutes: 45
+    ac: none
+    empty_after_minutes: null
     note: >
-      Same question as the gaming area.
-
-  # ---- no unit to switch off; watched for occupancy only --------------------
+      No unit here either, confirmed the same way.
 
   - name: Cafe Stairs
     recorder: nvr4
