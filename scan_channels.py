@@ -73,6 +73,25 @@ def contact_sheet(tiles):
     return sheet
 
 
+def load_map(path):
+    """Read back whatever room names are already written in the map."""
+    rows = {}
+    if not os.path.exists(path):
+        return rows
+    with open(path) as fh:
+        for line in fh:
+            if not line.startswith("ch "):
+                continue
+            head, sep, rest = line.partition("=")
+            if not sep:
+                continue
+            try:
+                rows[int(head.split()[1])] = rest.strip()
+            except (IndexError, ValueError):
+                continue
+    return rows
+
+
 def take_value(argv, flag, default=None):
     if flag not in argv:
         return default
@@ -123,7 +142,13 @@ def main():
     sheet_path = os.path.join(outdir, "contact_sheet.jpg")
     cv2.imwrite(sheet_path, contact_sheet(tiles))
 
+    # A recorder is usually scanned in more than one pass, so keep the room
+    # names from the earlier passes instead of starting the map over.
     map_path = os.path.join(outdir, "channel_map.txt")
+    rows = load_map(map_path)
+    kept = sum(1 for ch in rows if ch not in live and rows[ch])
+    for ch in live:
+        rows.setdefault(ch, "")
     with open(map_path, "w") as fh:
         fh.write("# %s -- one line per live channel.\n" % host)
         fh.write("#\n")
@@ -146,10 +171,12 @@ def main():
         fh.write("#\n")
         fh.write("# ch 3   = Marketing      ac=yes\n")
         fh.write("#\n")
-        for ch in live:
-            fh.write("ch %-3d = \n" % ch)
+        for ch in sorted(rows):
+            fh.write("ch %-3d = %s\n" % (ch, rows[ch]))
 
     print(">> %d of %d channels are live" % (len(live), len(channels)))
+    if kept:
+        print(">> kept %d room name(s) from an earlier pass" % kept)
     print(">> open %s, then fill in %s" % (sheet_path, map_path))
 
 
