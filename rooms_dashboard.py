@@ -219,7 +219,8 @@ SLOT_INK = {"occupied": "#7BAE48", "empty": "#E0E0E0", "unknown": "#BDBDBD"}
 NO_DATA = "#F4F4F4"
 
 
-def slot_states(recent, room, now, hours=STRIP_HOURS, slots=STRIP_SLOTS):
+def slot_states(recent, room, now, hours=STRIP_HOURS, slots=STRIP_SLOTS,
+                since=None):
     """What each five-minute slot of the window held, oldest first.
 
     One source of truth: the strip under a room and the hours counted up at
@@ -229,7 +230,7 @@ def slot_states(recent, room, now, hours=STRIP_HOURS, slots=STRIP_SLOTS):
     mine = recent[recent["room"] == room]
     if mine.empty:
         return [None] * slots
-    start = now - pd.Timedelta(hours=hours)
+    start = since if since is not None else now - pd.Timedelta(hours=hours)
     states = mine["status"].tolist()
     # Seconds from the window start on both sides. Doing this in epoch
     # integers looks tidier and is a trap: in pandas 3 a Series of timestamps
@@ -461,13 +462,16 @@ def hour_axis(now):
             % "".join(ticks))
 
 
-def day_axis(now, hours=DETAIL_HOURS, step=4):
-    start = (now - pd.Timedelta(hours=hours)).tz_convert("Asia/Karachi")
+def day_axis(now, since, step=4):
+    start = since.tz_convert("Asia/Karachi")
+    hours = max(1, int(round((now - since).total_seconds() / 3600)))
+    step = max(1, step if hours > step * 2 else max(1, hours // 4))
+    marks = list(range(0, hours, step)) + [hours]
     ticks = "".join(
         '<span style="flex:1 1 0;text-align:%s;">%s</span>'
         % ("left" if at == 0 else ("right" if at == hours else "center"),
            (start + pd.Timedelta(hours=at)).strftime("%H:%M"))
-        for at in range(0, hours + 1, step))
+        for at in marks)
     return ('<div style="display:flex;font-size:.64rem;color:#9A9A9A;'
             'margin-top:3px;">%s</div>' % ticks)
 
@@ -739,37 +743,55 @@ if chosen != picked:
     st.query_params["room"] = chosen
 
 row = df[df["room"] == chosen].iloc[0]
-day_start = now - pd.Timedelta(hours=DETAIL_HOURS)
-day = status_minutes(recent, chosen, day_start, now)
-mine = recent[recent["room"] == chosen]
+
+# Midnight, not twenty-four hours back. "When does the first person arrive"
+# is a question about a day, and a rolling window answered it with yesterday
+# evening: first seen 18:07, last seen 15:48, which reads backwards and was.
+# Early in the morning this band is short, which is honest -- the day is short.
+midnight = (now.tz_convert("Asia/Karachi").normalize()).tz_convert("UTC")
+hours_today = max(1.0, (now - midnight).total_seconds() / 3600.0)
+day = status_minutes(recent, chosen, midnight, now)
+mine = recent[(recent["room"] == chosen) & (recent["timestamp"] >= midnight)]
 busy = mine[mine["status"] == "occupied"]
 
 if busy.empty:
     peak, peak_at, first_at, last_at = "\u2014", "nobody seen", "\u2014", "\u2014"
 else:
-    local_times = to_local(busy["timestamp"])
     top = busy["people"].idxmax()
     peak = int(busy.loc[top, "people"])
     peak_at = "at %s" % to_local(busy.loc[[top], "timestamp"]).iloc[0].strftime("%H:%M")
-    first_at = local_times.min().strftime("%H:%M")
-    last_at = local_times.max().strftime("%H:%M")
+    first_at = to_local(busy["timestamp"]).min().strftime("%H:%M")
+
+    # Only changes are recorded, so the last "occupied" row is when the count
+    # last moved, not when the room emptied. Someone who arrived at 09:25 and
+    # left at 17:40 leaves one occupied row, at 09:25 -- and reporting that as
+    # "last seen" cuts eight hours off their day and makes the room look
+    # deserted by mid-morning. What is wanted is the row after it: the moment
+    # the room went empty. If nothing follows, they are still there.
+    ordered = mine.sort_values("timestamp").reset_index(drop=True)
+    last_busy = ordered.index[ordered["status"] == "occupied"].max()
+    if last_busy + 1 < len(ordered):
+        last_at = to_local(ordered.loc[[last_busy + 1], "timestamp"]).iloc[0] \
+            .strftime("%H:%M")
+    else:
+        last_at = "still in use"
 
 st.markdown(
     '<div style="display:flex;gap:11px;flex-wrap:wrap;margin:6px 0 12px;">'
     '%s%s%s%s%s</div>' % (
-        figure_row("First seen", first_at, "earliest person today"),
-        figure_row("Last seen", last_at, "latest person today"),
+        figure_row("First seen", first_at, "earliest person since midnight"),
+        figure_row("Emptied at", last_at, "after the last person left"),
         figure_row("Most at once", peak, peak_at),
-        figure_row("Used", spell(day.get("occupied", 0.0)),
+        figure_row("Used today", spell(day.get("occupied", 0.0)),
                    "empty %s" % spell(day.get("empty", 0.0))),
         figure_row("Unaccounted", spell(day.get("unknown", 0.0)),
                    "camera did not answer")),
     unsafe_allow_html=True)
 
 st.markdown(
-    strip_svg(slot_states(recent, chosen, now, DETAIL_HOURS, DETAIL_SLOTS),
-              height=26, radius=5) + day_axis(now),
-    unsafe_allow_html=True)
+    strip_svg(slot_states(recent, chosen, now, slots=int(hours_today * 12),
+                          since=midnight), height=26, radius=5)
+    + day_axis(now, midnight), unsafe_allow_html=True)
 
 if not busy.empty:
     by_hour = busy.copy()
