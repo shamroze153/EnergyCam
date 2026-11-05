@@ -21,7 +21,8 @@ for name, module in (
         # Stubbed so the state machine can be checked anywhere, including on a
         # machine with no database driver installed. Nothing here touches it.
         ("psycopg2", types.SimpleNamespace(Error=Exception, connect=None)),
-        ("privacy_blur", types.SimpleNamespace(count_people=lambda *a, **k: 0)),
+        ("privacy_blur", types.SimpleNamespace(count_people=lambda *a, **k: 0,
+                                               anonymize=lambda f, m: f)),
         ("test_camera", types.SimpleNamespace(build_url=lambda *a, **k: "",
                                               grab=lambda *a, **k: (None, "")))):
     sys.modules.setdefault(name, module)
