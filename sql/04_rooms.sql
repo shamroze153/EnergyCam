@@ -60,6 +60,15 @@ GRANT SELECT ON public.room_events TO energycam_dashboard;
 ALTER TABLE public.room_events ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.room_events FROM anon, authenticated;
 
+-- Policies have no IF NOT EXISTS, so running this file a second time would
+-- stop on "policy already exists" after the table and grants had gone through,
+-- which reads like a failure and is not one. Dropped first so the whole file
+-- can be re-applied safely.
+DROP POLICY IF EXISTS app_insert_rooms ON public.room_events;
+DROP POLICY IF EXISTS app_delete_rooms ON public.room_events;
+DROP POLICY IF EXISTS app_read_rooms   ON public.room_events;
+DROP POLICY IF EXISTS dash_read_rooms  ON public.room_events;
+
 CREATE POLICY app_insert_rooms ON public.room_events
     FOR INSERT TO energycam_app       WITH CHECK (true);
 CREATE POLICY app_delete_rooms ON public.room_events
