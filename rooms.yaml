@@ -96,6 +96,7 @@ rooms:
   # in the data centre at 3am is worth knowing about -- and they never alert.
 
   - name: UPS Room
+    zone: Server rooms
     recorder: dvr2
     channels: [5]
     ac: visible
@@ -106,6 +107,7 @@ rooms:
       discretionary.
 
   - name: Data Centre Operations
+    zone: Server rooms
     recorder: dvr2
     channels: [6]
     ac: visible
@@ -115,18 +117,21 @@ rooms:
   # ---- offices: unit in frame -----------------------------------------------
 
   - name: DL Department
+    zone: Offices
     recorder: dvr2
     channels: [1]
     ac: visible
     empty_after_minutes: 45
 
   - name: HR Room
+    zone: Offices
     recorder: dvr2
     channels: [2]
     ac: visible
     empty_after_minutes: 45
 
   - name: Marketing
+    zone: Offices
     recorder: dvr2
     channels: [3, 13]
     ac: visible
@@ -141,18 +146,21 @@ rooms:
       being wrong is not symmetric.
 
   - name: Creative Room
+    zone: Offices
     recorder: dvr2
     channels: [4]
     ac: visible
     empty_after_minutes: 45
 
   - name: Admin Room
+    zone: Offices
     recorder: dvr2
     channels: [9]
     ac: visible
     empty_after_minutes: 45
 
   - name: AutoOS
+    zone: Offices
     recorder: dvr2
     channels: [10, 14]
     ac: visible
@@ -160,6 +168,7 @@ rooms:
     note: Two cameras assumed to be one room, as with Marketing.
 
   - name: IT Head Room
+    zone: Offices
     recorder: dvr2
     channels: [11]
     ac: visible
@@ -169,6 +178,7 @@ rooms:
       minutes rather than forty-five.
 
   - name: Wellows
+    zone: Offices
     recorder: dvr2
     channels: [15, 16]
     ac: visible
@@ -178,18 +188,21 @@ rooms:
   # ---- lobbies: no unit -----------------------------------------------------
 
   - name: First Floor Lobby
+    zone: Offices
     recorder: dvr2
     channels: [7]
     ac: none
     empty_after_minutes: null
 
   - name: Lobby 1
+    zone: Offices
     recorder: dvr2
     channels: [8]
     ac: none
     empty_after_minutes: null
 
   - name: Lobby
+    zone: Offices
     recorder: dvr2
     channels: [12]
     ac: none
@@ -206,6 +219,7 @@ rooms:
   # ---- rooms with a unit in frame -------------------------------------------
 
   - name: Mosque
+    zone: Cafe & common
     recorder: nvr4
     channels: [6]
     ac: visible
@@ -217,6 +231,7 @@ rooms:
       room is reliably empty between prayers.
 
   - name: Prompt Cafe
+    zone: Cafe & common
     recorder: nvr4
     channels: [13, 14, 15, 20]
     ac: visible
@@ -227,12 +242,14 @@ rooms:
   # ---- rooms with a unit the camera cannot see ------------------------------
 
   - name: Basement
+    zone: Basement
     recorder: nvr4
     channels: [21, 23, 24, 25]
     ac: hidden
     empty_after_minutes: 45
 
   - name: Basement Meeting Room
+    zone: Basement
     recorder: nvr4
     channels: [22]
     ac: hidden
@@ -245,6 +262,7 @@ rooms:
   # ---- no unit to switch off; watched for occupancy only --------------------
 
   - name: Gaming Area
+    zone: Cafe & common
     recorder: nvr4
     channels: [2, 8, 12]
     ac: none
@@ -254,6 +272,7 @@ rooms:
       because the survey's original ac=no could have meant either thing.
 
   - name: Pantry
+    zone: Cafe & common
     recorder: nvr4
     channels: [16, 17, 18]
     ac: none
@@ -262,30 +281,35 @@ rooms:
       No unit here either, confirmed the same way.
 
   - name: Cafe Stairs
+    zone: Cafe & common
     recorder: nvr4
     channels: [1]
     ac: none
     empty_after_minutes: null
 
   - name: Cafe Hand Washing
+    zone: Cafe & common
     recorder: nvr4
     channels: [3]
     ac: none
     empty_after_minutes: null
 
   - name: Ablution Area
+    zone: Cafe & common
     recorder: nvr4
     channels: [4]
     ac: none
     empty_after_minutes: null
 
   - name: Cafe Shoe Rack
+    zone: Cafe & common
     recorder: nvr4
     channels: [5]
     ac: none
     empty_after_minutes: null
 
   - name: AC Outdoor Units
+    zone: Outside & plant
     recorder: nvr4
     channels: [7]
     ac: none
@@ -301,36 +325,42 @@ rooms:
       worth trying only after the rooms above are running.
 
   - name: Atrium Glass
+    zone: Outside & plant
     recorder: nvr4
     channels: [9]
     ac: none
     empty_after_minutes: null
 
   - name: Outside
+    zone: Outside & plant
     recorder: nvr4
     channels: [10]
     ac: none
     empty_after_minutes: null
 
   - name: Prompt Cafe Gate
+    zone: Cafe & common
     recorder: nvr4
     channels: [11]
     ac: none
     empty_after_minutes: null
 
   - name: Inverter Room
+    zone: Outside & plant
     recorder: nvr4
     channels: [19, 28]
     ac: none
     empty_after_minutes: null
 
   - name: RO Street
+    zone: Outside & plant
     recorder: nvr4
     channels: [27]
     ac: none
     empty_after_minutes: null
 
   - name: Solar Array
+    zone: Outside & plant
     recorder: nvr4
     channels: [26, 29, 30, 31, 32]
     ac: none
