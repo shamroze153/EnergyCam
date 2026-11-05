@@ -28,6 +28,23 @@
 #
 # Credentials are NOT in this file. They come from .env, which is not committed.
 
+# Numbers the dashboard uses to turn empty cooled-room time into electricity,
+# money and carbon. Every one of them is an assumption, not a measurement, and
+# they live here rather than inside the code so that anyone who disagrees can
+# see what they are disagreeing with and change it in one place.
+#
+# They answer a conditional question -- IF the units in those empty rooms were
+# running, this is what it would amount to -- and the dashboard says so. None
+# of it becomes a saving until two things exist that do not exist yet: a
+# calibrated unit, so the state is measured rather than supposed, and a record
+# of somebody acting on an alert, so the difference is attributable to this
+# system rather than to the weather.
+assumptions:
+  unit_kw: 1.2                 # a split unit while it is actually cooling
+  tariff_rs_per_kwh: 55        # replace with the effective rate off the bill
+  co2_kg_per_kwh: 0.45         # grid average; the national figure moves
+  co2_kg_per_tree_year: 21     # what one mature tree takes up in a year
+
 recorders:
   nvr4:
     campus: 140-H

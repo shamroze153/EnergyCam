@@ -27,6 +27,7 @@ from datetime import timedelta, timezone
 
 import numpy as np
 import pandas as pd
+import plotly.express as px
 import psycopg2
 import streamlit as st
 import yaml
@@ -41,6 +42,12 @@ STALE_AFTER_MINUTES = 11
 
 STRIP_HOURS = 8
 STRIP_SLOTS = 96                      # five minutes each
+
+# A day is the window a person actually reasons in: "nobody came in before
+# eleven", "it emptied at seven". Eight hours is right for a tile at a glance,
+# and far too short for the question of what a room's day looks like.
+DETAIL_HOURS = 24
+DETAIL_SLOTS = 288                    # five minutes each, again
 
 INK = {
     "Red":   {"bg": "#FDF0F0", "fg": "#9B2C2C", "edge": "#E8B9B9",
@@ -116,6 +123,11 @@ def load_rooms_config(path="rooms.yaml"):
 
 
 @st.cache_data(ttl=20)
+def load_assumptions(path="rooms.yaml"):
+    return yaml.safe_load(open(path)).get("assumptions", {})
+
+
+@st.cache_data(ttl=20)
 def load_state():
     conn = psycopg2.connect(DATABASE_URL, sslmode=DB_SSLMODE, connect_timeout=10)
     try:
@@ -124,9 +136,9 @@ def load_state():
             " ac_state, timestamp"
             " FROM room_events ORDER BY room, timestamp DESC", conn)
         recent = pd.read_sql_query(
-            "SELECT timestamp, room, status FROM room_events"
+            "SELECT timestamp, room, status, people FROM room_events"
             " WHERE timestamp >= now() - interval '%d hours'"
-            " ORDER BY room, timestamp" % (STRIP_HOURS + 1), conn)
+            " ORDER BY room, timestamp" % (DETAIL_HOURS + 1), conn)
         beat = pd.read_sql_query(
             "SELECT max(timestamp) AS last_beat FROM heartbeat", conn)
     finally:
@@ -206,7 +218,7 @@ SLOT_INK = {"occupied": "#7BAE48", "empty": "#E0E0E0", "unknown": "#BDBDBD"}
 NO_DATA = "#F4F4F4"
 
 
-def slot_states(recent, room, now):
+def slot_states(recent, room, now, hours=STRIP_HOURS, slots=STRIP_SLOTS):
     """What each five-minute slot of the window held, oldest first.
 
     One source of truth: the strip under a room and the hours counted up at
@@ -215,8 +227,8 @@ def slot_states(recent, room, now):
     """
     mine = recent[recent["room"] == room]
     if mine.empty:
-        return [None] * STRIP_SLOTS
-    start = now - pd.Timedelta(hours=STRIP_HOURS)
+        return [None] * slots
+    start = now - pd.Timedelta(hours=hours)
     states = mine["status"].tolist()
     # Seconds from the window start on both sides. Doing this in epoch
     # integers looks tidier and is a trap: in pandas 3 a Series of timestamps
@@ -227,7 +239,7 @@ def slot_states(recent, room, now):
     # that looks right is worse than one that fails.
     stamps = (mine["timestamp"] - start).dt.total_seconds().to_numpy()
     span = (now - start).total_seconds()
-    marks = np.linspace(0, span, STRIP_SLOTS, endpoint=False)
+    marks = np.linspace(0, span, slots, endpoint=False)
     where = np.searchsorted(stamps, marks, side="right") - 1
     return [None if i < 0 else states[i] for i in where]
 
@@ -239,7 +251,30 @@ def strip_svg(slots, height=7, radius=3):
         for slot, state in enumerate(slots))
     return ('<svg viewBox="0 0 %d 6" preserveAspectRatio="none" '
             'style="width:100%%;height:%dpx;border-radius:%dpx;display:block;">'
-            '%s</svg>' % (STRIP_SLOTS, height, radius, rects))
+            '%s</svg>' % (len(slots), height, radius, rects))
+
+
+def status_minutes(recent, room, start, now):
+    """Minutes spent in each state inside a window, by the clock.
+
+    The strips count five-minute slots, which is right for drawing and wrong
+    for arithmetic: a room occupied for seven minutes rounds to five or ten
+    depending on where the boundaries fall, and that error accumulates across
+    thirty rooms and a day. Figures that get multiplied into kilowatt-hours and
+    rupees are measured from the events themselves.
+    """
+    mine = recent[recent["room"] == room].sort_values("timestamp")
+    if mine.empty:
+        return {}
+    edges = list(mine["timestamp"]) + [now]
+    totals = {}
+    for index, state in enumerate(mine["status"]):
+        began, ended = max(edges[index], start), edges[index + 1]
+        if ended <= began:
+            continue
+        totals[state] = totals.get(state, 0.0) + \
+            (ended - began).total_seconds() / 60.0
+    return totals
 
 
 def crowd(count, colour, floor, left=44, step=19, room_width=248):
@@ -410,6 +445,17 @@ def hour_axis(now):
             % "".join(ticks))
 
 
+def day_axis(now, hours=DETAIL_HOURS, step=4):
+    start = (now - pd.Timedelta(hours=hours)).tz_convert("Asia/Karachi")
+    ticks = "".join(
+        '<span style="flex:1 1 0;text-align:%s;">%s</span>'
+        % ("left" if at == 0 else ("right" if at == hours else "center"),
+           (start + pd.Timedelta(hours=at)).strftime("%H:%M"))
+        for at in range(0, hours + 1, step))
+    return ('<div style="display:flex;font-size:.64rem;color:#9A9A9A;'
+            'margin-top:3px;">%s</div>' % ticks)
+
+
 def building_bar(df):
     """Every room as one square: the campus settled before anyone scrolls."""
     return "".join(
@@ -577,6 +623,120 @@ st.caption("Bands show the last %d hours: green where people were seen, grey"
            " Every air conditioner is drawn dashed with a question mark"
            " because none has been calibrated — that is unknown, not off."
            % STRIP_HOURS)
+
+st.divider()
+
+# ---- what the empty cooled-room time would amount to ----------------------
+#
+# Every number here is conditional and the page says so out loud. We know how
+# long each air-conditioned room stood empty, because that is measured. We do
+# not know whether its unit was running, because nothing has measured that yet.
+# So this answers "if they were running, how much is sitting on the table" --
+# which is the question worth asking before anyone spends a Saturday moving
+# cameras, and is not the same claim as a saving.
+#
+# It becomes a saving only when two things exist: a calibrated unit, so the
+# state is measured rather than supposed, and a record of somebody acting on an
+# alert, so the difference belongs to this system rather than to the weather.
+
+assumptions = load_assumptions()
+day_start = now - pd.Timedelta(hours=DETAIL_HOURS)
+empty_minutes = sum(
+    status_minutes(recent, room, day_start, now).get("empty", 0.0)
+    for room in cooled["room"])
+kwh = empty_minutes / 60.0 * assumptions.get("unit_kw", 1.2)
+rupees = kwh * assumptions.get("tariff_rs_per_kwh", 55)
+co2 = kwh * assumptions.get("co2_kg_per_kwh", 0.45)
+# Tree-YEARS, and no multiplying by 365. Projecting one day's carbon across a
+# year turned 89 kg into "1,544 trees", a number nobody would believe and
+# nobody should: it extrapolates a single day, overnight included, into an
+# annual rate. This day's carbon is simply what that many trees take up in a
+# year, which is a comparison rather than a forecast.
+trees = co2 / max(assumptions.get("co2_kg_per_tree_year", 21), 1)
+
+st.markdown(
+    '<div style="display:flex;align-items:baseline;gap:10px;margin:4px 0 3px;">'
+    '<span style="font-size:1.12rem;font-weight:720;">What that empty time is'
+    ' worth</span><span style="font-size:.72rem;color:#8A949A;">last %dh'
+    '</span></div>'
+    '<div style="font-size:.76rem;color:#8A949A;margin-bottom:10px;">'
+    'An upper bound, not a saving, and a loose one. The empty time is'
+    ' measured; whether any unit was running is not, because none is'
+    ' calibrated. It covers the night as well, when the units are presumably'
+    ' already off, so the real figure is well below this. Read it as'
+    ' <b>if every unit in those rooms had run through all of it</b>, at %s kW'
+    ' each and Rs %s a unit.</div>'
+    % (DETAIL_HOURS, assumptions.get("unit_kw", 1.2),
+       assumptions.get("tariff_rs_per_kwh", 55)),
+    unsafe_allow_html=True)
+
+st.markdown(
+    '<div style="display:flex;gap:11px;flex-wrap:wrap;margin-bottom:6px;">'
+    '%s%s%s%s</div>' % (
+        figure_row("Empty cooled-room time", spell(empty_minutes),
+                   "%d rooms added together" % len(cooled)),
+        figure_row("Electricity at stake", "%s kWh" % format(round(kwh), ","),
+                   "at %s kW per unit" % assumptions.get("unit_kw", 1.2)),
+        figure_row("Rupees at stake", "Rs %s" % format(round(rupees), ","),
+                   "at Rs %s a unit" % assumptions.get("tariff_rs_per_kwh", 55)),
+        figure_row("Carbon at stake", "%s kg" % format(round(co2), ","),
+                   "what about %d trees take up in a year" % max(round(trees), 1))),
+    unsafe_allow_html=True)
+
+st.caption("Change any of these assumptions in the `assumptions` block of"
+           " rooms.yaml \u2014 they are kept there, not in the code, so they"
+           " can be argued with.")
+
+st.divider()
+
+# ---- one room, in detail --------------------------------------------------
+st.markdown(
+    '<div style="font-size:1.12rem;font-weight:720;margin-bottom:2px;">'
+    'A single room, over a day</div>', unsafe_allow_html=True)
+
+chosen = st.selectbox("Room", list(df["room"]), label_visibility="collapsed")
+row = df[df["room"] == chosen].iloc[0]
+day = status_minutes(recent, chosen, day_start, now)
+mine = recent[recent["room"] == chosen]
+busy = mine[mine["status"] == "occupied"]
+
+st.markdown(
+    '<div style="display:flex;gap:11px;flex-wrap:wrap;margin:6px 0 12px;">'
+    '%s%s%s%s</div>' % (
+        figure_row("Used", spell(day.get("occupied", 0.0)),
+                   "out of the last %dh" % DETAIL_HOURS),
+        figure_row("Empty", spell(day.get("empty", 0.0)),
+                   row["unit_note"]),
+        figure_row("Most at once",
+                   int(busy["people"].max()) if not busy.empty else "\u2014",
+                   "highest count recorded"),
+        figure_row("Unaccounted", spell(day.get("unknown", 0.0)),
+                   "camera did not answer")),
+    unsafe_allow_html=True)
+
+st.markdown(
+    strip_svg(slot_states(recent, chosen, now, DETAIL_HOURS, DETAIL_SLOTS),
+              height=26, radius=5) + day_axis(now),
+    unsafe_allow_html=True)
+
+if busy.empty:
+    st.caption("Nobody was seen in this room in the last %dh." % DETAIL_HOURS)
+else:
+    by_hour = busy.copy()
+    by_hour["hour"] = to_local(by_hour["timestamp"]).dt.strftime("%H:00")
+    peaks = by_hour.groupby("hour")["people"].max().reset_index()
+    figure = px.bar(peaks, x="hour", y="people",
+                    labels={"hour": "", "people": "people"},
+                    color_discrete_sequence=["#7BAE48"])
+    figure.update_layout(height=230, margin=dict(l=0, r=0, t=10, b=0),
+                         plot_bgcolor="#FFFFFF", showlegend=False,
+                         yaxis=dict(gridcolor="#F0F0F0"))
+    st.plotly_chart(figure, use_container_width=True)
+    st.caption("The most people seen at once in each hour. Readings are a"
+               " couple of minutes apart, so a visit shorter than that can"
+               " fall between two of them and leave no mark.")
+
+st.divider()
 
 with st.expander("When rooms fill and empty"):
     st.caption("Built from the recorded changes, so it covers only the time"
