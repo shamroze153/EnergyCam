@@ -30,7 +30,7 @@ os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = (
 import cv2  # noqa: E402  (must follow the env var above)
 import numpy as np  # noqa: E402
 
-from test_camera import build_url, grab
+from test_camera import PATHS, build_url, grab, probe
 
 TILE_W, TILE_H, COLS = 320, 180, 4
 
@@ -119,6 +119,9 @@ def main():
     argv = sys.argv[1:]
     want_main = "--main" in argv
     spec = take_value(argv, "--channels", "1-16")
+    brand = take_value(argv, "--brand")
+    if brand and brand not in PATHS:
+        sys.exit("--brand must be one of: %s" % ", ".join(sorted(PATHS)))
     outdir = take_value(argv, "--out")
     args = [a for a in argv if a != "--main"]
     if len(args) != 3:
@@ -137,8 +140,19 @@ def main():
 
     tiles, live = [], []
     for ch in channels:
-        url = build_url(host, ch, user, password, want_main)
-        frame, status = grab(url)
+        if brand:
+            frame, status = grab(
+                build_url(host, ch, user, password, want_main, brand))
+        else:
+            # Work out the make once, on the first channel that answers, then
+            # stop guessing: trying three paths on every dead channel would
+            # treble the time a scan spends on the ones with no camera.
+            frame, status, found = probe(host, ch, user, password, want_main,
+                                         verbose=True)
+            if found:
+                brand = found
+                print(">> this recorder speaks %s; using it for the rest"
+                      % brand)
         if frame is not None:
             h, w = frame.shape[:2]
             name = "ch%02d_%s.jpg" % (ch, which)

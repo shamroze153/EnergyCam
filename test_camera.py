@@ -24,13 +24,49 @@ os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = (
 import cv2  # noqa: E402  (must follow the env var above)
 
 
-def build_url(host, channel, user, password, main=False):
+# Every make puts its channels at a different path, and a recorder answers a
+# path it does not know with a refusal that looks exactly like a bad password.
+# So the path is something to find out, not to assume.
+PATHS = {
+    "hikvision": lambda ch, main: "/Streaming/Channels/%d%02d" % (
+        ch, 1 if main else 2),
+    "dahua": lambda ch, main: "/cam/realmonitor?channel=%d&subtype=%d" % (
+        ch, 0 if main else 1),
+    "uniview": lambda ch, main: "/unicast/c%d/s%d/live" % (
+        ch, 1 if main else 2),
+}
+
+
+def build_url(host, channel, user, password, main=False, brand="hikvision"):
     # The password sits in front of the @ that separates credentials from host,
     # so an @ or # inside it splits the URL in the wrong place unless escaped.
-    stream = 1 if main else 2
-    return "rtsp://%s:%s@%s:554/Streaming/Channels/%d%02d" % (
+    if brand not in PATHS:
+        raise ValueError("unknown make %r; known: %s"
+                         % (brand, ", ".join(sorted(PATHS))))
+    return "rtsp://%s:%s@%s:554%s" % (
         quote(user, safe=""), quote(password, safe=""), host,
-        int(channel), stream)
+        PATHS[brand](int(channel), main))
+
+
+def mask(url):
+    """The console is read over someone's shoulder and pasted into chats."""
+    if "@" not in url:
+        return url
+    return url[:url.index("://") + 3] + "***@" + url.split("@", 1)[1]
+
+
+def probe(host, channel, user, password, main=False, brand=None,
+          verbose=False):
+    """Try each make's path until one gives a picture. Returns the make too."""
+    status = "no stream"
+    for name in ([brand] if brand else list(PATHS)):
+        url = build_url(host, channel, user, password, main, name)
+        if verbose:
+            print(">> trying %s: %s" % (name, mask(url)))
+        frame, status = grab(url, max_seconds=5.0)
+        if frame is not None:
+            return frame, status, name
+    return None, status, None
 
 
 # A flat frame is almost certainly one the decoder has not filled in yet, so
@@ -78,33 +114,42 @@ def grab(url, min_frames=10, max_seconds=6.0, flat=FLAT):
 
 
 def main():
-    args = [a for a in sys.argv[1:] if a != "--main"]
-    want_main = "--main" in sys.argv
+    argv = sys.argv[1:]
+    want_main = "--main" in argv
+    brand = None
+    if "--brand" in argv:
+        i = argv.index("--brand")
+        if i + 1 >= len(argv):
+            sys.exit("--brand needs one of: %s" % ", ".join(sorted(PATHS)))
+        brand = argv[i + 1]
+        del argv[i:i + 2]
+    args = [a for a in argv if a != "--main"]
 
+    t0 = time.time()
     if len(args) == 1 and args[0].startswith("rtsp://"):
-        url, label = args[0], "custom"
+        label = "custom"
+        print(">> opening %s" % mask(args[0]))
+        frame, status = grab(args[0])
     elif len(args) == 4:
-        url = build_url(args[0], args[1], args[2], args[3], want_main)
-        label = "ch%s %s" % (args[1], "main" if want_main else "sub")
+        host, channel, user, password = args
+        label = "ch%s %s" % (channel, "main" if want_main else "sub")
+        frame, status, brand = probe(host, channel, user, password,
+                                     want_main, brand, verbose=True)
     else:
         sys.exit(__doc__)
 
-    shown = url
-    if "@" in url:                      # keep the password out of the console
-        shown = url[:url.index("://") + 3] + "***@" + url.split("@", 1)[1]
-    print(">> opening %s" % shown)
-
-    t0 = time.time()
-    frame, status = grab(url)
-    if status == "no stream":
-        print(">> FAILED to open the stream (%.1fs)" % (time.time() - t0))
+    if frame is None and status == "no stream":
+        print(">> no path gave a picture (%.1fs)" % (time.time() - t0))
         print(">> usual causes: wrong password, RTSP disabled on the recorder,")
-        print("   this account not allowed to stream, or no route to the host.")
+        print("   this account not allowed to stream, no route to the host,")
+        print("   or a make that is not one of: %s" % ", ".join(sorted(PATHS)))
         sys.exit(1)
     if frame is None:
         print(">> connected, but no frame arrived. The channel may be empty,")
         print("   or that camera may be offline on the recorder.")
         sys.exit(1)
+    if brand:
+        print(">> this recorder speaks %s" % brand)
 
     h, w = frame.shape[:2]
     out = "frame_%s.jpg" % label.replace(" ", "_")

@@ -31,6 +31,7 @@
 recorders:
   nvr4:
     host: 192.168.67.57
+    brand: hikvision     # decides the RTSP path; confirmed by scanning
     user_env: NVR4_USER
     pass_env: NVR4_PASS
     stream: sub          # 640x360, enough to find people
