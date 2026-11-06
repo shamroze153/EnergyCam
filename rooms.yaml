@@ -124,6 +124,24 @@ recorders:
       a reservation on fc:b6:9d:72:8f:48, or the system goes quiet one morning
       for a reason nobody will think to look for.
 
+  nvr1:
+    campus: 140-H
+    host: 192.168.67.80
+    user_env: NVR1_USER
+    pass_env: NVR1_PASS
+    stream: sub          # revisit once a scan shows what the sub stream is
+    note: >
+      Not surveyed yet, and the brand is left out on purpose -- the scanner
+      finds it from whichever path answers.
+
+      Two things stand out from its network page. Its address is static, not
+      handed out by DHCP like the other two, so this one will not change
+      underneath us. And its MAC begins 08:a1:89 where the others begin
+      fc:b6:9d, which is a different manufacturer: three recorders on this
+      campus, quite possibly three makes. All the more reason not to write a
+      brand here and have the scanner find out instead.
+    rooms_pending: true
+
   xvr3:
     campus: 140-H
     host: 192.168.67.23
