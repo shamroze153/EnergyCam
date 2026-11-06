@@ -1073,22 +1073,27 @@ def daily_spans(month, wanted, now):
     return pd.DataFrame(spans)
 
 
-LOGO_FILES = ("assets/logo.svg", "assets/logo.png", "assets/logo.jpg")
+def wordmark(mode):
+    """The company mark, taken from the letterhead.
 
+    Drawn inline rather than through st.image: it is vector, and inlining
+    keeps it crisp at any size and lets the dark and light cuts be swapped
+    with the theme. Two files because the mark is solid black on the
+    letterhead, which disappears on a dark page -- same paths, different fill.
 
-def wordmark(colour):
-    """The company mark, drawn if we have the file and set if we do not.
-
-    Drop the real asset in as assets/logo.svg or .png and it is used instead.
-    Until then this is the name set in type, which is honest about being a
-    stand-in: it does not pretend to be artwork nobody supplied.
+    If the files are missing the name is set in type instead. That is a
+    deliberate fallback rather than a guess at artwork: it is obviously
+    standing in.
     """
-    for path in LOGO_FILES:
-        if os.path.exists(path):
-            return None, path
+    path = os.path.join("assets", "logo-%s.svg"
+                        % ("dark" if mode == "dark" else "light"))
+    if os.path.exists(path):
+        svg = open(path).read()
+        return svg.replace("<svg", "<svg style=\"height:26px;width:auto;"
+                                   "display:block;\"", 1)
     return ('<span style="font-size:1.06rem;font-weight:650;color:%s;'
             'letter-spacing:-.02em;">Disrupt<span style="opacity:.55;">.com'
-            '</span></span>' % colour), None
+            '</span></span>' % (TEXT or "#E6EAED"))
 
 
 def show_arrivals(df, now):
@@ -1656,11 +1661,7 @@ with st.sidebar:
                     horizontal=True, label_visibility="collapsed")
     use_theme(mode)
 
-    mark, logo_path = wordmark(TEXT)
-    if logo_path:
-        st.image(logo_path, width=140)
-    else:
-        st.markdown(mark, unsafe_allow_html=True)
+    st.markdown(wordmark(mode), unsafe_allow_html=True)
     st.markdown(
         '<div style="font-size:.62rem;letter-spacing:.22em;color:%s;'
         'margin-top:2px;">ENERGYCAM</div>' % MUTED,

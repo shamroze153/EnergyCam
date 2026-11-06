@@ -1,9 +1,12 @@
 # assets
 
-Drop the company logo here as `logo.svg`, `logo.png` or `logo.jpg` and the
-dashboard uses it in place of the typeset wordmark. First one found wins, in
-that order.
+`logo-dark.svg` and `logo-light.svg` are the Disrupt.com wordmark, lifted from
+the company letterhead PDF. Same paths in both; only the fill differs, because
+the mark is solid black on the letterhead and disappears on a dark page.
 
-Nothing else looks in this folder. If no file is here the sidebar sets the
-name in type instead, which is deliberate: it is obviously a stand-in rather
-than a guess at artwork nobody supplied.
+They are vector, so they stay sharp at any size, and the dashboard inlines
+them rather than loading them as images — that is what lets the two cuts be
+swapped with the theme.
+
+To replace them, keep the names. If both are missing the dashboard sets the
+name in type instead, which is meant to look like the stand-in it is.
