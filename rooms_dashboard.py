@@ -1654,49 +1654,92 @@ if clicked and st.session_state.get("_came_from") != clicked:
     st.session_state["view"] = "One room"
 
 with st.sidebar:
-    # The theme is picked before anything is drawn, because every colour below
-    # is read from the palette at draw time and Streamlit runs this file top
-    # to bottom on each interaction.
+    # The mark goes first, which means the theme has to be known before the
+    # switch that sets it is drawn. Streamlit keeps a widget's value in
+    # session state and has it there before the rerun that follows a click,
+    # so reading it back is enough -- no second pass, no flicker.
+    mode = st.session_state.get("theme", "dark")
+    use_theme(mode)
+
+    st.markdown(
+        '<div style="margin:2px 0 10px;">%s'
+        '<div style="font-size:.58rem;letter-spacing:.24em;color:%s;'
+        'margin-top:5px;">ENERGYCAM</div></div>' % (wordmark(mode), MUTED),
+        unsafe_allow_html=True)
+
     mode = st.radio("Appearance", ["dark", "light"], key="theme",
                     horizontal=True, label_visibility="collapsed")
     use_theme(mode)
 
-    st.markdown(wordmark(mode), unsafe_allow_html=True)
-    st.markdown(
-        '<div style="font-size:.62rem;letter-spacing:.22em;color:%s;'
-        'margin-top:2px;">ENERGYCAM</div>' % MUTED,
-        unsafe_allow_html=True)
+    st.markdown('<div style="height:1px;background:%s;margin:10px 0 12px;">'
+                '</div>' % LINE, unsafe_allow_html=True)
+
     campuses = sorted(everything["campus"].unique())
     campus = (st.selectbox("Campus", campuses) if len(campuses) > 1
               else campuses[0])
     if len(campuses) == 1:
-        st.markdown('<div style="font-size:1.2rem;font-weight:740;'
-                    'margin-bottom:8px;">%s</div>' % campus,
-                    unsafe_allow_html=True)
+        st.markdown(
+            '<div style="font-size:.56rem;letter-spacing:.2em;color:%s;">'
+            'CAMPUS</div>'
+            '<div style="font-size:1.24rem;font-weight:740;color:%s;'
+            'margin:1px 0 12px;">%s</div>' % (MUTED, TEXT, campus),
+            unsafe_allow_html=True)
+
     view = st.radio("View", VIEWS, key="view", label_visibility="collapsed")
     hunt = st.text_input("Find a room", placeholder="name or part of one")
     st.markdown(
-        '<div style="font-size:.68rem;color:#8A949A;line-height:1.9;'
-        'margin-top:12px;">'
-        '<span style="color:#D04A4A;">●</span> long empty<br>'
-        '<span style="color:#D89221;">●</span> worth a check<br>'
-        '<span style="color:#7E888E;">●</span> camera silent<br>'
-        '<span style="color:#84CC16;">●</span> fine</div>',
+        '<div style="height:1px;background:%s;margin:12px 0 10px;"></div>'
+        '<div style="font-size:.68rem;color:%s;line-height:1.95;">'
+        '<span style="color:%s;">\u25cf</span> long empty<br>'
+        '<span style="color:%s;">\u25cf</span> worth a check<br>'
+        '<span style="color:%s;">\u25cf</span> camera silent<br>'
+        '<span style="color:%s;">\u25cf</span> fine</div>'
+        % (LINE, MUTED, INK["Red"]["bar"], INK["Amber"]["bar"],
+           INK["Fault"]["bar"], INK["Green"]["bar"]),
         unsafe_allow_html=True)
 
-# Streamlit's own surfaces -- page, sidebar, inputs -- are set from
+# Streamlit's own surfaces -- page, header, sidebar, inputs -- are set from
 # config.toml at start-up and cannot be switched at runtime, so they are
-# overridden here instead. Without this the toggle would recolour the cards
-# and leave the page around them the other colour.
+# overridden here. Without this the toggle recolours the cards and leaves
+# everything around them the other colour: the page came out light with a
+# black bar across the top of it, and the campus name was near-invisible
+# because the stored text colour was still the dark theme's.
 st.markdown(
     "<style>"
-    ".stApp, .stApp > header { background: %s !important; }"
-    "section[data-testid='stSidebar'] { background: %s !important;"
-    " border-right: 1px solid %s; }"
-    ".stApp, .stApp p, .stApp label, .stApp li { color: %s; }"
-    "div[data-testid='stMetricValue'], div[data-testid='stMetricLabel']"
-    " { color: %s; }"
-    "</style>" % (PAGE, SURFACE, LINE, TEXT, TEXT),
+    ".stApp { background: %(page)s; color: %(text)s; }"
+    "header[data-testid='stHeader'], div[data-testid='stToolbar'],"
+    " div[data-testid='stDecoration'] { background: %(page)s !important; }"
+    "section[data-testid='stSidebar'] { background: %(surface)s !important;"
+    " border-right: 1px solid %(line)s; }"
+    "section[data-testid='stSidebar'] * { color: %(text)s; }"
+    ".stApp div, .stApp p, .stApp span, .stApp label, .stApp li,"
+    " .stApp h1, .stApp h2, .stApp h3 { color: %(text)s; }"
+    ".stApp [data-testid='stCaptionContainer'],"
+    " .stApp [data-testid='stCaptionContainer'] * { color: %(muted)s; }"
+    "div[data-testid='stMetricValue'] { color: %(text)s; }"
+    "div[data-testid='stMetricLabel'], div[data-testid='stMetricLabel'] *"
+    " { color: %(muted)s; }"
+    "hr { border-color: %(line)s; }"
+    # The navigation is a radio group, which Streamlit draws as a column of
+    # bullets. Six bullets down the side of an operations page look like a
+    # questionnaire. The dot is hidden and the selected row given a surface,
+    # so it reads as navigation. If a Streamlit upgrade changes the markup
+    # this stops applying and the bullets come back -- which is ugly and not
+    # broken, so it is a safe thing to style.
+    " section[data-testid='stSidebar'] div[role='radiogroup'] { gap: 1px; }"
+    " section[data-testid='stSidebar'] div[role='radiogroup'] > label"
+    " { padding: 3px 9px; border-radius: 7px; margin: 0; }"
+    " section[data-testid='stSidebar'] div[role='radiogroup'] > label:hover"
+    " { background: %(sunken)s; }"
+    " section[data-testid='stSidebar'] div[role='radiogroup'] > label >"
+    " div:first-child { display: none; }"
+    " section[data-testid='stSidebar'] div[role='radiogroup'] >"
+    " label:has(input:checked) { background: %(sunken)s; }"
+    " section[data-testid='stSidebar'] div[role='radiogroup'] >"
+    " label:has(input:checked) p { color: %(accent)s; font-weight: 600; }"
+    "</style>" % {"page": PAGE, "surface": SURFACE, "line": LINE,
+                  "text": TEXT, "muted": MUTED, "sunken": SUNKEN,
+                  "accent": INK["Green"]["bar"]},
     unsafe_allow_html=True)
 
 df = everything[everything["campus"] == campus].copy()
