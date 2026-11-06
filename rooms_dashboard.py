@@ -56,31 +56,94 @@ STRIP_SLOTS = 96                      # five minutes each
 DETAIL_HOURS = 24
 DETAIL_SLOTS = 288                    # five minutes each, again
 
-# Dark. A room full of screens is dark, and a page that is ninety per cent
-# white at nine at night is a page people stop opening. The hues carry over --
-# the same red still means the same thing -- set on dark surfaces, with the
-# text lightened enough to stay readable rather than merely visible.
-SURFACE = "#151C22"       # a card
-SUNKEN = "#1B2228"        # a track, a well, anything recessed
-LINE = "#263139"          # a border
-TEXT = "#E6EAED"
-MUTED = "#8A949A"
-FAINT = "#5E6A70"
+# Two palettes, one set of meanings. The same red means the same thing in
+# both; only the surface under it changes. They live together here because
+# they were scattered through the file as literals, and a colour you cannot
+# find is a colour you cannot change -- which is how a page ends up half dark
+# and half white.
+#
+# Dark is the default: this page is read in the evening, when the rooms empty,
+# and a mostly-white screen at nine at night is one people stop opening. Light
+# is for daylight, a projector, and anyone printing it.
 
-INK = {
-    "Red":   {"bg": "#1E1316", "fg": "#F0918F", "edge": "#3B2328",
-              "bar": "#E05252"},
-    "Amber": {"bg": "#1D1810", "fg": "#E8B562", "edge": "#3A2E1A",
-              "bar": "#D89221"},
-    "Green": {"bg": "#141A14", "fg": "#A4D463", "edge": "#253220",
-              "bar": "#84CC16"},
-    # People in a room with its unit off. The opposite of waste, and nobody
-    # hears about it until somebody complains about the heat.
-    "Cool":  {"bg": "#101A21", "fg": "#74B9E0", "edge": "#1F3341",
-              "bar": "#4A90C2"},
-    "Fault": {"bg": "#161B1F", "fg": "#9AA4AA", "edge": "#28323A",
-              "bar": "#6B7780"},
+THEMES = {
+    "dark": {
+        "page": "#0B0F12", "surface": "#151C22", "sunken": "#1B2228",
+        "line": "#263139", "text": "#E6EAED", "muted": "#8A949A",
+        "faint": "#5E6A70",
+        "band": "#0F1418", "band_line": "#1E262C", "band_text": "#F2F4F5",
+        "room_fill": "#1A222A", "ac_on": "#84CC16", "ac_off": "#6B7780",
+        "slot_occupied": "#84CC16", "slot_empty": "#2B343B",
+        "slot_unknown": "#49555D", "slot_none": "#1B2228",
+        "rank_bar": "#C05B45", "good_bg": "#141E14", "good_line": "#2A3A22",
+        "good_fg": "#A4D463",
+        "ink": {
+            "Red":   {"bg": "#1E1316", "fg": "#F0918F", "edge": "#3B2328",
+                      "bar": "#E05252"},
+            "Amber": {"bg": "#1D1810", "fg": "#E8B562", "edge": "#3A2E1A",
+                      "bar": "#D89221"},
+            "Green": {"bg": "#141A14", "fg": "#A4D463", "edge": "#253220",
+                      "bar": "#84CC16"},
+            "Cool":  {"bg": "#101A21", "fg": "#74B9E0", "edge": "#1F3341",
+                      "bar": "#4A90C2"},
+            "Fault": {"bg": "#161B1F", "fg": "#9AA4AA", "edge": "#28323A",
+                      "bar": "#6B7780"},
+        },
+    },
+    "light": {
+        "page": "#FFFFFF", "surface": "#FAFAFA", "sunken": "#F0F1F2",
+        "line": "#E4E6E8", "text": "#14181B", "muted": "#6B7378",
+        "faint": "#9AA3A8",
+        "band": "#14181B", "band_line": "#14181B", "band_text": "#F2F4F5",
+        "room_fill": "#FFFFFF", "ac_on": "#2E7D32", "ac_off": "#8E8E8E",
+        "slot_occupied": "#7BAE48", "slot_empty": "#E0E0E0",
+        "slot_unknown": "#BDBDBD", "slot_none": "#F3F3F3",
+        "rank_bar": "#B9543F", "good_bg": "#F1F7EA", "good_line": "#CDE0B6",
+        "good_fg": "#3D6E15",
+        "ink": {
+            "Red":   {"bg": "#FDF0F0", "fg": "#9B2C2C", "edge": "#E8B9B9",
+                      "bar": "#D04A4A"},
+            "Amber": {"bg": "#FDF5E7", "fg": "#8A5209", "edge": "#EBD3A6",
+                      "bar": "#D89221"},
+            "Green": {"bg": "#F1F7EA", "fg": "#3D6E15", "edge": "#CDE0B6",
+                      "bar": "#7BAE48"},
+            "Cool":  {"bg": "#EDF3FA", "fg": "#1F5B8F", "edge": "#BCD3E8",
+                      "bar": "#4A90C2"},
+            "Fault": {"bg": "#F1F1F1", "fg": "#5A5A5A", "edge": "#D4D4D4",
+                      "bar": "#9AA3A8"},
+        },
+    },
 }
+
+# Rebound by use_theme() before anything draws. Module level because Streamlit
+# reruns the whole script on every interaction: there is no state to carry
+# between runs, so the globals are set once per run and every drawing function
+# reads whichever palette is in force.
+PAGE = SURFACE = SUNKEN = LINE = TEXT = MUTED = FAINT = ""
+BAND = BAND_LINE = BAND_TEXT = ROOM_FILL = AC_ON = AC_OFF = ""
+RANK_BAR = GOOD_BG = GOOD_LINE = GOOD_FG = NO_DATA = ""
+SLOT_INK = {}
+INK = {}
+
+
+def use_theme(mode):
+    global PAGE, SURFACE, SUNKEN, LINE, TEXT, MUTED, FAINT
+    global BAND, BAND_LINE, BAND_TEXT, ROOM_FILL, AC_ON, AC_OFF
+    global RANK_BAR, GOOD_BG, GOOD_LINE, GOOD_FG, SLOT_INK, NO_DATA, INK
+    t = THEMES.get(mode, THEMES["dark"])
+    PAGE, SURFACE, SUNKEN = t["page"], t["surface"], t["sunken"]
+    LINE, TEXT, MUTED, FAINT = t["line"], t["text"], t["muted"], t["faint"]
+    BAND, BAND_LINE, BAND_TEXT = t["band"], t["band_line"], t["band_text"]
+    ROOM_FILL, AC_ON, AC_OFF = t["room_fill"], t["ac_on"], t["ac_off"]
+    RANK_BAR, GOOD_BG = t["rank_bar"], t["good_bg"]
+    GOOD_LINE, GOOD_FG = t["good_line"], t["good_fg"]
+    SLOT_INK = {"occupied": t["slot_occupied"], "empty": t["slot_empty"],
+                "unknown": t["slot_unknown"]}
+    NO_DATA = t["slot_none"]
+    INK = t["ink"]
+
+
+use_theme("dark")
 
 RANK = {"Red": 0, "Amber": 1, "Cool": 2, "Fault": 3, "Green": 4}
 
@@ -336,10 +399,6 @@ PERSON = ('<g transform="translate({x},{y})" fill="{c}">'
           '<path d="M5 11C1.7 11 0 13.6 0 17.2V26h10v-8.8C10 13.6 8.3 11 5 11z"/>'
           '</g>')
 
-SLOT_INK = {"occupied": "#84CC16", "empty": "#2B343B", "unknown": "#49555D"}
-NO_DATA = "#1B2228"
-
-
 def slot_states(recent, room, now, hours=STRIP_HOURS, slots=STRIP_SLOTS,
                 since=None):
     """What each five-minute slot of the window held, oldest first.
@@ -430,27 +489,29 @@ def wall_unit(state, colour, x=176, y=22):
     """
     if state == "on":
         return ('<g transform="translate(%d,%d)">'
-                '<ellipse cx="29" cy="31" rx="36" ry="21" fill="#84CC16"'
+                '<ellipse cx="29" cy="31" rx="36" ry="21" fill="%s"'
                 ' opacity=".12"/>'
-                '<rect x="0" y="0" width="58" height="17" rx="4" fill="#1A222A"'
-                ' stroke="#84CC16" stroke-width="2"/>'
-                '<line x1="5" y1="12" x2="53" y2="12" stroke="#84CC16"'
+                '<rect x="0" y="0" width="58" height="17" rx="4" fill="%s"'
+                ' stroke="%s" stroke-width="2"/>'
+                '<line x1="5" y1="12" x2="53" y2="12" stroke="%s"'
                 ' stroke-width="1.6"/>'
-                '<circle cx="51" cy="5.5" r="2.1" fill="#84CC16"/>'
+                '<circle cx="51" cy="5.5" r="2.1" fill="%s"/>'
                 '<path d="M12 25q5 5 10 0t10 0t10 0" fill="none"'
-                ' stroke="#84CC16" stroke-width="2" stroke-linecap="round"'
+                ' stroke="%s" stroke-width="2" stroke-linecap="round"'
                 ' opacity=".8"/>'
-                '<path d="M16 33q5 4 10 0t10 0" fill="none" stroke="#84CC16"'
+                '<path d="M16 33q5 4 10 0t10 0" fill="none" stroke="%s"'
                 ' stroke-width="1.8" stroke-linecap="round" opacity=".45"/>'
-                '</g>' % (x, y))
+                '</g>' % (x, y, AC_ON, ROOM_FILL, AC_ON, AC_ON, AC_ON,
+                          AC_ON, AC_ON))
     if state == "off":
         return ('<g transform="translate(%d,%d)" opacity=".7">'
-                '<rect x="0" y="0" width="58" height="17" rx="4" fill="#1A222A"'
-                ' stroke="#6B7780" stroke-width="2"/>'
-                '<line x1="5" y1="12" x2="53" y2="12" stroke="#6B7780"'
+                '<rect x="0" y="0" width="58" height="17" rx="4" fill="%s"'
+                ' stroke="%s" stroke-width="2"/>'
+                '<line x1="5" y1="12" x2="53" y2="12" stroke="%s"'
                 ' stroke-width="1.6"/>'
-                '<circle cx="51" cy="5.5" r="2.1" fill="none" stroke="#6B7780"'
-                ' stroke-width="1.4"/></g>' % (x, y))
+                '<circle cx="51" cy="5.5" r="2.1" fill="none" stroke="%s"'
+                ' stroke-width="1.4"/></g>'
+                % (x, y, ROOM_FILL, AC_OFF, AC_OFF, AC_OFF))
     return ('<g transform="translate(%d,%d)" opacity=".42">'
             '<rect x="0" y="0" width="58" height="17" rx="4" fill="none"'
             ' stroke="%s" stroke-width="1.8" stroke-dasharray="4 3"/>'
@@ -469,14 +530,15 @@ def drawn_room(row, ink):
         ' letter-spacing="1.8">EMPTY</text>' % (floor - 8, ink["fg"]))
     return """
 <svg viewBox="0 0 260 112" style="width:100%%;height:auto;display:block;">
-  <rect x="4" y="6" width="252" height="100" rx="11" fill="#1A222A"
+  <rect x="4" y="6" width="252" height="100" rx="11" fill="%s"
         fill-opacity=".6" stroke="%s" stroke-width="1.6"/>
   <line x1="14" y1="%d" x2="246" y2="%d" stroke="%s" stroke-width="2.4"
         stroke-linecap="round"/>
   <path d="M20 %d V34 a13 13 0 0 1 13-13" fill="none" stroke="%s"
         stroke-width="1.8" stroke-linecap="round" opacity=".75"/>
   %s %s %s
-</svg>""" % (ink["edge"], floor, floor, ink["edge"], floor, ink["edge"],
+</svg>""" % (ROOM_FILL, ink["edge"], floor, floor, ink["edge"], floor,
+             ink["edge"],
              wall_unit(state, ink["fg"]), crowd(people, ink["fg"], floor),
              empty_label)
 
@@ -540,11 +602,12 @@ def lane(row):
         shown = min(people, 6)
         now_cell = ('<svg width="%d" height="14" viewBox="0 0 %d 26">%s</svg>'
                     % (shown * 8, shown * 14, "".join(
-                        PERSON.format(x=i * 14, y=0, c="#A4D463")
+                        PERSON.format(x=i * 14, y=0,
+                                      c=INK["Green"]["fg"])
                         for i in range(shown))))
         if people > shown:
-            now_cell += ('<span style="font-size:.68rem;color:#A4D463;">+%d'
-                         '</span>' % (people - shown))
+            now_cell += ('<span style="font-size:.68rem;color:%s;">+%d'
+                         '</span>' % (INK["Green"]["fg"], people - shown))
     elif row["status"] == "unknown":
         now_cell = ('<span style="font-size:.68rem;color:#8A8A8A;">no answer'
                     '</span>')
@@ -608,15 +671,16 @@ def ac_pill(row):
         return '<span style="color:#4A555C;font-size:.66rem;">\u2014</span>'
     state = row["ac_state"] if pd.notna(row["ac_state"]) else None
     look = {
-        "on": ("AC ON", "#1A222A", "#84CC16", "#84CC16", "solid"),
-        "off": ("AC OFF", "#1A222A", "#6B7780", "#6B7780", "solid"),
-    }.get(state, ("AC ?", "#1A222A", "#AEB4B8", "#AEB4B8", "dashed"))
+        "on": ("AC ON", SURFACE, AC_ON, AC_ON, "solid"),
+        "off": ("AC OFF", SURFACE, AC_OFF, AC_OFF, "solid"),
+    }.get(state, ("AC ?", SURFACE, FAINT, MUTED, "dashed"))
     label, ink, border, text, style = look
-    fill = "#84CC16" if state == "on" else "#1A222A"
+    fill = AC_ON if state == "on" else SURFACE
     return ('<span style="font-size:.6rem;font-weight:800;letter-spacing:.04em;'
             'padding:2px 6px;border-radius:9px;border:1.3px %s %s;'
             'background:%s;color:%s;white-space:nowrap;">%s</span>'
-            % (style, border, fill, ink if state == "on" else text, label))
+            % (style, border, fill,
+               THEMES["dark"]["band_text"] if state == "on" else text, label))
 
 
 def status_row(row):
@@ -709,7 +773,7 @@ def header_band(campus, df, beat_age, mode="", money_html=""):
                ("&#9679; live &middot; reported %s ago" % spell(beat_age))
                if live else ("&#9679; silent for %s" % spell(beat_age))))
     return """
-<div style="background:#0F1418;border:1px solid #1E262C;border-radius:14px;
+<div style="background:%s;border:1px solid %s;border-radius:14px;
             padding:16px 20px 14px;margin-bottom:14px;">
   <div style="display:flex;justify-content:space-between;align-items:center;
               flex-wrap:wrap;gap:10px;">
@@ -725,7 +789,8 @@ def header_band(campus, df, beat_age, mode="", money_html=""):
   <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:13px;">%s</div>
   <div style="color:#5E6A70;font-size:.63rem;margin-top:9px;">
     one square per room &middot; %d rooms &middot; %d cameras%s</div>
-</div>""" % (campus, money_html, pill, building_bar(df), len(df),
+</div>""" % (BAND, BAND_LINE, campus, money_html, pill,
+             building_bar(df), len(df),
              int(df["cameras"].sum()),
              (" &middot; %s" % mode) if mode else "")
 
@@ -782,7 +847,7 @@ def pattern_row(name, share, fg):
     cells = "".join(
         '<span title="%02d:00" style="flex:1 1 0;height:15px;border-radius:2px;'
         'background:%s;"></span>'
-        % (hour, "#1B2228" if value is None else
+        % (hour, NO_DATA if value is None else
            "rgba(107,163,61,%.2f)" % (0.10 + 0.90 * value))
         for hour, value in enumerate(share))
     return ('<div style="display:flex;align-items:center;gap:8px;'
@@ -911,10 +976,12 @@ def show_room_day(df, recent, chosen, now):
         peaks = by_hour.groupby("hour")["people"].max().reset_index()
         chart = px.bar(peaks, x="hour", y="people",
                        labels={"hour": "", "people": "people"},
-                       color_discrete_sequence=["#84CC16"])
+                       color_discrete_sequence=[AC_ON])
         chart.update_layout(height=215, margin=dict(l=0, r=0, t=16, b=0),
-                            plot_bgcolor="#1A222A", showlegend=False,
-                            yaxis=dict(gridcolor="#263139"))
+                            plot_bgcolor="rgba(0,0,0,0)",
+                            paper_bgcolor="rgba(0,0,0,0)",
+                            font=dict(color=MUTED), showlegend=False,
+                            yaxis=dict(gridcolor=LINE))
         st.plotly_chart(chart, use_container_width=True)
         st.caption("The most people seen at once in each hour. Readings are a"
                    " couple of minutes apart, so a visit shorter than that can"
@@ -1006,6 +1073,24 @@ def daily_spans(month, wanted, now):
     return pd.DataFrame(spans)
 
 
+LOGO_FILES = ("assets/logo.svg", "assets/logo.png", "assets/logo.jpg")
+
+
+def wordmark(colour):
+    """The company mark, drawn if we have the file and set if we do not.
+
+    Drop the real asset in as assets/logo.svg or .png and it is used instead.
+    Until then this is the name set in type, which is honest about being a
+    stand-in: it does not pretend to be artwork nobody supplied.
+    """
+    for path in LOGO_FILES:
+        if os.path.exists(path):
+            return None, path
+    return ('<span style="font-size:1.06rem;font-weight:650;color:%s;'
+            'letter-spacing:-.02em;">Disrupt<span style="opacity:.55;">.com'
+            '</span></span>' % colour), None
+
+
 def show_arrivals(df, now):
     """When each room fills and empties, on a usual day.
 
@@ -1067,7 +1152,7 @@ def show_arrivals(df, now):
             '<span style="flex:0 0 74px;font-size:.68rem;color:#7E888E;'
             'text-align:right;">%d day%s</span></div>'
             % (INK[r["level"]]["fg"], r["room"], clock(r["first"]),
-               left, width, "#84CC16" if r["has_unit"] else "#3B464D",
+               left, width, AC_ON if r["has_unit"] else FAINT,
                clock(r["last"]), r["days"], "" if r["days"] == 1 else "s"))
     ticks = "".join('<span style="flex:1 1 0;text-align:center;">%s</span>'
                     % (("%02d" % h) if h % 3 == 0 else "") for h in range(24))
@@ -1469,12 +1554,12 @@ def show_numbers(df, cooled, recent, now):
                 ' seen)</span></li>' % (room, hour, hour, days)
                 for room, hour, days in sorted(advice, key=lambda a: a[1]))
             st.markdown(
-                '<div style="background:#141E14;border:1px solid #2A3A22;'
+                '<div style="background:%s;border:1px solid %s;'
                 'border-radius:11px;padding:12px 16px;margin-top:14px;">'
-                '<div style="font-weight:680;color:#A4D463;margin-bottom:5px;">'
+                '<div style="font-weight:680;color:%s;margin-bottom:5px;">'
                 'Worth setting a timer for</div>'
                 '<ul style="margin:0;padding-left:18px;font-size:.82rem;'
-                'color:#A4D463;">%s</ul></div>' % lines,
+                'color:%s;">%s</ul></div>' % (GOOD_FG, GOOD_FG, lines),
                 unsafe_allow_html=True)
             st.caption("Reliably means used on fewer than one day in five"
                        " after that hour. A room used on two afternoons out of"
@@ -1564,9 +1649,22 @@ if clicked and st.session_state.get("_came_from") != clicked:
     st.session_state["view"] = "One room"
 
 with st.sidebar:
+    # The theme is picked before anything is drawn, because every colour below
+    # is read from the palette at draw time and Streamlit runs this file top
+    # to bottom on each interaction.
+    mode = st.radio("Appearance", ["dark", "light"], key="theme",
+                    horizontal=True, label_visibility="collapsed")
+    use_theme(mode)
+
+    mark, logo_path = wordmark(TEXT)
+    if logo_path:
+        st.image(logo_path, width=140)
+    else:
+        st.markdown(mark, unsafe_allow_html=True)
     st.markdown(
-        '<div style="font-size:.62rem;letter-spacing:.22em;color:#8A949A;">'
-        'ENERGYCAM</div>', unsafe_allow_html=True)
+        '<div style="font-size:.62rem;letter-spacing:.22em;color:%s;'
+        'margin-top:2px;">ENERGYCAM</div>' % MUTED,
+        unsafe_allow_html=True)
     campuses = sorted(everything["campus"].unique())
     campus = (st.selectbox("Campus", campuses) if len(campuses) > 1
               else campuses[0])
@@ -1584,6 +1682,21 @@ with st.sidebar:
         '<span style="color:#7E888E;">●</span> camera silent<br>'
         '<span style="color:#84CC16;">●</span> fine</div>',
         unsafe_allow_html=True)
+
+# Streamlit's own surfaces -- page, sidebar, inputs -- are set from
+# config.toml at start-up and cannot be switched at runtime, so they are
+# overridden here instead. Without this the toggle would recolour the cards
+# and leave the page around them the other colour.
+st.markdown(
+    "<style>"
+    ".stApp, .stApp > header { background: %s !important; }"
+    "section[data-testid='stSidebar'] { background: %s !important;"
+    " border-right: 1px solid %s; }"
+    ".stApp, .stApp p, .stApp label, .stApp li { color: %s; }"
+    "div[data-testid='stMetricValue'], div[data-testid='stMetricLabel']"
+    " { color: %s; }"
+    "</style>" % (PAGE, SURFACE, LINE, TEXT, TEXT),
+    unsafe_allow_html=True)
 
 df = everything[everything["campus"] == campus].copy()
 hours = load_hours()
@@ -1631,14 +1744,16 @@ out_of_frame = acting[acting["ac"] == "hidden"]
 
 if acting.empty:
     st.markdown(
-        '<div style="background:#141E14;border:1px solid #2A3A22;'
-        'border-left:6px solid #A4D463;border-radius:13px;padding:15px 19px;'
+        '<div style="background:%s;border:1px solid %s;'
+        'border-left:6px solid %s;border-radius:13px;padding:15px 19px;'
         'margin-bottom:12px;">'
-        '<div style="font-size:1.1rem;font-weight:740;color:#A4D463;">'
+        '<div style="font-size:1.1rem;font-weight:740;color:%s;">'
         'Nothing to do right now</div>'
-        '<div style="font-size:.78rem;color:#A4D463;opacity:.8;margin-top:2px;">'
+        '<div style="font-size:.78rem;color:%s;opacity:.8;margin-top:2px;">'
         'Every air-conditioned room is either in use or has not been empty long'
-        ' enough to be worth a walk.</div></div>', unsafe_allow_html=True)
+        ' enough to be worth a walk.</div></div>'
+        % (GOOD_BG, GOOD_LINE, GOOD_FG, GOOD_FG, GOOD_FG),
+        unsafe_allow_html=True)
 else:
     st.markdown(
         '<div style="display:flex;align-items:baseline;gap:10px;'
