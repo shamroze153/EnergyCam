@@ -35,7 +35,8 @@ import streamlit as st
 import yaml
 from streamlit_autorefresh import st_autorefresh
 
-from schedule import describe, wait_before_reporting
+from schedule import (AFTER_HOURS, WEEKEND, WORKING, describe,
+                      split_by_period, wait_before_reporting)
 
 PKT = timezone(timedelta(hours=5))
 
@@ -64,8 +65,17 @@ INK = {
               "bar": "#7BAE48"},
     "Fault": {"bg": "#F1F1F1", "fg": "#5A5A5A", "edge": "#D4D4D4",
               "bar": "#9AA3A8"},
+    # People in a room with its unit off. The opposite of waste, and nobody
+    # hears about it until somebody complains about the heat.
+    "Cool":  {"bg": "#EDF3FA", "fg": "#1F5B8F", "edge": "#BCD3E8",
+              "bar": "#4A90C2"},
 }
-RANK = {"Red": 0, "Amber": 1, "Fault": 2, "Green": 3}
+RANK = {"Red": 0, "Amber": 1, "Cool": 2, "Fault": 3, "Green": 4}
+
+# How long somebody sits in a room with the unit off before it is worth
+# mentioning. Short enough to matter, long enough that walking in and not
+# having switched it on yet is not a fault.
+COLD_AFTER_MINUTES = 30
 ZONE_ORDER = ["Offices", "Basement", "Cafe & common", "Server rooms",
               "Outside & plant"]
 
@@ -198,15 +208,65 @@ def spell(minutes):
     return "%dh" % hours if rest == 0 else "%dh %02dm" % (hours, rest)
 
 
+def run_started(recent, room, now):
+    """When the room's present state began.
+
+    Every change is a row, including a change in how many people are in the
+    room, so a room occupied all afternoon has many consecutive occupied rows.
+    The start of the state is the first of that run, not the last.
+    """
+    mine = recent[recent["room"] == room].sort_values("timestamp")
+    if mine.empty:
+        return pd.NaT
+    statuses = mine["status"].tolist()
+    stamps = mine["timestamp"].tolist()
+    started, current = stamps[-1], statuses[-1]
+    for index in range(len(statuses) - 2, -1, -1):
+        if statuses[index] != current:
+            break
+        started = stamps[index]
+    return started
+
+
 def grade(row, now, hours=None):
+    """Colour, headline and the line under it, from occupancy and the unit.
+
+    Four outcomes rather than three once a unit has been calibrated:
+
+      unit on, people           in use, nothing to do
+      unit on, empty a while    waste, and that is the whole point
+      unit off, empty           ideal -- and emphatically not a room to send
+                                anybody to, which the old rule did
+      unit off, people a while  the opposite problem: somebody sitting in a
+                                room whose cooling is off, which nobody hears
+                                about until they complain
+
+    Where the unit has not been calibrated its state is None and the first
+    pair collapse into the old behaviour, which is what every room does today.
+    """
     if row["status"] == "unknown" or pd.isna(row["status"]):
         if pd.isna(row["timestamp"]):
             return "Fault", "Not sampled", "the loop has not reached it"
         return "Fault", "No answer", "camera did not reply"
+
+    unit = row["ac_state"] if pd.notna(row.get("ac_state")) else None
+
     if row["status"] == "occupied":
         people = int(row["people"]) if pd.notna(row["people"]) else 0
-        return "Green", "%d in here" % people, row["caption"]
+        headline = "%d in here" % people
+        if unit == "off" and row.get("has_unit"):
+            sitting = minutes_since(row.get("occupied_since"), now)
+            if sitting is not None and sitting >= COLD_AFTER_MINUTES:
+                return "Cool", headline, ("unit off for %s \u2014 faulty, or"
+                                          " nobody switched it on"
+                                          % spell(sitting))
+        return "Green", headline, row["caption"]
+
     empty = minutes_since(row["empty_since"], now)
+    if unit == "off":
+        # Empty and already off. Sending somebody to check this room is the
+        # one thing this system must not do: it is the room that got it right.
+        return "Green", "Empty %s" % spell(empty), "unit already off"
     headline = "Empty %s" % spell(empty)
     # The same wait the loop uses, from the same file, so this page and the
     # alerts can never disagree about which rooms want attention.
@@ -1075,6 +1135,56 @@ def show_numbers(df, cooled, recent, now):
         % (DETAIL_HOURS, assumptions.get("unit_kw", 1.2),
            assumptions.get("tariff_rs_per_kwh", 55)), unsafe_allow_html=True)
 
+    # ---- which hours the money is actually in -----------------------------
+    #
+    # A room left cooling through a lunch break costs about fifty rupees. The
+    # same room left cooling from eight at night until ten the next morning
+    # costs about nine hundred, and across a weekend about four thousand. One
+    # night is worth eighteen lunch breaks and one weekend eighty-three.
+    #
+    # A single total hides that completely, and a total that hides where the
+    # money is sends people to chase the wrong thing -- walking the floor at
+    # lunchtime while the real figure is made overnight by nobody.
+    by_period = {WORKING: 0.0, AFTER_HOURS: 0.0, WEEKEND: 0.0}
+    week_start = now - pd.Timedelta(days=7)
+    for room in discretionary["room"]:
+        mine = month[month["room"] == room].sort_values("timestamp")
+        if mine.empty:
+            continue
+        edges = list(mine["timestamp"]) + [now]
+        for index, state in enumerate(mine["status"]):
+            if state != "empty":
+                continue
+            began, ended = max(edges[index], week_start), edges[index + 1]
+            if ended <= began:
+                continue
+            for bucket, minutes in split_by_period(began, ended, hours).items():
+                by_period[bucket] += minutes
+
+    if sum(by_period.values()) > 0:
+        st.divider()
+        biggest = max(by_period, key=by_period.get)
+        tiles = "".join(
+            figure_row(name.title(), "Rs %s" % format(round(money(mins, assumptions)[1]), ","),
+                       "%s empty" % spell(mins),
+                       "#A33434" if name == biggest else "#14181B")
+            for name, mins in ((WORKING, by_period[WORKING]),
+                               (AFTER_HOURS, by_period[AFTER_HOURS]),
+                               (WEEKEND, by_period[WEEKEND])))
+        st.markdown(
+            '<div style="font-size:1.1rem;font-weight:720;margin-bottom:2px;">'
+            'Which hours it happens in</div>'
+            '<div style="font-size:.74rem;color:#8A949A;margin-bottom:9px;">'
+            'the last seven days, split by the kind of time &mdash; same upper'
+            ' bound, same assumptions</div>'
+            '<div style="display:flex;gap:11px;flex-wrap:wrap;">%s</div>'
+            % tiles, unsafe_allow_html=True)
+        st.caption("One night left running is worth about eighteen lunch"
+                   " breaks, and one weekend about eighty-three. If the"
+                   " largest figure here is not working hours, walking the"
+                   " floor at lunchtime is not where the money is \u2014"
+                   " timers and an evening sweep are.")
+
     st.markdown(
         '<div style="display:flex;gap:11px;flex-wrap:wrap;margin-bottom:6px;">'
         '%s%s%s%s</div>' % (
@@ -1292,6 +1402,7 @@ with st.sidebar:
 
 df = everything[everything["campus"] == campus].copy()
 hours = load_hours()
+df["occupied_since"] = df["room"].apply(lambda r: run_started(recent, r, now))
 graded = df.apply(lambda r: grade(r, now, hours), axis=1)
 df["level"] = [g[0] for g in graded]
 df["headline"] = [g[1] for g in graded]

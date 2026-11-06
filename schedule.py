@@ -61,6 +61,49 @@ def in_operations(when, hours=None):
     return minute >= start or minute < end
 
 
+WORKING, AFTER_HOURS, WEEKEND = "working hours", "after hours", "weekend"
+
+
+def period(when, hours=None):
+    """Which kind of time this is: working, after hours, or the weekend."""
+    hours = hours or DEFAULT_HOURS
+    if in_operations(when, hours):
+        return WORKING
+    local = when.astimezone(PKT)
+    days = [d.strip().lower()[:3]
+            for d in hours.get("operations",
+                               DEFAULT_HOURS["operations"]).get("days", [])]
+    return AFTER_HOURS if DAY_NAMES[local.weekday()] in days else WEEKEND
+
+
+def split_by_period(start, end, hours=None):
+    """Minutes between two moments, split by what kind of time they fall in.
+
+    The reason this exists: a room left cooling through a lunch break costs
+    about fifty rupees, and the same room left cooling from eight at night
+    until ten in the morning costs about nine hundred. One night is worth
+    eighteen lunch breaks. Totalling them together hides that, and a total
+    that hides where the money is will send people chasing the wrong thing.
+
+    Walked in chunks aligned to the hour, which is as fine as the question
+    needs: no operating window here turns over mid-hour.
+    """
+    buckets = {WORKING: 0.0, AFTER_HOURS: 0.0, WEEKEND: 0.0}
+    if end <= start:
+        return buckets
+    cursor = start
+    while cursor < end:
+        # the next hour boundary in local time, or the end, whichever is first
+        local = cursor.astimezone(PKT)
+        step = 60 - local.minute
+        nxt = cursor + timedelta(minutes=step)
+        if nxt > end:
+            nxt = end
+        buckets[period(cursor, hours)] += (nxt - cursor).total_seconds() / 60.0
+        cursor = nxt
+    return buckets
+
+
 def wait_before_reporting(room_minutes, when, hours=None):
     """How long a room may sit empty before it is worth reporting, right now.
 
