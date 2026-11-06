@@ -165,9 +165,9 @@ def load_history(days=7):
     conn = psycopg2.connect(DATABASE_URL, sslmode=DB_SSLMODE, connect_timeout=10)
     try:
         df = pd.read_sql_query(
-            "SELECT timestamp, room, people FROM room_events"
+            "SELECT timestamp, room, status, people FROM room_events"
             " WHERE timestamp >= now() - interval '%d days'"
-            " AND status = 'occupied' ORDER BY timestamp" % days, conn)
+            " ORDER BY room, timestamp" % days, conn)
     finally:
         conn.close()
     df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
@@ -595,6 +595,73 @@ def figure_row(label, value, note, tone="#14181B"):
 
 # ------------------------------------------------------------------- views
 
+def hour_pattern(week, room, now, days=7):
+    """For each hour of the day, on what share of days was this room in use?
+
+    Sampled at the middle of every hour of every day rather than counted from
+    events, because only changes are recorded: a room occupied from nine to six
+    leaves two rows, and counting rows would call it busy twice and idle for
+    the other seven hours. Sampling asks the state, which is the question.
+    """
+    mine = week[week["room"] == room]
+    if mine.empty:
+        return [None] * 24, 0
+    start = (now - pd.Timedelta(days=days)).normalize()
+    stamps = (mine["timestamp"] - start).dt.total_seconds().to_numpy()
+    states = mine["status"].tolist()
+    local_offset = 5 * 3600          # Pakistan, fixed, no daylight saving
+    counted = [0] * 24
+    busy = [0] * 24
+    for day in range(days):
+        for hour in range(24):
+            # middle of that hour, in local time, expressed as seconds since
+            # the window began
+            at = day * 86400 + hour * 3600 + 1800 - local_offset
+            if at < 0 or at > (now - start).total_seconds():
+                continue
+            index = int(np.searchsorted(stamps, at, side="right")) - 1
+            if index < 0:
+                continue
+            counted[hour] += 1
+            if states[index] == "occupied":
+                busy[hour] += 1
+    share = [None if counted[h] == 0 else busy[h] / counted[h]
+             for h in range(24)]
+    return share, max(counted)
+
+
+def pattern_row(name, share, fg):
+    cells = "".join(
+        '<span title="%02d:00" style="flex:1 1 0;height:15px;border-radius:2px;'
+        'background:%s;"></span>'
+        % (hour, "#F2F2F2" if value is None else
+           "rgba(107,163,61,%.2f)" % (0.10 + 0.90 * value))
+        for hour, value in enumerate(share))
+    return ('<div style="display:flex;align-items:center;gap:8px;'
+            'margin-bottom:3px;">'
+            '<span style="flex:0 0 140px;font-size:.74rem;color:%s;'
+            'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">%s'
+            '</span><span style="flex:1 1 auto;display:flex;gap:1px;">%s</span>'
+            '</div>' % (fg, name, cells))
+
+
+def settles_at(share, from_hour=12):
+    """The hour after which a room is reliably empty, or None if it never is.
+
+    "Reliably" is under one day in five. A room used on two afternoons out of
+    seven has no switch-off time worth setting, and saying otherwise would get
+    somebody's air conditioning turned off while they were sitting under it.
+    """
+    last = None
+    for hour in range(23, from_hour - 1, -1):
+        if share[hour] is None:
+            continue
+        if share[hour] >= 0.2:
+            return hour + 1 if hour < 23 else None
+        last = hour
+    return last if last is not None else None
+
+
 def show_room_day(df, recent, chosen, now):
     """One room: today in detail, then its habits over the week."""
     row = df[df["room"] == chosen].iloc[0]
@@ -677,7 +744,8 @@ def show_room_day(df, recent, chosen, now):
         week = pd.DataFrame()
     if week.empty:
         return
-    theirs = week[week["room"] == chosen].copy()
+    theirs = week[(week["room"] == chosen) &
+                  (week["status"] == "occupied")].copy()
     if theirs.empty:
         return
     theirs["when"] = to_local(theirs["timestamp"])
@@ -756,9 +824,16 @@ def show_numbers(df, cooled, recent, now):
     """
     assumptions = load_assumptions()
     day_start = now - pd.Timedelta(hours=DETAIL_HOURS)
+
+    # Rooms whose cooling is a choice. The server rooms have units and are
+    # empty of people nearly always, so counting their empty hours here put
+    # them at the top of the waste list and inflated every figure under it --
+    # with time that is not waste at all, but the thing keeping the equipment
+    # alive. A number that goes into a business case cannot include it.
+    discretionary = cooled[cooled["alerts"]]
     empty_minutes = sum(
         status_minutes(recent, room, day_start, now).get("empty", 0.0)
-        for room in cooled["room"])
+        for room in discretionary["room"])
     kwh = empty_minutes / 60.0 * assumptions.get("unit_kw", 1.2)
     rupees = kwh * assumptions.get("tariff_rs_per_kwh", 55)
     co2 = kwh * assumptions.get("co2_kg_per_kwh", 0.45)
@@ -787,7 +862,7 @@ def show_numbers(df, cooled, recent, now):
         '<div style="display:flex;gap:11px;flex-wrap:wrap;margin-bottom:6px;">'
         '%s%s%s%s</div>' % (
             figure_row("Empty cooled-room time", spell(empty_minutes),
-                       "%d rooms added together" % len(cooled)),
+                       "%d rooms added together" % len(discretionary)),
             figure_row("Electricity at stake", "%s kWh" % format(round(kwh), ","),
                        "at %s kW per unit" % assumptions.get("unit_kw", 1.2)),
             figure_row("Rupees at stake", "Rs %s" % format(round(rupees), ","),
@@ -799,6 +874,100 @@ def show_numbers(df, cooled, recent, now):
     st.caption("Change any of these in the `assumptions` block of rooms.yaml"
                " — they are kept there, not in the code, so they can be"
                " argued with.")
+
+    # ---- where the empty cooled-room time actually goes -------------------
+    #
+    # The total says there is something to look at. It does not say where, and
+    # thirty rooms is too many to work through evenly. Ranked, it usually turns
+    # out that three or four rooms carry most of it, and those are the ones
+    # worth a timer, a word with whoever uses them, or a camera moved.
+    st.divider()
+    ranked = sorted(
+        ((room, status_minutes(recent, room, day_start, now).get("empty", 0.0))
+         for room in discretionary["room"]), key=lambda pair: -pair[1])[:8]
+    if ranked and ranked[0][1] > 0:
+        worst = ranked[0][1]
+        bars = "".join(
+            '<div style="display:flex;align-items:center;gap:9px;'
+            'margin-bottom:4px;">'
+            '<span style="flex:0 0 150px;font-size:.78rem;white-space:nowrap;'
+            'overflow:hidden;text-overflow:ellipsis;">%s</span>'
+            '<span style="flex:1 1 auto;height:13px;background:#F2F2F2;'
+            'border-radius:3px;overflow:hidden;">'
+            '<span style="display:block;height:13px;width:%.1f%%;'
+            'background:#B9543F;border-radius:3px;"></span></span>'
+            '<span style="flex:0 0 72px;text-align:right;font-size:.74rem;'
+            'color:#6B7378;">%s</span></div>'
+            % (room, 100.0 * minutes / worst, spell(minutes))
+            for room, minutes in ranked)
+        st.markdown(
+            '<div style="font-size:1.1rem;font-weight:720;margin-bottom:2px;">'
+            'Where that time goes</div>'
+            '<div style="font-size:.74rem;color:#8A949A;margin-bottom:8px;">'
+            'air-conditioned rooms, longest empty first, last %dh</div>%s'
+            % (DETAIL_HOURS, bars), unsafe_allow_html=True)
+        st.caption("Three or four rooms usually carry most of it. Those are"
+                   " the ones worth a timer, a word with whoever uses them, or"
+                   " a camera moved — rather than working evenly through"
+                   " thirty.")
+
+    # ---- the week as a picture --------------------------------------------
+    st.divider()
+    try:
+        week = load_history()
+    except psycopg2.Error:
+        week = pd.DataFrame()
+    if not week.empty:
+        st.markdown(
+            '<div style="font-size:1.1rem;font-weight:720;margin-bottom:2px;">'
+            'When each room is used</div>'
+            '<div style="font-size:.74rem;color:#8A949A;margin-bottom:8px;">'
+            'each square is an hour of the day; darker means the room was in'
+            ' use on more of the last seven days</div>', unsafe_allow_html=True)
+        rows_html, advice = "", []
+        for _, room in df.iterrows():
+            share, days_seen = hour_pattern(week, room["room"], now)
+            if days_seen == 0:
+                continue
+            rows_html += pattern_row(room["room"], share,
+                                     INK[room["level"]]["fg"])
+            if room["has_unit"] and room["alerts"]:
+                hour = settles_at(share)
+                if hour is not None and days_seen >= 3:
+                    advice.append((room["room"], hour, days_seen))
+        ticks = "".join('<span style="flex:1 1 0;text-align:center;">%s</span>'
+                        % (("%02d" % h) if h % 3 == 0 else "")
+                        for h in range(24))
+        st.markdown(
+            rows_html +
+            '<div style="display:flex;align-items:center;gap:8px;'
+            'margin-top:2px;"><span style="flex:0 0 140px;"></span>'
+            '<span style="flex:1 1 auto;display:flex;font-size:.6rem;'
+            'color:#9AA3A8;">%s</span></div>' % ticks,
+            unsafe_allow_html=True)
+
+        if advice:
+            # The point of the picture. A room reliably empty after six does
+            # not need an alert at all -- it needs a timer, and then it stops
+            # being a problem instead of being reported as one every evening.
+            lines = "".join(
+                '<li style="margin-bottom:2px;"><b>%s</b> is reliably empty'
+                ' after %02d:00 &mdash; a timer at %02d:15 would stop it being'
+                ' reported at all <span style="color:#9AA3A8;">(%d days'
+                ' seen)</span></li>' % (room, hour, hour, days)
+                for room, hour, days in sorted(advice, key=lambda a: a[1]))
+            st.markdown(
+                '<div style="background:#F1F7EA;border:1px solid #CDE0B6;'
+                'border-radius:11px;padding:12px 16px;margin-top:14px;">'
+                '<div style="font-weight:680;color:#3D6E15;margin-bottom:5px;">'
+                'Worth setting a timer for</div>'
+                '<ul style="margin:0;padding-left:18px;font-size:.82rem;'
+                'color:#3D6E15;">%s</ul></div>' % lines,
+                unsafe_allow_html=True)
+            st.caption("Reliably means used on fewer than one day in five"
+                       " after that hour. A room used on two afternoons out of"
+                       " seven gets no suggestion, because switching it off"
+                       " would catch somebody sitting under it.")
 
     st.divider()
     st.markdown('<div style="font-size:1.1rem;font-weight:720;">When rooms'
@@ -814,6 +983,8 @@ def show_numbers(df, cooled, recent, now):
         st.info("No history yet.")
         return
     history = history[history["room"].isin(set(df["room"]))]
+    busy_only = history[history["status"] == "occupied"].copy()
+    history = busy_only
     history["day"] = to_local(history["timestamp"]).dt.date
     day = st.selectbox("Day", sorted(history["day"].unique(), reverse=True))
     chosen = history[history["day"] == day]
