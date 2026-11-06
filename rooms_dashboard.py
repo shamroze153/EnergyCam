@@ -710,7 +710,7 @@ def status_row(row):
   <span style="flex:0 0 78px;display:flex;align-items:center;">%s</span>
   <span style="flex:0 0 58px;">%s</span>
   <span style="flex:1 1 auto;min-width:60px;">%s</span>
-</div>""" % (ink["bg"] if row["level"] != "Green" else "#141A14",
+</div>""" % (ink["bg"],
              ink["bar"], ink["fg"], row["room"], who, ac_pill(row),
              strip_svg(row["slots"], height=9, radius=2))
 
