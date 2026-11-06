@@ -171,6 +171,35 @@ def load_state():
 
 
 @st.cache_data(ttl=60)
+def load_coverage(days=7):
+    """How much of the last week anything was actually watching.
+
+    Every pattern on this page is drawn from recorded changes, and a change is
+    only recorded while the loop is running. A laptop that goes home at seven
+    produces a heatmap whose nights are blank -- and a blank night looks
+    exactly like an empty one. The figure is read from the heartbeat, which is
+    the only thing that says "something was awake", and is shown next to the
+    patterns so nobody reads a gap as a finding.
+    """
+    conn = psycopg2.connect(DATABASE_URL, sslmode=DB_SSLMODE, connect_timeout=10)
+    try:
+        beats = pd.read_sql_query(
+            "SELECT timestamp FROM heartbeat"
+            " WHERE timestamp >= now() - interval '%d days'"
+            " ORDER BY timestamp" % days, conn)
+    finally:
+        conn.close()
+    if beats.empty:
+        return 0.0, days * 24.0
+    stamps = pd.to_datetime(beats["timestamp"], utc=True)
+    # The loop beats every five minutes, so each beat vouches for the ten
+    # minutes around it and no more. Counting distinct ten-minute windows
+    # rather than beats means a restart loop cannot inflate the figure.
+    windows = (stamps.astype("int64") // (10 * 60 * 10**9)).nunique()
+    return windows * 10.0 / 60.0, days * 24.0
+
+
+@st.cache_data(ttl=60)
 def load_history(days=28):
     conn = psycopg2.connect(DATABASE_URL, sslmode=DB_SSLMODE, connect_timeout=10)
     try:
@@ -1240,6 +1269,20 @@ def show_numbers(df, cooled, recent, now):
 
     # ---- the week as a picture --------------------------------------------
     st.divider()
+    try:
+        watched, possible = load_coverage()
+    except psycopg2.Error:
+        watched, possible = 0.0, 1.0
+    share = watched / possible if possible else 0.0
+    if share < 0.9:
+        st.warning(
+            "**The last seven days were only watched for %s of %s hours"
+            " (%d%%).** Everything below is drawn from recorded changes, and"
+            " nothing is recorded while the loop is stopped \u2014 so a pale"
+            " patch may mean the room was empty, or it may mean nobody was"
+            " looking. The gaps are the nights and weekends, which is exactly"
+            " where the money is."
+            % (spell(watched * 60), int(possible), round(100 * share)))
     try:
         week = load_history()
     except psycopg2.Error:
