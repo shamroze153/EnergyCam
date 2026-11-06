@@ -107,6 +107,23 @@ def main():
     check("a room with no unit is never due", r.due_for_check(at(600)), False)
     check("  but is still counted", r.status, "empty")
 
+    # Operating hours. A room empty for half an hour in the afternoon has
+    # somebody in a meeting; the same room empty for half an hour at midnight
+    # has nobody coming back, and should not wait the same forty-five minutes.
+    afternoon = datetime.datetime(2026, 11, 5, 14, 0, tzinfo=PKT)   # Thursday
+    night = datetime.datetime(2026, 11, 5, 23, 30, tzinfo=PKT)
+    saturday = datetime.datetime(2026, 11, 7, 14, 0, tzinfo=PKT)
+    for label, start in (("a weekday afternoon", afternoon),
+                         ("a weekday night", night),
+                         ("a Saturday afternoon", saturday)):
+        r = room()
+        r.observe(0, 2, start)
+        r.observe(0, 2, start + datetime.timedelta(minutes=20))
+        due = r.due_for_check(start + datetime.timedelta(minutes=20))
+        check("20 min empty on %s%s" % (label,
+                                        " is due" if due else " is not due"),
+              due, label != "a weekday afternoon")
+
     print()
     if FAILURES:
         print("%d FAILURE(S):" % len(FAILURES))

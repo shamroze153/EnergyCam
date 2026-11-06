@@ -35,6 +35,8 @@ import streamlit as st
 import yaml
 from streamlit_autorefresh import st_autorefresh
 
+from schedule import describe, wait_before_reporting
+
 PKT = timezone(timedelta(hours=5))
 
 # The loop beats every five minutes. Two missed beats is a real gap rather than
@@ -132,6 +134,11 @@ def load_assumptions(path="rooms.yaml"):
 
 
 @st.cache_data(ttl=20)
+def load_hours(path="rooms.yaml"):
+    return yaml.safe_load(open(path)).get("hours")
+
+
+@st.cache_data(ttl=20)
 def load_state():
     conn = psycopg2.connect(DATABASE_URL, sslmode=DB_SSLMODE, connect_timeout=10)
     try:
@@ -191,7 +198,7 @@ def spell(minutes):
     return "%dh" % hours if rest == 0 else "%dh %02dm" % (hours, rest)
 
 
-def grade(row, now):
+def grade(row, now, hours=None):
     if row["status"] == "unknown" or pd.isna(row["status"]):
         if pd.isna(row["timestamp"]):
             return "Fault", "Not sampled", "the loop has not reached it"
@@ -201,7 +208,9 @@ def grade(row, now):
         return "Green", "%d in here" % people, row["caption"]
     empty = minutes_since(row["empty_since"], now)
     headline = "Empty %s" % spell(empty)
-    threshold = row["empty_after"]
+    # The same wait the loop uses, from the same file, so this page and the
+    # alerts can never disagree about which rooms want attention.
+    threshold = wait_before_reporting(row["empty_after"], now, hours)
     if not threshold or empty is None:
         return "Green", headline, row["caption"]
     if empty >= threshold * 2:
@@ -544,7 +553,7 @@ def building_bar(df):
         for _, row in df.iterrows())
 
 
-def header_band(campus, df, beat_age):
+def header_band(campus, df, beat_age, mode=""):
     live = (beat_age is not None and beat_age <= STALE_AFTER_MINUTES)
     pill = ('<span style="background:%s;color:%s;font-size:.73rem;'
             'padding:5px 12px;border-radius:20px;white-space:nowrap;">'
@@ -567,9 +576,10 @@ def header_band(campus, df, beat_age):
   </div>
   <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:13px;">%s</div>
   <div style="color:#5E6A70;font-size:.63rem;margin-top:9px;">
-    one square per room &middot; %d rooms &middot; %d cameras</div>
+    one square per room &middot; %d rooms &middot; %d cameras%s</div>
 </div>""" % (campus, pill, building_bar(df), len(df),
-             int(df["cameras"].sum()))
+             int(df["cameras"].sum()),
+             (" &middot; %s" % mode) if mode else "")
 
 
 def figure_row(label, value, note, tone="#14181B"):
@@ -892,7 +902,8 @@ with st.sidebar:
         unsafe_allow_html=True)
 
 df = everything[everything["campus"] == campus].copy()
-graded = df.apply(lambda r: grade(r, now), axis=1)
+hours = load_hours()
+graded = df.apply(lambda r: grade(r, now, hours), axis=1)
 df["level"] = [g[0] for g in graded]
 df["headline"] = [g[1] for g in graded]
 df["sub"] = [g[2] for g in graded]
@@ -905,7 +916,8 @@ df = df.sort_values(by=["level", "room"],
 
 cooled = df[df["has_unit"]]
 beat_age = minutes_since(last_beat, now)
-st.markdown(header_band(campus, df, beat_age), unsafe_allow_html=True)
+st.markdown(header_band(campus, df, beat_age, describe(now, hours)),
+            unsafe_allow_html=True)
 
 # ---- always on screen: the job -------------------------------------------
 acting = df[df["level"].isin(["Red", "Amber"])]

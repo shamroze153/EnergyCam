@@ -51,6 +51,26 @@
 # word with whoever signed that off, and with HR -- not because it is
 # dangerous, but because it is a change they should hear about from you rather
 # than notice later.
+# When the building is in use. A room empty for forty-five minutes at two in
+# the afternoon has somebody in a meeting; the same room empty for forty-five
+# minutes at eleven at night has nobody coming back. The wait before reporting
+# should not be the same number at both, so outside these hours -- evenings,
+# nights, and all of Saturday and Sunday -- it drops to the short one.
+#
+# A room whose own figure is already shorter keeps its own: the off-hours
+# number only ever shortens the wait, never lengthens it.
+#
+# Public holidays are not in here, because nothing knows them. On Eid the
+# building will look like a long weekday to this, and report rooms after
+# forty-five minutes instead of ten. Worth remembering rather than worth
+# guessing at.
+hours:
+  operations:
+    days: [mon, tue, wed, thu, fri]
+    start: "10:00"
+    end: "20:00"
+  off_hours_empty_after_minutes: 10
+
 snapshots:
   enabled: false
 

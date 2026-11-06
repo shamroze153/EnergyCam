@@ -47,6 +47,7 @@ import yaml
 from dotenv import load_dotenv
 
 from privacy_blur import anonymize, count_people
+from schedule import describe, wait_before_reporting
 from test_camera import build_url, grab
 
 PKT = timezone(timedelta(hours=5))
@@ -289,10 +290,11 @@ class Room:
             return 0.0
         return (now - self.empty_since).total_seconds() / 60.0
 
-    def due_for_check(self, now):
-        if not self.watched_for_waste or not self.empty_after:
+    def due_for_check(self, now, hours=None):
+        if not self.watched_for_waste:
             return False
-        return self.empty_minutes(now) >= self.empty_after
+        wait = wait_before_reporting(self.empty_after, now, hours)
+        return wait is not None and self.empty_minutes(now) >= wait
 
 
 def widen(frame):
@@ -439,18 +441,18 @@ def load_state(rooms, path, max_gap_minutes):
     print(">> carried %d room(s) over from %.0f min ago" % (restored, gap))
 
 
-def report(rooms, now, cycle, seconds):
-    print("\n>> cycle %d  %s  (%.0fs)"
-          % (cycle, now.strftime("%H:%M:%S"), seconds))
+def report(rooms, now, cycle, seconds, hours=None):
+    print("\n>> cycle %d  %s  (%.0fs)  %s"
+          % (cycle, now.strftime("%H:%M:%S"), seconds, describe(now, hours)))
     for room in sorted(rooms, key=lambda r: (r.status != "unknown", r.name)):
         flag = "  "
-        if room.due_for_check(now):
+        if room.due_for_check(now, hours):
             flag = "!!"
         elif room.status == "unknown":
             flag = " ?"
         print("   %s %-9s %-26s %s"
               % (flag, room.status, room.name[:26], room.detail))
-    due = [r for r in rooms if r.due_for_check(now)]
+    due = [r for r in rooms if r.due_for_check(now, hours)]
     if due:
         print(">> %d room(s) worth checking: %s"
               % (len(due), ", ".join(r.name for r in due)))
@@ -496,6 +498,9 @@ def main():
         user, password = recorder_login(key, recorders[key])
         recorders[key]["user"], recorders[key]["password"] = user, password
 
+    hours = yaml.safe_load(open(args.config)).get("hours")
+    print(">> %s" % describe(datetime.now(PKT), hours))
+
     snapshots = bool(yaml.safe_load(open(args.config))
                      .get("snapshots", {}).get("enabled", False))
     if snapshots:
@@ -533,7 +538,7 @@ def main():
                 save_snapshot(room, frame, model)
         now = datetime.now(PKT)
         elapsed = time.time() - started
-        report(rooms, now, cycle, elapsed)
+        report(rooms, now, cycle, elapsed, hours)
         save_state(rooms, args.state, now)
 
         if not args.no_db:
