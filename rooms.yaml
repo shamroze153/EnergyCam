@@ -124,6 +124,23 @@ recorders:
       a reservation on fc:b6:9d:72:8f:48, or the system goes quiet one morning
       for a reason nobody will think to look for.
 
+  xvr3:
+    campus: 140-H
+    host: 192.168.67.23
+    user_env: XVR3_USER
+    pass_env: XVR3_PASS
+    stream: sub          # revisit once a scan shows what the sub stream is
+    dhcp_warning: true
+    note: >
+      Not surveyed yet. The brand is left out on purpose: the scanner works it
+      out from which path answers, and guessing it here would only be a guess
+      that looks like a fact. DVR 2 was taken for a Hikvision because its
+      neighbour was one, and it is a Dahua.
+
+      Its address is handed out by DHCP, like DVR 2's. Ask for a reservation
+      on fc:b6:9d:72:8e:08 or this one goes quiet one morning too.
+    rooms_pending: true
+
 rooms:
 
   # ===========================================================================
