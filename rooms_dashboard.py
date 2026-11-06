@@ -56,20 +56,32 @@ STRIP_SLOTS = 96                      # five minutes each
 DETAIL_HOURS = 24
 DETAIL_SLOTS = 288                    # five minutes each, again
 
+# Dark. A room full of screens is dark, and a page that is ninety per cent
+# white at nine at night is a page people stop opening. The hues carry over --
+# the same red still means the same thing -- set on dark surfaces, with the
+# text lightened enough to stay readable rather than merely visible.
+SURFACE = "#151C22"       # a card
+SUNKEN = "#1B2228"        # a track, a well, anything recessed
+LINE = "#263139"          # a border
+TEXT = "#E6EAED"
+MUTED = "#8A949A"
+FAINT = "#5E6A70"
+
 INK = {
-    "Red":   {"bg": "#FDF0F0", "fg": "#9B2C2C", "edge": "#E8B9B9",
-              "bar": "#D04A4A"},
-    "Amber": {"bg": "#FDF5E7", "fg": "#8A5209", "edge": "#EBD3A6",
+    "Red":   {"bg": "#1E1316", "fg": "#F0918F", "edge": "#3B2328",
+              "bar": "#E05252"},
+    "Amber": {"bg": "#1D1810", "fg": "#E8B562", "edge": "#3A2E1A",
               "bar": "#D89221"},
-    "Green": {"bg": "#F1F7EA", "fg": "#3D6E15", "edge": "#CDE0B6",
-              "bar": "#7BAE48"},
-    "Fault": {"bg": "#F1F1F1", "fg": "#5A5A5A", "edge": "#D4D4D4",
-              "bar": "#9AA3A8"},
+    "Green": {"bg": "#141A14", "fg": "#A4D463", "edge": "#253220",
+              "bar": "#84CC16"},
     # People in a room with its unit off. The opposite of waste, and nobody
     # hears about it until somebody complains about the heat.
-    "Cool":  {"bg": "#EDF3FA", "fg": "#1F5B8F", "edge": "#BCD3E8",
+    "Cool":  {"bg": "#101A21", "fg": "#74B9E0", "edge": "#1F3341",
               "bar": "#4A90C2"},
+    "Fault": {"bg": "#161B1F", "fg": "#9AA4AA", "edge": "#28323A",
+              "bar": "#6B7780"},
 }
+
 RANK = {"Red": 0, "Amber": 1, "Cool": 2, "Fault": 3, "Green": 4}
 
 # How long somebody sits in a room with the unit off before it is worth
@@ -324,8 +336,8 @@ PERSON = ('<g transform="translate({x},{y})" fill="{c}">'
           '<path d="M5 11C1.7 11 0 13.6 0 17.2V26h10v-8.8C10 13.6 8.3 11 5 11z"/>'
           '</g>')
 
-SLOT_INK = {"occupied": "#7BAE48", "empty": "#E0E0E0", "unknown": "#BDBDBD"}
-NO_DATA = "#F4F4F4"
+SLOT_INK = {"occupied": "#84CC16", "empty": "#2B343B", "unknown": "#49555D"}
+NO_DATA = "#1B2228"
 
 
 def slot_states(recent, room, now, hours=STRIP_HOURS, slots=STRIP_SLOTS,
@@ -418,26 +430,26 @@ def wall_unit(state, colour, x=176, y=22):
     """
     if state == "on":
         return ('<g transform="translate(%d,%d)">'
-                '<ellipse cx="29" cy="31" rx="36" ry="21" fill="#49A54B"'
+                '<ellipse cx="29" cy="31" rx="36" ry="21" fill="#84CC16"'
                 ' opacity=".12"/>'
-                '<rect x="0" y="0" width="58" height="17" rx="4" fill="#FFFFFF"'
-                ' stroke="#2E7D32" stroke-width="2"/>'
-                '<line x1="5" y1="12" x2="53" y2="12" stroke="#2E7D32"'
+                '<rect x="0" y="0" width="58" height="17" rx="4" fill="#1A222A"'
+                ' stroke="#84CC16" stroke-width="2"/>'
+                '<line x1="5" y1="12" x2="53" y2="12" stroke="#84CC16"'
                 ' stroke-width="1.6"/>'
-                '<circle cx="51" cy="5.5" r="2.1" fill="#2E7D32"/>'
+                '<circle cx="51" cy="5.5" r="2.1" fill="#84CC16"/>'
                 '<path d="M12 25q5 5 10 0t10 0t10 0" fill="none"'
-                ' stroke="#2E7D32" stroke-width="2" stroke-linecap="round"'
+                ' stroke="#84CC16" stroke-width="2" stroke-linecap="round"'
                 ' opacity=".8"/>'
-                '<path d="M16 33q5 4 10 0t10 0" fill="none" stroke="#2E7D32"'
+                '<path d="M16 33q5 4 10 0t10 0" fill="none" stroke="#84CC16"'
                 ' stroke-width="1.8" stroke-linecap="round" opacity=".45"/>'
                 '</g>' % (x, y))
     if state == "off":
         return ('<g transform="translate(%d,%d)" opacity=".7">'
-                '<rect x="0" y="0" width="58" height="17" rx="4" fill="#FFFFFF"'
-                ' stroke="#8E8E8E" stroke-width="2"/>'
-                '<line x1="5" y1="12" x2="53" y2="12" stroke="#8E8E8E"'
+                '<rect x="0" y="0" width="58" height="17" rx="4" fill="#1A222A"'
+                ' stroke="#6B7780" stroke-width="2"/>'
+                '<line x1="5" y1="12" x2="53" y2="12" stroke="#6B7780"'
                 ' stroke-width="1.6"/>'
-                '<circle cx="51" cy="5.5" r="2.1" fill="none" stroke="#8E8E8E"'
+                '<circle cx="51" cy="5.5" r="2.1" fill="none" stroke="#6B7780"'
                 ' stroke-width="1.4"/></g>' % (x, y))
     return ('<g transform="translate(%d,%d)" opacity=".42">'
             '<rect x="0" y="0" width="58" height="17" rx="4" fill="none"'
@@ -457,7 +469,7 @@ def drawn_room(row, ink):
         ' letter-spacing="1.8">EMPTY</text>' % (floor - 8, ink["fg"]))
     return """
 <svg viewBox="0 0 260 112" style="width:100%%;height:auto;display:block;">
-  <rect x="4" y="6" width="252" height="100" rx="11" fill="#FFFFFF"
+  <rect x="4" y="6" width="252" height="100" rx="11" fill="#1A222A"
         fill-opacity=".6" stroke="%s" stroke-width="1.6"/>
   <line x1="14" y1="%d" x2="246" y2="%d" stroke="%s" stroke-width="2.4"
         stroke-linecap="round"/>
@@ -528,20 +540,20 @@ def lane(row):
         shown = min(people, 6)
         now_cell = ('<svg width="%d" height="14" viewBox="0 0 %d 26">%s</svg>'
                     % (shown * 8, shown * 14, "".join(
-                        PERSON.format(x=i * 14, y=0, c="#3D6E15")
+                        PERSON.format(x=i * 14, y=0, c="#A4D463")
                         for i in range(shown))))
         if people > shown:
-            now_cell += ('<span style="font-size:.68rem;color:#3D6E15;">+%d'
+            now_cell += ('<span style="font-size:.68rem;color:#A4D463;">+%d'
                          '</span>' % (people - shown))
     elif row["status"] == "unknown":
         now_cell = ('<span style="font-size:.68rem;color:#8A8A8A;">no answer'
                     '</span>')
     else:
-        now_cell = ('<span style="font-size:.68rem;color:#9A9A9A;">%s</span>'
+        now_cell = ('<span style="font-size:.68rem;color:#7E888E;">%s</span>'
                     % row["headline"].replace("Empty ", ""))
     return """
 <div style="display:flex;align-items:center;gap:12px;padding:5px 2px;
-            border-bottom:1px solid #F0F0F0;">
+            border-bottom:1px solid #263139;">
   <span style="flex:0 0 160px;font-size:.81rem;color:%s;white-space:nowrap;
                overflow:hidden;text-overflow:ellipsis;">%s</span>
   <span style="flex:1 1 auto;">%s</span>
@@ -565,9 +577,9 @@ def hour_axis(now):
             'padding:2px 2px 0;">'
             '<span style="flex:0 0 160px;"></span>'
             '<span style="flex:1 1 auto;display:flex;font-size:.62rem;'
-            'color:#9A9A9A;">%s</span>'
+            'color:#7E888E;">%s</span>'
             '<span style="flex:0 0 86px;text-align:right;font-size:.62rem;'
-            'color:#9A9A9A;">now</span></div>'
+            'color:#7E888E;">now</span></div>'
             % "".join(ticks))
 
 
@@ -581,7 +593,7 @@ def day_axis(now, since, step=4):
         % ("left" if at == 0 else ("right" if at == hours else "center"),
            (start + pd.Timedelta(hours=at)).strftime("%H:%M"))
         for at in marks)
-    return ('<div style="display:flex;font-size:.64rem;color:#9A9A9A;'
+    return ('<div style="display:flex;font-size:.64rem;color:#7E888E;'
             'margin-top:3px;">%s</div>' % ticks)
 
 
@@ -593,14 +605,14 @@ def ac_pill(row):
     thirteen units somebody had remembered to switch off.
     """
     if not row["has_unit"]:
-        return '<span style="color:#C8CDD0;font-size:.66rem;">\u2014</span>'
+        return '<span style="color:#4A555C;font-size:.66rem;">\u2014</span>'
     state = row["ac_state"] if pd.notna(row["ac_state"]) else None
     look = {
-        "on": ("AC ON", "#FFFFFF", "#2E7D32", "#2E7D32", "solid"),
-        "off": ("AC OFF", "#FFFFFF", "#8E8E8E", "#8E8E8E", "solid"),
-    }.get(state, ("AC ?", "#FFFFFF", "#AEB4B8", "#AEB4B8", "dashed"))
+        "on": ("AC ON", "#1A222A", "#84CC16", "#84CC16", "solid"),
+        "off": ("AC OFF", "#1A222A", "#6B7780", "#6B7780", "solid"),
+    }.get(state, ("AC ?", "#1A222A", "#AEB4B8", "#AEB4B8", "dashed"))
     label, ink, border, text, style = look
-    fill = "#2E7D32" if state == "on" else "#FFFFFF"
+    fill = "#84CC16" if state == "on" else "#1A222A"
     return ('<span style="font-size:.6rem;font-weight:800;letter-spacing:.04em;'
             'padding:2px 6px;border-radius:9px;border:1.3px %s %s;'
             'background:%s;color:%s;white-space:nowrap;">%s</span>'
@@ -634,7 +646,7 @@ def status_row(row):
   <span style="flex:0 0 78px;display:flex;align-items:center;">%s</span>
   <span style="flex:0 0 58px;">%s</span>
   <span style="flex:1 1 auto;min-width:60px;">%s</span>
-</div>""" % (ink["bg"] if row["level"] != "Green" else "#FBFCFA",
+</div>""" % (ink["bg"] if row["level"] != "Green" else "#141A14",
              ink["bar"], ink["fg"], row["room"], who, ac_pill(row),
              strip_svg(row["slots"], height=9, radius=2))
 
@@ -697,8 +709,8 @@ def header_band(campus, df, beat_age, mode="", money_html=""):
                ("&#9679; live &middot; reported %s ago" % spell(beat_age))
                if live else ("&#9679; silent for %s" % spell(beat_age))))
     return """
-<div style="background:#14181B;border-radius:14px;padding:16px 20px 14px;
-            margin-bottom:14px;">
+<div style="background:#0F1418;border:1px solid #1E262C;border-radius:14px;
+            padding:16px 20px 14px;margin-bottom:14px;">
   <div style="display:flex;justify-content:space-between;align-items:center;
               flex-wrap:wrap;gap:10px;">
     <div>
@@ -718,14 +730,14 @@ def header_band(campus, df, beat_age, mode="", money_html=""):
              (" &middot; %s" % mode) if mode else "")
 
 
-def figure_row(label, value, note, tone="#14181B"):
+def figure_row(label, value, note, tone="#E6EAED"):
     return """
-<div style="flex:1 1 180px;background:#FAFAFA;border:1px solid #ECECEC;
+<div style="flex:1 1 180px;background:#151C22;border:1px solid #263139;
             border-radius:11px;padding:11px 14px;">
-  <div style="font-size:.68rem;color:#78848A;letter-spacing:.04em;">%s</div>
+  <div style="font-size:.68rem;color:#8A949A;letter-spacing:.04em;">%s</div>
   <div style="font-size:1.62rem;font-weight:760;color:%s;line-height:1.25;">
     %s</div>
-  <div style="font-size:.66rem;color:#99A3A8;">%s</div>
+  <div style="font-size:.66rem;color:#7E888E;">%s</div>
 </div>""" % (label, tone, value, note)
 
 
@@ -770,7 +782,7 @@ def pattern_row(name, share, fg):
     cells = "".join(
         '<span title="%02d:00" style="flex:1 1 0;height:15px;border-radius:2px;'
         'background:%s;"></span>'
-        % (hour, "#F2F2F2" if value is None else
+        % (hour, "#1B2228" if value is None else
            "rgba(107,163,61,%.2f)" % (0.10 + 0.90 * value))
         for hour, value in enumerate(share))
     return ('<div style="display:flex;align-items:center;gap:8px;'
@@ -899,10 +911,10 @@ def show_room_day(df, recent, chosen, now):
         peaks = by_hour.groupby("hour")["people"].max().reset_index()
         chart = px.bar(peaks, x="hour", y="people",
                        labels={"hour": "", "people": "people"},
-                       color_discrete_sequence=["#7BAE48"])
+                       color_discrete_sequence=["#84CC16"])
         chart.update_layout(height=215, margin=dict(l=0, r=0, t=16, b=0),
-                            plot_bgcolor="#FFFFFF", showlegend=False,
-                            yaxis=dict(gridcolor="#F0F0F0"))
+                            plot_bgcolor="#1A222A", showlegend=False,
+                            yaxis=dict(gridcolor="#263139"))
         st.plotly_chart(chart, use_container_width=True)
         st.caption("The most people seen at once in each hour. Readings are a"
                    " couple of minutes apart, so a visit shorter than that can"
@@ -1044,18 +1056,18 @@ def show_arrivals(df, now):
             '<span style="flex:0 0 146px;font-size:.76rem;color:%s;'
             'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">%s'
             '</span>'
-            '<span style="flex:0 0 46px;font-size:.72rem;color:#6B7378;'
+            '<span style="flex:0 0 46px;font-size:.72rem;color:#8A949A;'
             'text-align:right;">%s</span>'
-            '<span style="flex:1 1 auto;height:14px;background:#F4F4F4;'
+            '<span style="flex:1 1 auto;height:14px;background:#1B2228;'
             'border-radius:3px;position:relative;">'
             '<span style="position:absolute;left:%.2f%%;width:%.2f%%;top:0;'
             'height:14px;background:%s;border-radius:3px;"></span></span>'
-            '<span style="flex:0 0 46px;font-size:.72rem;color:#6B7378;">%s'
+            '<span style="flex:0 0 46px;font-size:.72rem;color:#8A949A;">%s'
             '</span>'
-            '<span style="flex:0 0 74px;font-size:.68rem;color:#9AA3A8;'
+            '<span style="flex:0 0 74px;font-size:.68rem;color:#7E888E;'
             'text-align:right;">%d day%s</span></div>'
             % (INK[r["level"]]["fg"], r["room"], clock(r["first"]),
-               left, width, "#7BAE48" if r["has_unit"] else "#C3CBD0",
+               left, width, "#84CC16" if r["has_unit"] else "#3B464D",
                clock(r["last"]), r["days"], "" if r["days"] == 1 else "s"))
     ticks = "".join('<span style="flex:1 1 0;text-align:center;">%s</span>'
                     % (("%02d" % h) if h % 3 == 0 else "") for h in range(24))
@@ -1064,7 +1076,7 @@ def show_arrivals(df, now):
         '<div style="display:flex;align-items:center;gap:9px;margin-top:2px;">'
         '<span style="flex:0 0 146px;"></span><span style="flex:0 0 46px;">'
         '</span><span style="flex:1 1 auto;display:flex;font-size:.6rem;'
-        'color:#9AA3A8;">%s</span><span style="flex:0 0 46px;"></span>'
+        'color:#7E888E;">%s</span><span style="flex:0 0 46px;"></span>'
         '<span style="flex:0 0 74px;"></span></div>' % ticks,
         unsafe_allow_html=True)
     st.caption("Green bars are rooms with an air conditioner. Grey ones have"
@@ -1086,6 +1098,128 @@ def show_arrivals(df, now):
                " from the reading after the last person was seen. A few days"
                " of history make these averages worth reading; one day does"
                " not.")
+
+
+def show_cameras(df, now):
+    """Which cameras answer, and which ones do not.
+
+    Measured from the one thing that actually says so: a room goes to
+    "unknown" when a camera it depends on did not reply, and that state is
+    recorded like any other. Nothing here is inferred from whether anyone was
+    seen -- an empty room and a blind one look identical from the outside, and
+    treating them as the same is how a dead camera turns into a quiet month of
+    "nobody uses that room".
+    """
+    try:
+        month = load_history()
+    except psycopg2.Error as e:
+        st.error("Could not load history (%s)." % type(e).__name__)
+        return
+
+    week_start = now - pd.Timedelta(days=7)
+    rows = []
+    for _, room in df.iterrows():
+        mine = month[month["room"] == room["room"]].sort_values("timestamp")
+        blind = status_minutes(month, room["room"], week_start, now).get(
+            "unknown", 0.0)
+        # Times it went silent, not rows: a camera that flaps produces a row
+        # each way, and counting rows would double every outage.
+        drops = 0
+        previous = None
+        for state in mine["status"]:
+            if state == "unknown" and previous != "unknown":
+                drops += 1
+            previous = state
+        answered = mine[mine["status"] != "unknown"]
+        rows.append({
+            "room": room["room"], "zone": room["zone"],
+            "cameras": room["cameras"], "level": room["level"],
+            "silent_now": room["status"] == "unknown",
+            "blind_minutes": blind, "drops": drops,
+            "last_answer": (answered["timestamp"].max()
+                            if not answered.empty else pd.NaT)})
+    health = pd.DataFrame(rows)
+
+    silent = health[health["silent_now"]]
+    flaky = health[(~health["silent_now"]) & (health["drops"] > 0)]
+    week_minutes = 7 * 24 * 60.0
+    worst = health["blind_minutes"].max()
+
+    st.markdown(
+        '<div style="display:flex;gap:11px;flex-wrap:wrap;margin-bottom:14px;">'
+        '%s%s%s%s</div>' % (
+            figure_row("Cameras", int(df["cameras"].sum()),
+                       "across %d rooms" % len(df)),
+            figure_row("Silent right now", len(silent),
+                       "rooms whose camera did not reply",
+                       INK["Fault"]["fg"] if len(silent) else TEXT),
+            figure_row("Dropped out this week", int(health["drops"].sum()),
+                       "separate outages, not readings",
+                       INK["Amber"]["fg"] if health["drops"].sum() else TEXT),
+            figure_row("Worst room", spell(worst) if worst else "\u2014",
+                       "longest unanswered in seven days")),
+        unsafe_allow_html=True)
+
+    if not silent.empty:
+        st.markdown(
+            '<div style="background:%s;border:1px solid %s;border-left:5px '
+            'solid %s;border-radius:11px;padding:12px 16px;margin-bottom:14px;">'
+            '<div style="font-weight:680;color:%s;margin-bottom:4px;">'
+            'Not answering now</div>'
+            '<div style="font-size:.8rem;color:%s;">%s</div>'
+            '<div style="font-size:.72rem;color:%s;margin-top:5px;">These'
+            ' rooms are reported as unknown, never as empty. A camera that'
+            ' stopped looking is not a room that stopped being used.</div>'
+            '</div>'
+            % (INK["Fault"]["bg"], INK["Fault"]["edge"], INK["Fault"]["bar"],
+               INK["Fault"]["fg"], INK["Fault"]["fg"],
+               ", ".join("%s (last answered %s)"
+                         % (r["room"],
+                            "never" if pd.isna(r["last_answer"]) else
+                            "%s ago" % spell(minutes_since(r["last_answer"], now)))
+                         for _, r in silent.iterrows()),
+               MUTED), unsafe_allow_html=True)
+
+    st.markdown(
+        '<div style="font-size:1.1rem;font-weight:720;margin-bottom:2px;">'
+        'Time unanswered, last seven days</div>'
+        '<div style="font-size:.74rem;color:%s;margin-bottom:9px;">'
+        'every room, worst first. A bar that is barely there is a camera doing'
+        ' its job.</div>' % MUTED, unsafe_allow_html=True)
+
+    health = health.sort_values("blind_minutes", ascending=False)
+    bars = ""
+    for _, r in health.iterrows():
+        share = 100.0 * r["blind_minutes"] / week_minutes
+        colour = (INK["Fault"]["bar"] if r["silent_now"]
+                  else INK["Amber"]["bar"] if r["drops"]
+                  else INK["Green"]["bar"])
+        bars += (
+            '<div style="display:flex;align-items:center;gap:9px;'
+            'margin-bottom:4px;">'
+            '<span style="flex:0 0 150px;font-size:.76rem;color:%s;'
+            'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">%s'
+            '</span>'
+            '<span style="flex:1 1 auto;height:12px;background:%s;'
+            'border-radius:3px;overflow:hidden;">'
+            '<span style="display:block;height:12px;width:%.2f%%;background:%s;'
+            'border-radius:3px;"></span></span>'
+            '<span style="flex:0 0 86px;text-align:right;font-size:.72rem;'
+            'color:%s;">%s</span>'
+            '<span style="flex:0 0 78px;text-align:right;font-size:.68rem;'
+            'color:%s;">%s</span></div>'
+            % (INK[r["level"]]["fg"], r["room"], SUNKEN, max(share, 0.4),
+               colour, MUTED,
+               spell(r["blind_minutes"]) if r["blind_minutes"] else "\u2014",
+               FAINT,
+               "%d drop%s" % (r["drops"], "" if r["drops"] == 1 else "s")
+               if r["drops"] else "steady"))
+    st.markdown(bars, unsafe_allow_html=True)
+    st.caption("Measured from the rooms' own recorded state, not guessed at"
+               " from whether anybody was seen. Counted as separate outages"
+               " rather than readings, so a camera that flaps in and out is"
+               " one drop per outage. Only covers time the loop was running:"
+               " a camera cannot be found silent while nothing was asking.")
 
 
 def show_stills(cooled, now):
@@ -1120,7 +1254,7 @@ def show_stills(cooled, now):
             column.markdown(
                 '<div style="font-size:.78rem;font-weight:600;color:%s;'
                 'margin-top:-6px;">%s</div><div style="font-size:.66rem;'
-                'color:#9AA3A8;">%s &middot; %s</div>'
+                'color:#7E888E;">%s &middot; %s</div>'
                 % (INK[room["level"]]["fg"], room["room"], room["headline"],
                    "%d min old" % age if age >= 1 else "just now"),
                 unsafe_allow_html=True)
@@ -1204,7 +1338,7 @@ def show_numbers(df, cooled, recent, now):
         tiles = "".join(
             figure_row(name.title(), "Rs %s" % format(round(money(mins, assumptions)[1]), ","),
                        "%s empty" % spell(mins),
-                       "#A33434" if name == biggest else "#14181B")
+                       "#A33434" if name == biggest else "#E6EAED")
             for name, mins in ((WORKING, by_period[WORKING]),
                                (AFTER_HOURS, by_period[AFTER_HOURS]),
                                (WEEKEND, by_period[WEEKEND])))
@@ -1256,12 +1390,12 @@ def show_numbers(df, cooled, recent, now):
             'margin-bottom:4px;">'
             '<span style="flex:0 0 150px;font-size:.78rem;white-space:nowrap;'
             'overflow:hidden;text-overflow:ellipsis;">%s</span>'
-            '<span style="flex:1 1 auto;height:13px;background:#F2F2F2;'
+            '<span style="flex:1 1 auto;height:13px;background:#1B2228;'
             'border-radius:3px;overflow:hidden;">'
             '<span style="display:block;height:13px;width:%.1f%%;'
-            'background:#B9543F;border-radius:3px;"></span></span>'
+            'background:#C05B45;border-radius:3px;"></span></span>'
             '<span style="flex:0 0 72px;text-align:right;font-size:.74rem;'
-            'color:#6B7378;">%s</span></div>'
+            'color:#8A949A;">%s</span></div>'
             % (room, 100.0 * minutes / worst, spell(minutes))
             for room, minutes in ranked)
         st.markdown(
@@ -1321,7 +1455,7 @@ def show_numbers(df, cooled, recent, now):
             '<div style="display:flex;align-items:center;gap:8px;'
             'margin-top:2px;"><span style="flex:0 0 140px;"></span>'
             '<span style="flex:1 1 auto;display:flex;font-size:.6rem;'
-            'color:#9AA3A8;">%s</span></div>' % ticks,
+            'color:#7E888E;">%s</span></div>' % ticks,
             unsafe_allow_html=True)
 
         if advice:
@@ -1331,16 +1465,16 @@ def show_numbers(df, cooled, recent, now):
             lines = "".join(
                 '<li style="margin-bottom:2px;"><b>%s</b> is reliably empty'
                 ' after %02d:00 &mdash; a timer at %02d:15 would stop it being'
-                ' reported at all <span style="color:#9AA3A8;">(%d days'
+                ' reported at all <span style="color:#7E888E;">(%d days'
                 ' seen)</span></li>' % (room, hour, hour, days)
                 for room, hour, days in sorted(advice, key=lambda a: a[1]))
             st.markdown(
-                '<div style="background:#F1F7EA;border:1px solid #CDE0B6;'
+                '<div style="background:#141E14;border:1px solid #2A3A22;'
                 'border-radius:11px;padding:12px 16px;margin-top:14px;">'
-                '<div style="font-weight:680;color:#3D6E15;margin-bottom:5px;">'
+                '<div style="font-weight:680;color:#A4D463;margin-bottom:5px;">'
                 'Worth setting a timer for</div>'
                 '<ul style="margin:0;padding-left:18px;font-size:.82rem;'
-                'color:#3D6E15;">%s</ul></div>' % lines,
+                'color:#A4D463;">%s</ul></div>' % lines,
                 unsafe_allow_html=True)
             st.caption("Reliably means used on fewer than one day in five"
                        " after that hour. A room used on two afternoons out of"
@@ -1417,7 +1551,7 @@ now = pd.Timestamp.now(tz="UTC")
 everything = rooms.merge(latest, on="room", how="left")
 everything["status"] = everything["status"].fillna("unknown")
 
-VIEWS = ["Rooms", "One room", "Who comes when",
+VIEWS = ["Rooms", "One room", "Who comes when", "Camera health",
          "Look at the rooms", "Numbers & history"]
 
 # A click on a room is a request to see that room, so it carries the name in
@@ -1447,8 +1581,8 @@ with st.sidebar:
         'margin-top:12px;">'
         '<span style="color:#D04A4A;">●</span> long empty<br>'
         '<span style="color:#D89221;">●</span> worth a check<br>'
-        '<span style="color:#9AA3A8;">●</span> camera silent<br>'
-        '<span style="color:#7BAE48;">●</span> fine</div>',
+        '<span style="color:#7E888E;">●</span> camera silent<br>'
+        '<span style="color:#84CC16;">●</span> fine</div>',
         unsafe_allow_html=True)
 
 df = everything[everything["campus"] == campus].copy()
@@ -1497,12 +1631,12 @@ out_of_frame = acting[acting["ac"] == "hidden"]
 
 if acting.empty:
     st.markdown(
-        '<div style="background:#F1F7EA;border:1px solid #CDE0B6;'
-        'border-left:6px solid #3D6E15;border-radius:13px;padding:15px 19px;'
+        '<div style="background:#141E14;border:1px solid #2A3A22;'
+        'border-left:6px solid #A4D463;border-radius:13px;padding:15px 19px;'
         'margin-bottom:12px;">'
-        '<div style="font-size:1.1rem;font-weight:740;color:#3D6E15;">'
+        '<div style="font-size:1.1rem;font-weight:740;color:#A4D463;">'
         'Nothing to do right now</div>'
-        '<div style="font-size:.78rem;color:#3D6E15;opacity:.8;margin-top:2px;">'
+        '<div style="font-size:.78rem;color:#A4D463;opacity:.8;margin-top:2px;">'
         'Every air-conditioned room is either in use or has not been empty long'
         ' enough to be worth a walk.</div></div>', unsafe_allow_html=True)
 else:
@@ -1538,9 +1672,9 @@ if not silent_rooms.empty:
     # A different job for a different person. A room nobody could see is not a
     # room to go and stand in, so it stays off the walking list.
     st.markdown(
-        '<div style="background:#F3F3F3;border:1px solid #DCDCDC;'
+        '<div style="background:#171E24;border:1px solid #2B343B;'
         'border-radius:10px;padding:9px 13px;margin:9px 0 4px;font-size:.78rem;'
-        'color:#5A5A5A;"><b>%d camera%s not answering</b> &mdash; %s. Reported'
+        'color:#9AA4AA;"><b>%d camera%s not answering</b> &mdash; %s. Reported'
         ' as unknown rather than empty, because nobody looked.</div>'
         % (len(silent_rooms), "" if len(silent_rooms) == 1 else "s",
            ", ".join(silent_rooms["room"])), unsafe_allow_html=True)
@@ -1615,6 +1749,9 @@ elif view == "One room":
 
 elif view == "Who comes when":
     show_arrivals(df, now)
+
+elif view == "Camera health":
+    show_cameras(df, now)
 
 elif view == "Look at the rooms":
     show_stills(cooled, now)

@@ -1,0 +1,14 @@
+# The dashboard draws its own surfaces; this is for the chrome Streamlit owns
+# -- sidebar, widgets, scrollbars -- so the page does not come out half dark
+# and half white.
+
+[theme]
+base = "dark"
+primaryColor = "#84CC16"
+backgroundColor = "#0B0F12"
+secondaryBackgroundColor = "#11171C"
+textColor = "#E6EAED"
+font = "sans serif"
+
+[browser]
+gatherUsageStats = false
