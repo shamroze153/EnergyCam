@@ -194,8 +194,16 @@ def load_coverage(days=7):
     stamps = pd.to_datetime(beats["timestamp"], utc=True)
     # The loop beats every five minutes, so each beat vouches for the ten
     # minutes around it and no more. Counting distinct ten-minute windows
-    # rather than beats means a restart loop cannot inflate the figure.
-    windows = (stamps.astype("int64") // (10 * 60 * 10**9)).nunique()
+    # rather than beats means a loop restarting in circles cannot inflate it.
+    #
+    # Counted in elapsed seconds, not in epoch integers. That shortcut has now
+    # produced a wrong answer three times in this file: pandas 3 converts a
+    # timestamp series to int64 in MICROseconds while Timestamp.value is
+    # nanoseconds, so dividing by a nanosecond constant silently collapses
+    # everything into one bucket. Seventy hours of coverage came out as
+    # eighteen minutes, and nothing raised.
+    elapsed = (stamps - stamps.min()).dt.total_seconds()
+    windows = (elapsed // 600).nunique()
     return windows * 10.0 / 60.0, days * 24.0
 
 
