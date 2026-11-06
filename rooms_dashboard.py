@@ -161,7 +161,7 @@ def load_state():
 
 
 @st.cache_data(ttl=60)
-def load_history(days=7):
+def load_history(days=28):
     conn = psycopg2.connect(DATABASE_URL, sslmode=DB_SSLMODE, connect_timeout=10)
     try:
         df = pd.read_sql_query(
@@ -553,7 +553,44 @@ def building_bar(df):
         for _, row in df.iterrows())
 
 
-def header_band(campus, df, beat_age, mode=""):
+def money_strip(at_stake, saved, span, enough):
+    """Two figures, in the corner, with what each one actually is.
+
+    The left is an upper bound and says so on the tile: the empty time is
+    measured, whether the units ran is not. The right is a real difference or
+    it is nothing, and when it is nothing it says how many days short it is
+    rather than printing a zero that could be read as "we saved nothing".
+    """
+    if enough:
+        right = ("Rs %s" % format(abs(round(saved)), ","),
+                 "less than the first fortnight" if saved >= 0
+                 else "MORE than the first fortnight")
+    else:
+        right = ("%d more days" % max(1, round(BASELINE_DAYS * 2 - span)),
+                 "before a fortnight can be compared")
+    return """
+<div style="display:flex;gap:18px;">
+  <div style="text-align:right;">
+    <div style="color:#6E7B82;font-size:.56rem;letter-spacing:.14em;">
+      AT STAKE TODAY</div>
+    <div style="color:#F0C98B;font-size:1.34rem;font-weight:760;
+                line-height:1.15;">Rs %s</div>
+    <div style="color:#5E6A70;font-size:.58rem;">upper bound, not a bill</div>
+  </div>
+  <div style="width:1px;background:#2A3034;"></div>
+  <div style="text-align:right;">
+    <div style="color:#6E7B82;font-size:.56rem;letter-spacing:.14em;">
+      SAVED SO FAR</div>
+    <div style="color:%s;font-size:1.34rem;font-weight:760;line-height:1.15;">
+      %s</div>
+    <div style="color:#5E6A70;font-size:.58rem;">%s</div>
+  </div>
+</div>""" % (format(round(at_stake), ","),
+             "#8FD48A" if enough and saved >= 0 else "#6E7B82",
+             right[0], right[1])
+
+
+def header_band(campus, df, beat_age, mode="", money_html=""):
     live = (beat_age is not None and beat_age <= STALE_AFTER_MINUTES)
     pill = ('<span style="background:%s;color:%s;font-size:.73rem;'
             'padding:5px 12px;border-radius:20px;white-space:nowrap;">'
@@ -572,12 +609,14 @@ def header_band(campus, df, beat_age, mode=""):
         ENERGYCAM</span>
       <div style="color:#F2F4F5;font-size:1.72rem;font-weight:760;
                   line-height:1.1;">%s</div>
-    </div>%s
+    </div>
+    <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;">
+      %s%s</div>
   </div>
   <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:13px;">%s</div>
   <div style="color:#5E6A70;font-size:.63rem;margin-top:9px;">
     one square per room &middot; %d rooms &middot; %d cameras%s</div>
-</div>""" % (campus, pill, building_bar(df), len(df),
+</div>""" % (campus, money_html, pill, building_bar(df), len(df),
              int(df["cameras"].sum()),
              (" &middot; %s" % mode) if mode else "")
 
@@ -660,6 +699,43 @@ def settles_at(share, from_hour=12):
             return hour + 1 if hour < 23 else None
         last = hour
     return last if last is not None else None
+
+
+BASELINE_DAYS = 14          # a fortnight before, a fortnight after
+
+
+def wasted_minutes(events, rooms, since, until):
+    """Empty minutes across a set of rooms, between two moments."""
+    return sum(status_minutes(events, room, since, until).get("empty", 0.0)
+               for room in rooms)
+
+
+def money(minutes, assumptions):
+    kwh = minutes / 60.0 * assumptions.get("unit_kw", 1.2)
+    return kwh, kwh * assumptions.get("tariff_rs_per_kwh", 55)
+
+
+def against_baseline(history, rooms, now, assumptions):
+    """Compare the last fortnight with the fortnight before it.
+
+    This is the only honest route to a saving. A saving is a difference, and a
+    difference needs a before: without one, any figure put under the word
+    "saved" is a guess wearing a number's clothes. So the first fortnight
+    becomes the baseline and every fortnight after is measured against it.
+
+    Returns (rupees, days_of_history, enough). Until there are two fortnights
+    it returns how far off that is, and the page says so rather than showing a
+    zero that looks like failure or a figure that looks like success.
+    """
+    if history.empty:
+        return 0.0, 0, False
+    span = (now - history["timestamp"].min()).total_seconds() / 86400.0
+    if span < BASELINE_DAYS * 2:
+        return 0.0, span, False
+    cut = now - pd.Timedelta(days=BASELINE_DAYS)
+    before = wasted_minutes(history, rooms, cut - pd.Timedelta(days=BASELINE_DAYS), cut)
+    after = wasted_minutes(history, rooms, cut, now)
+    return money(before - after, assumptions)[1], span, True
 
 
 def show_room_day(df, recent, chosen, now):
@@ -772,6 +848,147 @@ def show_room_day(df, recent, chosen, now):
            figure_row("Busiest it gets", int(by_day["busiest"].max()),
                       "typically %d" % round(by_day["busiest"].mean()))),
         unsafe_allow_html=True)
+
+
+def daily_spans(month, wanted, now):
+    """Per room and day: when the first person arrived and when it emptied.
+
+    The departure cannot come from the occupied rows. Only changes are
+    recorded, so a room used from ten to six leaves one occupied row at ten,
+    and taking the last of those as the departure collapses the whole day to a
+    single minute. It has to be the row AFTER the last occupied one -- the
+    moment the room went empty.
+
+    Spotted because the bars on this page came out a pixel wide. The same
+    mistake was already fixed on one room's own page and not here, which is
+    what happens when the same idea is written twice.
+    """
+    spans = []
+    wanted = set(wanted)
+    for room, events in month[month["room"].isin(wanted)].groupby("room"):
+        events = events.sort_values("timestamp").reset_index(drop=True)
+        local = to_local(events["timestamp"])
+        days = local.dt.date
+        for day, rows in events.groupby(days.values).groups.items():
+            rows = sorted(rows)
+            busy = [i for i in rows if events.loc[i, "status"] == "occupied"]
+            if not busy:
+                continue
+            arrives = local.iloc[busy[0]]
+            after = busy[-1] + 1
+            if after < len(events):
+                left = local.iloc[after]
+            else:
+                # Nothing recorded after it: still in use as far as we know.
+                left = min(to_local(pd.Series([now])).iloc[0],
+                           arrives.normalize() + pd.Timedelta(hours=23,
+                                                              minutes=59))
+            # Somebody staying past midnight belongs to the day they arrived,
+            # but the bar is drawn on a 24-hour scale, so it stops at the end
+            # of it rather than wrapping round to the start.
+            end_of_day = arrives.normalize() + pd.Timedelta(hours=23, minutes=59)
+            left = min(left, end_of_day)
+            spans.append({
+                "room": room, "day": day,
+                "arrives": arrives.hour * 60 + arrives.minute,
+                "leaves": max(left.hour * 60 + left.minute,
+                              arrives.hour * 60 + arrives.minute),
+                "busiest": int(events.loc[busy, "people"].max())})
+    return pd.DataFrame(spans)
+
+
+def show_arrivals(df, now):
+    """When each room fills and empties, on a usual day.
+
+    Asked for as "which department comes when". It is the same arithmetic as
+    one room's weekly habit, run across all of them and sorted, and it is the
+    thing that makes a switch-off time arguable rather than asserted: a room
+    whose last person leaves at 18:40 four days out of five does not need a
+    debate about when to set the timer.
+    """
+    try:
+        month = load_history()
+    except psycopg2.Error as e:
+        st.error("Could not load history (%s)." % type(e).__name__)
+        return
+    if month.empty:
+        st.info("No history yet.")
+        return
+
+    per_day = daily_spans(month, set(df["room"]), now)
+    if per_day.empty:
+        st.info("Nobody has been seen in any room yet.")
+        return
+    usual = per_day.groupby("room").agg(
+        days=("day", "nunique"),
+        first=("arrives", "mean"), earliest=("arrives", "min"),
+        last=("leaves", "mean"), latest=("leaves", "max"),
+        busiest=("busiest", "max")).reset_index()
+    usual = usual.merge(df[["room", "zone", "has_unit", "level"]], on="room")
+    usual = usual.sort_values("first")
+
+    clock = lambda m: "%02d:%02d" % divmod(int(round(m)), 60)
+    st.markdown(
+        '<div style="font-size:1.1rem;font-weight:720;margin-bottom:2px;">'
+        'Who comes when</div>'
+        '<div style="font-size:.74rem;color:#8A949A;margin-bottom:10px;">'
+        'averaged over the days each room has been watched, earliest first'
+        '</div>', unsafe_allow_html=True)
+
+    # Each room as a bar from its usual arrival to its usual departure, so the
+    # shape of the building's day is visible before any of the times are read.
+    rows_html = ""
+    for _, r in usual.iterrows():
+        left = 100.0 * r["first"] / 1440.0
+        width = max(1.2, 100.0 * (r["last"] - r["first"]) / 1440.0)
+        rows_html += (
+            '<div style="display:flex;align-items:center;gap:9px;'
+            'margin-bottom:4px;">'
+            '<span style="flex:0 0 146px;font-size:.76rem;color:%s;'
+            'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">%s'
+            '</span>'
+            '<span style="flex:0 0 46px;font-size:.72rem;color:#6B7378;'
+            'text-align:right;">%s</span>'
+            '<span style="flex:1 1 auto;height:14px;background:#F4F4F4;'
+            'border-radius:3px;position:relative;">'
+            '<span style="position:absolute;left:%.2f%%;width:%.2f%%;top:0;'
+            'height:14px;background:%s;border-radius:3px;"></span></span>'
+            '<span style="flex:0 0 46px;font-size:.72rem;color:#6B7378;">%s'
+            '</span>'
+            '<span style="flex:0 0 74px;font-size:.68rem;color:#9AA3A8;'
+            'text-align:right;">%d day%s</span></div>'
+            % (INK[r["level"]]["fg"], r["room"], clock(r["first"]),
+               left, width, "#7BAE48" if r["has_unit"] else "#C3CBD0",
+               clock(r["last"]), r["days"], "" if r["days"] == 1 else "s"))
+    ticks = "".join('<span style="flex:1 1 0;text-align:center;">%s</span>'
+                    % (("%02d" % h) if h % 3 == 0 else "") for h in range(24))
+    st.markdown(
+        rows_html +
+        '<div style="display:flex;align-items:center;gap:9px;margin-top:2px;">'
+        '<span style="flex:0 0 146px;"></span><span style="flex:0 0 46px;">'
+        '</span><span style="flex:1 1 auto;display:flex;font-size:.6rem;'
+        'color:#9AA3A8;">%s</span><span style="flex:0 0 46px;"></span>'
+        '<span style="flex:0 0 74px;"></span></div>' % ticks,
+        unsafe_allow_html=True)
+    st.caption("Green bars are rooms with an air conditioner. Grey ones have"
+               " none, so their hours are worth knowing and cost nothing.")
+
+    st.markdown(
+        '<div style="font-size:.84rem;font-weight:650;margin:18px 0 6px;">'
+        'The same thing as numbers</div>', unsafe_allow_html=True)
+    table = pd.DataFrame({
+        "Room": usual["room"], "Zone": usual["zone"],
+        "Usually in": usual["first"].map(clock),
+        "Earliest": usual["earliest"].map(clock),
+        "Usually out": usual["last"].map(clock),
+        "Latest": usual["latest"].map(clock),
+        "Most at once": usual["busiest"].astype(int),
+        "Days watched": usual["days"].astype(int)})
+    st.dataframe(table, hide_index=True, use_container_width=True)
+    st.caption("\u201cUsually out\u201d is when the room went empty, taken"
+               " from the reading after the last person was seen. A few days"
+               " of history make these averages worth reading; one day does"
+               " not.")
 
 
 def show_stills(cooled, now):
@@ -1039,7 +1256,8 @@ now = pd.Timestamp.now(tz="UTC")
 everything = rooms.merge(latest, on="room", how="left")
 everything["status"] = everything["status"].fillna("unknown")
 
-VIEWS = ["Rooms", "One room", "Look at the rooms", "Numbers & history"]
+VIEWS = ["Rooms", "One room", "Who comes when",
+         "Look at the rooms", "Numbers & history"]
 
 # A click on a room is a request to see that room, so it carries the name in
 # the query string and lands on the view that shows it. Tracked rather than
@@ -1086,8 +1304,27 @@ df = df.sort_values(by=["level", "room"],
                     key=lambda c: c.map(RANK) if c.name == "level" else c)
 
 cooled = df[df["has_unit"]]
+# Rooms whose cooling is a choice. The server rooms have units and sit empty
+# nearly always, and their empty hours are what keeps the equipment alive, so
+# counting them here would put money against something nobody should switch
+# off.
+discretionary = cooled[cooled["alerts"]]
+assumptions = load_assumptions()
+
+at_stake = money(
+    wasted_minutes(recent, discretionary["room"],
+                   now - pd.Timedelta(hours=DETAIL_HOURS), now),
+    assumptions)[1]
+try:
+    month = load_history()
+except psycopg2.Error:
+    month = pd.DataFrame()
+saved, span, enough = against_baseline(month, discretionary["room"], now,
+                                       assumptions)
+
 beat_age = minutes_since(last_beat, now)
-st.markdown(header_band(campus, df, beat_age, describe(now, hours)),
+st.markdown(header_band(campus, df, beat_age, describe(now, hours),
+                        money_strip(at_stake, saved, span, enough)),
             unsafe_allow_html=True)
 
 # ---- always on screen: the job -------------------------------------------
@@ -1213,6 +1450,9 @@ elif view == "One room":
     if chosen != clicked:
         st.query_params["room"] = chosen
     show_room_day(df, recent, chosen, now)
+
+elif view == "Who comes when":
+    show_arrivals(df, now)
 
 elif view == "Look at the rooms":
     show_stills(cooled, now)
