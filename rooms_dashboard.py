@@ -283,6 +283,32 @@ def load_coverage(days=7):
 
 
 @st.cache_data(ttl=60)
+def load_daily_coverage(days=28):
+    """Hours watched on each day, from the heartbeat.
+
+    A day with no coverage and a day with nothing wrong look identical on a
+    calendar, and only one of them is good news. Counted in distinct
+    ten-minute windows so a loop restarting in circles cannot inflate it, and
+    in elapsed seconds rather than epoch integers -- pandas 3 hands back
+    microseconds where this file has twice assumed nanoseconds.
+    """
+    conn = psycopg2.connect(DATABASE_URL, sslmode=DB_SSLMODE, connect_timeout=10)
+    try:
+        beats = pd.read_sql_query(
+            "SELECT timestamp FROM heartbeat"
+            " WHERE timestamp >= now() - interval '%d days'"
+            " ORDER BY timestamp" % days, conn)
+    finally:
+        conn.close()
+    if beats.empty:
+        return {}
+    local = to_local(pd.to_datetime(beats["timestamp"], utc=True))
+    frame = pd.DataFrame({"day": local.dt.date,
+                          "slot": (local.dt.hour * 6 + local.dt.minute // 10)})
+    return (frame.drop_duplicates().groupby("day").size() / 6.0).to_dict()
+
+
+@st.cache_data(ttl=60)
 def load_history(days=28):
     conn = psycopg2.connect(DATABASE_URL, sslmode=DB_SSLMODE, connect_timeout=10)
     try:
@@ -795,282 +821,24 @@ def header_band(campus, df, beat_age, mode="", money_html=""):
              (" &middot; %s" % mode) if mode else "")
 
 
-def figure_row(label, value, note, tone="#E6EAED"):
+def figure_row(label, value, note, tone=None):
+    """A number with its label under it, not over it.
+
+    Reworked after looking at a dashboard that reads well: the number is the
+    thing, so it gets the size and the top line, the label gets out of the way
+    underneath, and the card gets room to breathe instead of a hard border.
+    Borders everywhere make a page look like a spreadsheet; a faint surface
+    and space between does the same job quietly.
+    """
     return """
-<div style="flex:1 1 180px;background:#151C22;border:1px solid #263139;
-            border-radius:11px;padding:11px 14px;">
-  <div style="font-size:.68rem;color:#8A949A;letter-spacing:.04em;">%s</div>
-  <div style="font-size:1.62rem;font-weight:760;color:%s;line-height:1.25;">
+<div style="flex:1 1 184px;background:%s;border:1px solid %s;
+            border-radius:14px;padding:16px 18px 14px;">
+  <div style="font-size:1.92rem;font-weight:720;color:%s;line-height:1.1;
+              letter-spacing:-.02em;">%s</div>
+  <div style="font-size:.72rem;color:%s;letter-spacing:.04em;margin-top:5px;">
     %s</div>
-  <div style="font-size:.66rem;color:#7E888E;">%s</div>
-</div>""" % (label, tone, value, note)
-
-
-# ------------------------------------------------------------------- views
-
-def hour_pattern(week, room, now, days=7):
-    """For each hour of the day, on what share of days was this room in use?
-
-    Sampled at the middle of every hour of every day rather than counted from
-    events, because only changes are recorded: a room occupied from nine to six
-    leaves two rows, and counting rows would call it busy twice and idle for
-    the other seven hours. Sampling asks the state, which is the question.
-    """
-    mine = week[week["room"] == room]
-    if mine.empty:
-        return [None] * 24, 0
-    start = (now - pd.Timedelta(days=days)).normalize()
-    stamps = (mine["timestamp"] - start).dt.total_seconds().to_numpy()
-    states = mine["status"].tolist()
-    local_offset = 5 * 3600          # Pakistan, fixed, no daylight saving
-    counted = [0] * 24
-    busy = [0] * 24
-    for day in range(days):
-        for hour in range(24):
-            # middle of that hour, in local time, expressed as seconds since
-            # the window began
-            at = day * 86400 + hour * 3600 + 1800 - local_offset
-            if at < 0 or at > (now - start).total_seconds():
-                continue
-            index = int(np.searchsorted(stamps, at, side="right")) - 1
-            if index < 0:
-                continue
-            counted[hour] += 1
-            if states[index] == "occupied":
-                busy[hour] += 1
-    share = [None if counted[h] == 0 else busy[h] / counted[h]
-             for h in range(24)]
-    return share, max(counted)
-
-
-def pattern_row(name, share, fg):
-    cells = "".join(
-        '<span title="%02d:00" style="flex:1 1 0;height:15px;border-radius:2px;'
-        'background:%s;"></span>'
-        % (hour, NO_DATA if value is None else
-           "rgba(107,163,61,%.2f)" % (0.10 + 0.90 * value))
-        for hour, value in enumerate(share))
-    return ('<div style="display:flex;align-items:center;gap:8px;'
-            'margin-bottom:3px;">'
-            '<span style="flex:0 0 140px;font-size:.74rem;color:%s;'
-            'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">%s'
-            '</span><span style="flex:1 1 auto;display:flex;gap:1px;">%s</span>'
-            '</div>' % (fg, name, cells))
-
-
-def settles_at(share, from_hour=12):
-    """The hour after which a room is reliably empty, or None if it never is.
-
-    "Reliably" is under one day in five. A room used on two afternoons out of
-    seven has no switch-off time worth setting, and saying otherwise would get
-    somebody's air conditioning turned off while they were sitting under it.
-    """
-    last = None
-    for hour in range(23, from_hour - 1, -1):
-        if share[hour] is None:
-            continue
-        if share[hour] >= 0.2:
-            return hour + 1 if hour < 23 else None
-        last = hour
-    return last if last is not None else None
-
-
-BASELINE_DAYS = 14          # a fortnight before, a fortnight after
-
-
-def wasted_minutes(events, rooms, since, until):
-    """Empty minutes across a set of rooms, between two moments."""
-    return sum(status_minutes(events, room, since, until).get("empty", 0.0)
-               for room in rooms)
-
-
-def money(minutes, assumptions):
-    kwh = minutes / 60.0 * assumptions.get("unit_kw", 1.2)
-    return kwh, kwh * assumptions.get("tariff_rs_per_kwh", 55)
-
-
-def against_baseline(history, rooms, now, assumptions):
-    """Compare the last fortnight with the fortnight before it.
-
-    This is the only honest route to a saving. A saving is a difference, and a
-    difference needs a before: without one, any figure put under the word
-    "saved" is a guess wearing a number's clothes. So the first fortnight
-    becomes the baseline and every fortnight after is measured against it.
-
-    Returns (rupees, days_of_history, enough). Until there are two fortnights
-    it returns how far off that is, and the page says so rather than showing a
-    zero that looks like failure or a figure that looks like success.
-    """
-    if history.empty:
-        return 0.0, 0, False
-    span = (now - history["timestamp"].min()).total_seconds() / 86400.0
-    if span < BASELINE_DAYS * 2:
-        return 0.0, span, False
-    cut = now - pd.Timedelta(days=BASELINE_DAYS)
-    before = wasted_minutes(history, rooms, cut - pd.Timedelta(days=BASELINE_DAYS), cut)
-    after = wasted_minutes(history, rooms, cut, now)
-    return money(before - after, assumptions)[1], span, True
-
-
-def show_room_day(df, recent, chosen, now):
-    """One room: today in detail, then its habits over the week."""
-    row = df[df["room"] == chosen].iloc[0]
-
-    # Midnight, not twenty-four hours back. "When does the first person
-    # arrive" is a question about a day, and a rolling window answered it with
-    # yesterday evening. Early in the morning the band is short, which is
-    # honest: the day is short.
-    midnight = now.tz_convert("Asia/Karachi").normalize().tz_convert("UTC")
-    hours_today = max(1.0, (now - midnight).total_seconds() / 3600.0)
-    day = status_minutes(recent, chosen, midnight, now)
-    mine = recent[(recent["room"] == chosen) & (recent["timestamp"] >= midnight)]
-    busy = mine[mine["status"] == "occupied"]
-
-    if busy.empty:
-        peak, peak_at, first_at, last_at = "—", "nobody seen", "—", "—"
-    else:
-        top = busy["people"].idxmax()
-        peak = int(busy.loc[top, "people"])
-        peak_at = "at %s" % to_local(
-            busy.loc[[top], "timestamp"]).iloc[0].strftime("%H:%M")
-        first_at = to_local(busy["timestamp"]).min().strftime("%H:%M")
-
-        # Only changes are recorded, so the last "occupied" row is when the
-        # count last moved, not when the room emptied. Somebody who arrived at
-        # 09:25 and left at 17:40 leaves one occupied row, at 09:25, and
-        # reporting that as "last seen" takes eight hours off their day. What
-        # is wanted is the row after it. If nothing follows, they are still in.
-        ordered = mine.sort_values("timestamp").reset_index(drop=True)
-        last_busy = ordered.index[ordered["status"] == "occupied"].max()
-        last_at = (to_local(ordered.loc[[last_busy + 1], "timestamp"])
-                   .iloc[0].strftime("%H:%M")
-                   if last_busy + 1 < len(ordered) else "still in use")
-
-    st.markdown(
-        '<div style="display:flex;align-items:baseline;gap:10px;'
-        'margin-bottom:8px;"><span style="font-size:1.1rem;font-weight:720;">'
-        '%s</span><span style="font-size:.72rem;color:#8A949A;">%s &middot; %s'
-        ' &middot; %d camera%s</span></div>'
-        % (chosen, row["zone"], row["unit_note"], row["cameras"],
-           "" if row["cameras"] == 1 else "s"), unsafe_allow_html=True)
-
-    st.markdown(
-        '<div style="display:flex;gap:11px;flex-wrap:wrap;margin:2px 0 12px;">'
-        '%s%s%s%s%s</div>' % (
-            figure_row("First seen", first_at, "earliest person since midnight"),
-            figure_row("Emptied at", last_at, "after the last person left"),
-            figure_row("Most at once", peak, peak_at),
-            figure_row("Used today", spell(day.get("occupied", 0.0)),
-                       "empty %s" % spell(day.get("empty", 0.0))),
-            figure_row("Unaccounted", spell(day.get("unknown", 0.0)),
-                       "camera did not answer")), unsafe_allow_html=True)
-
-    st.markdown(
-        strip_svg(slot_states(recent, chosen, now, slots=int(hours_today * 12),
-                              since=midnight), height=26, radius=5)
-        + day_axis(now, midnight), unsafe_allow_html=True)
-
-    if not busy.empty:
-        by_hour = busy.copy()
-        by_hour["hour"] = to_local(by_hour["timestamp"]).dt.strftime("%H:00")
-        peaks = by_hour.groupby("hour")["people"].max().reset_index()
-        chart = px.bar(peaks, x="hour", y="people",
-                       labels={"hour": "", "people": "people"},
-                       color_discrete_sequence=[AC_ON])
-        chart.update_layout(height=215, margin=dict(l=0, r=0, t=16, b=0),
-                            plot_bgcolor="rgba(0,0,0,0)",
-                            paper_bgcolor="rgba(0,0,0,0)",
-                            font=dict(color=MUTED), showlegend=False,
-                            yaxis=dict(gridcolor=LINE))
-        st.plotly_chart(chart, use_container_width=True)
-        st.caption("The most people seen at once in each hour. Readings are a"
-                   " couple of minutes apart, so a visit shorter than that can"
-                   " fall between two and leave no mark.")
-
-    # ---- and the same room's habits ---------------------------------------
-    # One day is an anecdote. A switch-off time or a cleaning round gets
-    # planned against when a room usually empties, not against yesterday.
-    try:
-        week = load_history()
-    except psycopg2.Error:
-        week = pd.DataFrame()
-    if week.empty:
-        return
-    theirs = week[(week["room"] == chosen) &
-                  (week["status"] == "occupied")].copy()
-    if theirs.empty:
-        return
-    theirs["when"] = to_local(theirs["timestamp"])
-    theirs["day"] = theirs["when"].dt.date
-    theirs["minute"] = theirs["when"].dt.hour * 60 + theirs["when"].dt.minute
-    by_day = theirs.groupby("day").agg(
-        arrives=("minute", "min"), leaves=("minute", "max"),
-        busiest=("people", "max")).reset_index()
-    if len(by_day) < 2:
-        st.caption("Only one day recorded so far — a usual pattern needs"
-                   " a few more before it means anything.")
-        return
-    clock = lambda m: "%02d:%02d" % divmod(int(round(m)), 60)
-    st.markdown(
-        '<div style="font-size:.84rem;font-weight:650;margin:16px 0 6px;">'
-        'On a usual day <span style="font-weight:400;color:#8A949A;">'
-        '(%d days recorded)</span></div>'
-        '<div style="display:flex;gap:11px;flex-wrap:wrap;">%s%s%s</div>'
-        % (len(by_day),
-           figure_row("First arrival", clock(by_day["arrives"].mean()),
-                      "earliest %s" % clock(by_day["arrives"].min())),
-           figure_row("Last to leave", clock(by_day["leaves"].mean()),
-                      "latest %s" % clock(by_day["leaves"].max())),
-           figure_row("Busiest it gets", int(by_day["busiest"].max()),
-                      "typically %d" % round(by_day["busiest"].mean()))),
-        unsafe_allow_html=True)
-
-
-def daily_spans(month, wanted, now):
-    """Per room and day: when the first person arrived and when it emptied.
-
-    The departure cannot come from the occupied rows. Only changes are
-    recorded, so a room used from ten to six leaves one occupied row at ten,
-    and taking the last of those as the departure collapses the whole day to a
-    single minute. It has to be the row AFTER the last occupied one -- the
-    moment the room went empty.
-
-    Spotted because the bars on this page came out a pixel wide. The same
-    mistake was already fixed on one room's own page and not here, which is
-    what happens when the same idea is written twice.
-    """
-    spans = []
-    wanted = set(wanted)
-    for room, events in month[month["room"].isin(wanted)].groupby("room"):
-        events = events.sort_values("timestamp").reset_index(drop=True)
-        local = to_local(events["timestamp"])
-        days = local.dt.date
-        for day, rows in events.groupby(days.values).groups.items():
-            rows = sorted(rows)
-            busy = [i for i in rows if events.loc[i, "status"] == "occupied"]
-            if not busy:
-                continue
-            arrives = local.iloc[busy[0]]
-            after = busy[-1] + 1
-            if after < len(events):
-                left = local.iloc[after]
-            else:
-                # Nothing recorded after it: still in use as far as we know.
-                left = min(to_local(pd.Series([now])).iloc[0],
-                           arrives.normalize() + pd.Timedelta(hours=23,
-                                                              minutes=59))
-            # Somebody staying past midnight belongs to the day they arrived,
-            # but the bar is drawn on a 24-hour scale, so it stops at the end
-            # of it rather than wrapping round to the start.
-            end_of_day = arrives.normalize() + pd.Timedelta(hours=23, minutes=59)
-            left = min(left, end_of_day)
-            spans.append({
-                "room": room, "day": day,
-                "arrives": arrives.hour * 60 + arrives.minute,
-                "leaves": max(left.hour * 60 + left.minute,
-                              arrives.hour * 60 + arrives.minute),
-                "busiest": int(events.loc[busy, "people"].max())})
-    return pd.DataFrame(spans)
+  <div style="font-size:.67rem;color:%s;margin-top:2px;">%s</div>
+</div>""" % (SURFACE, LINE, tone or TEXT, value, MUTED, label, FAINT, note)
 
 
 def wordmark(mode):
@@ -1188,6 +956,80 @@ def show_arrivals(df, now):
                " from the reading after the last person was seen. A few days"
                " of history make these averages worth reading; one day does"
                " not.")
+
+
+def split_by_day(start, end):
+    """Minutes between two moments, split across the local days they fall in."""
+    out = {}
+    if end <= start:
+        return out
+    cursor = start
+    while cursor < end:
+        local = to_local(pd.Series([cursor])).iloc[0]
+        midnight = (local.normalize() + pd.Timedelta(days=1)).tz_convert("UTC")
+        step = min(midnight, end)
+        out[local.date()] = out.get(local.date(), 0.0) + \
+            (step - cursor).total_seconds() / 60.0
+        cursor = step
+    return out
+
+
+def day_calendar(month, rooms, now, coverage, days=28):
+    """A square per day: how much air-conditioned room sat empty that day.
+
+    Weeks as columns, weekdays as rows, so a habit shows up as a stripe --
+    every Saturday dark, or every evening after a particular change. A day
+    nothing was watching is drawn differently from a day nothing happened,
+    because on a calendar those two look the same and only one is good news.
+    """
+    per_day = {}
+    for room in rooms:
+        mine = month[month["room"] == room].sort_values("timestamp")
+        if mine.empty:
+            continue
+        edges = list(mine["timestamp"]) + [now]
+        for index, state in enumerate(mine["status"]):
+            if state != "empty":
+                continue
+            for day, minutes in split_by_day(edges[index], edges[index + 1]).items():
+                per_day[day] = per_day.get(day, 0.0) + minutes
+
+    today = to_local(pd.Series([now])).iloc[0].date()
+    first = today - pd.Timedelta(days=days - 1)
+    # Start the grid on the Monday on or before the first day, so the rows
+    # line up as weekdays rather than drifting.
+    first = first - pd.Timedelta(days=first.weekday())
+    weeks = ((today - first).days // 7) + 1
+    worst = max(per_day.values()) if per_day else 1.0
+
+    rows = ""
+    for weekday in range(7):
+        cells = ""
+        for week in range(weeks):
+            day = first + pd.Timedelta(days=week * 7 + weekday)
+            if day > today:
+                cells += '<span style="width:15px;height:15px;"></span>'
+                continue
+            watched = coverage.get(day, 0.0)
+            if watched < 1.0:
+                fill, title = SUNKEN, "%s - nothing was watching" % day
+            else:
+                share = min(1.0, (per_day.get(day, 0.0) / worst) if worst else 0)
+                fill = ("rgba(192,91,69,%.2f)" % (0.16 + 0.84 * share)
+                        if share > 0.02 else SUNKEN)
+                title = ("%s - %s of empty cooled room, %s watched"
+                         % (day, spell(per_day.get(day, 0.0)),
+                            spell(watched * 60)))
+            cells += ('<span title="%s" style="width:15px;height:15px;'
+                      'border-radius:3px;background:%s;display:inline-block;'
+                      '"></span>' % (title, fill))
+        rows += ('<div style="display:flex;gap:3px;margin-bottom:3px;'
+                 'align-items:center;">'
+                 '<span style="flex:0 0 30px;font-size:.6rem;color:%s;">%s'
+                 '</span>%s</div>'
+                 % (FAINT, ["Mon", "", "Wed", "", "Fri", "", "Sun"][weekday],
+                    cells))
+    return rows
 
 
 def show_cameras(df, now):
@@ -1498,6 +1340,22 @@ def show_numbers(df, cooled, recent, now):
                    " the ones worth a timer, a word with whoever uses them, or"
                    " a camera moved — rather than working evenly through"
                    " thirty.")
+
+    # ---- a month of days ---------------------------------------------------
+    st.divider()
+    try:
+        coverage = load_daily_coverage()
+    except psycopg2.Error:
+        coverage = {}
+    st.markdown(
+        '<div style="font-size:1.1rem;font-weight:720;margin-bottom:2px;">'
+        'Day by day</div>'
+        '<div style="font-size:.74rem;color:%s;margin-bottom:10px;">'
+        'a square per day, darker where more air-conditioned room sat empty.'
+        ' Flat grey means nothing was watching that day, which is not the same'
+        ' as nothing happening.</div>%s'
+        % (MUTED, day_calendar(month, discretionary["room"], now, coverage)),
+        unsafe_allow_html=True)
 
     # ---- the week as a picture --------------------------------------------
     st.divider()
