@@ -5,6 +5,13 @@ switching and pressing Enter.
 
 ## Before you start
 
+Seven rooms on nvr1 and nvr4 were being read at 640×360, which is too small
+to see a unit's display. They now ask for the main stream in rooms.yaml, so
+`pull.bat` first and check the frame size in `check_room.py` output is
+1920×1080 or 1280×720 before calibrating any of them. If one still comes
+back 640×360, that recorder is not serving a main stream on that channel and
+the room cannot be calibrated until it does.
+
 ```
 C:\hfm_energy_project\run_rooms.bat
 ```

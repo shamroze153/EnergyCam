@@ -77,6 +77,44 @@ Run the loop with `--evidence` and these will declare themselves: any one of
 them that counts somebody at two in the morning leaves a picture of exactly
 what it counted, and then the zone is measured rather than guessed.
 
+## What a second pass over all 95 frames found
+
+Measured rather than eyeballed, across every frame at once.
+
+**Three dead cameras.** xvr3 channels 6, 9 and 12 come back black — brightness
+0.4 out of 255 — and identical to each other. Nothing is connected. They were
+already labelled "unused" and were still being fetched every cycle, six
+seconds each for a black frame. Now `watch: false`, kept in the file with the
+measurement so nobody re-adds them.
+
+**Nothing else is dead, dark or blown out.** Every other camera gives the
+detector something to work with. That is a better result than expected on 95
+cameras.
+
+**No two cameras show the same place**, beyond the three black ones. The
+first-floor lobby was the only genuine duplicate on this site and it is
+already merged, so there are no more merges to find.
+
+**The resolution split is the real finding.**
+
+| Recorder | Stream | What comes back |
+|---|---|---|
+| dvr2 | main | 1920×1080 ×13, 1280×720 ×2, 960×576 |
+| nvr1 | sub | **640×360 ×31** |
+| nvr4 | sub | **640×360 ×32** |
+| xvr3 | main | 1920×1080 ×10, 1280×720 ×5, 960×576 |
+
+14 of the 32 cameras on rooms that can raise a check were coming back under
+1000px wide. That is enough to see somebody is in a corridor and nowhere near
+enough to read an air conditioner's display: at 640×360 the display is a
+handful of pixels and a threshold measured from it would be measuring noise.
+
+Seven rooms on nvr1 and nvr4 now ask for the main stream by name — 140-H
+Reception, 140-H Board Room, H First Floor Lobby, Mosque, Prompt Cafe,
+Basement, Basement Meeting Room. The other fifty cameras stay on sub, because
+a car park does not need the extra decoding. **Without this, none of those
+seven could have been calibrated tomorrow.**
+
 ## Other things the pictures settled
 
 - **Prompt Cafe is not broken.** 82 detections across its four cameras on a

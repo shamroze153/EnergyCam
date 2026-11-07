@@ -292,6 +292,16 @@ class Room:
         #   cameras:
         #     - {recorder: nvr1, channel: 22}
         #     - {recorder: xvr3, channel: 16}
+        # Which stream this room's cameras are read from, overriding the
+        # recorder's own setting. nvr1 and nvr4 hand back 640x360 on the sub
+        # stream, which is enough to see that somebody is in a corridor and
+        # nowhere near enough to read an air conditioner's display: at that
+        # size the display is a handful of pixels. So the rooms that matter
+        # ask for the main stream and the car park does not.
+        self.stream = cfg.get("stream")
+        # A room nobody should spend time on. The three dead channels on
+        # xvr3 cost six seconds each, every cycle, for a black frame.
+        self.watch = cfg.get("watch", True)
         if cfg.get("cameras"):
             self.cameras = [(c["recorder"], int(c["channel"]))
                             for c in cfg["cameras"]]
@@ -408,6 +418,11 @@ def widen(frame):
 def load_rooms(path, only_recorders=None, only_rooms=None):
     cfg = yaml.safe_load(open(path))
     rooms = [Room(r) for r in cfg["rooms"]]
+    skipped = [r.name for r in rooms if not r.watch]
+    rooms = [r for r in rooms if r.watch]
+    if skipped:
+        print(">> not watching %d room(s), as rooms.yaml asks: %s"
+              % (len(skipped), ", ".join(skipped)))
     if only_recorders:
         # A room watched by two recorders belongs to both, so --recorder keeps
         # it but narrows it to that recorder's cameras. Fetching the others
@@ -521,7 +536,7 @@ def fetch(room, recorders, timeout):
     for key in room.cameras:
         name, channel = key
         rec = recorders[name]
-        want_main = rec.get("stream", "sub") == "main"
+        want_main = (room.stream or rec.get("stream", "sub")) == "main"
         gate = rec.get("gate")
         url = build_url(rec["host"], channel, rec["user"], rec["password"],
                         want_main, rec.get("brand", "hikvision"))

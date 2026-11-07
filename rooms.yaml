@@ -26,6 +26,19 @@
 # anything. Short enough to catch a real lapse, long enough that stepping out
 # for a few minutes does not set it off.
 #
+# stream picks main or sub for one room's cameras, overriding the recorder's
+# own setting. It matters more than it sounds: on 7 November nvr1 and nvr4
+# handed back 640x360, which is plenty to see that somebody is in a corridor
+# and nowhere near enough to read an air conditioner's display -- at that
+# size the display is a handful of pixels, and calibrating from it would
+# measure noise. So the rooms that can raise a check ask for main and the car
+# park does not, which keeps the extra decoding off fifty cameras that do not
+# need it.
+#
+# watch: false leaves a room in this file, with its note, and stops the loop
+# spending time on it. The three dead channels on xvr3 cost six seconds each,
+# every cycle, to fetch a black frame.
+#
 # meter says which K-Electric meter pays for this room. There are two at
 # 140-H: gf_basement covers the ground floor and the basement and has the
 # solar array behind it, and first_cafe covers the first floor and the cafe
@@ -412,6 +425,9 @@ rooms:
   # ===========================================================================
 
   - name: 140-H Reception
+    # 7 Nov: this recorder's sub stream is 640x360, too small to read
+    # a unit's display. Main stream for this room only.
+    stream: main
     # Named for its floor, so this one is certain. The GF+basement meter
     # has the solar array behind it: its units are what came from the
     # grid after the panels, so a sunny day reads low for reasons that
@@ -431,6 +447,9 @@ rooms:
       either can be calibrated and the other checks it.
 
   - name: 140-H Board Room
+    # 7 Nov: this recorder's sub stream is 640x360, too small to read
+    # a unit's display. Main stream for this room only.
+    stream: main
     zone: H offices
     recorder: nvr1
     channels: [24]
@@ -672,6 +691,9 @@ rooms:
     empty_after_minutes: 45
 
   - name: H First Floor Lobby
+    # 7 Nov: this recorder's sub stream is 640x360, too small to read
+    # a unit's display. Main stream for this room only.
+    stream: main
     # Named for its floor, so this one is certain. No solar behind this
     # meter, which makes it the one to trust when asking whether a
     # change in behaviour changed consumption.
@@ -756,6 +778,11 @@ rooms:
   # ---- channels that answer but show nothing --------------------------------
 
   - name: XVR 3 unused channels
+    # Measured 7 Nov: all three frames are black, brightness 0.4 out of 255,
+    # and identical to each other. No camera is connected. Left here rather
+    # than deleted so that nobody re-adds them next time the channel map is
+    # walked, and skipped so they stop costing eighteen seconds a cycle.
+    watch: false
     zone: Unused
     recorder: xvr3
     channels: [6, 9, 12]
@@ -776,6 +803,9 @@ rooms:
   # ---- rooms with a unit in frame -------------------------------------------
 
   - name: Mosque
+    # 7 Nov: this recorder's sub stream is 640x360, too small to read
+    # a unit's display. Main stream for this room only.
+    stream: main
     # Named for its floor, so this one is certain. No solar behind this
     # meter, which makes it the one to trust when asking whether a
     # change in behaviour changed consumption.
@@ -794,6 +824,9 @@ rooms:
       room is reliably empty between prayers.
 
   - name: Prompt Cafe
+    # 7 Nov: this recorder's sub stream is 640x360, too small to read
+    # a unit's display. Main stream for this room only.
+    stream: main
     # Named for its floor, so this one is certain. No solar behind this
     # meter, which makes it the one to trust when asking whether a
     # change in behaviour changed consumption.
@@ -809,6 +842,9 @@ rooms:
   # ---- rooms with a unit the camera cannot see ------------------------------
 
   - name: Basement
+    # 7 Nov: this recorder's sub stream is 640x360, too small to read
+    # a unit's display. Main stream for this room only.
+    stream: main
     # Named for its floor, so this one is certain. The GF+basement meter
     # has the solar array behind it: its units are what came from the
     # grid after the panels, so a sunny day reads low for reasons that
@@ -821,6 +857,9 @@ rooms:
     empty_after_minutes: 45
 
   - name: Basement Meeting Room
+    # 7 Nov: this recorder's sub stream is 640x360, too small to read
+    # a unit's display. Main stream for this room only.
+    stream: main
     # Named for its floor, so this one is certain. The GF+basement meter
     # has the solar array behind it: its units are what came from the
     # grid after the panels, so a sunny day reads low for reasons that
