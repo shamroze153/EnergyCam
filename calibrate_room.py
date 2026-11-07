@@ -45,7 +45,8 @@ import cv2
 import numpy as np
 import yaml
 
-from ac_detect import CONFIG, contrast, is_infrared
+from ac_detect import (CONFIG, anchor_box, contrast, fingerprint,
+                        is_infrared, pack)
 
 PREVIEW_DIR = "frames"
 # Below this gap between the two states the box is not telling the two apart.
@@ -139,7 +140,7 @@ rooms:
 
 
 def block(room, recorder, channel, size, infrared, label, box, threshold,
-          on_std, off_std, on_peak, off_peak, taken):
+          on_std, off_std, on_peak, off_peak, taken, anchor=""):
     """One room, as text, with the reasoning kept beside the numbers."""
     x1, y1, x2, y2 = (int(v) for v in box)
     return """
@@ -159,6 +160,12 @@ def block(room, recorder, channel, size, infrared, label, box, threshold,
       - label: %s
         led_roi: [%d, %d, %d, %d]
         led_std_threshold: %.1f
+        # A thumbnail of the unit and the wall round the box, levelled for
+        # brightness, compared before every reading. Nudge the camera and the
+        # box lands on blank wall, where it reads low contrast for ever and
+        # calls a running unit off -- silently, and in the direction nobody
+        # notices, because a unit never reported as on sends nobody anywhere.
+        anchor: %s
         measured:
           on_std: %.2f          # display lit
           off_std: %.2f          # display blank
@@ -168,13 +175,13 @@ def block(room, recorder, channel, size, infrared, label, box, threshold,
           # A gap of %.1f between the two states. The threshold is the
           # midpoint, so anything inside that gap would read the same.
 """ % (room, recorder, channel, "infrared" if infrared else "colour",
-       int(size[0]), int(size[1]), label, x1, y1, x2, y2, threshold,
+       int(size[0]), int(size[1]), label, x1, y1, x2, y2, threshold, anchor,
        on_std, off_std, int(on_peak), int(off_peak), taken, on_std - off_std)
 
 
 def write_config(path, room, recorder, channel, size, infrared, label,
                  box, threshold, on_std, off_std, on_peak, off_peak, taken,
-                 replace=False):
+                 replace=False, anchor=""):
     """Add one room, leaving the rest of the file exactly as it was.
 
     The block is appended as text rather than the file being reloaded and
@@ -184,7 +191,7 @@ def write_config(path, room, recorder, channel, size, infrared, label,
     re-dump would leave a file of bare numbers nobody can argue with.
     """
     new = block(room, recorder, channel, size, infrared, label, box,
-                threshold, on_std, off_std, on_peak, off_peak, taken)
+                threshold, on_std, off_std, on_peak, off_peak, taken, anchor)
     existing = ""
     if os.path.exists(path):
         existing = io.open(path, newline="").read()
@@ -373,7 +380,10 @@ def main():
                  (width, height), on_ir, args.label, box, threshold,
                  on_std, off_std, on_peak, off_peak,
                  datetime.now(PKT).strftime("%Y-%m-%dT%H:%M%z"),
-                 replace=args.replace)
+                 replace=args.replace,
+                 anchor=pack(fingerprint(off,
+                                         anchor_box(box, (width, height)),
+                                         hide=box)))
     print("\n>> written to %s" % args.config)
     print(">> restart the loop and this room's air conditioner stops being a"
           " question mark on the dashboard.")

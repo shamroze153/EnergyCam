@@ -36,6 +36,19 @@ rooms:
       - label: split unit, left wall
         led_roi: [352, 34, 383, 67]
         led_std_threshold: 18.9
+        # NOT YET CONFIRMED, and no anchor, because this was measured before
+        # anchors existed. In the whole-site frame an hour later this box
+        # sits on the unit's body rather than over the dark recess that
+        # looks like the display, which means either the camera was nudged
+        # between the two, or the lit digits really are where the box is and
+        # the recess is something else. One frame cannot settle it.
+        #
+        # To settle it, with the unit RUNNING:
+        #     python check_room.py --room "Admin Room"
+        # and look at whether the display is where this box is. Then take an
+        # on and an off frame and re-run calibrate_room.py with --replace,
+        # which writes an anchor and makes a future nudge refuse itself
+        # instead of reporting a running unit as off for ever.
         measured:
           on_std: 36.80          # display lit, reading 22
           off_std: 1.07          # display blank

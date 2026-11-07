@@ -171,6 +171,76 @@ def main():
     print("-- two frames of the same state produce nothing to write")
     ok("no boxes", calibrate_room.candidates(dark, dark) == [])
 
+    print("-- a camera that has been nudged is refused, not read")
+    # The failure this guards against is the quiet one. A bumped camera puts
+    # the box on blank wall, where it reads low contrast for ever and calls a
+    # running unit off -- and a unit never reported as on sends nobody
+    # anywhere, so nobody finds out.
+    import cv2 as _cv2
+
+    import calibrate_room
+
+    rs = np.random.RandomState(7)
+    wall = np.full((1080, 1920, 3), 58, dtype=np.uint8)
+    wall += rs.randint(0, 4, (1080, 1920, 3)).astype(np.uint8)
+    _cv2.rectangle(wall, (150, 10), (520, 95), (96, 96, 96), -1)
+    _cv2.rectangle(wall, (150, 10), (520, 95), (140, 140, 140), 2)
+    for x in range(160, 515, 9):
+        _cv2.line(wall, (x, 70), (x, 90), (72, 72, 72), 1)
+    _cv2.rectangle(wall, (345, 28), (390, 72), (34, 34, 34), -1)
+    off_frame = wall.copy()
+    on_frame = wall.copy()
+    on_frame[36:66, 354:381:2] = 238
+    on_frame[36:66, 355:382:3] = 210
+
+    found = calibrate_room.candidates(on_frame, off_frame)
+    ok("the display is found on a textured frame", len(found) == 1)
+    if found:
+        the_box = found[0]["box"]
+        on_std = ac_detect.contrast(on_frame, the_box)
+        off_std = ac_detect.contrast(off_frame, the_box)
+        anchored = os.path.join(tempfile.mkdtemp(), "anchored.yaml")
+        calibrate_room.write_config(
+            anchored, "Nudge Room", "dvr2", 9, (1920, 1080), True, "unit",
+            the_box, (on_std + off_std) / 2, on_std, off_std, 238, 58,
+            "2026-11-07T12:00+0500",
+            anchor=ac_detect.pack(ac_detect.fingerprint(
+                off_frame, ac_detect.anchor_box(the_box, (1920, 1080)),
+                hide=the_box)))
+        kept = ac_detect.load_units(anchored)
+        ok("an anchor was written",
+           bool(kept["Nudge Room"]["units"][0].get("anchor")))
+
+        ok("the lit frame still reads on",
+           ac_detect.read_room(on_frame, "Nudge Room", kept)[0] == "on")
+        ok("the dark frame still reads off",
+           ac_detect.read_room(off_frame, "Nudge Room", kept)[0] == "off")
+
+        # Brightness must not be mistaken for movement: a camera that gains
+        # down at dusk is the same camera.
+        dim = (on_frame.astype(np.int16) * 0.55 + 20).clip(0, 255)
+        ok("a much dimmer picture of the same view still reads on",
+           ac_detect.read_room(dim.astype(np.uint8), "Nudge Room",
+                               kept)[0] == "on")
+
+        for dx, dy in ((30, 0), (0, 25), (60, 40)):
+            shifted = _cv2.warpAffine(
+                on_frame, np.float32([[1, 0, dx], [0, 1, dy]]), (1920, 1080))
+            state, why = ac_detect.read_room(shifted, "Nudge Room", kept)
+            ok("shifted %dpx,%dpx is refused" % (dx, dy), state is None)
+            ok("  and the reason says the camera moved", "moved" in why)
+
+    print("-- a calibration with no anchor still works")
+    # Admin Room was measured before anchors existed. It must go on being
+    # read rather than refused, or adding a safeguard would have broken the
+    # one room the system can actually see.
+    plain = {"Old Room": dict(UNITS["Admin Room"])}
+    plain["Old Room"]["units"] = [{k: v for k, v in
+                                   UNITS["Admin Room"]["units"][0].items()
+                                   if k != "anchor"}]
+    ok("it reads", ac_detect.read_room(with_lit_display("Admin Room"),
+                                       "Old Room", plain)[0] == "on")
+
     print()
     if FAILED:
         print("%d check(s) failed:" % len(FAILED))
