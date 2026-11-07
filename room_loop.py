@@ -58,6 +58,7 @@ import yaml
 from dotenv import load_dotenv
 
 from ac_detect import load_units, read_room
+from alerts import Alerter, compose, configured, deliver, why_not_configured
 from concurrent.futures import ThreadPoolExecutor, as_completed  # noqa: E402
 
 from privacy_blur import anonymize, people_boxes
@@ -791,6 +792,10 @@ def main():
     ap.add_argument("--state", default=STATE_FILE)
     ap.add_argument("--no-db", action="store_true",
                     help="watch and print, but record nothing")
+    ap.add_argument("--alerts", action="store_true",
+                    help="email when a room is empty past its threshold."
+                         " Without it the loop prints what it would have"
+                         " sent and sends nothing")
     ap.add_argument("--evidence", nargs="?", const="evidence", default=None,
                     metavar="DIR",
                     help="outside working hours, save a frame of anyone"
@@ -844,6 +849,20 @@ def main():
         print(">> %d room(s) use their own confidence: %s"
               % (len(strict), ", ".join("%s %.2f" % (r.name, r.conf)
                                         for r in strict)))
+
+    alerter = Alerter(send=args.alerts)
+    if args.alerts:
+        if not configured():
+            fail_config("--alerts needs %s in .env. SENDER_EMAIL is the"
+                        " account that sends, APP_PASSWORD is a Google app"
+                        " password for it (not the account password), and"
+                        " ALERT_TO is who receives -- several addresses"
+                        " separated by commas." % why_not_configured())
+        print(">> alerts ON: mail goes to %s"
+              % ", ".join(__import__("alerts").recipients()))
+    else:
+        print(">> alerts off. The loop will print what it would have sent;"
+              " add --alerts to send it")
 
     hours = yaml.safe_load(open(args.config)).get("hours")
     print(">> %s" % describe(datetime.now(PKT), hours))
@@ -907,6 +926,28 @@ def main():
                 last_beat = time.time()
             if time.time() - last_sweep >= RETENTION_SECONDS and sweep():
                 last_sweep = time.time()
+
+        worth = alerter.consider(rooms, now, hours)
+        if worth:
+            subject, body = compose(worth, now, hours)
+            if args.alerts:
+                try:
+                    sent_to = deliver(subject, body)
+                    print(">> alert sent to %d address(es): %s"
+                          % (sent_to, subject))
+                except Exception as e:                  # noqa: BLE001
+                    # A mail server refusing is not a reason to stop
+                    # watching the building. It is a reason to say so and
+                    # to let the room be mentioned again, rather than
+                    # marking it told when nobody was told.
+                    print(">> COULD NOT SEND ALERT: %s" % safe_error(e))
+                    for room in worth:
+                        alerter.episode.pop(room.name, None)
+                        alerter.last_said.pop(room.name, None)
+            else:
+                print(">> would have sent: %s" % subject)
+                for line in body.splitlines()[2:2 + len(worth)]:
+                    print("   %s" % line)
 
         if args.once:
             return

@@ -94,6 +94,40 @@ whose display genuinely cannot be seen belongs in `rooms.yaml` as
 Results live in `ac_units.yaml`, one block per room, each carrying the two
 measurements its threshold came from and the date they were taken.
 
+## Alerts
+
+The dashboard only works while somebody is looking at it, and the hours worth
+money are the ones when nobody is. `--alerts` is the part that speaks without
+being asked:
+
+```
+run_rooms.bat --alerts
+```
+
+It needs three things in `.env`: `SENDER_EMAIL` (the account that sends),
+`APP_PASSWORD` (a Google app password for that account, not the account
+password), and `ALERT_TO` (who receives, several addresses separated by
+commas). Without `--alerts` the loop prints what it would have sent and sends
+nothing, which is the right way to watch it for a day before letting it
+write to anybody.
+
+An alert that arrives too often is not a weaker version of a useful alert; it
+is a filter rule in somebody's inbox, and after that the system is off
+without anyone deciding to turn it off. So:
+
+- **One room, one empty period, one mention.** Walking in and out starts a
+  new period, so there is also a two-hour floor per room — otherwise a chair
+  that reads as a person once an hour would manufacture a fresh alert all
+  night.
+- **One email, not one per room.** Rooms empty together at the end of the
+  day, so they are gathered for ten minutes and sent as a list. Six at once
+  go immediately rather than waiting.
+- **A room whose unit is known to be off is never mentioned.** That is the
+  room that got it right.
+- **Nothing is claimed that was not measured.** An uncalibrated room's mail
+  says it is empty and asks somebody to look; it does not announce waste
+  nobody can see.
+
 ## A room that counts people who are not there
 
 A camera that sees a person in a poster, a mannequin or a reflection reports
