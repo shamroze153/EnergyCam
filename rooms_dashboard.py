@@ -224,6 +224,7 @@ def load_rooms_config(path="rooms.yaml"):
             "ac": room["ac"],
             "ac_count": (0 if not has_unit
                          else int(room.get("ac_count", 1) or 1)),
+            "meter": room.get("meter"),
             "alerts": alerts,
             "caption": caption,
             "has_unit": has_unit,
@@ -1149,6 +1150,133 @@ def wordmark(mode):
             '</span></span>' % (TEXT or "#E6EAED"))
 
 
+@st.cache_data(ttl=120)
+def load_meters(days=120):
+    conn = psycopg2.connect(DATABASE_URL, sslmode=DB_SSLMODE,
+                            connect_timeout=10)
+    try:
+        import meters_view
+        return meters_view.load(conn, days)
+    finally:
+        conn.close()
+
+
+def show_meters(df, recent, now):
+    """What the building actually drew, beside what this says was wasted.
+
+    The comparison is the whole point and it is also the easiest thing on
+    this page to overstate, so the two columns sit side by side and the page
+    does not draw a line between them. One is metered; the other is counted
+    from cameras under an assumption about kilowatts. Putting them next to
+    each other is what eventually replaces that assumption.
+    """
+    import meters_view
+
+    try:
+        meters, readings, bills = load_meters()
+    except psycopg2.Error:
+        st.info(
+            "The meter tables are not there yet. An administrator runs"
+            " `sql/06_meters.sql` once in the Supabase SQL editor, then"
+            " readings go in with `python log_meter.py gf 48231`.")
+        return
+
+    if readings.empty:
+        st.info(
+            "No readings yet. Two numbers a day, at roughly the same hour:"
+            "\n\n`python log_meter.py gf 48231 --temp 34`"
+            "\n\n`python log_meter.py first 20114 --temp 34`"
+            "\n\nUntil these exist every rupee on this dashboard rests on"
+            " two guesses \u2014 1.2 kW per unit and Rs %s per kWh. These"
+            " readings are what replace the first; the monthly bills replace"
+            " the second."
+            % load_assumptions().get("tariff_rs_per_kwh", "?"))
+        return
+
+    periods = meters_view.daily_units(readings)
+    by_meter = {m["code"]: m for _, m in meters.iterrows()}
+    on_meter = {code: list(df[df.get("meter") == code]["room"])
+                for code in by_meter}
+    unsaid = int(df["meter"].isna().sum()) if "meter" in df.columns else len(df)
+
+    for code, meter in by_meter.items():
+        mine = periods[periods["meter"] == code].sort_values("to",
+                                                             ascending=False)
+        st.markdown(
+            '<div style="font-size:1rem;font-weight:700;margin:14px 0 2px;">'
+            '%s</div><div style="font-size:.76rem;color:%s;margin-bottom:8px;">'
+            '%s &middot; %d room%s on this meter</div>'
+            % (meter["label"], MUTED, meter["covers"], len(on_meter[code]),
+               "" if len(on_meter[code]) == 1 else "s"),
+            unsafe_allow_html=True)
+        if meter["behind_solar"]:
+            st.warning(
+                "The solar array is behind this meter, so these units are"
+                " what came from the grid **after** the panels. A bright day"
+                " reads low for reasons that have nothing to do with anybody"
+                " switching anything off, and this meter on its own cannot"
+                " show a saving.", icon="\u2600\ufe0f")
+        if mine.empty:
+            st.caption("One reading so far. The next one gives the first"
+                       " day's units.")
+            continue
+
+        rows, hours = [], []
+        for _, p in mine.iterrows():
+            spent = meters_view.wasted_hours_between(
+                recent, on_meter[code], p["from"], p["to"], status_minutes)
+            hours.append(spent)
+            rows.append({
+                "Read at": p["to"].tz_convert(PKT).strftime("%d %b %H:%M"),
+                "Hours": round(p["hours"], 1),
+                "Units": round(p["units"], 1),
+                "Max \u00b0C": p["max_temp"],
+                "Empty & cooled, hours": round(spent, 1),
+            })
+        st.dataframe(pd.DataFrame(rows), hide_index=True,
+                     use_container_width=True)
+
+        figure, days, why = meters_view.per_hour(list(mine["units"]), hours)
+        if figure is None:
+            st.caption(why + ".")
+        else:
+            st.success(
+                "Across %d days this meter drew **%.2f units for every hour**"
+                " a room on it sat empty with its cooling on. rooms.yaml"
+                " assumes %.2f kW per unit. This figure is measured; that one"
+                " is not."
+                % (days, figure,
+                   load_assumptions().get("unit_kw", 0)))
+
+    rate, count = meters_view.tariff_from_bills(bills)
+    if rate:
+        assumed = load_assumptions().get("tariff_rs_per_kwh", 0)
+        st.markdown(
+            '<div style="font-size:1rem;font-weight:700;margin:20px 0 6px;">'
+            'Bills</div>', unsafe_allow_html=True)
+        st.dataframe(bills, hide_index=True, use_container_width=True)
+        st.caption("The last %d bill%s work out at **Rs %.2f per unit**."
+                   " rooms.yaml assumes Rs %s. %s"
+                   % (count, "" if count == 1 else "s", rate, assumed,
+                      "Close enough to leave alone."
+                      if abs(rate - float(assumed or 0)) < 5
+                      else "Worth changing the assumption to match."))
+    else:
+        st.caption("No bills recorded yet, so Rs per unit is still the"
+                   " assumption in rooms.yaml rather than a figure off a"
+                   " bill. `python log_meter.py --bill gf 4120 238000"
+                   " --from 2026-10-01 --to 2026-10-31`")
+
+    if unsaid:
+        st.info(
+            "%d room%s not yet assigned to a meter, so %s hours are missing"
+            " from the comparison above. Add `meter: gf_basement` or"
+            " `meter: first_cafe` under each in rooms.yaml \u2014 the ones"
+            " already set are the rooms whose own names say which floor they"
+            " are on." % (unsaid, "" if unsaid == 1 else "s",
+                          "its" if unsaid == 1 else "their"))
+
+
 def show_arrivals(df, now):
     """When each room fills and empties, on a usual day.
 
@@ -1784,8 +1912,8 @@ now = pd.Timestamp.now(tz="UTC")
 everything = rooms.merge(latest, on="room", how="left")
 everything["status"] = everything["status"].fillna("unknown")
 
-VIEWS = ["Campus", "Rooms", "One room", "Who comes when", "Camera health",
-         "Look at the rooms", "Numbers & history"]
+VIEWS = ["Campus", "Rooms", "One room", "Who comes when", "Meters",
+         "Camera health", "Look at the rooms", "Numbers & history"]
 
 # A click on a room is a request to see that room, so it carries the name in
 # the query string and lands on the view that shows it. Tracked rather than
@@ -2095,6 +2223,9 @@ elif view == "One room":
 
 elif view == "Who comes when":
     show_arrivals(df, now)
+
+elif view == "Meters":
+    show_meters(df, recent, now)
 
 elif view == "Camera health":
     show_cameras(df, now)

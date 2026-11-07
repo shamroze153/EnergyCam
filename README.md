@@ -99,6 +99,54 @@ whose display genuinely cannot be seen belongs in `rooms.yaml` as
 Results live in `ac_units.yaml`, one block per room, each carrying the two
 measurements its threshold came from and the date they were taken.
 
+## The two meters
+
+Every rupee on the dashboard rests on two guesses — 1.2 kW per unit and
+Rs 55 per kWh — which is why the page says "at stake" and never "bill". The
+meters are what replace them.
+
+Once, as the project owner, in the Supabase SQL editor: `sql/06_meters.sql`.
+
+Then two numbers a day, at roughly the same hour:
+
+```
+python log_meter.py gf 48231 --temp 34
+python log_meter.py first 20114 --temp 34
+```
+
+Give the cumulative figure off the meter's face and the day's units are
+worked out from the one before; give units straight from the K-Electric app
+with `--units`. A reading that goes backwards is refused rather than turned
+into a negative day. `--show` prints the last fortnight.
+
+The day's high matters because weather drives an air conditioner harder than
+people do — without it, a cool week looks like a saving.
+
+Monthly, when the bill arrives:
+
+```
+python log_meter.py --bill gf 4120 238000 --from 2026-10-01 --to 2026-10-31
+```
+
+Three things to know about these two meters:
+
+- **The ground floor + basement meter has the solar array behind it.** Its
+  units are what came from the grid *after* the panels, so a bright day reads
+  low for reasons unrelated to anybody switching anything off. That meter
+  alone cannot show a saving. The first floor + cafe meter has no solar and
+  is the clean one.
+- **A day runs from one reading to the next**, not from midnight, so the
+  night sits inside one number. The occupancy hours set beside it are counted
+  over exactly that window.
+- **Rooms have to be assigned to a meter** with `meter: gf_basement` or
+  `meter: first_cafe` in rooms.yaml. The rooms whose own names say which
+  floor they are on are already set; the rest are not guessed, and the
+  Meters view counts how many are still unassigned.
+
+After about four weeks the Meters view shows units per empty-and-cooled hour
+— the measured figure that replaces the 1.2 kW assumption. It is withheld
+until then, because a fortnight of this is mostly a figure about the weather.
+
 ## Alerts
 
 The dashboard only works while somebody is looking at it, and the hours worth
