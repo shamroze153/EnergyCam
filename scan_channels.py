@@ -251,7 +251,14 @@ def main():
         fh.write("# ch 3   = Marketing      ac=yes\n")
         fh.write("#\n")
         for ch in sorted(rows):
-            fh.write("ch %-3d = %s\n" % (ch, rows[ch]))
+            # The ac= is left on the line rather than only in the header.
+            # Whoever fills this in is standing at a screen comparing tiles,
+            # and typing a room name is the whole job; remembering to add a
+            # second field at the end of each of sixteen lines is not.
+            filled = rows[ch]
+            if not filled:
+                filled = "%-22s ac=" % ""
+            fh.write("ch %-3d = %s\n" % (ch, filled))
 
     print(">> %d of %d channels scanned are live"
           % (len(live), len(scanned)))
