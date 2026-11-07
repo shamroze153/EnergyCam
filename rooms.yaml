@@ -264,20 +264,30 @@ rooms:
     zone: Offices
     recorder: dvr2
     channels: [1]
-    ac: visible
+    # 7 Nov: no unit in any of this room's frames, read at full width
+    # across the upper part of the picture, where a split unit is
+    # mounted. It was labelled visible from the survey contact sheet,
+    # where a wall unit is a few pixels across. docs/camera_survey.md.
+    ac: hidden
     empty_after_minutes: 45
 
   - name: HR Room
     zone: Offices
     recorder: dvr2
     channels: [2]
-    ac: visible
+    # 7 Nov: no unit in any of this room's frames, read at full width
+    # across the upper part of the picture, where a split unit is
+    # mounted. It was labelled visible from the survey contact sheet,
+    # where a wall unit is a few pixels across. docs/camera_survey.md.
+    ac: hidden
     empty_after_minutes: 45
 
   - name: Marketing
     zone: Offices
     recorder: dvr2
     channels: [3, 13]
+    # 7 Nov: the unit is on ch13, above the green door, top right. ch3
+    # sees none of it. Calibrate on ch13. docs/camera_survey.md.
     ac: visible
     empty_after_minutes: 45
     note: >
@@ -293,7 +303,11 @@ rooms:
     zone: Offices
     recorder: dvr2
     channels: [4]
-    ac: visible
+    # 7 Nov: no unit in any of this room's frames, read at full width
+    # across the upper part of the picture, where a split unit is
+    # mounted. It was labelled visible from the survey contact sheet,
+    # where a wall unit is a few pixels across. docs/camera_survey.md.
+    ac: hidden
     empty_after_minutes: 45
     # The camera looks straight through a glass door into the corridor. On
     # 7 November the room itself was empty -- every chair pushed in -- while
@@ -318,7 +332,11 @@ rooms:
     zone: Offices
     recorder: dvr2
     channels: [10, 14]
-    ac: visible
+    # 7 Nov: no unit in any of this room's frames, read at full width
+    # across the upper part of the picture, where a split unit is
+    # mounted. It was labelled visible from the survey contact sheet,
+    # where a wall unit is a few pixels across. docs/camera_survey.md.
+    ac: hidden
     empty_after_minutes: 45
     note: Two cameras assumed to be one room, as with Marketing.
 
@@ -326,7 +344,11 @@ rooms:
     zone: Offices
     recorder: dvr2
     channels: [11]
-    ac: visible
+    # 7 Nov: no unit in any of this room's frames, read at full width
+    # across the upper part of the picture, where a split unit is
+    # mounted. It was labelled visible from the survey contact sheet,
+    # where a wall unit is a few pixels across. docs/camera_survey.md.
+    ac: hidden
     empty_after_minutes: 30
     note: >
       A single-occupant office empties completely and predictably, so thirty
@@ -336,6 +358,8 @@ rooms:
     zone: Offices
     recorder: dvr2
     channels: [15, 16]
+    # 7 Nov: the unit is on ch15, top left, vent slats clearly in frame.
+    # ch16 sees none of it. Calibrate on ch15. docs/camera_survey.md.
     ac: visible
     empty_after_minutes: 45
     note: Two cameras assumed to be one room, as with Marketing.
@@ -376,6 +400,10 @@ rooms:
     zone: H entrance
     recorder: nvr1
     channels: [11, 16]
+    # 7 Nov: a white unit high on the right of ch11, cut off by the top
+    # of the frame, and a tall white cabinet on ch16 that may be a
+    # floor-standing unit or may be a cupboard. Confirm on site before
+    # calibrating; ch11 may want tilting down. docs/camera_survey.md.
     ac: visible
     empty_after_minutes: 45
     note: >
@@ -565,6 +593,8 @@ rooms:
     zone: H offices
     recorder: xvr3
     channels: [2]
+    # 7 Nov: no unit seen in the upper part of ch2, but only that part
+    # was read. Left as visible pending one look on site.
     ac: visible
     empty_after_minutes: 45
 
@@ -572,6 +602,8 @@ rooms:
     zone: H offices
     recorder: xvr3
     channels: [3, 5, 8]
+    # 7 Nov: no unit seen in the upper part of ch3, ch5 or ch8, but only
+    # that part was read. Left as visible pending one look on site.
     ac: visible
     ac_channel: 5
     empty_after_minutes: 45
@@ -586,7 +618,11 @@ rooms:
     zone: H offices
     recorder: xvr3
     channels: [11, 13]
-    ac: visible
+    # 7 Nov: no unit in any of this room's frames, read at full width
+    # across the upper part of the picture, where a split unit is
+    # mounted. It was labelled visible from the survey contact sheet,
+    # where a wall unit is a few pixels across. docs/camera_survey.md.
+    ac: hidden
     ac_channel: 13
     empty_after_minutes: 45
 
@@ -680,6 +716,8 @@ rooms:
     zone: Cafe & common
     recorder: nvr4
     channels: [6]
+    # 7 Nov: a white unit at the extreme left edge of ch6, partly out of
+    # frame. Confirm on site. docs/camera_survey.md.
     ac: visible
     empty_after_minutes: 20
     note: >
