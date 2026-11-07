@@ -1,0 +1,794 @@
+<title>140-H Energy Board</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: a standing action band that never scrolls away, then one of four
+   views under it. The band is the page's job; the views are how you look
+   around when the band is empty. Dark-first, because it lives on a wall. */
+:root{
+  --bg:#0A0D12; --surface:#12171F; --surface2:#171E28; --raise:#1C2531;
+  --line:#222C38; --line2:#2C3845;
+  --fg:#E8EDF2; --muted:#8698AA; --faint:#5D6E7E;
+  --act:#FF6B57; --act-bg:#2A1310; --act-line:#5C2720; --act-soft:#FFA797;
+  --ok:#43D383; --ok-bg:#0D2318; --ok-line:#1E4A32; --ok-soft:#8BE3B4;
+  --busy:#5CA8E8; --warn:#F0B23C; --unknown:#5E6C7B;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.28);
+  --demo-bg:#3A2B08; --demo-fg:#F3C96E; --demo-line:#5B4510;
+  --display:"Archivo",system-ui,sans-serif;
+  --body:"IBM Plex Sans",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,monospace;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#F4F6F8; --surface:#FFFFFF; --surface2:#EDF1F5; --raise:#FFFFFF;
+    --line:#DCE3EA; --line2:#C6D1DB;
+    --fg:#111820; --muted:#53657A; --faint:#7D8FA1;
+    --act:#C8351C; --act-bg:#FCEBE7; --act-line:#F0BFB2; --act-soft:#A32B16;
+    --ok:#15774A; --ok-bg:#E6F5ED; --ok-line:#AFDFC6; --ok-soft:#115C3A;
+    --busy:#1B6AB3; --warn:#946106; --unknown:#78879A;
+    --demo-bg:#FDF3DC; --demo-fg:#7A5607; --demo-line:#E9D6A0;
+    --shadow:0 1px 2px rgba(16,32,48,.06),0 8px 22px rgba(16,32,48,.07);
+    color-scheme:light;
+  }
+}
+:root[data-theme="light"]{
+  --bg:#F4F6F8; --surface:#FFFFFF; --surface2:#EDF1F5; --raise:#FFFFFF;
+  --line:#DCE3EA; --line2:#C6D1DB;
+  --fg:#111820; --muted:#53657A; --faint:#7D8FA1;
+  --act:#C8351C; --act-bg:#FCEBE7; --act-line:#F0BFB2; --act-soft:#A32B16;
+  --ok:#15774A; --ok-bg:#E6F5ED; --ok-line:#AFDFC6; --ok-soft:#115C3A;
+  --busy:#1B6AB3; --warn:#946106; --unknown:#78879A;
+  --demo-bg:#FDF3DC; --demo-fg:#7A5607; --demo-line:#E9D6A0;
+  --shadow:0 1px 2px rgba(16,32,48,.06),0 8px 22px rgba(16,32,48,.07);
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);
+  font-size:14px;line-height:1.45;margin:0}
+.gut{padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+  max-width:1420px;margin:0 auto}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+:focus-visible{outline:2px solid var(--busy);outline-offset:2px;border-radius:4px}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* ---- banner ------------------------------------------------------- */
+.demo{background:var(--demo-bg);color:var(--demo-fg);font-size:11.5px;
+  text-align:center;padding-block:6px;letter-spacing:.04em;
+  border-bottom:1px solid var(--demo-line)}
+
+/* ---- header ------------------------------------------------------- */
+header{background:var(--surface);border-bottom:1px solid var(--line)}
+.hrow{display:flex;align-items:center;gap:20px;flex-wrap:wrap;
+  padding-block:14px}
+.brand{display:flex;align-items:center;gap:11px;min-width:0}
+.mark{width:30px;height:30px;flex:none}
+.bt{font-family:var(--display);font-weight:800;font-size:19px;
+  letter-spacing:-.015em;line-height:1.05}
+.bs{font-size:11px;color:var(--faint);letter-spacing:.12em;
+  text-transform:uppercase;margin-top:2px}
+.spacer{flex:1}
+.livepill{display:inline-flex;align-items:center;gap:7px;font-size:11.5px;
+  color:var(--ok);background:var(--ok-bg);border:1px solid var(--ok-line);
+  padding:5px 11px;border-radius:999px;white-space:nowrap}
+.livedot{width:7px;height:7px;border-radius:50%;background:var(--ok)}
+@media (prefers-reduced-motion: no-preference){
+  .livedot{animation:pulse 2.6s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}}
+.cash{display:flex;gap:22px}
+.cash .v{font-family:var(--mono);font-weight:600;font-size:19px;
+  line-height:1.1;font-variant-numeric:tabular-nums}
+.cash .k{font-size:10px;letter-spacing:.13em;color:var(--faint);
+  text-transform:uppercase;margin-top:3px;white-space:nowrap}
+.tgl{display:flex;background:var(--surface2);border:1px solid var(--line);
+  border-radius:8px;padding:2px}
+.tgl button{padding:5px 9px;border-radius:6px;font-size:12px;
+  color:var(--faint);display:grid;place-items:center}
+.tgl button[aria-pressed="true"]{background:var(--raise);color:var(--fg);
+  box-shadow:var(--shadow)}
+
+/* ---- action band -------------------------------------------------- */
+.band{background:var(--surface2);border-bottom:1px solid var(--line);
+  padding-block:16px 18px}
+.bandhead{display:flex;align-items:baseline;gap:12px;margin-bottom:12px;
+  flex-wrap:wrap}
+.bandhead h2{font-family:var(--display);font-size:20px;font-weight:700;
+  margin:0;letter-spacing:-.01em}
+.bandhead .n{font-size:12.5px;color:var(--muted)}
+.acts{display:grid;grid-template-columns:repeat(auto-fit,minmax(248px,1fr));
+  gap:12px}
+.act{background:var(--act-bg);border:1px solid var(--act-line);
+  border-radius:12px;padding:15px 16px 14px;position:relative;
+  text-align:left;width:100%;display:block;transition:transform .13s ease}
+.act:hover{transform:translateY(-2px)}
+.act .nm{font-family:var(--display);font-size:17px;font-weight:700;
+  padding-right:62px;line-height:1.15}
+.act .zn{font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--act-soft);margin-top:4px;opacity:.85}
+.act .big{font-family:var(--mono);font-size:30px;font-weight:600;
+  color:var(--act);margin-top:12px;line-height:1}
+.act .lab{font-size:12px;color:var(--act-soft);margin-top:4px}
+.act .tag{position:absolute;top:14px;right:14px}
+.done{background:var(--ok-bg);border-color:var(--ok-line)}
+.done .nm{padding-right:30px}
+.done .zn{color:var(--ok-soft)}
+.done .lab{color:var(--ok-soft);margin-top:8px}
+.quiet{background:var(--surface);border-color:var(--line)}
+.quiet .zn,.quiet .lab{color:var(--muted)}
+.calm{background:var(--surface);border:1px dashed var(--line2);
+  border-radius:12px;padding:22px;text-align:center;color:var(--muted)}
+
+/* ---- tabs --------------------------------------------------------- */
+nav.tabs{background:var(--surface);border-bottom:1px solid var(--line);
+  position:sticky;top:env(safe-area-inset-top,0px);z-index:9}
+.tabrow{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+.tabrow::-webkit-scrollbar{display:none}
+.tab{padding:12px 14px;font-size:13px;font-weight:500;color:var(--muted);
+  border-bottom:2px solid transparent;white-space:nowrap}
+.tab[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--act)}
+.tab .c{font-family:var(--mono);font-size:11px;color:var(--faint);
+  margin-left:5px}
+main{padding-block:20px 48px}
+
+/* ---- shared bits -------------------------------------------------- */
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:10px;
+  font-weight:600;letter-spacing:.08em;padding:3px 8px;border-radius:5px;
+  text-transform:uppercase;white-space:nowrap;font-family:var(--body)}
+.pill.on{background:var(--ok-bg);color:var(--ok);border:1px solid var(--ok-line)}
+.pill.off{background:var(--surface2);color:var(--muted);
+  border:1px solid var(--line2)}
+.pill.q{background:transparent;color:var(--faint);
+  border:1px dashed var(--line2)}
+.sec{font-size:10.5px;letter-spacing:.2em;color:var(--faint);
+  text-transform:uppercase;margin:22px 0 10px;display:flex;gap:10px;
+  align-items:center}
+.sec:after{content:"";flex:1;height:1px;background:var(--line)}
+.sec b{font-family:var(--mono);font-weight:500;letter-spacing:0;
+  font-size:11px;color:var(--muted)}
+
+/* ---- rooms view --------------------------------------------------- */
+.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;
+  margin-bottom:6px}
+.chip{border:1px solid var(--line2);background:var(--surface);
+  border-radius:999px;padding:6px 13px;font-size:12.5px;color:var(--muted)}
+.chip[aria-pressed="true"]{background:var(--fg);color:var(--bg);
+  border-color:var(--fg)}
+.search{flex:1;min-width:150px;max-width:280px;background:var(--surface);
+  border:1px solid var(--line2);border-radius:999px;padding:7px 14px;
+  font:inherit;font-size:12.5px;color:var(--fg)}
+.search::placeholder{color:var(--faint)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));
+  gap:11px}
+.card{background:var(--surface);border:1px solid var(--line);
+  border-radius:11px;overflow:hidden;text-align:left;width:100%;
+  display:block;transition:transform .13s ease,border-color .13s ease}
+.card:hover{transform:translateY(-2px);border-color:var(--line2)}
+.card.g-act{border-color:var(--act-line);background:var(--act-bg)}
+.card.g-sorted{border-color:var(--ok-line);background:var(--ok-bg)}
+.card svg{display:block;width:100%;height:auto}
+.cap{padding:9px 11px 11px}
+.cn{font-size:12.5px;font-weight:600;line-height:1.25;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.cs{font-size:11px;color:var(--faint);margin-top:3px}
+.card.g-act .cs{color:var(--act);font-weight:600}
+.card.g-sorted .cs{color:var(--ok);font-weight:600}
+
+/* ---- board view --------------------------------------------------- */
+.boards{display:grid;grid-template-columns:1.3fr 1fr;gap:20px;
+  align-items:start}
+@media (max-width:860px){.boards{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--line);
+  border-radius:14px;padding:16px}
+.ph{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.ph h3{font-family:var(--display);font-size:15px;font-weight:700;margin:0}
+.pnote{font-size:11.5px;color:var(--muted);margin:5px 0 13px;
+  max-width:62ch}
+.unit{display:flex;align-items:center;gap:12px;padding:10px 11px;
+  border-radius:9px;margin-bottom:6px;border:1px solid var(--line);
+  background:var(--surface2);width:100%;text-align:left}
+.unit:hover{border-color:var(--line2)}
+.unit.g-act{background:var(--act-bg);border-color:var(--act-line)}
+.unit.g-sorted{background:var(--ok-bg);border-color:var(--ok-line)}
+.lamp{width:36px;height:36px;border-radius:9px;display:grid;
+  place-items:center;font-size:8.5px;font-weight:700;flex:none;
+  letter-spacing:.04em;font-family:var(--body)}
+.lamp.on{background:var(--ok-bg);color:var(--ok);
+  border:1.5px solid var(--ok-line)}
+.lamp.off{background:var(--surface);color:var(--muted);
+  border:1.5px solid var(--line2)}
+.lamp.q{background:var(--surface);color:var(--faint);
+  border:1.5px dashed var(--line2)}
+.un{flex:1;min-width:0}
+.un b{font-size:13px;font-weight:600;display:block}
+.un span{font-size:11.5px;color:var(--muted);display:block;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.g-act .un span{color:var(--act-soft)}
+.g-sorted .un span{color:var(--ok-soft)}
+.mins{font-family:var(--mono);font-size:13px;font-weight:600;
+  white-space:nowrap}
+.plainrow{display:flex;align-items:center;gap:9px;padding:6px 2px;
+  border-bottom:1px solid var(--line);font-size:12.5px;width:100%;
+  text-align:left}
+.plainrow:last-child{border-bottom:none}
+.pdot{width:8px;height:8px;border-radius:50%;background:var(--line2);
+  flex:none}
+.plainrow.in .pdot{background:var(--busy)}
+.plainrow .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap}
+.plainrow .v{font-family:var(--mono);font-size:11.5px;color:var(--faint)}
+.plainrow.in .v{color:var(--busy);font-weight:600}
+.gh{font-size:10px;letter-spacing:.17em;color:var(--faint);
+  text-transform:uppercase;margin:14px 0 6px}
+
+/* ---- arrivals ----------------------------------------------------- */
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;
+  background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:620px}
+th{font-size:10px;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--faint);text-align:left;padding:11px 14px;font-weight:600;
+  border-bottom:1px solid var(--line);white-space:nowrap}
+th.num,td.num{text-align:right}
+td{padding:9px 14px;border-bottom:1px solid var(--line);font-size:13px}
+tr:last-child td{border-bottom:none}
+tbody tr:hover{background:var(--surface2)}
+td.r{font-weight:600}
+td .dept{font-size:11px;color:var(--faint);display:block;margin-top:1px}
+.strip{display:flex;gap:1px;height:14px;min-width:150px}
+.strip i{flex:1;border-radius:1px;background:var(--line)}
+.strip i.on{background:var(--busy)}
+
+/* ---- detail drawer ------------------------------------------------ */
+.scrim{position:fixed;inset:0;background:rgba(4,7,11,.6);z-index:20;
+  backdrop-filter:blur(2px)}
+.drawer{position:fixed;z-index:21;background:var(--surface);
+  border-left:1px solid var(--line2);box-shadow:var(--shadow);
+  top:0;right:0;bottom:0;width:min(440px,100%);overflow-y:auto;
+  padding:0 0 calc(24px + env(safe-area-inset-bottom,0px))}
+.dh{position:sticky;top:0;background:var(--surface);
+  border-bottom:1px solid var(--line);padding:16px 20px 13px;
+  display:flex;align-items:flex-start;gap:12px}
+.dh h3{font-family:var(--display);font-size:19px;font-weight:700;margin:0;
+  line-height:1.15}
+.dh .z{font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--faint);margin-top:4px}
+.x{font-size:20px;color:var(--muted);line-height:1;padding:2px 6px}
+.dbody{padding:16px 20px 0}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:9px 16px;
+  font-size:13px;margin-bottom:18px}
+.kv dt{color:var(--muted)}
+.kv dd{margin:0;font-family:var(--mono);font-weight:500;text-align:right}
+.hours{display:flex;gap:1px;height:26px;margin:7px 0 4px}
+.hours i{flex:1;background:var(--line);border-radius:2px}
+.hours i.on{background:var(--busy)}
+.axis{display:flex;justify-content:space-between;font-size:10px;
+  color:var(--faint);font-family:var(--mono)}
+.note{font-size:12.5px;color:var(--muted);line-height:1.55;
+  background:var(--surface2);border:1px solid var(--line);
+  border-radius:9px;padding:11px 13px;margin-bottom:16px}
+footer{color:var(--faint);font-size:11.5px;line-height:1.6;
+  border-top:1px solid var(--line);padding-block:16px 4px;margin-top:26px}
+</style>
+__BANNER__
+<header>
+  <div class="gut hrow">
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
+        <circle cx="9" cy="8" r="4" fill="var(--act)"/>
+        <circle cx="9" cy="22" r="4" fill="var(--fg)" opacity=".55"/>
+        <circle cx="22" cy="15" r="4" fill="var(--ok)"/>
+        <path d="M11.5 10 L20 13 M11.5 20 L20 17" stroke="var(--line2)"
+              stroke-width="1.6"/>
+      </svg>
+      <div>
+        <div class="bt" id="h-campus"></div>
+        <div class="bs">Disrupt &#183; EnergyCam</div>
+      </div>
+    </div>
+    <div class="spacer"></div>
+    <span class="livepill" id="h-live"><span class="livedot"></span>
+      <span id="h-live-text"></span></span>
+    <div class="cash">
+      <div><div class="v" style="color:var(--act)" id="h-stake"></div>
+           <div class="k" id="h-stake-k"></div></div>
+      <div><div class="v" style="color:var(--ok)" id="h-saved"></div>
+           <div class="k" id="h-saved-k"></div></div>
+    </div>
+    <div class="tgl" role="group" aria-label="Theme">
+      <button id="t-dark" aria-pressed="true" title="Dark">&#9790;</button>
+      <button id="t-light" aria-pressed="false" title="Light">&#9728;</button>
+    </div>
+  </div>
+</header>
+
+<section class="band">
+  <div class="gut">
+    <div class="bandhead">
+      <h2 id="band-title">4 rooms want doing</h2>
+      <span class="n" id="band-sub"></span>
+    </div>
+    <div class="acts" id="acts"></div>
+  </div>
+</section>
+
+<nav class="tabs">
+  <div class="gut tabrow" role="tablist">
+    <button class="tab" role="tab" data-view="rooms" aria-selected="true">
+      Every room<span class="c" id="c-rooms"></span></button>
+    <button class="tab" role="tab" data-view="board" aria-selected="false">
+      Units &amp; people<span class="c" id="c-board"></span></button>
+    <button class="tab" role="tab" data-view="arrivals" aria-selected="false">
+      First in, last out<span class="c" id="c-arr"></span></button>
+    <button class="tab" role="tab" data-view="patterns" aria-selected="false">
+      Who comes when</button>
+  </div>
+</nav>
+
+<main class="gut">
+  <div id="v-rooms" role="tabpanel">
+    <div class="filters">
+      <button class="chip" data-f="all" aria-pressed="true">All 62</button>
+      <button class="chip" data-f="act" aria-pressed="false">Wants doing</button>
+      <button class="chip" data-f="unit" aria-pressed="false">Has a unit</button>
+      <button class="chip" data-f="nounit" aria-pressed="false">No unit</button>
+      <button class="chip" data-f="in" aria-pressed="false">Somebody in</button>
+      <input class="search" id="q" type="search" placeholder="Find a room&#8230;"
+             aria-label="Find a room">
+    </div>
+    <div id="zones"></div>
+  </div>
+
+  <div id="v-board" role="tabpanel" hidden>
+    <div class="boards">
+      <div class="panel">
+        <div class="ph"><h3 id="h-units"></h3>
+          <span class="mins" style="color:var(--act)" id="h-units-n"></span></div>
+        <p class="pnote" id="p-units"></p>
+        <div id="units"></div>
+      </div>
+      <div class="panel">
+        <div class="ph"><h3 id="h-plain"></h3>
+          <span class="mins" style="color:var(--busy)" id="h-plain-n"></span></div>
+        <p class="pnote">Nothing in these to switch off. Watched so that who
+          comes and goes is on the record: cleaning, lighting, security, and
+          who is still in the building at eight.</p>
+        <div id="plain"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="v-arrivals" role="tabpanel" hidden>
+    <div class="sec">First in, last out &#183; today<b id="arr-n"></b></div>
+    <div class="tablewrap"><table>
+      <thead><tr>
+        <th>Room</th><th>First seen</th><th>Last seen</th>
+        <th class="num">Occupied</th><th>06:00 &#8212; 22:00</th>
+      </tr></thead>
+      <tbody id="arr"></tbody>
+    </table></div>
+    <footer>First and last seen are when somebody was detected, not when they
+      badged in. A room with nobody in it all day is left out.</footer>
+  </div>
+
+  <div id="v-patterns" role="tabpanel" hidden>
+    <div class="sec">Who comes when &#183; by department<b>today</b></div>
+    <div id="depts"></div>
+    <footer>One day proves nothing. These shapes become worth reading after a
+      few weeks, and only for the hours a machine was actually watching
+      &#8212; which is why the loop needs to stay running overnight.</footer>
+  </div>
+</main>
+<script>
+const PAGE = __DATA__;
+const ROOMS = PAGE.rooms;
+
+const $ = (s, r) => (r || document).querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+const ZONE_ORDER = ["Offices","H offices","H common","Cafe & common",
+  "H entrance","Basement","Server rooms","H perimeter","Outside & plant",
+  "Unused"];
+const GRADE_ORDER = {act:0,sorted:1,cold:2,unknown:3,busy:4,good:5,
+  onpurpose:6,watch:7};
+
+function spell(m){
+  if(m===null||m===undefined) return "—";
+  m = Math.round(m);
+  if(m < 60) return m + "m";
+  const h = Math.floor(m/60), r = m%60;
+  return r ? h + "h " + String(r).padStart(2,"0") + "m" : h + "h";
+}
+// Slot 0 is 06:00 and each is fifteen minutes, so the strip covers the
+// working day and a good way past it.
+function clock(slot){
+  if(slot===null||slot===undefined) return "—";
+  const mins = 6*60 + slot*15;
+  return String(Math.floor(mins/60)).padStart(2,"0") + ":" +
+         String(mins%60).padStart(2,"0");
+}
+function acPill(r){
+  if(!r.unit) return '';
+  if(r.ac === "on")  return '<span class="pill on">AC on</span>';
+  if(r.ac === "off") return '<span class="pill off">AC off</span>';
+  return '<span class="pill q">AC ?</span>';
+}
+function headline(r){
+  switch(r.grade){
+    case "act":     return "empty " + spell(r.empty) + " · still cooling";
+    case "sorted":  return r.note;
+    case "cold":    return r.note;
+    case "busy":    return r.people + (r.people===1?" in here":" in here");
+    case "unknown": return "empty " + spell(r.empty) + " · unit not read";
+    case "onpurpose": return "cooled on purpose";
+    case "good":    return "empty " + spell(r.empty) + " · already off";
+    default:        return r.state === "occupied"
+                           ? r.people + " in here"
+                           : "empty " + spell(r.empty);
+  }
+}
+
+/* ---- a room, drawn ------------------------------------------------ */
+function drawing(r){
+  const col = {act:"var(--act)",sorted:"var(--ok)",good:"var(--ok)",
+    busy:"var(--busy)",cold:"var(--warn)",unknown:"var(--unknown)",
+    watch:"var(--unknown)",onpurpose:"var(--unknown)"}[r.grade];
+  const n = Math.min(r.people || 0, 5);
+  let people = "";
+  for(let i=0;i<n;i++){
+    const x = 24 + i*18;
+    people += '<circle cx="'+x+'" cy="44" r="3.6" fill="'+col+'"/>'
+           + '<path d="M'+(x-6)+' 57 q0 -6 5 -6 h2 q5 0 5 6 z" fill="'+col+'"/>';
+  }
+  // One drawn unit per unit in the room, up to three, right to left along
+  // the wall. A room with three of them and one reading is not the same room
+  // as one with a single unit, and the picture should not pretend it is.
+  let unit = "";
+  if(r.unit){
+    const total = Math.max(1, Math.min(r.units_total || 1, 3));
+    for(let u=0; u<total; u++){
+      const w = total > 1 ? 26 : 40;
+      const x = 138 - (u+1)*w - u*4;
+      if(r.ac === "on"){
+        unit += '<rect x="'+x+'" y="13" width="'+w+'" height="11" rx="3"'
+             + ' fill="var(--ok-bg)" stroke="var(--ok)" stroke-width="1.4"/>'
+             + '<rect x="'+(x+w-16)+'" y="16" width="10" height="5" rx="1.5"'
+             + ' fill="var(--ok)"/>'
+             + '<path d="M'+(x+5)+' 28 l3 5 M'+(x+12)+' 28 l3 5"'
+             + ' stroke="var(--ok)" stroke-width="1.2" opacity=".5"/>';
+      } else if(r.ac === "off"){
+        unit += '<rect x="'+x+'" y="13" width="'+w+'" height="11" rx="3"'
+             + ' fill="var(--surface2)" stroke="var(--line2)"'
+             + ' stroke-width="1.4"/>'
+             + '<text x="'+(x+w/2)+'" y="21.5" font-size="6.5"'
+             + ' fill="var(--muted)" text-anchor="middle" font-weight="700"'
+             + ' font-family="var(--body)">OFF</text>';
+      } else {
+        unit += '<rect x="'+x+'" y="13" width="'+w+'" height="11" rx="3"'
+             + ' fill="var(--surface2)" stroke="var(--line2)"'
+             + ' stroke-width="1.2" stroke-dasharray="3 2"/>'
+             + '<text x="'+(x+w/2)+'" y="21.5" font-size="7"'
+             + ' fill="var(--faint)" text-anchor="middle"'
+             + ' font-family="var(--body)">?</text>';
+      }
+    }
+    if((r.units_total || 1) > 3){
+      unit += '<text x="24" y="21.5" font-size="7" fill="var(--faint)"'
+           + ' font-family="var(--body)">+' + ((r.units_total||1)-3) + '</text>';
+    }
+  }
+  const empty = n ? "" :
+    '<text x="75" y="50" font-size="8" fill="'+col+'" opacity=".45"'
+    + ' text-anchor="middle" letter-spacing="1.6"'
+    + ' font-family="var(--body)">EMPTY</text>';
+  return '<svg viewBox="0 0 150 70" role="img" aria-label="'
+    + esc(r.name + ", " + headline(r)) + '">'
+    + '<rect x="4" y="4" width="142" height="62" rx="8" fill="none"'
+    + ' stroke="' + col + '" stroke-opacity=".28" stroke-width="1.2"/>'
+    + '<line x1="12" y1="58" x2="138" y2="58" stroke="' + col + '"'
+    + ' stroke-opacity=".4" stroke-width="1.6"/>'
+    + unit + people + empty + '</svg>';
+}
+
+/* ---- action band -------------------------------------------------- */
+function renderBand(){
+  const act = ROOMS.filter(r => r.grade === "act")
+                   .sort((a,b) => b.empty - a.empty);
+  const done = ROOMS.filter(r => r.grade === "sorted");
+  const ask = ROOMS.filter(r => r.grade === "unknown" && r.unit).slice(0,2);
+  $("#band-title").textContent = act.length
+    ? act.length + (act.length === 1 ? " room wants doing" : " rooms want doing")
+    : "Nothing wants doing";
+  let h = "";
+  if(!act.length && !done.length && !ask.length){
+    h = '<div class="calm">Every cooled room is either in use or already'
+      + ' switched off. Nothing to walk to.</div>';
+  }
+  for(const r of act){
+    h += '<button class="act" data-room="' + esc(r.name) + '">'
+      + '<span class="tag"><span class="pill on">AC on</span></span>'
+      + '<div class="nm">' + esc(r.name) + '</div>'
+      + '<div class="zn">' + esc(r.zone) + '</div>'
+      + '<div class="big">' + spell(r.empty) + '</div>'
+      + '<div class="lab">empty, and still cooling</div></button>';
+  }
+  for(const r of done){
+    h += '<button class="act done" data-room="' + esc(r.name) + '">'
+      + '<span class="tag" style="color:var(--ok);font-size:17px">✓</span>'
+      + '<div class="nm">' + esc(r.name) + '</div>'
+      + '<div class="zn">' + esc(r.zone) + '</div>'
+      + '<div class="lab">' + esc(r.note) + '</div></button>';
+  }
+  for(const r of ask){
+    h += '<button class="act quiet" data-room="' + esc(r.name) + '">'
+      + '<span class="tag" style="color:var(--faint);font-size:16px">?</span>'
+      + '<div class="nm">' + esc(r.name) + '</div>'
+      + '<div class="zn">' + esc(r.zone) + '</div>'
+      + '<div class="lab">empty ' + spell(r.empty) + '. Nobody has'
+      + ' calibrated this unit, so its state is unknown rather than off'
+      + ' — somebody go and look.</div></button>';
+  }
+  $("#acts").innerHTML = h;
+}
+
+/* ---- every room --------------------------------------------------- */
+let filter = "all", query = "";
+function matches(r){
+  if(query && !r.name.toLowerCase().includes(query)) return false;
+  if(filter === "act") return r.grade === "act";
+  if(filter === "unit") return r.unit;
+  if(filter === "nounit") return !r.unit;
+  if(filter === "in") return r.state === "occupied";
+  return true;
+}
+function renderRooms(){
+  const shown = ROOMS.filter(matches);
+  let h = "";
+  for(const zone of ZONE_ORDER){
+    const here = shown.filter(r => r.zone === zone)
+      .sort((a,b) => GRADE_ORDER[a.grade] - GRADE_ORDER[b.grade]
+                     || a.name.localeCompare(b.name));
+    if(!here.length) continue;
+    h += '<div class="sec">' + esc(zone) + '<b>' + here.length + '</b></div>'
+      + '<div class="grid">';
+    for(const r of here){
+      h += '<button class="card g-' + r.grade + '" data-room="'
+        + esc(r.name) + '">' + drawing(r)
+        + '<div class="cap"><div class="cn">' + esc(r.name) + '</div>'
+        + '<div class="cs">' + esc(headline(r)) + '</div></div></button>';
+    }
+    h += '</div>';
+  }
+  if(!shown.length){
+    h = '<div class="calm">No room matches that.</div>';
+  }
+  $("#zones").innerHTML = h;
+}
+
+/* ---- units and people --------------------------------------------- */
+function renderBoard(){
+  const units = ROOMS.filter(r => r.unit)
+    .sort((a,b) => GRADE_ORDER[a.grade] - GRADE_ORDER[b.grade]
+                   || b.empty - a.empty);
+  const onpurpose = units.filter(r => !r.alerts).length;
+  $("#h-units").textContent = units.length + " rooms with an air conditioner";
+  const want = ROOMS.filter(r => r.grade === "act").length;
+  $("#h-units-n").textContent = want
+    ? want + (want === 1 ? " wants doing" : " want doing")
+    : "nothing wants doing";
+  $("#p-units").textContent =
+    "The only rooms where anything can be saved. The lamp is the unit "
+    + "itself, read from its own display \u2014 not guessed from the hour "
+    + "or the weather. " + onpurpose + " of them are cooled on purpose and "
+    + "are never flagged.";
+  $("#units").innerHTML = units.map(r => {
+    const lamp = !r.unit ? "" : r.ac === "on"
+      ? '<div class="lamp on">ON</div>'
+      : r.ac === "off" ? '<div class="lamp off">OFF</div>'
+      : '<div class="lamp q">?</div>';
+    const right = r.state === "occupied"
+      ? (r.people ? r.people + " in" : "—") : spell(r.empty);
+    return '<button class="unit g-' + r.grade + '" data-room="'
+      + esc(r.name) + '">' + lamp
+      + '<div class="un"><b>' + esc(r.name) + '</b><span>'
+      + esc(headline(r)) + '</span></div>'
+      + '<div class="mins">' + right + '</div></button>';
+  }).join("");
+
+  const plain = ROOMS.filter(r => !r.unit);
+  $("#h-plain").textContent = plain.length + " rooms with no unit";
+  $("#h-plain-n").textContent =
+    plain.filter(r => r.state === "occupied").length + " in use";
+  const here = plain.filter(r => r.state === "occupied")
+    .sort((a,b) => b.people - a.people);
+  const gone = plain.filter(r => r.state !== "occupied")
+    .sort((a,b) => b.empty - a.empty);
+  const row = (r, isIn) => '<button class="plainrow'
+    + (isIn ? " in" : "") + '" data-room="' + esc(r.name) + '">'
+    + '<span class="pdot"></span><span class="n">' + esc(r.name)
+    + '</span><span class="v">'
+    + (isIn ? r.people : spell(r.empty)) + '</span></button>';
+  $("#plain").innerHTML =
+    '<div class="gh">Somebody there now</div>'
+    + here.map(r => row(r, true)).join("")
+    + '<div class="gh">Empty · longest first</div>'
+    + gone.map(r => row(r, false)).join("");
+}
+
+/* ---- first in, last out ------------------------------------------- */
+function renderArrivals(){
+  const rows = ROOMS.filter(r => r.first !== null)
+    .sort((a,b) => a.first - b.first || a.name.localeCompare(b.name));
+  $("#arr-n").textContent = rows.length + " rooms";
+  $("#arr").innerHTML = rows.map(r => {
+    const mins = r.slots.reduce((a,b) => a+b, 0) * 15;
+    const strip = r.slots.map(v => '<i class="' + (v ? "on" : "") + '"></i>')
+      .join("");
+    return '<tr><td class="r">' + esc(r.name)
+      + '<span class="dept">' + esc(r.dept) + '</span></td>'
+      + '<td class="mono">' + clock(r.first) + '</td>'
+      + '<td class="mono">' + clock(r.last) + '</td>'
+      + '<td class="num mono">' + spell(mins) + '</td>'
+      + '<td><div class="strip">' + strip + '</div></td></tr>';
+  }).join("");
+}
+
+/* ---- who comes when ------------------------------------------------ */
+function renderDepts(){
+  const by = {};
+  for(const r of ROOMS){
+    if(r.first === null || r.dept === "—") continue;
+    (by[r.dept] = by[r.dept] || []).push(r);
+  }
+  let h = "";
+  for(const dept of Object.keys(by).sort()){
+    const rs = by[dept];
+    const first = Math.min(...rs.map(r => r.first));
+    const last  = Math.max(...rs.map(r => r.last));
+    const total = new Array(64).fill(0);
+    for(const r of rs) r.slots.forEach((v,i) => { if(v) total[i]++; });
+    const peak = Math.max(1, ...total);
+    h += '<div class="panel" style="margin-bottom:12px">'
+      + '<div class="ph"><h3>' + esc(dept) + '</h3>'
+      + '<span class="mins" style="color:var(--muted)">'
+      + clock(first) + ' → ' + clock(last) + '</span></div>'
+      + '<p class="pnote">' + rs.length + ' room'
+      + (rs.length === 1 ? "" : "s") + ' · busiest at '
+      + clock(total.indexOf(peak)) + ', ' + peak + ' room'
+      + (peak === 1 ? "" : "s") + ' at once</p>'
+      + '<div class="hours">'
+      + total.map(v => '<i class="' + (v ? "on" : "") + '" style="opacity:'
+          + (v ? (0.25 + 0.75*v/peak).toFixed(2) : 1) + '"></i>').join("")
+      + '</div><div class="axis"><span>06:00</span><span>12:00</span>'
+      + '<span>18:00</span><span>22:00</span></div></div>';
+  }
+  $("#depts").innerHTML = h;
+}
+
+/* ---- one room ------------------------------------------------------ */
+function openRoom(name){
+  const r = ROOMS.find(x => x.name === name);
+  if(!r) return;
+  const mins = r.slots.reduce((a,b) => a+b, 0) * 15;
+  const scrim = document.createElement("div");
+  scrim.className = "scrim";
+  const d = document.createElement("div");
+  d.className = "drawer";
+  d.setAttribute("role", "dialog");
+  d.setAttribute("aria-modal", "true");
+  d.setAttribute("aria-label", r.name);
+  d.innerHTML =
+    '<div class="dh"><div style="flex:1;min-width:0"><h3>' + esc(r.name)
+    + '</h3><div class="z">' + esc(r.zone) + ' · ' + esc(r.dept)
+    + '</div></div><button class="x" aria-label="Close">✕</button></div>'
+    + '<div class="dbody">'
+    + '<div style="margin-bottom:14px">' + drawing(r) + '</div>'
+    + (r.note ? '<div class="note">' + esc(r.note) + '</div>' : '')
+    + (!r.unit ? '<div class="note">No air conditioner in this room, so'
+        + ' there is nothing here to switch off. It is watched for who comes'
+        + ' and goes.</div>' : '')
+    + (r.unit && r.ac === null ? '<div class="note">'
+        + ((r.units_total || 1) > 1
+            ? 'None of the ' + r.units_total + ' units in this room has been'
+              + ' calibrated, so their state is unknown — which is'
+              + ' not the same as off.'
+            : 'This unit has not been calibrated, so its state is unknown'
+              + ' — which is not the same as off.')
+        + ' Two photographs each, one with it running and one without,'
+        + ' settle it.</div>' : '')
+    + (r.unit && r.ac !== null && (r.units_read || 0) < (r.units_total || 1)
+        ? '<div class="note">Only ' + (r.units_read || 0) + ' of '
+          + r.units_total + ' units in this room is calibrated, so this'
+          + ' reading speaks for that one and not for the room. The others'
+          + ' could be running.</div>' : '')
+    + '<dl class="kv">'
+    + '<dt>Right now</dt><dd>' + esc(headline(r)) + '</dd>'
+    + (r.unit ? '<dt>Air conditioner</dt><dd>'
+        + (r.ac ? r.ac.toUpperCase() : "not read") + '</dd>'
+        + '<dt>Units in this room</dt><dd>' + (r.units_total || 1)
+        + ((r.units_read || 0) < (r.units_total || 1)
+            ? ', ' + (r.units_read || 0) + ' calibrated'
+            : ', all calibrated') + '</dd>' : '')
+    + '<dt>First seen today</dt><dd>' + clock(r.first) + '</dd>'
+    + '<dt>Last seen today</dt><dd>' + clock(r.last) + '</dd>'
+    + '<dt>Occupied today</dt><dd>' + spell(mins) + '</dd>'
+    + '</dl>'
+    + '<div class="sec" style="margin-top:4px">Today, 06:00 to 22:00</div>'
+    + '<div class="hours">'
+    + r.slots.map(v => '<i class="' + (v ? "on" : "") + '"></i>').join("")
+    + '</div><div class="axis"><span>06:00</span><span>12:00</span>'
+    + '<span>18:00</span><span>22:00</span></div>'
+    + '<footer style="margin-top:20px">Blue is where somebody was detected.'
+    + ' Grey is where the cameras looked and found nobody. Nothing is drawn'
+    + ' for hours when the loop was not running.</footer>'
+    + '</div>';
+  const close = () => { scrim.remove(); d.remove();
+                        document.removeEventListener("keydown", onKey); };
+  const onKey = e => { if(e.key === "Escape") close(); };
+  scrim.addEventListener("click", close);
+  $(".x", d).addEventListener("click", close);
+  document.addEventListener("keydown", onKey);
+  document.body.append(scrim, d);
+  $(".x", d).focus();
+}
+
+/* ---- wiring -------------------------------------------------------- */
+const VIEWS = ["rooms","board","arrivals","patterns"];
+function show(view){
+  if(!VIEWS.includes(view)) view = "rooms";
+  for(const v of VIEWS) $("#v-" + v).hidden = (v !== view);
+  for(const t of document.querySelectorAll(".tab"))
+    t.setAttribute("aria-selected", String(t.dataset.view === view));
+  if(location.hash.slice(1) !== view) history.replaceState(null, "", "#" + view);
+}
+document.addEventListener("click", e => {
+  const tab = e.target.closest(".tab");
+  if(tab){ show(tab.dataset.view); return; }
+  const chip = e.target.closest(".chip");
+  if(chip){
+    filter = chip.dataset.f;
+    for(const c of document.querySelectorAll(".chip"))
+      c.setAttribute("aria-pressed", String(c === chip));
+    renderRooms();
+    return;
+  }
+  const card = e.target.closest("[data-room]");
+  if(card){ openRoom(card.dataset.room); }
+});
+$("#q").addEventListener("input", e => {
+  query = e.target.value.trim().toLowerCase();
+  renderRooms();
+});
+function setTheme(mode){
+  document.documentElement.setAttribute("data-theme", mode);
+  $("#t-dark").setAttribute("aria-pressed", String(mode === "dark"));
+  $("#t-light").setAttribute("aria-pressed", String(mode === "light"));
+  try { localStorage.setItem("energycam-theme", mode); } catch (err) {}
+}
+$("#t-dark").addEventListener("click", () => setTheme("dark"));
+$("#t-light").addEventListener("click", () => setTheme("light"));
+try {
+  const saved = localStorage.getItem("energycam-theme");
+  if(saved === "dark" || saved === "light") setTheme(saved);
+} catch (err) {}
+window.addEventListener("hashchange", () => show(location.hash.slice(1)));
+
+const M = PAGE.meta;
+$("#h-campus").textContent = M.campus;
+$("#h-live-text").textContent = M.live;
+$("#h-live").style.color = M.healthy ? "var(--ok)" : "var(--act)";
+$("#h-live").style.background = M.healthy ? "var(--ok-bg)" : "var(--act-bg)";
+$("#h-live").style.borderColor = M.healthy ? "var(--ok-line)" : "var(--act-line)";
+$(".livedot").style.background = M.healthy ? "var(--ok)" : "var(--act)";
+$("#h-stake").textContent = M.stake;
+$("#h-stake-k").textContent = M.stake_label;
+$("#h-saved").textContent = M.saved;
+$("#h-saved-k").textContent = M.saved_label;
+$("#band-sub").textContent = M.when;
+$("#c-rooms").textContent = ROOMS.length;
+$("#c-board").textContent = ROOMS.filter(r => r.unit).length + "/"
+  + ROOMS.filter(r => !r.unit).length;
+$("#c-arr").textContent = ROOMS.filter(r => r.first !== null).length;
+renderBand(); renderRooms(); renderBoard(); renderArrivals(); renderDepts();
+show(location.hash.slice(1) || "rooms");
+</script>

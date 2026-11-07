@@ -194,6 +194,106 @@ def main():
         except Exception as e:
             check("a room draws in %s" % mode, False, repr(e))
 
+    print("-- the campus view builds from real-shaped data")
+    # The layout was settled from mock-ups; what has to be checked is the
+    # join between the database and that layout. A page that silently grades
+    # every room the same looks perfectly fine and says nothing.
+    import json
+
+    import campus_view
+
+    now = pd.Timestamp("2026-11-05 20:15", tz="UTC")
+
+    def ago(mins):
+        return now - pd.Timedelta(minutes=mins)
+
+    spec = [
+        ("Marketing",   True,  True,  "empty",    0, 74,  "on"),
+        ("Wellows",     True,  True,  "empty",    0, 96,  "off"),
+        ("AutoOS",      True,  True,  "empty",    0, 130, "off"),
+        ("Admin Room",  True,  True,  "occupied", 2, 0,   "on"),
+        ("Old Finance", True,  True,  "occupied", 1, 0,   "off"),
+        ("Board Room",  True,  True,  "empty",    0, 43,  None),
+        ("UPS Room",    True,  False, "empty",    0, 200, "on"),
+        ("H Stairs",    False, True,  "occupied", 1, 0,   None),
+        ("P2 Parking",  False, True,  "empty",    0, 88,  None),
+        ("Dead Camera", False, True,  "unknown",  0, 0,   None),
+    ]
+    df = pd.DataFrame([{
+        "room": r, "zone": "Offices", "campus": "140-H", "has_unit": u,
+        "alerts": a,
+        "caption": "unit in frame" if u else "nothing to switch off",
+        "ac": "visible" if u else "none",
+        "empty_after": 45 if u else None,
+        "status": s, "people": p,
+        "empty_since": None if s != "empty" else ago(e),
+        "ac_state": ac, "timestamp": ago(1),
+        "occupied_since": ago(30) if s == "occupied" else None,
+    } for r, u, a, s, p, e, ac in spec])
+
+    # Wellows was seen running after it emptied and off later: somebody went.
+    # AutoOS was off the whole time, so nobody did, and it must not be
+    # credited with a visit that never happened.
+    ev = []
+    for r, u, a, s, p, e, ac in spec:
+        if r == "Wellows":
+            ev += [{"timestamp": ago(96), "room": r, "status": "empty",
+                    "people": 0, "ac_state": "on"},
+                   {"timestamp": ago(23), "room": r, "status": "empty",
+                    "people": 0, "ac_state": "off"}]
+        elif r == "AutoOS":
+            ev += [{"timestamp": ago(130), "room": r, "status": "empty",
+                    "people": 0, "ac_state": "off"}]
+        else:
+            ev += [{"timestamp": ago(max(e, 1) if s == "empty" else 240),
+                    "room": r, "status": s, "people": p, "ac_state": ac}]
+    recent = pd.DataFrame(ev)
+    recent["timestamp"] = pd.to_datetime(recent["timestamp"], utc=True)
+
+    rows = campus_view.rows(df, recent, now, namespace["grade"], namespace["spell"],
+                            namespace["minutes_since"], None)
+    by = {r["name"]: r for r in rows}
+    check("every room comes through", len(rows) == len(spec))
+    check("empty and cooling wants doing", by["Marketing"]["grade"] == "act")
+    check("somebody went and switched Wellows off",
+       by["Wellows"]["grade"] == "sorted")
+    check("and the note says when",
+       bool(by["Wellows"]["note"]) and "switched off" in by["Wellows"]["note"])
+    check("a unit off all along is not credited with a visit",
+       by["AutoOS"]["grade"] == "good" and by["AutoOS"]["note"] is None)
+    check("a room in use is not flagged", by["Admin Room"]["grade"] == "busy")
+    check("sitting with the unit off is a comfort problem",
+       by["Old Finance"]["grade"] == "cold")
+    check("an uncalibrated unit is unknown, not off",
+       by["Board Room"]["grade"] == "unknown")
+    check("a room cooled on purpose is never flagged",
+       by["UPS Room"]["grade"] == "onpurpose")
+
+    # Asked for twice: a room with no unit carries no air conditioner
+    # anywhere on the page, not even a question mark.
+    for name in ("H Stairs", "P2 Parking", "Dead Camera"):
+        check("%s: no unit, no AC state" % name,
+           by[name]["unit"] is False and by[name]["ac"] is None)
+    check("and no such room is graded as a unit",
+       {by[n]["grade"] for n in ("H Stairs", "P2 Parking")}
+       <= {"busy", "watch"})
+
+    check("the day strip has one mark per quarter hour",
+       len(by["Marketing"]["slots"]) == 64)
+    check("first seen never comes after last seen",
+       all(r["first"] is None or r["last"] is None or r["first"] <= r["last"]
+           for r in rows))
+
+    html = campus_view.page(rows, {"campus": "140-H", "live": "live",
+                                   "healthy": True, "stake": "Rs 0",
+                                   "stake_label": "x", "saved": "Rs 0",
+                                   "saved_label": "y", "when": "now"})
+    check("no placeholder is left in the page",
+       "__DATA__" not in html and "__BANNER__" not in html)
+    check("and its data is valid JSON",
+       bool(json.loads(html.split("const PAGE = ", 1)[1]
+                       .split(";\nconst ROOMS", 1)[0].replace("<\\/", "</"))))
+
     print()
     if FAILURES:
         print("%d FAILURE(S): %s" % (len(FAILURES), ", ".join(FAILURES)))

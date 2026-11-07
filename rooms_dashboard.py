@@ -222,6 +222,8 @@ def load_rooms_config(path="rooms.yaml"):
             "zone": room.get("zone", "Other"),
             "cameras": len(cameras),
             "ac": room["ac"],
+            "ac_count": (0 if not has_unit
+                         else int(room.get("ac_count", 1) or 1)),
             "alerts": alerts,
             "caption": caption,
             "has_unit": has_unit,
@@ -250,7 +252,7 @@ def load_state():
             " ac_state, timestamp"
             " FROM room_events ORDER BY room, timestamp DESC", conn)
         recent = pd.read_sql_query(
-            "SELECT timestamp, room, status, people FROM room_events"
+            "SELECT timestamp, room, status, people, ac_state FROM room_events"
             " WHERE timestamp >= now() - interval '%d hours'"
             " ORDER BY room, timestamp" % (DETAIL_HOURS + 1), conn)
         beat = pd.read_sql_query(
@@ -1782,7 +1784,7 @@ now = pd.Timestamp.now(tz="UTC")
 everything = rooms.merge(latest, on="room", how="left")
 everything["status"] = everything["status"].fillna("unknown")
 
-VIEWS = ["Rooms", "One room", "Who comes when", "Camera health",
+VIEWS = ["Campus", "Rooms", "One room", "Who comes when", "Camera health",
          "Look at the rooms", "Numbers & history"]
 
 # A click on a room is a request to see that room, so it carries the name in
@@ -1997,7 +1999,38 @@ if hunt:
             unsafe_allow_html=True)
     st.divider()
 
-if view == "Rooms":
+if view == "Campus":
+    # One page: what wants doing at the top, then every room drawn, the units
+    # and the people side by side, who arrived when, and any room close up.
+    # The layout lives in campus_view.html and the figures are computed here
+    # from the same helpers the rest of this file uses, so the page and the
+    # loop cannot start disagreeing about what a room is.
+    import streamlit.components.v1 as components
+
+    import campus_view
+
+    rows = campus_view.rows(df, recent, now, grade, spell, minutes_since,
+                            hours)
+    healthy = beat_age is not None and beat_age <= STALE_AFTER_MINUTES
+    meta = {
+        "campus": campus,
+        "live": ("live \u00b7 reported %s ago" % spell(beat_age)) if healthy
+                else ("silent for %s" % spell(beat_age)
+                      if beat_age is not None else "never reported"),
+        "healthy": bool(healthy),
+        "stake": "Rs %s" % format(round(at_stake), ","),
+        "stake_label": "at stake tonight",
+        "saved": ("Rs %s" % format(abs(round(saved)), ",")) if enough
+                 else "\u2014",
+        "saved_label": ("switched off, against the first fortnight" if enough
+                        else "not two fortnights of history yet"),
+        "when": "%s \u00b7 %s" % (now.tz_convert(PKT).strftime("%A %H:%M"),
+                                  describe(now, hours)),
+    }
+    components.html(campus_view.page(rows, meta),
+                    height=campus_view.height(rows), scrolling=True)
+
+elif view == "Rooms":
     st.markdown(
         '<div style="display:flex;align-items:baseline;gap:10px;'
         'margin:0 0 6px;"><span style="font-size:1.1rem;font-weight:720;">'

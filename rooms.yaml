@@ -26,6 +26,13 @@
 # anything. Short enough to catch a real lapse, long enough that stepping out
 # for a few minutes does not set it off.
 #
+# ac_count is how many units are in the room. A room with three units and one
+# calibrated is not a calibrated room, and saying so is the difference between
+# "the unit is off" and "one of three is off and nobody looked at the other
+# two". Left out it means one. It is a count of what is in the room, not of
+# what a camera can see: a room with two units where only one is in frame is
+# still ac_count: 2, and the page says one of two is read.
+#
 # Two optional lines deal with a camera that keeps seeing a person who is not
 # there -- a poster, a mannequin, a coat on a chair, a reflection in a glass
 # door. A room stuck at one person is never counted as empty, so it quietly
