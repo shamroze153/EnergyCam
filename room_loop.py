@@ -275,8 +275,35 @@ class Room:
 
     def __init__(self, cfg):
         self.name = cfg["name"]
-        self.recorder = cfg["recorder"]
-        self.channels = list(cfg["channels"])
+        # A room is a list of cameras, and a camera is a recorder and a
+        # channel together. It has to be the pair, not the channel alone:
+        # two recorders both have a channel 16, and one place at 140-H is
+        # watched by nvr1 and xvr3 at once. Before this, such a place had to
+        # be two rooms -- and two rooms meant one of them could sit there
+        # calling itself empty for forty-five minutes while the other
+        # watched somebody sitting in it, which is a false alert waiting to
+        # be sent.
+        #
+        # The old spelling still works and is what nearly every room uses:
+        #   recorder: nvr1
+        #   channels: [22]
+        # The new one is for a place two recorders can see:
+        #   cameras:
+        #     - {recorder: nvr1, channel: 22}
+        #     - {recorder: xvr3, channel: 16}
+        if cfg.get("cameras"):
+            self.cameras = [(c["recorder"], int(c["channel"]))
+                            for c in cfg["cameras"]]
+        else:
+            self.cameras = [(cfg["recorder"], int(ch))
+                            for ch in cfg["channels"]]
+        if not self.cameras:
+            raise ValueError("%s has no cameras" % cfg["name"])
+        # The recorder a room is filed under. Several things want one name
+        # for a room -- the database column, the report, --recorder -- and
+        # for the ninety-odd rooms on a single recorder this is simply it.
+        self.recorder = self.cameras[0][0]
+        self.channels = [ch for _, ch in self.cameras]
         self.ac = cfg["ac"]
         self.alerts = cfg.get("alert") != "never"
         # A room may need a stricter confidence than the rest of the building:
@@ -284,9 +311,13 @@ class Room:
         # a coat on a chair while every other camera is fine. Raising it for
         # the whole building to fix one room would cost real people elsewhere.
         self.conf = cfg.get("conf")
-        # Boxes, per channel, where this camera reliably sees a person who is
-        # not there -- a poster, a mannequin, a reflection in a glass door.
-        self.ignore = {int(ch): [[int(v) for v in box] for box in boxes]
+        # Boxes where a camera reliably sees a person who is not there. On
+        # this site that is mostly a doorway or a pane of glass: the camera
+        # looks straight through into a corridor, and the people it finds are
+        # perfectly real but in a different room. Keyed "16" for a room on
+        # one recorder, or "xvr3:16" where it could be either's channel 16.
+        self.ignore = {self.camera_key(ch):
+                       [[int(v) for v in box] for box in boxes]
                        for ch, boxes in (cfg.get("ignore") or {}).items()}
         self.empty_after = cfg.get("empty_after_minutes")
         self.status = "unknown"         # occupied / empty / unknown
@@ -296,6 +327,13 @@ class Room:
         self.ac_state = None            # on / off / None when unmeasured
         self.ac_detail = "not calibrated"
         self.recorded = None            # what the database last heard
+
+    def camera_key(self, spec):
+        """Turn 16 or "xvr3:16" into the (recorder, channel) pair it means."""
+        if isinstance(spec, str) and ":" in spec:
+            recorder, channel = spec.split(":", 1)
+            return (recorder.strip(), int(channel))
+        return (self.recorder, int(spec))
 
     def state(self):
         # The air conditioner belongs in here. A unit coming on in a room that
@@ -320,7 +358,7 @@ class Room:
         is empty while somebody sits in the part of it nobody could see.
         """
         self.ac_state, self.ac_detail = ac_state, ac_detail
-        total = len(self.channels)
+        total = len(self.cameras)
         if answered == 0:
             self.status, self.people, self.empty_since = "unknown", None, None
             self.detail = "no camera answered"
@@ -370,13 +408,31 @@ def load_rooms(path, only_recorders=None, only_rooms=None):
     cfg = yaml.safe_load(open(path))
     rooms = [Room(r) for r in cfg["rooms"]]
     if only_recorders:
-        rooms = [r for r in rooms if r.recorder in only_recorders]
+        # A room watched by two recorders belongs to both, so --recorder keeps
+        # it but narrows it to that recorder's cameras. Fetching the others
+        # would mean "just the offices" quietly opening streams on nvr1.
+        kept = []
+        for r in rooms:
+            mine = [c for c in r.cameras if c[0] in only_recorders]
+            if mine:
+                r.cameras = mine
+                r.channels = [ch for _, ch in mine]
+                r.recorder = mine[0][0]
+                kept.append(r)
+        rooms = kept
     if only_rooms:
         wanted = {n.lower() for n in only_rooms}
         rooms = [r for r in rooms if r.name.lower() in wanted]
     if not rooms:
         sys.exit("no rooms matched")
     return cfg["recorders"], rooms
+
+
+def spell_cameras(room):
+    """A room's cameras in words, named by recorder only where it helps."""
+    if len({rec for rec, _ in room.cameras}) == 1:
+        return ", ".join(str(ch) for _, ch in room.cameras)
+    return ", ".join("%s:%d" % c for c in room.cameras)
 
 
 def check_ac_units(units, rooms):
@@ -394,16 +450,13 @@ def check_ac_units(units, rooms):
         if room is None:
             continue            # another recorder's room, not in this run
         channel = cfg.get("channel")
+        recorder = cfg.get("recorder", room.recorder)
         if channel is None:
             problems.append("%s: no channel given" % name)
-        elif channel not in room.channels:
-            problems.append("%s: calibrated on channel %s, but the room's"
+        elif (recorder, int(channel)) not in room.cameras:
+            problems.append("%s: calibrated on %s channel %s, but the room's"
                             " cameras are %s"
-                            % (name, channel,
-                               ", ".join(str(c) for c in room.channels)))
-        if cfg.get("recorder") and cfg["recorder"] != room.recorder:
-            problems.append("%s: calibrated on recorder %s, rooms.yaml says %s"
-                            % (name, cfg["recorder"], room.recorder))
+                            % (name, recorder, channel, spell_cameras(room)))
     if problems:
         fail_config("ac_units.yaml does not match rooms.yaml:\n   - "
                     + "\n   - ".join(problems))
@@ -456,17 +509,19 @@ def ignored(box, zones):
     return False
 
 
-def fetch(room, rec, timeout):
-    """Every one of a room's cameras, as {channel: frame or None}.
+def fetch(room, recorders, timeout):
+    """Every one of a room's cameras, as {(recorder, channel): frame or None}.
 
     Only the waiting happens here. No detector is run, because this is called
     from several threads at once and one model cannot be asked two things at
     the same time.
     """
     frames = {}
-    want_main = rec.get("stream", "sub") == "main"
-    gate = rec.get("gate")
-    for channel in room.channels:
+    for key in room.cameras:
+        name, channel = key
+        rec = recorders[name]
+        want_main = rec.get("stream", "sub") == "main"
+        gate = rec.get("gate")
         url = build_url(rec["host"], channel, rec["user"], rec["password"],
                         want_main, rec.get("brand", "hikvision"))
         if gate is not None:
@@ -477,7 +532,7 @@ def fetch(room, rec, timeout):
         finally:
             if gate is not None:
                 gate.release()
-        frames[channel] = widen(frame) if frame is not None else None
+        frames[key] = widen(frame) if frame is not None else None
     return frames
 
 
@@ -496,17 +551,18 @@ def examine(room, frames, model, imgsz, iou, ac_units=None):
     people, answered, keep = 0, 0, None
     ac_config = (ac_units or {}).get(room.name) or {}
     ac_channel = ac_config.get("channel")
+    ac_recorder = ac_config.get("recorder", room.recorder)
     ac_state = None
     ac_detail = "not calibrated" if not ac_config else "camera did not answer"
-    for channel in room.channels:
-        wide = frames.get(channel)
+    for key in room.cameras:
+        wide = frames.get(key)
         if wide is None:
             continue
         answered += 1
-        if channel == ac_channel:
+        if key[1] == ac_channel and key[0] == ac_recorder:
             ac_state, ac_detail = read_room(wide, room.name, ac_units)
         boxes = people_boxes(wide, model, conf=room.conf, imgsz=imgsz, iou=iou)
-        here = sum(1 for b in boxes if not ignored(b, room.ignore.get(channel)))
+        here = sum(1 for b in boxes if not ignored(b, room.ignore.get(key)))
         if keep is None or here > people:
             keep = wide
         people = max(people, here)
@@ -532,7 +588,7 @@ def sweep(rooms, recorders, model, imgsz, iou, timeout, ac_units=None,
         batch = rooms[i:i + BATCH]
         frames = {}
         with ThreadPoolExecutor(max_workers=workers) as pool:
-            jobs = {pool.submit(fetch, r, recorders[r.recorder], timeout): r
+            jobs = {pool.submit(fetch, r, recorders, timeout): r
                     for r in batch}
             for job in as_completed(jobs):
                 room = jobs[job]
@@ -700,7 +756,7 @@ def main():
     else:
         verify_database()
 
-    used = {r.recorder for r in rooms}
+    used = {rec for r in rooms for rec, _ in r.cameras}
     for key in used:
         if key not in recorders:
             sys.exit("rooms.yaml has rooms on recorder %r but no such recorder"
@@ -721,13 +777,12 @@ def main():
 
     muted = 0
     for room in rooms:
-        for channel in room.ignore:
-            if channel not in room.channels:
-                fail_config("%s has an ignore zone on channel %d, which is not"
-                            " one of its cameras (%s). Nothing would ever be"
-                            " filtered."
-                            % (room.name, channel,
-                               ", ".join(str(c) for c in room.channels)))
+        for key in room.ignore:
+            if key not in room.cameras:
+                fail_config("%s has an ignore zone on %s channel %d, which is"
+                            " not one of its cameras (%s). Nothing would ever"
+                            " be filtered."
+                            % (room.name, key[0], key[1], spell_cameras(room)))
         muted += sum(len(b) for b in room.ignore.values())
     if muted:
         print(">> %d ignore zone(s) in place: detections that sit inside one"
@@ -747,7 +802,7 @@ def main():
         print(">> snapshots on: one blurred still per air-conditioned room,"
               " in %s/, overwritten each pass" % SNAPSHOT_DIR)
 
-    cameras = sum(len(r.channels) for r in rooms)
+    cameras = sum(len(r.cameras) for r in rooms)
     print(">> %d rooms, %d cameras, %d recorder(s): %s"
           % (len(rooms), cameras, len(used), ", ".join(sorted(used))))
     watched = [r for r in rooms if r.watched_for_waste]

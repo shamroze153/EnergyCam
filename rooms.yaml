@@ -35,8 +35,13 @@
 #   ignore:        boxes, per channel, where this camera reliably sees a false
 #     10:          person. A detection is dropped only when most of it sits
 #       - [x1, y1, x2, y2]   inside the box, so a real person standing in
-#                            front of the poster is bigger, reaches outside
-#                            it, and is still counted.
+#                            front of it is bigger, reaches outside it, and
+#                            is still counted. On this site the usual cause
+#                            is not a poster but a doorway or a pane of
+#                            glass: the camera looks straight through into a
+#                            corridor and the people it finds are real, just
+#                            in a different room. On a room watched by two
+#                            recorders, write the key as "xvr3:16".
 #   conf: 0.45     a stricter confidence for this room alone. Use it when the
 #                  false detections are faint and scattered rather than in one
 #                  spot. Prefer a zone: a confidence applies to the whole
@@ -46,6 +51,22 @@
 # Do not guess either one. Run `python check_room.py --room "<name>"`: it
 # draws every detection on a live frame with its score and prints the exact
 # lines to paste here.
+#
+# Nearly every room is a list of channels on one recorder:
+#
+#   recorder: nvr1
+#   channels: [22]
+#
+# A place two recorders can both see is written out in full instead:
+#
+#   cameras:
+#     - {recorder: nvr1, channel: 22}
+#     - {recorder: xvr3, channel: 16}
+#
+# Use the second form rather than making two rooms. Two rooms means one of
+# them can sit there calling itself empty for forty-five minutes while the
+# other watches somebody sitting in it -- which is exactly what nvr1 ch22 and
+# xvr3 ch16 were doing before they were joined.
 #
 # Credentials are NOT in this file. They come from .env, which is not committed.
 
@@ -215,6 +236,16 @@ rooms:
     ac: visible
     alert: never
     empty_after_minutes: null
+    # Through the doorway at the back is somebody else's desk, and the person
+    # sitting at it was counted as being in the UPS room on 7 November, at
+    # 0.37. This room never alerts, so it costs no false trip -- but it still
+    # reports a server room as occupied all day on the dashboard, which is
+    # simply untrue.
+    #
+    # Estimated from one frame: CHECK IT with check_room.py before trusting.
+    ignore:
+      5:
+        - [685, 90, 940, 530]      # through the doorway, the next room
     note: >
       Battery life falls off sharply with temperature. Cooling here is not
       discretionary.
@@ -264,6 +295,17 @@ rooms:
     channels: [4]
     ac: visible
     empty_after_minutes: 45
+    # The camera looks straight through a glass door into the corridor. On
+    # 7 November the room itself was empty -- every chair pushed in -- while
+    # two people walking past outside were counted at 0.80 and 0.83. They
+    # are real people; they are just not in this room, and counting them
+    # keeps the room permanently occupied and so permanently unwatched.
+    #
+    # Estimated from one frame: CHECK IT with check_room.py, which draws the
+    # zone in grey, before trusting it.
+    ignore:
+      4:
+        - [1425, 100, 1690, 790]   # corridor beyond the glass door
 
   - name: Admin Room
     zone: Offices
@@ -340,27 +382,19 @@ rooms:
       Two cameras and the unit is in frame on both, which is the easy case:
       either can be calibrated and the other checks it.
 
-  - name: H First Floor Lobby (NVR 1)
-    zone: H offices
-    recorder: nvr1
-    channels: [22]
-    ac: visible
-    empty_after_minutes: 45
-    note: >
-      XVR 3 channel 16 is also called "H 1st floor Lobby". If these are the
-      same place seen by two recorders they should be one room, and the
-      suffix should go -- but they cannot be merged as things stand, because
-      a room here belongs to a single recorder. Kept apart and labelled
-      rather than quietly merged: two recorders watching one room, counted as
-      two rooms, would double its empty hours in every figure on the page.
-      Worth settling on site.
-
   - name: 140-H Board Room
     zone: H offices
     recorder: nvr1
     channels: [24]
     ac: hidden
     empty_after_minutes: 30
+    # An empty orange-and-white chair reads as a person at 0.28 on this
+    # camera (7 November, nobody in the room). A zone is the usual answer,
+    # but a chair is the one false person that moves, so a box drawn round
+    # today's chair would be pointing at carpet tomorrow. The room is
+    # well lit and the table is close to the camera, so a real person here
+    # scores far above this.
+    conf: 0.40
     note: >
       A board room empties all at once and the unit gets left on, so thirty
       minutes rather than forty-five. If its unit can be brought into frame
@@ -558,15 +592,28 @@ rooms:
 
   - name: H First Floor Lobby
     zone: H common
-    recorder: xvr3
-    channels: [16]
+    cameras:
+      - {recorder: nvr1, channel: 22}
+      - {recorder: xvr3, channel: 16}
     ac: visible
     empty_after_minutes: 45
     note: >
-      A lobby with a unit in it, which is an odd pair: people pass through
-      rather than sit, so it looks empty between passers-by. Left at
-      forty-five minutes for now; if it turns out to report all day it wants
-      a longer wait rather than switching off.
+      One place, two recorders. Settled on 7 November from both frames taken
+      a minute apart: the same wooden floor, the same glass balustrade, the
+      same man in the same brown armchair. nvr1 ch22 looks at the seating
+      area from close to; xvr3 ch16 looks down the corridor towards it, and
+      from there he is small and far and was NOT detected -- 1 person on one
+      camera, 0 on the other, at the same moment.
+
+      That is the whole reason to merge them rather than leave them labelled.
+      As two rooms, the xvr3 half would have gone on calling itself empty
+      while somebody sat in it in full view of the other camera, and after
+      forty-five minutes it would have said so out loud. As one room, a
+      person on either camera keeps it occupied.
+
+      A lobby with a unit in it is still an odd pair -- people pass through
+      rather than sit -- so if it reports all day it wants a longer wait
+      rather than switching off.
 
   # ---- offices: unit out of frame -------------------------------------------
 

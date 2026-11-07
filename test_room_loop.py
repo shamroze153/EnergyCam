@@ -224,35 +224,75 @@ def main():
     try:
         r = room(channels=[10], ignore={10: [poster]})
         people, answered, _, _, _ = room_loop.examine(
-            r, {10: "frame"}, model=None, imgsz=1280, iou=0.7)
+            r, {("dvr2", 10): "frame"}, model=None, imgsz=1280, iou=0.7)
         check("the poster is not counted, the person is", people, 1)
         check("and the camera still counts as having answered", answered, 1)
 
         plain = room(channels=[10])
         people, _, _, _, _ = room_loop.examine(
-            plain, {10: "frame"}, model=None, imgsz=1280, iou=0.7)
+            plain, {("dvr2", 10): "frame"}, model=None, imgsz=1280, iou=0.7)
         check("without a zone both are counted", people, 2)
 
         # A room's own confidence has to reach the detector, or setting it
         # does nothing at all and the room goes on miscounting.
         seen[:] = []
         strict = room(channels=[10], conf=0.55)
-        room_loop.examine(strict, {10: "frame"}, model=None, imgsz=1280,
-                          iou=0.7)
+        room_loop.examine(strict, {("dvr2", 10): "frame"}, model=None,
+                          imgsz=1280, iou=0.7)
         check("a room's own confidence reaches the detector", seen, [0.55])
 
         seen[:] = []
-        room_loop.examine(plain, {10: "frame"}, model=None, imgsz=1280,
-                          iou=0.7)
+        room_loop.examine(plain, {("dvr2", 10): "frame"}, model=None,
+                          imgsz=1280, iou=0.7)
         check("and a room without one leaves it alone", seen, [None])
 
         # A camera that did not answer must not be counted as having answered
         # with nobody in it -- that is the reading that empties a room nobody
         # looked at.
         people, answered, _, _, _ = room_loop.examine(
-            room(channels=[10, 14]), {10: "frame", 14: None}, model=None,
+            room(channels=[10, 14]),
+            {("dvr2", 10): "frame", ("dvr2", 14): None}, model=None,
             imgsz=1280, iou=0.7)
         check("a camera that sent nothing does not answer", answered, 1)
+
+        # A place two recorders can see. Before this it had to be two rooms,
+        # and two rooms meant one could call itself empty for forty-five
+        # minutes while the other watched somebody sitting in it. That is
+        # exactly what nvr1 ch22 and xvr3 ch16 were doing at 140-H: the same
+        # lobby, the same person, and only one of them saw him.
+        lobby = Room(dict(name="H First Floor Lobby", ac="visible",
+                          empty_after_minutes=45,
+                          cameras=[{"recorder": "nvr1", "channel": 22},
+                                   {"recorder": "xvr3", "channel": 16}]))
+        check("both cameras belong to the room", lobby.cameras,
+              [("nvr1", 22), ("xvr3", 16)])
+        check("and it is filed under the first", lobby.recorder, "nvr1")
+
+        room_loop.people_boxes = lambda f, m, **k: (
+            [(600, 100, 700, 300, 0.9)] if f == "has him" else [])
+        people, answered, _, _, _ = room_loop.examine(
+            lobby, {("nvr1", 22): "has him", ("xvr3", 16): "empty"},
+            model=None, imgsz=1280, iou=0.7)
+        check("one camera seeing him is enough", people, 1)
+        check("and both answered", answered, 2)
+
+        lobby.observe(people, answered, T0)
+        check("so the room is occupied, not empty", lobby.status, "occupied")
+
+        # And the other half of the asymmetry still holds across recorders.
+        lobby.observe(0, 1, T0)
+        check("one of two recorders answering cannot prove it empty",
+              lobby.status, "unknown")
+        lobby.observe(0, 2, T0)
+        check("both answering can", lobby.status, "empty")
+
+        # An ignore zone on a shared room has to say which recorder.
+        split = Room(dict(name="Split", ac="none",
+                          cameras=[{"recorder": "nvr1", "channel": 16},
+                                   {"recorder": "xvr3", "channel": 16}],
+                          ignore={"xvr3:16": [poster]}))
+        check("a zone written xvr3:16 lands on xvr3",
+              list(split.ignore), [("xvr3", 16)])
     finally:
         room_loop.people_boxes = real
 

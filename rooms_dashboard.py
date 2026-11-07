@@ -195,6 +195,17 @@ def load_rooms_config(path="rooms.yaml"):
     recorders = cfg["recorders"]
     rows = []
     for room in cfg["rooms"]:
+        # A room is a list of cameras, and one place at 140-H is watched by
+        # two recorders at once. Spelled either way in rooms.yaml, and read
+        # the same way here as the loop reads it -- the page and the loop
+        # disagreeing about which cameras a room has is the kind of thing
+        # nobody notices until a figure is wrong.
+        if room.get("cameras"):
+            cameras = [(c["recorder"], int(c["channel"]))
+                       for c in room["cameras"]]
+        else:
+            cameras = [(room["recorder"], int(ch)) for ch in room["channels"]]
+        recorder = cameras[0][0]
         alerts = room.get("alert") != "never"
         has_unit = room["ac"] in ("visible", "hidden")
         if room["ac"] == "visible":
@@ -206,10 +217,10 @@ def load_rooms_config(path="rooms.yaml"):
         caption = unit_note if has_unit else "nothing to switch off"
         rows.append({
             "room": room["name"],
-            "recorder": room["recorder"],
-            "campus": recorders[room["recorder"]].get("campus", "unknown"),
+            "recorder": recorder,
+            "campus": recorders[recorder].get("campus", "unknown"),
             "zone": room.get("zone", "Other"),
-            "cameras": len(room["channels"]),
+            "cameras": len(cameras),
             "ac": room["ac"],
             "alerts": alerts,
             "caption": caption,

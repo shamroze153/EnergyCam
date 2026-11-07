@@ -89,8 +89,8 @@ def look(rooms, recorders, model, args, say):
         batch = rooms[i:i + BATCH]
         frames = {}
         with ThreadPoolExecutor(max_workers=args.workers) as pool:
-            jobs = {pool.submit(fetch, r, recorders[r.recorder],
-                                args.timeout): r for r in batch}
+            jobs = {pool.submit(fetch, r, recorders, args.timeout): r
+                    for r in batch}
             for job in as_completed(jobs):
                 room = jobs[job]
                 try:
@@ -100,18 +100,18 @@ def look(rooms, recorders, model, args, say):
                     frames[room.name] = {}
         for room in batch:
             conf = args.conf or room.conf
-            for channel in room.channels:
-                frame = frames[room.name].get(channel)
+            for key in room.cameras:
+                frame = frames[room.name].get(key)
                 if frame is None:
-                    findings.append({"room": room, "channel": channel,
+                    findings.append({"room": room, "camera": key,
                                      "frame": None, "boxes": [],
                                      "counted": [], "conf": conf})
                     continue
-                zones = room.ignore.get(channel)
+                zones = room.ignore.get(key)
                 boxes = people_boxes(frame, model, conf=conf,
                                      imgsz=args.imgsz, iou=args.iou)
                 findings.append({
-                    "room": room, "channel": channel, "frame": frame,
+                    "room": room, "camera": key, "frame": frame,
                     "boxes": boxes, "conf": conf,
                     "counted": [b for b in boxes if not ignored(b, zones)]})
         frames.clear()
@@ -119,14 +119,15 @@ def look(rooms, recorders, model, args, say):
 
 
 def describe_finding(f, say):
-    room, channel = f["room"], f["channel"]
+    room, (recorder, channel) = f["room"], f["camera"]
     if f["frame"] is None:
-        say("   %-28s ch%-3d no frame came back" % (room.name, channel))
+        say("   %-28s %-5s ch%-3d no frame came back"
+            % (room.name, recorder, channel))
         return
-    say("   %-28s ch%-3d %dx%d  %d detection(s), %d counted"
-        % (room.name, channel, f["frame"].shape[1], f["frame"].shape[0],
-           len(f["boxes"]), len(f["counted"])))
-    zones = room.ignore.get(channel)
+    say("   %-28s %-5s ch%-3d %dx%d  %d detection(s), %d counted"
+        % (room.name, recorder, channel, f["frame"].shape[1],
+           f["frame"].shape[0], len(f["boxes"]), len(f["counted"])))
+    zones = room.ignore.get(f["camera"])
     for n, (x1, y1, x2, y2, score) in enumerate(f["boxes"], 1):
         mark = "ignored" if ignored((x1, y1, x2, y2, score), zones) \
             else ("faint  " if score < FAINT else "counted")
@@ -145,10 +146,13 @@ def paste_lines(findings, say):
     say("=" * 70)
     for f in wrong:
         say("")
-        say("  %s, channel %d" % (f["room"].name, f["channel"]))
+        recorder, channel = f["camera"]
+        many = len({rec for rec, _ in f["room"].cameras}) > 1
+        label = "%s:%d" % (recorder, channel) if many else str(channel)
+        say("  %s, %s channel %d" % (f["room"].name, recorder, channel))
         say("    # stop counting those exact spots:")
         say("    ignore:")
-        say("      %d:" % f["channel"])
+        say("      %s:" % ('"%s"' % label if many else label))
         for x1, y1, x2, y2, score in f["counted"]:
             say("        - [%d, %d, %d, %d]   # %.2f" % (x1, y1, x2, y2, score))
         faintest = min(s for *_, s in f["counted"])
@@ -226,7 +230,7 @@ def main():
         say(">> left is a false one, with nothing to judge and far less"
             " footage saved.")
     say(">> %d room(s), %d camera(s)"
-        % (len(rooms), sum(len(r.channels) for r in rooms)))
+        % (len(rooms), sum(len(r.cameras) for r in rooms)))
     say("")
 
     findings = look(rooms, recorders, model, args, say)
@@ -239,10 +243,12 @@ def main():
             continue
         if not f["counted"] and not args.every_camera:
             continue
-        path = os.path.join(OUT_DIR, "%s_ch%02d_boxes.jpg"
-                            % (f["room"].name.replace(" ", "_"), f["channel"]))
+        recorder, channel = f["camera"]
+        path = os.path.join(OUT_DIR, "%s_%s_ch%02d_boxes.jpg"
+                            % (f["room"].name.replace(" ", "_"), recorder,
+                               channel))
         cv2.imwrite(path, draw(f["frame"], f["boxes"],
-                               f["room"].ignore.get(f["channel"])))
+                               f["room"].ignore.get(f["camera"])))
         saved.append(path)
 
     cameras = sum(1 for f in findings if f["frame"] is not None)
