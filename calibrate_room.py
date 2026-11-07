@@ -227,6 +227,76 @@ def write_config(path, room, recorder, channel, size, infrared, label,
     os.replace(tmp, path)
 
 
+def ask(prompt):
+    """Wait for the person at the keyboard, or give up cleanly."""
+    try:
+        return input(prompt)
+    except (EOFError, KeyboardInterrupt):
+        sys.exit("\n>> stopped; nothing was written")
+
+
+def take_both(args):
+    """Both frames, from the camera, with the unit switched in between.
+
+    The three-command version worked and nobody will do it nineteen times.
+    Every room meant a capture, a walk to the switch, another capture, then
+    typing two filenames back in -- and a filename typed wrong measures the
+    wrong room without saying so.
+    """
+    from dotenv import load_dotenv
+
+    from room_loop import (load_rooms, recorder_login, widen)
+    from test_camera import build_url, grab
+
+    load_dotenv()
+    recorders, rooms = load_rooms(args.rooms, None, [args.room])
+    room = rooms[0]
+    pair = [c for c in room.cameras if c[1] == args.channel]
+    if not pair:
+        sys.exit("%s is watched on %s, not channel %d"
+                 % (room.name, spell(room), args.channel))
+    recorder = pair[0][0]
+    rec = recorders[recorder]
+    user, password = recorder_login(recorder, rec)
+    url = build_url(rec["host"], args.channel, user, password,
+                    rec.get("stream", "sub") == "main",
+                    rec.get("brand", "hikvision"))
+
+    def shot(what):
+        frame, why = grab(url, max_seconds=8.0)
+        if frame is None:
+            sys.exit(">> no frame came back from %s channel %d (%s). Check the"
+                     " cable and the recorder, then try again."
+                     % (recorder, args.channel, why))
+        wide = widen(frame)
+        os.makedirs(PREVIEW_DIR, exist_ok=True)
+        path = os.path.join(PREVIEW_DIR, "%s_ch%02d_%s.jpg"
+                            % (args.room.replace(" ", "_"), args.channel, what))
+        cv2.imwrite(path, wide)
+        print("   saved %s  (%dx%d)" % (path, wide.shape[1], wide.shape[0]))
+        return wide
+
+    print(">> %s, %s channel %d" % (room.name, recorder, args.channel))
+    print()
+    print("   1. Switch the air conditioner ON and wait until its display is")
+    print("      lit. Stand out of the camera's way.")
+    ask("      Press Enter when it is lit: ")
+    on = shot("on")
+    print()
+    print("   2. Now switch it OFF and wait until the display has gone dark.")
+    print("      A display that is still fading will read as half lit.")
+    ask("      Press Enter when it is dark: ")
+    off = shot("off")
+    print()
+    return on, off
+
+
+def spell(room):
+    if len({rec for rec, _ in room.cameras}) == 1:
+        return "channel(s) " + ", ".join(str(c) for _, c in room.cameras)
+    return ", ".join("%s ch%d" % c for c in room.cameras)
+
+
 def main():
     ap = argparse.ArgumentParser(
         description=__doc__,
@@ -235,8 +305,12 @@ def main():
     ap.add_argument("--channel", type=int, required=True,
                     help="the camera that can see the unit")
     ap.add_argument("--recorder", help="only needed if rooms.yaml has no such room")
-    ap.add_argument("--on", required=True, help="a frame with the unit running")
-    ap.add_argument("--off", required=True, help="a frame with it off")
+    ap.add_argument("--live", action="store_true",
+                    help="take both frames from the camera now, asking you to"
+                         " switch the unit between them. One command per room"
+                         " instead of three and two filenames")
+    ap.add_argument("--on", help="a frame with the unit running")
+    ap.add_argument("--off", help="a frame with it off")
     ap.add_argument("--roi", help="your own box: x1,y1,x2,y2")
     ap.add_argument("--choice", type=int, default=1,
                     help="use the Nth box from the list instead of the first")
@@ -250,11 +324,18 @@ def main():
                     help="overwrite this room if it is already calibrated")
     args = ap.parse_args()
 
-    on = cv2.imread(args.on)
-    off = cv2.imread(args.off)
-    for path, frame in ((args.on, on), (args.off, off)):
-        if frame is None:
-            sys.exit("cannot read %s" % path)
+    if args.live:
+        if args.on or args.off:
+            sys.exit("--live takes the frames itself; drop --on and --off")
+        on, off = take_both(args)
+    else:
+        if not (args.on and args.off):
+            sys.exit("give --on and --off, or --live to take them now")
+        on = cv2.imread(args.on)
+        off = cv2.imread(args.off)
+        for path, frame in ((args.on, on), (args.off, off)):
+            if frame is None:
+                sys.exit("cannot read %s" % path)
     if on.shape[:2] != off.shape[:2]:
         sys.exit("the two frames are different sizes (%dx%d and %dx%d). They"
                  " must come from the same camera and the same stream."
@@ -369,7 +450,28 @@ def main():
                  "   thing -- try --choice 2, or --roi with your own numbers --\n"
                  "   or the unit was in the same state in both frames." % gap)
 
-    if not args.write:
+    write = args.write
+    if args.live and not write:
+        # Re-running in live mode means switching the unit on and off again,
+        # and walking back to it. So the question is asked here, once, with
+        # the preview already on disk to look at.
+        print()
+        print(">> Open the preview above. The green box should sit on the"
+              " unit's display.")
+        answer = ask(">> Write this to %s? [y/N] " % args.config).strip().lower()
+        if answer not in ("y", "yes"):
+            print(">> not written. The two frames are kept, so you can try a"
+                  " different box without touching the unit again:")
+            print("   python calibrate_room.py --room %r --channel %d \\"
+                  % (args.room, args.channel))
+            print("       --on %s --off %s --choice 2"
+                  % (os.path.join(PREVIEW_DIR, "%s_ch%02d_on.jpg"
+                                  % (args.room.replace(" ", "_"), args.channel)),
+                     os.path.join(PREVIEW_DIR, "%s_ch%02d_off.jpg"
+                                  % (args.room.replace(" ", "_"), args.channel))))
+            return
+        write = True
+    if not write:
         print("\n>> nothing written yet. Check the preview, then run the same"
               " command again with --write")
         return

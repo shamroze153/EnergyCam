@@ -60,29 +60,34 @@ All times on the dashboard are Pakistan time (PKT).
 
 Until a room is calibrated the loop records its occupancy but its unit's state
 stays unknown, which the dashboard shows as a dashed question mark rather than
-guessing. Calibration is two photographs and one command, per room.
+guessing. One command per room:
 
-1. With the unit **running**, and again with it **off** once the display has
-   gone dark:
+```
+python calibrate_room.py --live --room "Marketing" --channel 13
+```
 
-   ```
-   python tune_detect.py capture --room "Admin Room" --rounds 1 --label on
-   python tune_detect.py capture --room "Admin Room" --rounds 1 --label off
-   ```
+It asks you to switch the unit on, takes a frame, asks you to switch it off,
+takes another, finds the display by looking for what was lit in one and dark
+in the other, measures the contrast inside that box in both, and saves a
+picture with the box drawn on. Open that picture; if the box is on the
+display, answer y. If it landed on something else, answer n — the two frames
+are kept, so you can try `--choice 2` or your own `--roi 352,34,383,67`
+without touching the unit again.
 
-2. Measure. This finds the display by looking for what was lit in one frame
-   and dark in the other, measures the contrast inside that box in both, and
-   saves a picture with the box drawn on:
+Switch the unit, not the wall socket. A unit cut at the socket has a dark
+display because it has no power, not because it is off.
 
-   ```
-   python calibrate_room.py --room "Admin Room" --channel 9 \
-       --on frames/Admin_Room_ch09_on.jpg --off frames/Admin_Room_ch09_off.jpg
-   ```
+`docs/calibration_runsheet.md` has the order to walk the building in, which
+rooms have a unit in frame and which only look as though they do.
 
-3. Open `frames/Admin_Room_ch09_box.jpg` and check the green box is over the
-   unit's display. If it is, run the same command again with `--write`. If it
-   landed on something else, pick another box from the list it printed with
-   `--choice 2`, or give your own with `--roi 352,34,383,67`.
+The three-step version still works where the frames already exist:
+
+```
+python tune_detect.py capture --room "Admin Room" --rounds 1 --label on
+python tune_detect.py capture --room "Admin Room" --rounds 1 --label off
+python calibrate_room.py --room "Admin Room" --channel 9 \
+    --on frames/Admin_Room_ch09_on.jpg --off frames/Admin_Room_ch09_off.jpg
+```
 
 It refuses rather than writes when the two states are too close together, when
 the frames were taken in different lighting, when the two frames look swapped,
