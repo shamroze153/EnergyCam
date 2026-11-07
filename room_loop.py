@@ -46,6 +46,7 @@ import psycopg2
 import yaml
 from dotenv import load_dotenv
 
+from ac_detect import load_units, read_room
 from privacy_blur import anonymize, count_people
 from schedule import describe, wait_before_reporting
 from test_camera import build_url, grab
@@ -246,16 +247,23 @@ class Room:
         self.people = None
         self.empty_since = None
         self.detail = "not sampled yet"
+        self.ac_state = None            # on / off / None when unmeasured
+        self.ac_detail = "not calibrated"
         self.recorded = None            # what the database last heard
 
     def state(self):
-        return (self.status, self.people)
+        # The air conditioner belongs in here. A unit coming on in a room that
+        # was already empty changes nothing about the occupancy, and if state
+        # were occupancy alone that moment -- the exact moment the waste
+        # starts -- would never be written down.
+        return (self.status, self.people, self.ac_state)
 
     @property
     def watched_for_waste(self):
         return self.ac in ("visible", "hidden") and self.alerts
 
-    def observe(self, people, answered, now):
+    def observe(self, people, answered, now, ac_state=None,
+                ac_detail="not calibrated"):
         """Fold one pass's readings into this room's state.
 
         The asymmetry here is deliberate. Seeing a person proves the room is
@@ -265,6 +273,7 @@ class Room:
         answer. Getting that backwards is what produces an alert saying a room
         is empty while somebody sits in the part of it nobody could see.
         """
+        self.ac_state, self.ac_detail = ac_state, ac_detail
         total = len(self.channels)
         if answered == 0:
             self.status, self.people, self.empty_since = "unknown", None, None
@@ -293,6 +302,12 @@ class Room:
     def due_for_check(self, now, hours=None):
         if not self.watched_for_waste:
             return False
+        if self.ac_state == "off":
+            # Empty with the unit already off is the state we want rooms to be
+            # in, not something to send anybody upstairs about. Only a room
+            # that is empty with the unit running, or empty with the unit
+            # unread, is worth a look.
+            return False
         wait = wait_before_reporting(self.empty_after, now, hours)
         return wait is not None and self.empty_minutes(now) >= wait
 
@@ -318,6 +333,37 @@ def load_rooms(path, only_recorders=None, only_rooms=None):
     return cfg["recorders"], rooms
 
 
+def check_ac_units(units, rooms):
+    """Make sure every calibrated room is somewhere the loop will actually look.
+
+    A box measured on channel 9 is only ever read if channel 9 is one of that
+    room's cameras. Get the number wrong and nothing errors: the room simply
+    reports an unknown air conditioner forever, which looks exactly like a room
+    nobody has calibrated yet. So it is checked once, out loud, at startup.
+    """
+    by_name = {r.name: r for r in rooms}
+    problems = []
+    for name, cfg in sorted(units.items()):
+        room = by_name.get(name)
+        if room is None:
+            continue            # another recorder's room, not in this run
+        channel = cfg.get("channel")
+        if channel is None:
+            problems.append("%s: no channel given" % name)
+        elif channel not in room.channels:
+            problems.append("%s: calibrated on channel %s, but the room's"
+                            " cameras are %s"
+                            % (name, channel,
+                               ", ".join(str(c) for c in room.channels)))
+        if cfg.get("recorder") and cfg["recorder"] != room.recorder:
+            problems.append("%s: calibrated on recorder %s, rooms.yaml says %s"
+                            % (name, cfg["recorder"], room.recorder))
+    if problems:
+        fail_config("ac_units.yaml does not match rooms.yaml:\n   - "
+                    + "\n   - ".join(problems))
+    return sum(1 for n in units if n in by_name)
+
+
 def recorder_login(key, rec):
     user = os.getenv(rec.get("user_env", ""))
     password = os.getenv(rec.get("pass_env", ""))
@@ -330,14 +376,24 @@ def recorder_login(key, rec):
     return user, password
 
 
-def sample(room, rec, model, imgsz, iou, timeout):
+def sample(room, rec, model, imgsz, iou, timeout, ac_units=None):
     """One frame from each of a room's cameras.
 
-    Returns the count, how many cameras answered, and the frame worth keeping
-    -- the one with the most people in it, since a room is best shown by the
-    camera that can see somebody rather than the one that happens to be first.
+    Returns the count, how many cameras answered, the frame worth keeping --
+    the one with the most people in it, since a room is best shown by the
+    camera that can see somebody rather than the one that happens to be first
+    -- and what the air conditioner's own display said.
+
+    The air conditioner is read from one named channel, not from whichever
+    frame arrives. Its boxes are positions in a particular camera's picture,
+    so measuring them on another camera's would give a number with nothing
+    behind it.
     """
     people, answered, keep = 0, 0, None
+    ac_config = (ac_units or {}).get(room.name) or {}
+    ac_channel = ac_config.get("channel")
+    ac_state = None
+    ac_detail = "not calibrated" if not ac_config else "camera did not answer"
     want_main = rec.get("stream", "sub") == "main"
     for channel in room.channels:
         url = build_url(rec["host"], channel, rec["user"], rec["password"],
@@ -348,11 +404,13 @@ def sample(room, rec, model, imgsz, iou, timeout):
             continue
         answered += 1
         wide = widen(frame)
+        if channel == ac_channel:
+            ac_state, ac_detail = read_room(wide, room.name, ac_units)
         here = count_people(wide, model, imgsz=imgsz, iou=iou)
         if keep is None or here > people:
             keep = wide
         people = max(people, here)
-    return people, answered, keep
+    return people, answered, keep, ac_state, ac_detail
 
 
 def save_snapshot(room, frame, model, folder=SNAPSHOT_DIR):
@@ -397,6 +455,7 @@ def save_state(rooms, path, now):
             "people": room.people,
             "empty_since": (room.empty_since.isoformat()
                             if room.empty_since else None),
+            "ac_state": room.ac_state,
         }
     payload = {"saved_at": now.isoformat(), "rooms": known}
     tmp = path + ".tmp"
@@ -437,6 +496,9 @@ def load_state(rooms, path, max_gap_minutes):
         room.people = saved["people"]
         room.empty_since = (datetime.fromisoformat(saved["empty_since"])
                             if saved["empty_since"] else None)
+        # .get, because a state file written before air conditioners were read
+        # has no such key and should still load.
+        room.ac_state = saved.get("ac_state")
         restored += 1
     print(">> carried %d room(s) over from %.0f min ago" % (restored, gap))
 
@@ -450,8 +512,9 @@ def report(rooms, now, cycle, seconds, hours=None):
             flag = "!!"
         elif room.status == "unknown":
             flag = " ?"
-        print("   %s %-9s %-26s %s"
-              % (flag, room.status, room.name[:26], room.detail))
+        air = {"on": "AC on ", "off": "AC off"}.get(room.ac_state, "      ")
+        print("   %s %-9s %-26s %s  %s"
+              % (flag, room.status, room.name[:26], air, room.detail))
     due = [r for r in rooms if r.due_for_check(now, hours)]
     if due:
         print(">> %d room(s) worth checking: %s"
@@ -498,6 +561,16 @@ def main():
         user, password = recorder_login(key, recorders[key])
         recorders[key]["user"], recorders[key]["password"] = user, password
 
+    ac_units = load_units()
+    calibrated = check_ac_units(ac_units, rooms)
+    if calibrated:
+        print(">> %d room(s) have a calibrated air conditioner; the rest"
+              " report its state as unknown" % calibrated)
+    else:
+        print(">> no air conditioner is calibrated yet, so every unit's state"
+              " stays unknown. To calibrate one:"
+              " python calibrate_room.py --help")
+
     hours = yaml.safe_load(open(args.config)).get("hours")
     print(">> %s" % describe(datetime.now(PKT), hours))
 
@@ -529,10 +602,10 @@ def main():
         started = time.time()
         for room in rooms:
             now = datetime.now(PKT)
-            people, answered, frame = sample(room, recorders[room.recorder],
-                                             model, args.imgsz, args.iou,
-                                             args.timeout)
-            room.observe(people, answered, now)
+            people, answered, frame, ac, why = sample(
+                room, recorders[room.recorder], model, args.imgsz, args.iou,
+                args.timeout, ac_units)
+            room.observe(people, answered, now, ac, why)
             if snapshots and frame is not None and room.ac in ("visible",
                                                                "hidden"):
                 save_snapshot(room, frame, model)
@@ -544,7 +617,7 @@ def main():
         if not args.no_db:
             changed = [r for r in rooms if r.state() != r.recorded]
             if record([(now, r.recorder, r.name, r.status, r.people,
-                        r.empty_since, None) for r in changed]):
+                        r.empty_since, r.ac_state) for r in changed]):
                 # Only once the insert has landed. Marking them recorded on a
                 # failed write would drop the change silently, and the next
                 # cycle, seeing no difference, would never write it either:

@@ -124,6 +124,71 @@ def main():
                                         " is due" if due else " is not due"),
               due, label != "a weekday afternoon")
 
+    # The air conditioner. Four states matter, not two: the alert the whole
+    # system exists to send is "empty AND still running", and a room that is
+    # empty with its unit already off is the outcome we want, not a fault.
+    r = room()
+    r.observe(0, 2, T0, "off", "1 unit(s) read")
+    r.observe(0, 2, at(60), "off", "1 unit(s) read")
+    check("empty an hour with the unit off is not due",
+          r.due_for_check(at(60)), False)
+
+    r = room()
+    r.observe(0, 2, T0, "on", "1 unit(s) read")
+    r.observe(0, 2, at(60), "on", "1 unit(s) read")
+    check("empty an hour with the unit running is due",
+          r.due_for_check(at(60)), True)
+
+    r = room()
+    r.observe(0, 2, T0, None, "not calibrated")
+    r.observe(0, 2, at(60), None, "not calibrated")
+    check("empty an hour with the unit unread is still due",
+          r.due_for_check(at(60)), True)
+
+    r = room()
+    r.observe(3, 2, T0, "on", "1 unit(s) read")
+    check("somebody in the room with the unit on is never due",
+          r.due_for_check(at(0)), False)
+
+    # A unit coming on in a room that is already empty has to be written down.
+    # If state carried occupancy alone, that moment -- the moment the waste
+    # begins -- would look like no change at all and never reach the database.
+    r = room()
+    r.observe(0, 2, T0, "off", "1 unit(s) read")
+    before = r.state()
+    r.observe(0, 2, at(5), "on", "1 unit(s) read")
+    check("the unit switching on in an empty room is a change",
+          r.state() != before, True)
+
+    r = room()
+    r.observe(0, 2, T0, "off", "1 unit(s) read")
+    before = r.state()
+    r.observe(0, 2, at(5), "off", "1 unit(s) read")
+    check("nothing changing is not a change", r.state(), before)
+
+    # A calibration pointing at a channel the room does not have would never be
+    # read, and a room whose unit is never read looks exactly like a room
+    # nobody has calibrated. So it is caught at startup instead.
+    from room_loop import check_ac_units
+    rooms = [room(name="Admin Room", recorder="dvr2", channels=[9])]
+    check("a calibration on a channel the room has is counted",
+          check_ac_units({"Admin Room": {"recorder": "dvr2", "channel": 9}},
+                         rooms), 1)
+    for label, bad in (
+            ("a channel the room does not have",
+             {"Admin Room": {"recorder": "dvr2", "channel": 11}}),
+            ("no channel at all", {"Admin Room": {"recorder": "dvr2"}}),
+            ("the wrong recorder",
+             {"Admin Room": {"recorder": "nvr4", "channel": 9}})):
+        try:
+            check_ac_units(bad, rooms)
+            check("%s is refused" % label, "accepted", "refused")
+        except SystemExit:
+            check("%s is refused" % label, "refused", "refused")
+    check("a calibrated room not in this run is ignored",
+          check_ac_units({"Somewhere Else": {"recorder": "nvr1", "channel": 4}},
+                         rooms), 0)
+
     print()
     if FAILURES:
         print("%d FAILURE(S):" % len(FAILURES))

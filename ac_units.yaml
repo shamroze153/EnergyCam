@@ -1,0 +1,50 @@
+# Calibrated air-conditioner detection, one block per room.
+#
+# Kept apart from rooms.yaml on purpose. That file says which camera watches
+# which room and is edited by whoever walks the building; this one holds
+# measurements taken from two photographs and is edited by whoever did the
+# measuring. Mixing them would mean a survey and a calibration arguing over
+# the same lines.
+#
+# How a unit is read: the box is placed over the unit's own display, and the
+# contrast inside it is measured. A lit display has bright strokes on a dark
+# face and so has high contrast; an unlit one is a flat panel and has almost
+# none. The threshold sits between the two measured values.
+#
+# Nothing is written here that was not measured. Every block carries the two
+# numbers it came from and when they were taken, so a threshold that starts
+# misbehaving can be compared against the day it was set rather than argued
+# about.
+
+rooms:
+
+  Admin Room:
+    recorder: dvr2
+    channel: 9
+    # This camera was infrared at a quarter past twelve in the afternoon --
+    # the colour channels were identical, which is how infrared looks. So it
+    # is treated as one lighting condition rather than two, and if it ever
+    # does return colour the reading is refused rather than guessed at.
+    expect: infrared
+    # The frame these boxes were drawn on. A box is a position in pixels, so
+    # it means nothing on a picture of a different size: if the stream is
+    # switched from main to sub, or the camera is swapped, the numbers below
+    # would land somewhere else entirely and still produce a confident
+    # answer. Checked before every reading, and refused if it does not match.
+    frame_size: [1920, 1080]
+    units:
+      - label: split unit, left wall
+        led_roi: [352, 34, 383, 67]
+        led_std_threshold: 18.9
+        measured:
+          on_std: 36.80          # display lit, reading 22
+          off_std: 1.07          # display blank
+          on_peak: 239
+          off_peak: 126
+          taken: 2026-11-07T12:14+05:00
+          note: >
+            A gap of nearly thirty-six between on and off, which is as clean
+            as this gets: the threshold could sit anywhere between 5 and 30
+            and read the same. Taken forty seconds apart, so the room, the
+            light and the camera's gain were identical -- the only thing that
+            changed was the unit.

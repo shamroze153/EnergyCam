@@ -56,10 +56,52 @@ All times on the dashboard are Pakistan time (PKT).
    rows saved 5 hours ahead, drops the unused `phone_count` column).
 4. Start the new version.
 
+## Calibrating a room's air conditioner
+
+Until a room is calibrated the loop records its occupancy but its unit's state
+stays unknown, which the dashboard shows as a dashed question mark rather than
+guessing. Calibration is two photographs and one command, per room.
+
+1. With the unit **running**, and again with it **off** once the display has
+   gone dark:
+
+   ```
+   python tune_detect.py capture --room "Admin Room" --rounds 1 --label on
+   python tune_detect.py capture --room "Admin Room" --rounds 1 --label off
+   ```
+
+2. Measure. This finds the display by looking for what was lit in one frame
+   and dark in the other, measures the contrast inside that box in both, and
+   saves a picture with the box drawn on:
+
+   ```
+   python calibrate_room.py --room "Admin Room" --channel 9 \
+       --on frames/Admin_Room_ch09_on.jpg --off frames/Admin_Room_ch09_off.jpg
+   ```
+
+3. Open `frames/Admin_Room_ch09_box.jpg` and check the green box is over the
+   unit's display. If it is, run the same command again with `--write`. If it
+   landed on something else, pick another box from the list it printed with
+   `--choice 2`, or give your own with `--roi 352,34,383,67`.
+
+It refuses rather than writes when the two states are too close together, when
+the frames were taken in different lighting, when the two frames look swapped,
+and when the channel is not one the loop visits for that room -- each of which
+would otherwise produce a confident reading with nothing behind it. A room
+whose display genuinely cannot be seen belongs in `rooms.yaml` as
+`ac: hidden`, which is honest, rather than calibrated badly.
+
+Results live in `ac_units.yaml`, one block per room, each carrying the two
+measurements its threshold came from and the date they were taken.
+
 ## Tools
 
-- `calibrate_ac.py` - prints LED/flap thresholds for `ac_config.py` from an
-  "AC off" and an "AC on" image (`--mode day` or `--mode night`)
+- `calibrate_room.py` - finds and measures the box over a unit's display from
+  an "on" and an "off" frame, and writes `ac_units.yaml` (see above)
+- `ac_detect.py` - reads `ac_units.yaml` and answers on / off / unknown for a
+  frame; used by the room loop
+- `calibrate_ac.py` - the older single-camera version of the above, for
+  `ac_config.py`; kept for the Conference Room setup
 - `zone_picker.py` - draw fixed blur zones on a camera frame, prints a
   `FIXED_ZONES = [...]` line for `privacy_blur.py`
 - `blur_preview.py` - live preview of the privacy blur
