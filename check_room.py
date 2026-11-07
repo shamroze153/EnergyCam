@@ -4,39 +4,50 @@ A room that insists it has one person in it while nobody is there cannot be
 fixed from the number alone. The number says "1". It does not say whether that
 1 is a coat on a chair, a poster, a reflection in a glass door, or a real
 person in a corner nobody thought to check. This grabs a live frame from each
-of a room's cameras, draws every detection on it with its confidence, and
-prints the lines you would paste into rooms.yaml to deal with it.
+camera, draws every detection on it with its confidence, and prints the lines
+you would paste into rooms.yaml to deal with it.
+
+One room:
 
     python check_room.py --room "AutoOS"
 
-Then open the pictures it names. Every box is drawn with the confidence that
-produced it. What you do next depends on what you see:
+The whole site, which is the useful one -- but run it when the building is
+EMPTY, late at night or at the weekend:
 
-  A box on something that is not a person, in a spot that never moves
-  (a poster, a mannequin, a fire extinguisher, a chair with a jacket) --
-  use the ignore zone this prints. It is tied to that one spot, so a real
-  person who walks in front of it is still counted.
+    python check_room.py --all --zip
 
-  Several faint boxes on clutter, all well below the real people's scores --
-  use the confidence this suggests. It only applies to this room.
+Run at a quiet hour, every detection is wrong by definition. Nobody has to
+judge whether a box is a real person, because there are no real people. It is
+also far less of the building's footage to go anywhere: only the cameras that
+saw something are saved, so a clean site produces almost no pictures at all.
 
-  A box on a real person you forgot about -- the room is right and nothing
-  needs changing.
+The zip contains report.txt -- every detection, its score, its size and where
+it sits -- and the pictures for the cameras that saw something. report.txt on
+its own is often enough to settle a room: a box forty pixels wide, high on a
+wall, that has not moved in a week is not a person.
 
-Nothing is written. This prints lines for you to paste, because a tool that
-edits the room map on its own would quietly undo the survey somebody walked
-the building to produce.
+These frames are NOT blurred. They are the building's cameras as they are.
+Look at the zip before it goes anywhere, and if a picture shows somebody who
+should not be in it, delete it and send the rest.
+
+Nothing is written to rooms.yaml. This prints lines for you to paste, because
+a tool that edited the room map on its own would quietly undo the survey
+somebody walked the building to produce.
 """
 import argparse
 import os
 import sys
+import zipfile
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime
 
 import cv2
 from dotenv import load_dotenv
 
 from privacy_blur import DETECT_CONF, people_boxes
-from room_loop import (DETECT_IOU, DETECT_SIZE, fetch, ignored, load_rooms,
-                       recorder_login)
+from room_loop import (BATCH, DETECT_IOU, DETECT_SIZE, PKT, WORKERS, fetch,
+                       ignored, load_rooms, recorder_login, set_gates)
+from schedule import WORKING, describe, period
 
 OUT_DIR = "frames"
 GREEN = (80, 220, 90)          # counted as a person
@@ -66,6 +77,94 @@ def draw(frame, boxes, zones):
     return canvas
 
 
+def look(rooms, recorders, model, args, say):
+    """Every room's cameras, with the detections drawn on.
+
+    Fetched several at a time for the same reason the loop is: the waiting is
+    almost all of it. A whole-site check that took a quarter of an hour would
+    be run once and never again.
+    """
+    findings = []
+    for i in range(0, len(rooms), BATCH):
+        batch = rooms[i:i + BATCH]
+        frames = {}
+        with ThreadPoolExecutor(max_workers=args.workers) as pool:
+            jobs = {pool.submit(fetch, r, recorders[r.recorder],
+                                args.timeout): r for r in batch}
+            for job in as_completed(jobs):
+                room = jobs[job]
+                try:
+                    frames[room.name] = job.result()
+                except Exception as e:                  # noqa: BLE001
+                    say("   %-28s could not be read (%s)" % (room.name, e))
+                    frames[room.name] = {}
+        for room in batch:
+            conf = args.conf or room.conf
+            for channel in room.channels:
+                frame = frames[room.name].get(channel)
+                if frame is None:
+                    findings.append({"room": room, "channel": channel,
+                                     "frame": None, "boxes": [],
+                                     "counted": [], "conf": conf})
+                    continue
+                zones = room.ignore.get(channel)
+                boxes = people_boxes(frame, model, conf=conf,
+                                     imgsz=args.imgsz, iou=args.iou)
+                findings.append({
+                    "room": room, "channel": channel, "frame": frame,
+                    "boxes": boxes, "conf": conf,
+                    "counted": [b for b in boxes if not ignored(b, zones)]})
+        frames.clear()
+    return findings
+
+
+def describe_finding(f, say):
+    room, channel = f["room"], f["channel"]
+    if f["frame"] is None:
+        say("   %-28s ch%-3d no frame came back" % (room.name, channel))
+        return
+    say("   %-28s ch%-3d %dx%d  %d detection(s), %d counted"
+        % (room.name, channel, f["frame"].shape[1], f["frame"].shape[0],
+           len(f["boxes"]), len(f["counted"])))
+    zones = room.ignore.get(channel)
+    for n, (x1, y1, x2, y2, score) in enumerate(f["boxes"], 1):
+        mark = "ignored" if ignored((x1, y1, x2, y2, score), zones) \
+            else ("faint  " if score < FAINT else "counted")
+        say("        %d  %s  %.2f  box %4d,%4d %4d,%4d  (%dx%d)"
+            % (n, mark, score, x1, y1, x2, y2, x2 - x1, y2 - y1))
+
+
+def paste_lines(findings, say):
+    wrong = [f for f in findings if f["counted"]]
+    if not wrong:
+        return
+    say("")
+    say("=" * 70)
+    say("If a box is NOT a person, paste one of these under that room in")
+    say("rooms.yaml, then restart the loop.")
+    say("=" * 70)
+    for f in wrong:
+        say("")
+        say("  %s, channel %d" % (f["room"].name, f["channel"]))
+        say("    # stop counting those exact spots:")
+        say("    ignore:")
+        say("      %d:" % f["channel"])
+        for x1, y1, x2, y2, score in f["counted"]:
+            say("        - [%d, %d, %d, %d]   # %.2f" % (x1, y1, x2, y2, score))
+        faintest = min(s for *_, s in f["counted"])
+        strongest = max(s for *_, s in f["counted"])
+        if faintest < FAINT:
+            say("    # or, if they are all faint and real people score higher"
+                " in this room:")
+            say("    conf: %.2f   # faintest %.2f, strongest %.2f"
+                % (min(0.6, faintest + 0.05), faintest, strongest))
+    say("")
+    say(">> A zone is the safer of the two. It is tied to one spot, so a real")
+    say(">> person in front of it is still counted; a confidence applies to")
+    say(">> the whole room, including the far corner where somebody is half")
+    say(">> hidden behind a monitor.")
+
+
 def main():
     ap = argparse.ArgumentParser(
         description=__doc__,
@@ -73,90 +172,110 @@ def main():
     ap.add_argument("--config", default="rooms.yaml")
     ap.add_argument("--room", action="append", help="repeatable")
     ap.add_argument("--recorder", action="append", help="repeatable")
+    ap.add_argument("--all", action="store_true",
+                    help="every room on every recorder")
     ap.add_argument("--conf", type=float,
-                    help="try this confidence instead of the room's own"
+                    help="try this confidence instead of each room's own"
                          " (default %.2f)" % DETECT_CONF)
     ap.add_argument("--imgsz", type=int, default=DETECT_SIZE)
     ap.add_argument("--iou", type=float, default=DETECT_IOU)
     ap.add_argument("--timeout", type=float, default=6.0)
+    ap.add_argument("--workers", type=int, default=WORKERS)
+    ap.add_argument("--per-recorder", type=int, default=4)
+    ap.add_argument("--every-camera", action="store_true",
+                    help="save a picture from every camera, not only the ones"
+                         " that saw somebody")
+    ap.add_argument("--zip", action="store_true",
+                    help="put the pictures and report.txt in one zip file")
     args = ap.parse_args()
 
-    if not args.room and not args.recorder:
-        sys.exit("name a room: python check_room.py --room \"AutoOS\"\n"
-                 "(--recorder dvr2 does a whole recorder, which is slow)")
+    if not (args.room or args.recorder or args.all):
+        sys.exit('name a room:   python check_room.py --room "AutoOS"\n'
+                 "or the lot:    python check_room.py --all --zip\n"
+                 "Run --all when the building is empty: then every detection"
+                 " is wrong by definition,\nand there is nothing to judge.")
 
     load_dotenv()
-    recorders, rooms = load_rooms(args.config, args.recorder, args.room)
+    recorders, rooms = load_rooms(args.config,
+                                  None if args.all else args.recorder,
+                                  None if args.all else args.room)
     for key in {r.recorder for r in rooms}:
         user, password = recorder_login(key, recorders[key])
         recorders[key]["user"], recorders[key]["password"] = user, password
+    set_gates(recorders, args.per_recorder)
 
     from ultralytics import YOLO
     model = YOLO("yolov8n.pt")
     os.makedirs(OUT_DIR, exist_ok=True)
 
-    advice = []
-    for room in rooms:
-        conf = args.conf or room.conf
-        print("\n>> %s  (recorder %s, channel%s %s)"
-              % (room.name, room.recorder, "" if len(room.channels) == 1
-                 else "s", ", ".join(str(c) for c in room.channels)))
-        if conf:
-            print("   using confidence %.2f" % conf)
-        frames = fetch(room, recorders[room.recorder], args.timeout)
-        for channel in room.channels:
-            frame = frames.get(channel)
-            if frame is None:
-                print("   ch%-3d no frame came back" % channel)
-                continue
-            zones = room.ignore.get(channel)
-            boxes = people_boxes(frame, model, conf=conf, imgsz=args.imgsz,
-                                 iou=args.iou)
-            counted = [b for b in boxes if not ignored(b, zones)]
-            print("   ch%-3d %dx%d  %d detection(s), %d counted"
-                  % (channel, frame.shape[1], frame.shape[0], len(boxes),
-                     len(counted)))
-            for n, (x1, y1, x2, y2, score) in enumerate(boxes, 1):
-                mark = "ignored" if ignored((x1, y1, x2, y2, score), zones) \
-                    else ("faint  " if score < FAINT else "counted")
-                print("         %d  %s  %.2f  box %4d,%4d %4d,%4d  (%dx%d)"
-                      % (n, mark, score, x1, y1, x2, y2, x2 - x1, y2 - y1))
-            path = os.path.join(OUT_DIR, "%s_ch%02d_boxes.jpg"
-                                % (room.name.replace(" ", "_"), channel))
-            cv2.imwrite(path, draw(frame, boxes, zones))
-            print("         picture: %s" % path)
+    now = datetime.now(PKT)
+    lines = []
 
-            if counted:
-                advice.append((room, channel, counted))
+    def say(text=""):
+        print(text)
+        lines.append(text)
 
-    if not advice:
-        print("\n>> nothing was counted as a person in any of those rooms.")
-        return
+    say(">> %s" % now.strftime("%A %d %B %Y, %H:%M"))
+    say(">> %s" % describe(now, None))
+    quiet = period(now, None) != WORKING
+    if args.all and not quiet:
+        say(">> NOTE: the building is inside its working hours, so some of"
+            " these will be")
+        say(">> real people. Run it again at night or at the weekend and"
+            " every detection")
+        say(">> left is a false one, with nothing to judge and far less"
+            " footage saved.")
+    say(">> %d room(s), %d camera(s)"
+        % (len(rooms), sum(len(r.channels) for r in rooms)))
+    say("")
 
-    print("\n" + "=" * 68)
-    print("If any of those boxes is NOT a person, paste one of these into")
-    print("rooms.yaml under that room, then restart the loop.")
-    print("=" * 68)
-    for room, channel, counted in advice:
-        print("\n  %s, channel %d" % (room.name, channel))
-        print("    # to stop counting those exact spots:")
-        print("    ignore:")
-        print("      %d:" % channel)
-        for x1, y1, x2, y2, score in counted:
-            print("        - [%d, %d, %d, %d]   # %.2f" % (x1, y1, x2, y2, score))
-        faintest = min(s for *_, s in counted)
-        strongest = max(s for *_, s in counted)
-        if faintest < FAINT:
-            # Only worth suggesting when it would actually change something
-            # and there is somewhere sensible to put the line.
-            print("    # or, if they are all faint and real people score"
-                  " higher here:")
-            print("    conf: %.2f   # faintest %.2f, strongest %.2f"
-                  % (min(0.6, faintest + 0.05), faintest, strongest))
-    print("\n>> A zone is the safer of the two. It is tied to one spot, so a")
-    print(">> real person in front of it is still counted; a confidence")
-    print(">> applies to the whole room, including the far corner where")
-    print(">> somebody is half hidden behind a monitor.")
+    findings = look(rooms, recorders, model, args, say)
+    for f in findings:
+        describe_finding(f, say)
+
+    saved = []
+    for f in findings:
+        if f["frame"] is None:
+            continue
+        if not f["counted"] and not args.every_camera:
+            continue
+        path = os.path.join(OUT_DIR, "%s_ch%02d_boxes.jpg"
+                            % (f["room"].name.replace(" ", "_"), f["channel"]))
+        cv2.imwrite(path, draw(f["frame"], f["boxes"],
+                               f["room"].ignore.get(f["channel"])))
+        saved.append(path)
+
+    cameras = sum(1 for f in findings if f["frame"] is not None)
+    silent = sum(1 for f in findings if f["frame"] is None)
+    counted = sum(len(f["counted"]) for f in findings)
+    say("")
+    say(">> %d camera(s) answered, %d did not, %d person(s) counted in total"
+        % (cameras, silent, counted))
+    if not args.every_camera:
+        say(">> pictures saved only for the cameras that saw somebody: %d"
+            % len(saved))
+
+    paste_lines(findings, say)
+
+    report = os.path.join(OUT_DIR, "report.txt")
+    with open(report, "w") as fh:
+        fh.write("\n".join(lines) + "\n")
+    print("\n>> %s" % report)
+
+    if args.zip:
+        name = os.path.join(OUT_DIR, "energycam_check_%s.zip"
+                            % now.strftime("%Y%m%d_%H%M"))
+        with zipfile.ZipFile(name, "w", zipfile.ZIP_DEFLATED) as z:
+            z.write(report, "report.txt")
+            for path in saved:
+                z.write(path, os.path.basename(path))
+        size = os.path.getsize(name) / 1e6
+        print(">> %s  (%d picture(s), %.1f MB)" % (name, len(saved), size))
+        print(">> These frames are NOT blurred. Open the zip and look through")
+        print(">> it before it goes anywhere; delete any picture that shows")
+        print(">> somebody who should not be in it and send the rest.")
+        print(">> report.txt carries no pictures and is often enough on its"
+              " own.")
 
 
 if __name__ == "__main__":

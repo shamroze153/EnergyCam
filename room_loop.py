@@ -410,6 +410,17 @@ def check_ac_units(units, rooms):
     return sum(1 for n in units if n in by_name)
 
 
+def set_gates(recorders, per_recorder=PER_RECORDER):
+    """Cap how many streams may be open on each recorder at once.
+
+    Each recorder gets its own. Without it, every worker could land on one
+    recorder while the other three sit idle -- both slower, and the way to
+    get a machine locked out, which happened once already.
+    """
+    for rec in recorders.values():
+        rec["gate"] = threading.Semaphore(per_recorder)
+
+
 def recorder_login(key, rec):
     user = os.getenv(rec.get("user_env", ""))
     password = os.getenv(rec.get("pass_env", ""))
@@ -696,10 +707,7 @@ def main():
                      % key)
         user, password = recorder_login(key, recorders[key])
         recorders[key]["user"], recorders[key]["password"] = user, password
-        # Each recorder gets its own limit. Without it, eight workers could
-        # all land on one recorder while the other three sit idle, which is
-        # both slower and the way to get a machine locked out.
-        recorders[key]["gate"] = threading.Semaphore(args.per_recorder)
+    set_gates(recorders, args.per_recorder)
 
     ac_units = load_units()
     calibrated = check_ac_units(ac_units, rooms)

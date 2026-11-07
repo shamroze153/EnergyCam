@@ -129,7 +129,9 @@ occupied room.
 ## Tools
 
 - `check_room.py` - draws every detection on a live frame with its confidence,
-  and prints the `rooms.yaml` lines to deal with a wrong count (see above)
+  and prints the `rooms.yaml` lines to deal with a wrong count (see above).
+  `--all --zip` does the whole site into one zip with a report.txt; run it
+  when the building is empty, and every detection left is a false one
 - `calibrate_room.py` - finds and measures the box over a unit's display from
   an "on" and an "off" frame, and writes `ac_units.yaml` (see above)
 - `ac_detect.py` - reads `ac_units.yaml` and answers on / off / unknown for a
