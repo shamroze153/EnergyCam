@@ -8,6 +8,7 @@ way to know the right answer is to look.
 So this comes in two halves, and they are separate on purpose.
 
     python tune_detect.py capture          needs the recorders
+    python tune_detect.py capture --room "Admin Room" --rounds 1 --label on
     python tune_detect.py compare          needs nothing
 
 Capture takes several frames from each room over a few minutes, while people
@@ -77,9 +78,9 @@ def capture(args):
                 if frame is None:
                     print("   %-26s ch%-3d no frame" % (room.name, channel))
                     continue
-                stamp = datetime.now(PKT).strftime("%H%M%S")
+                tag = args.label or datetime.now(PKT).strftime("%H%M%S")
                 name = "%s_ch%02d_%s.jpg" % (room.name.replace(" ", "_"),
-                                             channel, stamp)
+                                             channel, tag)
                 cv2.imwrite(os.path.join(FRAME_DIR, name), widen(frame))
                 saved += 1
                 print("   %-26s ch%-3d %s" % (room.name, channel, name))
@@ -166,6 +167,11 @@ def main():
     ap.add_argument("--recorder", action="append")
     ap.add_argument("--room", action="append")
     ap.add_argument("--rounds", type=int, default=3)
+    ap.add_argument("--label",
+                    help="name the frames instead of timestamping them, e.g."
+                         " --label on. For calibration, where which picture"
+                         " is which is the whole point and a time of day is"
+                         " a poor way to remember it.")
     ap.add_argument("--gap", type=int, default=30,
                     help="seconds between rounds (default 30)")
     ap.add_argument("--timeout", type=float, default=5.0)
