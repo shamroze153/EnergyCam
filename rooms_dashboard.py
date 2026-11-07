@@ -151,8 +151,12 @@ RANK = {"Red": 0, "Amber": 1, "Cool": 2, "Fault": 3, "Green": 4}
 # mentioning. Short enough to matter, long enough that walking in and not
 # having switched it on yet is not a fault.
 COLD_AFTER_MINUTES = 30
-ZONE_ORDER = ["Offices", "Basement", "Cafe & common", "Server rooms",
-              "Outside & plant"]
+# Inside first, outside last, and the channels that show nothing at the very
+# end. A zone not listed here still appears, sorted after these, so adding a
+# campus does not mean remembering to come back and edit this.
+ZONE_ORDER = ["Offices", "H offices", "H entrance", "Basement",
+              "Cafe & common", "H common", "Server rooms",
+              "Outside & plant", "H perimeter", "Unused"]
 
 st.set_page_config(page_title="EnergyCam", layout="wide", page_icon="🏢")
 st_autorefresh(interval=30000, key="rooms_refresh")
