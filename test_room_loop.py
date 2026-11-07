@@ -22,11 +22,13 @@ for name, module in (
         # machine with no database driver installed. Nothing here touches it.
         ("psycopg2", types.SimpleNamespace(Error=Exception, connect=None)),
         ("privacy_blur", types.SimpleNamespace(count_people=lambda *a, **k: 0,
+                                               people_boxes=lambda *a, **k: [],
                                                anonymize=lambda f, m: f)),
         ("test_camera", types.SimpleNamespace(build_url=lambda *a, **k: "",
                                               grab=lambda *a, **k: (None, "")))):
     sys.modules.setdefault(name, module)
 
+import room_loop  # noqa: E402
 from room_loop import PKT, Room  # noqa: E402
 
 T0 = datetime.datetime(2026, 11, 5, 18, 0, tzinfo=PKT)
@@ -188,6 +190,139 @@ def main():
     check("a calibrated room not in this run is ignored",
           check_ac_units({"Somewhere Else": {"recorder": "nvr1", "channel": 4}},
                          rooms), 0)
+
+    # Ignore zones. A camera that sees a person in a poster, a mannequin or a
+    # reflection reports that room occupied for ever, and the room quietly
+    # stops being watched for waste. The cure must not be worse: a real person
+    # standing in front of the same poster still has to be counted.
+    poster = [100, 100, 200, 300]
+    check("a box sitting exactly on the poster is ignored",
+          room_loop.ignored((100, 100, 200, 300, 0.4), [poster]), True)
+    check("a box well inside it is ignored",
+          room_loop.ignored((120, 140, 180, 260, 0.4), [poster]), True)
+    check("a person standing in front of it is not",
+          room_loop.ignored((90, 60, 210, 420, 0.8), [poster]), False)
+    check("somebody elsewhere in the room is not",
+          room_loop.ignored((600, 100, 700, 300, 0.9), [poster]), False)
+    check("a room with no zones ignores nothing",
+          room_loop.ignored((100, 100, 200, 300, 0.4), None), False)
+    check("a box with no area is not ignored",
+          room_loop.ignored((100, 100, 100, 100, 0.4), [poster]), False)
+    check("half in, half out is kept",
+          room_loop.ignored((100, 100, 300, 300, 0.4), [poster]), False)
+
+    # And the same rule where it actually runs.
+    seen = []
+
+    def fake_boxes(frame, model, conf=None, imgsz=None, iou=None):
+        seen.append(conf)
+        return [(100, 100, 200, 300, 0.4),      # the poster
+                (600, 100, 700, 300, 0.9)]      # a real person
+
+    real = room_loop.people_boxes
+    room_loop.people_boxes = fake_boxes
+    try:
+        r = room(channels=[10], ignore={10: [poster]})
+        people, answered, _, _, _ = room_loop.examine(
+            r, {10: "frame"}, model=None, imgsz=1280, iou=0.7)
+        check("the poster is not counted, the person is", people, 1)
+        check("and the camera still counts as having answered", answered, 1)
+
+        plain = room(channels=[10])
+        people, _, _, _, _ = room_loop.examine(
+            plain, {10: "frame"}, model=None, imgsz=1280, iou=0.7)
+        check("without a zone both are counted", people, 2)
+
+        # A room's own confidence has to reach the detector, or setting it
+        # does nothing at all and the room goes on miscounting.
+        seen[:] = []
+        strict = room(channels=[10], conf=0.55)
+        room_loop.examine(strict, {10: "frame"}, model=None, imgsz=1280,
+                          iou=0.7)
+        check("a room's own confidence reaches the detector", seen, [0.55])
+
+        seen[:] = []
+        room_loop.examine(plain, {10: "frame"}, model=None, imgsz=1280,
+                          iou=0.7)
+        check("and a room without one leaves it alone", seen, [None])
+
+        # A camera that did not answer must not be counted as having answered
+        # with nobody in it -- that is the reading that empties a room nobody
+        # looked at.
+        people, answered, _, _, _ = room_loop.examine(
+            room(channels=[10, 14]), {10: "frame", 14: None}, model=None,
+            imgsz=1280, iou=0.7)
+        check("a camera that sent nothing does not answer", answered, 1)
+    finally:
+        room_loop.people_boxes = real
+
+    # Speed, because "live" is a claim and claims get checked. Waiting on
+    # ninety-six cameras one at a time is what put the dashboard minutes
+    # behind; this is the fix, so it has to be shown to work rather than
+    # asserted in a commit message.
+    import threading
+    import time
+
+    import numpy as np
+
+    stub_frame = np.zeros((10, 10, 3), dtype=np.uint8)
+    live = {"now": 0, "most": 0}
+    guard = threading.Lock()
+
+    def slow_grab(url, **kw):
+        with guard:
+            live["now"] += 1
+            live["most"] = max(live["most"], live["now"])
+        time.sleep(0.2)
+        with guard:
+            live["now"] -= 1
+        return stub_frame, "ok"
+
+    real_grab = room_loop.grab
+    room_loop.grab = slow_grab
+    try:
+        many = [room(name="Room %d" % i, channels=[i]) for i in range(12)]
+        recs = {"dvr2": {"host": "x", "user": "u", "password": "p"}}
+
+        started = time.time()
+        one = room_loop.sweep(many, recs, None, 1280, 0.7, 5.0, None,
+                              workers=1)
+        serial = time.time() - started
+
+        started = time.time()
+        eight = room_loop.sweep(many, recs, None, 1280, 0.7, 5.0, None,
+                                workers=8)
+        parallel = time.time() - started
+
+        check("every room is read either way",
+              (len(one), len(eight)), (12, 12))
+        check("and reads the same", one, eight)
+        check("eight at a time beats one at a time by more than half"
+              " (%.1fs vs %.1fs)" % (serial, parallel),
+              parallel < serial / 2, True)
+
+        # The cap is the careful half. A recorder will only serve so many
+        # streams at once, and asking for more is how a machine starts
+        # refusing this one altogether -- which already happened once.
+        live["most"] = 0
+        capped = {"dvr2": dict(recs["dvr2"], gate=threading.Semaphore(2))}
+        room_loop.sweep(many, capped, None, 1280, 0.7, 5.0, None, workers=8)
+        check("never more than 2 streams open on a capped recorder",
+              live["most"] <= 2, True)
+
+        # A camera that throws must not take the other sixty-two with it.
+        def angry_grab(url, **kw):
+            raise RuntimeError("recorder said no")
+
+        room_loop.grab = angry_grab
+        out = room_loop.sweep(many, recs, None, 1280, 0.7, 5.0, None,
+                              workers=4)
+        check("a recorder refusing still returns every room", len(out), 12)
+        check("and each reads as nobody having answered",
+              {people for people, answered, _, _ in out.values()}
+              | {answered for _, answered, _, _ in out.values()}, {0})
+    finally:
+        room_loop.grab = real_grab
 
     print()
     if FAILURES:

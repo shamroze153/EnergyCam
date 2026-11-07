@@ -43,7 +43,10 @@ PKT = timezone(timedelta(hours=5))
 # The loop beats every five minutes. Two missed beats is a real gap rather than
 # a slow cycle, and past that nothing here should be acted on: the tiles would
 # still be sitting in their last known state, looking perfectly current.
-STALE_AFTER_MINUTES = 11
+# The loop beats once a minute, so three missed beats is something to say
+# out loud. This used to allow eleven, which was two missed beats when the
+# loop beat every five minutes -- the same judgement, at the new cadence.
+STALE_AFTER_MINUTES = 3
 
 SNAPSHOT_DIR = "snapshots"
 

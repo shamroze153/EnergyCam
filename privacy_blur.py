@@ -92,10 +92,28 @@ def count_people(frame, model, conf=None, imgsz=None, iou=None):
     lower one: it is looking for people, not phone screens, and it has tens of
     cameras to get through before any of the counts mean anything.
     """
+    return len(people_boxes(frame, model, conf, imgsz, iou))
+
+
+def people_boxes(frame, model, conf=None, imgsz=None, iou=None):
+    """The same detections, as (x1, y1, x2, y2, confidence) instead of a count.
+
+    A count tells you a room has somebody in it. It does not tell you WHERE
+    the somebody is, which is the only thing that helps when a room insists it
+    has one person in it all night: a count cannot be argued with, a box drawn
+    on the picture can. Rooms that need a false detection filtered out, and
+    check_room.py which draws them, both work from this.
+    """
     results = model(frame, classes=[PERSON], conf=conf or DETECT_CONF,
                     imgsz=imgsz or DETECT_IMGSZ, iou=iou or DETECT_IOU,
                     verbose=False)
-    return int(len(results[0].boxes))
+    boxes = results[0].boxes
+    out = []
+    for xyxy, score in zip(boxes.xyxy.tolist(), boxes.conf.tolist()):
+        x1, y1, x2, y2 = (int(round(v)) for v in xyxy)
+        out.append((x1, y1, x2, y2, float(score)))
+    return out
+
 
 
 def anonymize(frame, model, conf=None):

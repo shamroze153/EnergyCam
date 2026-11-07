@@ -94,8 +94,42 @@ whose display genuinely cannot be seen belongs in `rooms.yaml` as
 Results live in `ac_units.yaml`, one block per room, each carrying the two
 measurements its threshold came from and the date they were taken.
 
+## A room that counts people who are not there
+
+A camera that sees a person in a poster, a mannequin or a reflection reports
+that room occupied for ever. The room then never counts as empty, so it
+quietly stops being watched for waste -- which is why it is worth fixing
+rather than living with.
+
+The number alone cannot be argued with, so start by looking at what the
+detector is actually drawing a box around:
+
+```
+python check_room.py --room "AutoOS"
+```
+
+It grabs a live frame from each of the room's cameras, draws every detection
+with its confidence, saves the pictures in `frames/`, and prints the lines to
+paste into `rooms.yaml`. Open the pictures before changing anything.
+
+- A box on something that never moves -- a poster, a fire extinguisher, a
+  chair with a jacket on it -- use the `ignore:` zone it prints. The zone is
+  tied to that one spot, and a detection is only dropped when most of it sits
+  inside: a real person standing in front of the poster is bigger, reaches
+  outside the zone, and is still counted.
+- Several faint boxes on clutter, all scoring well below the real people --
+  use the `conf:` line it suggests. It applies to that room alone.
+- A box on a real person you had forgotten about -- the room is right.
+
+Prefer a zone. A confidence applies to the whole room, including the far
+corner where somebody is half hidden behind a monitor, and missing a real
+person is the error that matters: it is what sends somebody upstairs to an
+occupied room.
+
 ## Tools
 
+- `check_room.py` - draws every detection on a live frame with its confidence,
+  and prints the `rooms.yaml` lines to deal with a wrong count (see above)
 - `calibrate_room.py` - finds and measures the box over a unit's display from
   an "on" and an "off" frame, and writes `ac_units.yaml` (see above)
 - `ac_detect.py` - reads `ac_units.yaml` and answers on / off / unknown for a

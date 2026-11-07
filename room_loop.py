@@ -1,26 +1,37 @@
-"""Watch every room on every recorder, one camera at a time.
+"""Watch every room on every recorder, a frame at a time.
 
 The single-room system holds one RTSP stream open and reads it continuously.
-That does not survive being multiplied: forty-eight streams would saturate the
-recorders, the network and the laptop all at once, to answer a question that
-changes on the scale of three-quarters of an hour.
+That does not survive being multiplied: ninety-six streams would saturate the
+recorders, the network and the laptop all at once. So this goes round instead.
+Open a channel, take a frame, close it, move on. One pass over every room is
+a cycle.
 
-So this goes round instead. Open a channel, take a frame, close it, move on.
-One pass over every room is a cycle, and a cycle takes a couple of minutes.
-That is a sample every two minutes per room rather than a live view, which is
-the right resolution for "has this room been empty for forty-five minutes" and
-far kinder to the recorders the security team depends on.
+Going round does not mean going round one camera at a time, which is what it
+meant at first and what made a pass over ninety-six cameras take minutes.
+Almost all of that was waiting: a camera takes seconds to answer and costs
+nothing while it does. So the waiting is done several cameras at a time, and
+only the counting -- which uses the processor, and which one model can only do
+one of at a time -- is done in turn. A cycle is now about as long as its
+slowest recorder rather than the sum of every camera on the site, which is the
+difference between a dashboard that is live and one that is four minutes
+behind.
+
+Each recorder has its own cap on how many of its streams may be open at once.
+That half is deliberate: a recorder will only serve so many, and asking for
+too many at once is how a machine starts refusing this one altogether.
 
     python room_loop.py --once                 one pass, then stop
     python room_loop.py --recorder dvr2        just the offices
     python room_loop.py --room "Admin Room"    just one room
+    python room_loop.py --workers 4            gentler on the recorders
 
 Credentials come from .env, named by each recorder's user_env and pass_env in
-rooms.yaml. Nothing is written to the database unless --db is passed, so the
-first run against a live recorder changes nothing anywhere.
+rooms.yaml. --no-db watches and prints without recording anything, so a first
+run against a live recorder changes nothing anywhere.
 """
 import argparse
 import contextlib
+import threading
 import json
 import os
 import sys
@@ -47,7 +58,9 @@ import yaml
 from dotenv import load_dotenv
 
 from ac_detect import load_units, read_room
-from privacy_blur import anonymize, count_people
+from concurrent.futures import ThreadPoolExecutor, as_completed  # noqa: E402
+
+from privacy_blur import anonymize, people_boxes
 from schedule import describe, wait_before_reporting
 from test_camera import build_url, grab
 
@@ -71,8 +84,14 @@ SNAPSHOT_DIR = "snapshots"
 # proves nothing on its own. The beat is the only thing separating "nothing
 # changed" from "nothing was watching", and half an hour of either looking
 # identical is too long when the dashboard is meant to show whether the system
-# is up. A row is a timestamp; twelve an hour costs nothing.
-HEARTBEAT_SECONDS = 300
+# is up. A row is a timestamp, so this costs almost nothing.
+#
+# It is also what the dashboard's "live" badge counts from. At five minutes
+# the badge spent most of its life reporting a system that was working fine
+# as having last spoken four minutes ago, which reads as stale however fresh
+# the rooms underneath it are. Once a minute matches the cycle, so the badge
+# says what is actually true.
+HEARTBEAT_SECONDS = 60
 RETENTION_DAYS = 90
 RETENTION_SECONDS = 24 * 3600
 
@@ -95,6 +114,24 @@ EXIT_CONFIG = 78
 # system this grew out of ran every detection at 1280 and did not have the
 # problem. A pass takes a couple of minutes instead of one, against a question
 # measured in forty-five.
+# How many cameras may be waited on at once, and how many of those may be on
+# the same recorder. Waiting for a frame takes seconds and uses nothing, so
+# doing it one camera at a time is what made a pass over ninety-six cameras
+# take minutes. The per-recorder cap is the careful half: a recorder will only
+# serve so many streams at once, and asking for too many is how a recorder
+# starts refusing a machine altogether.
+WORKERS = 8
+PER_RECORDER = 4
+# Rooms are fetched in batches rather than all at once: every frame held is
+# several megabytes, and holding ninety-six of them buys nothing.
+BATCH = 10
+
+# How much of a detection has to sit inside an ignore zone before it counts as
+# one of the room's known false people. Not "touches it": a cardboard cutout
+# sits inside its zone entirely, while a real person standing in front of that
+# cutout is bigger and reaches outside it, and must still be counted.
+IGNORE_OVERLAP = 0.8
+
 DETECT_SIZE = 1280
 
 # Lowering this merges two boxes drawn on one person. It is the knob for an
@@ -242,6 +279,15 @@ class Room:
         self.channels = list(cfg["channels"])
         self.ac = cfg["ac"]
         self.alerts = cfg.get("alert") != "never"
+        # A room may need a stricter confidence than the rest of the building:
+        # one camera's angle, lighting or clutter can produce a person out of
+        # a coat on a chair while every other camera is fine. Raising it for
+        # the whole building to fix one room would cost real people elsewhere.
+        self.conf = cfg.get("conf")
+        # Boxes, per channel, where this camera reliably sees a person who is
+        # not there -- a poster, a mannequin, a reflection in a glass door.
+        self.ignore = {int(ch): [[int(v) for v in box] for box in boxes]
+                       for ch, boxes in (cfg.get("ignore") or {}).items()}
         self.empty_after = cfg.get("empty_after_minutes")
         self.status = "unknown"         # occupied / empty / unknown
         self.people = None
@@ -376,41 +422,125 @@ def recorder_login(key, rec):
     return user, password
 
 
-def sample(room, rec, model, imgsz, iou, timeout, ac_units=None):
-    """One frame from each of a room's cameras.
+def overlap_fraction(box, zone):
+    """How much of `box` lies inside `zone`, from 0 to 1."""
+    bx1, by1, bx2, by2 = box[:4]
+    zx1, zy1, zx2, zy2 = zone
+    width = max(0, min(bx2, zx2) - max(bx1, zx1))
+    height = max(0, min(by2, zy2) - max(by1, zy1))
+    area = (bx2 - bx1) * (by2 - by1)
+    return 0.0 if area <= 0 else (width * height) / float(area)
+
+
+def ignored(box, zones):
+    """Is this detection one of the room's known false people?
+
+    Judged by how much of the box lies inside the zone, not by whether it
+    touches it. Blanking the pixels instead would be simpler and wrong: a real
+    person who walks in front of the poster would vanish with it.
+    """
+    for zone in zones or []:
+        if overlap_fraction(box, zone) >= IGNORE_OVERLAP:
+            return True
+    return False
+
+
+def fetch(room, rec, timeout):
+    """Every one of a room's cameras, as {channel: frame or None}.
+
+    Only the waiting happens here. No detector is run, because this is called
+    from several threads at once and one model cannot be asked two things at
+    the same time.
+    """
+    frames = {}
+    want_main = rec.get("stream", "sub") == "main"
+    gate = rec.get("gate")
+    for channel in room.channels:
+        url = build_url(rec["host"], channel, rec["user"], rec["password"],
+                        want_main, rec.get("brand", "hikvision"))
+        if gate is not None:
+            gate.acquire()
+        try:
+            with muffled():
+                frame, _ = grab(url, max_seconds=timeout)
+        finally:
+            if gate is not None:
+                gate.release()
+        frames[channel] = widen(frame) if frame is not None else None
+    return frames
+
+
+def examine(room, frames, model, imgsz, iou, ac_units=None):
+    """Count the people in a room's frames and read its air conditioner.
 
     Returns the count, how many cameras answered, the frame worth keeping --
     the one with the most people in it, since a room is best shown by the
     camera that can see somebody rather than the one that happens to be first
-    -- and what the air conditioner's own display said.
+    -- and what the unit's own display said.
 
-    The air conditioner is read from one named channel, not from whichever
-    frame arrives. Its boxes are positions in a particular camera's picture,
-    so measuring them on another camera's would give a number with nothing
-    behind it.
+    The unit is read from one named channel, not from whichever frame
+    arrives. Its box is a position in one camera's picture, so measuring it
+    on another camera's would give a number with nothing behind it.
     """
     people, answered, keep = 0, 0, None
     ac_config = (ac_units or {}).get(room.name) or {}
     ac_channel = ac_config.get("channel")
     ac_state = None
     ac_detail = "not calibrated" if not ac_config else "camera did not answer"
-    want_main = rec.get("stream", "sub") == "main"
     for channel in room.channels:
-        url = build_url(rec["host"], channel, rec["user"], rec["password"],
-                        want_main, rec.get("brand", "hikvision"))
-        with muffled():
-            frame, _ = grab(url, max_seconds=timeout)
-        if frame is None:
+        wide = frames.get(channel)
+        if wide is None:
             continue
         answered += 1
-        wide = widen(frame)
         if channel == ac_channel:
             ac_state, ac_detail = read_room(wide, room.name, ac_units)
-        here = count_people(wide, model, imgsz=imgsz, iou=iou)
+        boxes = people_boxes(wide, model, conf=room.conf, imgsz=imgsz, iou=iou)
+        here = sum(1 for b in boxes if not ignored(b, room.ignore.get(channel)))
         if keep is None or here > people:
             keep = wide
         people = max(people, here)
     return people, answered, keep, ac_state, ac_detail
+
+
+def sweep(rooms, recorders, model, imgsz, iou, timeout, ac_units=None,
+          workers=WORKERS, on_frame=None):
+    """One pass over every room, waiting on many cameras at once.
+
+    This is the difference between a dashboard that is live and one that is
+    four minutes behind. Waiting for a camera costs seconds and no effort;
+    counting people costs effort and no waiting. So the waiting is done many
+    rooms at a time and the counting one room at a time, and the pass takes
+    about as long as its slowest recorder rather than the sum of every camera
+    on the site.
+
+    A kept frame is handed to on_frame and then let go, rather than collected
+    and returned: holding one per room is most of a gigabyte for no reason.
+    """
+    out = {}
+    for i in range(0, len(rooms), BATCH):
+        batch = rooms[i:i + BATCH]
+        frames = {}
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            jobs = {pool.submit(fetch, r, recorders[r.recorder], timeout): r
+                    for r in batch}
+            for job in as_completed(jobs):
+                room = jobs[job]
+                try:
+                    frames[room.name] = job.result()
+                except Exception as e:                  # noqa: BLE001
+                    # One camera misbehaving must not take the pass down with
+                    # it: the room reports nothing, which already means
+                    # "unknown", and the other sixty-two are still counted.
+                    print(">> %s: could not be read (%s)" % (room.name, e))
+                    frames[room.name] = {}
+        for room in batch:
+            people, answered, keep, ac, why = examine(
+                room, frames.get(room.name, {}), model, imgsz, iou, ac_units)
+            if on_frame is not None and keep is not None:
+                on_frame(room, keep)
+            out[room.name] = (people, answered, ac, why)
+        frames.clear()
+    return out
 
 
 def save_snapshot(room, frame, model, folder=SNAPSHOT_DIR):
@@ -538,6 +668,12 @@ def main():
                          " duplicates" % DETECT_IOU)
     ap.add_argument("--timeout", type=float, default=5.0,
                     help="seconds to wait for a frame (default 5)")
+    ap.add_argument("--workers", type=int, default=WORKERS,
+                    help="cameras waited on at once (default %d); lower this"
+                         " if a recorder starts refusing" % WORKERS)
+    ap.add_argument("--per-recorder", type=int, default=PER_RECORDER,
+                    help="of those, how many on one recorder (default %d)"
+                         % PER_RECORDER)
     ap.add_argument("--min-cycle", type=float, default=60.0,
                     help="shortest gap between cycles, seconds (default 60)")
     ap.add_argument("--state", default=STATE_FILE)
@@ -560,6 +696,10 @@ def main():
                      % key)
         user, password = recorder_login(key, recorders[key])
         recorders[key]["user"], recorders[key]["password"] = user, password
+        # Each recorder gets its own limit. Without it, eight workers could
+        # all land on one recorder while the other three sit idle, which is
+        # both slower and the way to get a machine locked out.
+        recorders[key]["gate"] = threading.Semaphore(args.per_recorder)
 
     ac_units = load_units()
     calibrated = check_ac_units(ac_units, rooms)
@@ -570,6 +710,25 @@ def main():
         print(">> no air conditioner is calibrated yet, so every unit's state"
               " stays unknown. To calibrate one:"
               " python calibrate_room.py --help")
+
+    muted = 0
+    for room in rooms:
+        for channel in room.ignore:
+            if channel not in room.channels:
+                fail_config("%s has an ignore zone on channel %d, which is not"
+                            " one of its cameras (%s). Nothing would ever be"
+                            " filtered."
+                            % (room.name, channel,
+                               ", ".join(str(c) for c in room.channels)))
+        muted += sum(len(b) for b in room.ignore.values())
+    if muted:
+        print(">> %d ignore zone(s) in place: detections that sit inside one"
+              " are known false people and are not counted" % muted)
+    strict = [r for r in rooms if r.conf]
+    if strict:
+        print(">> %d room(s) use their own confidence: %s"
+              % (len(strict), ", ".join("%s %.2f" % (r.name, r.conf)
+                                        for r in strict)))
 
     hours = yaml.safe_load(open(args.config)).get("hours")
     print(">> %s" % describe(datetime.now(PKT), hours))
@@ -593,6 +752,12 @@ def main():
     load_state(rooms, args.state, max_gap_minutes=max(10.0,
                                                       args.min_cycle / 60 * 3))
 
+    def keeper(room, frame):
+        if room.ac in ("visible", "hidden"):
+            save_snapshot(room, frame, model)
+
+    keeper = keeper if snapshots else None
+
     cycle = 0
     # Sweep on the first pass rather than a day in: a machine restarted daily
     # would otherwise never reach the interval and never delete anything.
@@ -600,16 +765,12 @@ def main():
     while True:
         cycle += 1
         started = time.time()
-        for room in rooms:
-            now = datetime.now(PKT)
-            people, answered, frame, ac, why = sample(
-                room, recorders[room.recorder], model, args.imgsz, args.iou,
-                args.timeout, ac_units)
-            room.observe(people, answered, now, ac, why)
-            if snapshots and frame is not None and room.ac in ("visible",
-                                                               "hidden"):
-                save_snapshot(room, frame, model)
+        readings = sweep(rooms, recorders, model, args.imgsz, args.iou,
+                         args.timeout, ac_units, args.workers, keeper)
         now = datetime.now(PKT)
+        for room in rooms:
+            people, answered, ac, why = readings[room.name]
+            room.observe(people, answered, now, ac, why)
         elapsed = time.time() - started
         report(rooms, now, cycle, elapsed, hours)
         save_state(rooms, args.state, now)
