@@ -126,6 +126,27 @@ corner where somebody is half hidden behind a monitor, and missing a real
 person is the error that matters: it is what sends somebody upstairs to an
 occupied room.
 
+### A room that is wrong only sometimes
+
+A zone and a confidence both need to be aimed at something you can see. A
+room that reports one person at three in the morning and is innocent by the
+time anybody looks cannot be caught that way: run `check_room.py` and the
+room is empty, the detector agrees, and the only trace is a number nobody
+can argue with.
+
+Run the loop with `--evidence` and it keeps the frame itself, boxes and
+scores drawn on, whenever somebody is counted **outside working hours**:
+
+```
+run_rooms.bat --evidence
+```
+
+By morning `evidence/` holds one picture per wrong count, named by room,
+camera and the minute. A chair at 0.31 at 2am is then an ordinary fix. It
+stays quiet during the day, because a counted person during the day is
+simply a person. These frames are not blurred and `evidence/` is in
+`.gitignore`; keep the folder on that machine.
+
 ## Tools
 
 - `check_room.py` - draws every detection on a live frame with its confidence,

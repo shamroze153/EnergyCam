@@ -15,8 +15,15 @@ import sys
 import types
 
 for name, module in (
-        ("cv2", types.SimpleNamespace(resize=lambda *a, **k: None,
-                                      INTER_LINEAR=1)),
+        # Enough of OpenCV for the state machine and the evidence catcher.
+        # imwrite really writes, because "did it save the frame" is one of
+        # the things worth checking and a stub that lies about it would let
+        # that break unnoticed.
+        ("cv2", types.SimpleNamespace(
+            resize=lambda *a, **k: None, INTER_LINEAR=1,
+            FONT_HERSHEY_SIMPLEX=0,
+            rectangle=lambda *a, **k: None, putText=lambda *a, **k: None,
+            imwrite=lambda path, img: open(path, "wb").write(b"\xff\xd8") > 0)),
         ("dotenv", types.SimpleNamespace(load_dotenv=lambda: None)),
         # Stubbed so the state machine can be checked anywhere, including on a
         # machine with no database driver installed. Nothing here touches it.
@@ -363,6 +370,44 @@ def main():
               | {answered for _, answered, _, _ in out.values()}, {0})
     finally:
         room_loop.grab = real_grab
+
+    # The evidence catcher. Its whole point is that it stays quiet while
+    # people are in the building and only speaks outside working hours, so
+    # that is the part worth checking -- a catcher that fired all day would
+    # bury the one frame that mattered under a thousand that did not.
+    import os
+    import tempfile
+
+    import numpy as np
+
+    shot = np.zeros((120, 200, 3), dtype=np.uint8)
+    room_loop.people_boxes = lambda f, m, **k: [(10, 10, 60, 100, 0.33)]
+    folder = tempfile.mkdtemp()
+    try:
+        night = datetime.datetime(2026, 11, 5, 23, 30, tzinfo=PKT)
+        got = room_loop.keep_evidence(room(channels=[10]),
+                                      {("dvr2", 10): shot}, None, 1280, 0.7,
+                                      folder, night)
+        check("a counted person at night is written down", len(got), 1)
+        check("and the file is really there",
+              os.path.exists(os.path.join(folder, got[0])), True)
+        check("named so the room and the moment are both in it",
+              got[0].startswith("Marketing_dvr2_ch10_20261105_2330"), True)
+
+        # A detection the room already knows about is not evidence of
+        # anything -- that is the zone doing its job.
+        quiet = room(channels=[10], ignore={10: [[5, 5, 70, 110]]})
+        check("a filtered detection is not written down",
+              room_loop.keep_evidence(quiet, {("dvr2", 10): shot}, None, 1280,
+                                      0.7, folder, night), [])
+
+        room_loop.people_boxes = lambda f, m, **k: []
+        check("nor is a camera that saw nobody",
+              room_loop.keep_evidence(room(channels=[10]),
+                                      {("dvr2", 10): shot}, None, 1280, 0.7,
+                                      folder, night), [])
+    finally:
+        room_loop.people_boxes = real
 
     print()
     if FAILURES:

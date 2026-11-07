@@ -31,3 +31,6 @@ review_frames/
 room_state.json
 
 snapshots/
+
+# evidence frames from --evidence (unblurred; never committed)
+evidence/

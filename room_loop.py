@@ -61,7 +61,7 @@ from ac_detect import load_units, read_room
 from concurrent.futures import ThreadPoolExecutor, as_completed  # noqa: E402
 
 from privacy_blur import anonymize, people_boxes
-from schedule import describe, wait_before_reporting
+from schedule import WORKING, describe, period, wait_before_reporting
 from test_camera import build_url, grab
 
 PKT = timezone(timedelta(hours=5))
@@ -569,8 +569,48 @@ def examine(room, frames, model, imgsz, iou, ac_units=None):
     return people, answered, keep, ac_state, ac_detail
 
 
+def keep_evidence(room, frames, model, imgsz, iou, folder, now):
+    """Write down what was counted as a person, when nobody should be there.
+
+    An intermittent false person cannot be caught by hand. By the time
+    anybody looks at the room it is empty again, the camera agrees it is
+    empty, and the only trace is a number on a page that nobody can argue
+    with. A chair that reads as a person once an hour, in one light, is
+    invisible to every check that runs when somebody is watching.
+
+    So the loop keeps the frame itself, with the boxes and scores drawn on,
+    and only outside working hours -- when a counted person is worth
+    explaining. During the day they are simply people.
+
+    These frames are NOT blurred, because the whole question they answer is
+    whether the thing in the box is a person at all. They stay on this
+    machine.
+    """
+    os.makedirs(folder, exist_ok=True)
+    written = []
+    for key in room.cameras:
+        wide = frames.get(key)
+        if wide is None:
+            continue
+        boxes = [b for b in people_boxes(wide, model, conf=room.conf,
+                                         imgsz=imgsz, iou=iou)
+                 if not ignored(b, room.ignore.get(key))]
+        if not boxes:
+            continue
+        shot = wide.copy()
+        for n, (x1, y1, x2, y2, score) in enumerate(boxes, 1):
+            cv2.rectangle(shot, (x1, y1), (x2, y2), (80, 220, 90), 2)
+            cv2.putText(shot, "%d: %.2f" % (n, score), (x1, max(14, y1 - 7)),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (80, 220, 90), 2)
+        name = "%s_%s_ch%02d_%s.jpg" % (room.name.replace(" ", "_"), key[0],
+                                        key[1], now.strftime("%Y%m%d_%H%M%S"))
+        cv2.imwrite(os.path.join(folder, name), shot)
+        written.append(name)
+    return written
+
+
 def sweep(rooms, recorders, model, imgsz, iou, timeout, ac_units=None,
-          workers=WORKERS, on_frame=None):
+          workers=WORKERS, on_frame=None, evidence=None, hours=None):
     """One pass over every room, waiting on many cameras at once.
 
     This is the difference between a dashboard that is live and one that is
@@ -605,6 +645,11 @@ def sweep(rooms, recorders, model, imgsz, iou, timeout, ac_units=None,
                 room, frames.get(room.name, {}), model, imgsz, iou, ac_units)
             if on_frame is not None and keep is not None:
                 on_frame(room, keep)
+            now = datetime.now(PKT)
+            if evidence and people and period(now, hours) != WORKING:
+                for name in keep_evidence(room, frames.get(room.name, {}),
+                                          model, imgsz, iou, evidence, now):
+                    print(">> kept %s" % name)
             out[room.name] = (people, answered, ac, why)
         frames.clear()
     return out
@@ -746,6 +791,13 @@ def main():
     ap.add_argument("--state", default=STATE_FILE)
     ap.add_argument("--no-db", action="store_true",
                     help="watch and print, but record nothing")
+    ap.add_argument("--evidence", nargs="?", const="evidence", default=None,
+                    metavar="DIR",
+                    help="outside working hours, save a frame of anyone"
+                         " counted, boxes and scores drawn on (default"
+                         " evidence/). For catching a room that reports a"
+                         " person at three in the morning. NOT blurred:"
+                         " keep the folder on this machine")
     args = ap.parse_args()
 
     load_dotenv()
@@ -829,7 +881,8 @@ def main():
         cycle += 1
         started = time.time()
         readings = sweep(rooms, recorders, model, args.imgsz, args.iou,
-                         args.timeout, ac_units, args.workers, keeper)
+                         args.timeout, ac_units, args.workers, keeper,
+                         args.evidence, hours)
         now = datetime.now(PKT)
         for room in rooms:
             people, answered, ac, why = readings[room.name]

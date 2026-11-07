@@ -2031,12 +2031,25 @@ if view == "Rooms":
                "".join(linked(status_row(row), row["room"])
                        for _, row in here.iterrows())),
             unsafe_allow_html=True)
+    # Counted, not asserted. This line used to say flatly that no unit had
+    # been calibrated, which stayed on the page after the first one was --
+    # so the page was telling the reader to disregard the very badge it had
+    # just started filling in.
+    cooled = df[df["has_unit"]]
+    known = int(cooled["ac_state"].notna().sum()) if len(cooled) else 0
+    if known == 0:
+        units = ("Every AC badge reads \u201c?\u201d because no unit has been"
+                 " calibrated yet \u2014 that is unknown, not off.")
+    elif known < len(cooled):
+        units = ("%d of %d units are calibrated and read on or off; the rest"
+                 " show \u201c?\u201d, which is unknown, not off."
+                 % (known, len(cooled)))
+    else:
+        units = "Every unit is calibrated, so each badge is a reading."
     st.caption("The bar on each row is the last %d hours: green where people"
                " were seen, grey where the room was empty, pale where nothing"
-               " was recorded. Every AC badge reads “?” because no"
-               " unit has been calibrated yet — that is unknown, not off."
-               " Rooms with no unit show a dash, because there is nothing in"
-               " them to be off." % STRIP_HOURS)
+               " was recorded. %s Rooms with no unit show a dash, because"
+               " there is nothing in them to be off." % (STRIP_HOURS, units))
 
 elif view == "One room":
     names = list(df["room"])
