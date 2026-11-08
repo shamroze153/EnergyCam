@@ -99,6 +99,27 @@ whose display genuinely cannot be seen belongs in `rooms.yaml` as
 Results live in `ac_units.yaml`, one block per room, each carrying the two
 measurements its threshold came from and the date they were taken.
 
+## Before you drive in
+
+```
+python doctor.py
+```
+
+Everything that can be checked from a desk: the files, rooms.yaml, what is
+calibrated and whether it still has an anchor, the recorder logins, the
+database and its tables, whether the loop is currently reporting, alerts,
+disk space, and how much unblurred footage is sitting in `evidence/` and
+`frames/`. It changes nothing.
+
+`--cameras` then tries each recorder, which needs the cable. It reports the
+frame size it got, and says so if a room that asked for the main stream came
+back at 640×360 — that room cannot be calibrated until the recorder serves
+one.
+
+A morning is lost the same way every time: somebody drives in, plugs the
+cable, starts the loop, and finds a password missing or a table never
+created. All of that is knowable before leaving.
+
 ## The two meters
 
 Every rupee on the dashboard rests on two guesses — 1.2 kW per unit and

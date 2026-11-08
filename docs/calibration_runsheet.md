@@ -5,6 +5,15 @@ switching and pressing Enter.
 
 ## Before you start
 
+```
+python doctor.py
+```
+
+from anywhere with internet, before you leave. It checks the logins, the
+database, the tables and what is already calibrated, and it needs no cable.
+Then, once you are plugged in, `python doctor.py --cameras` tries all four
+recorders and reports the frame size each gives.
+
 Seven rooms on nvr1 and nvr4 were being read at 640×360, which is too small
 to see a unit's display. They now ask for the main stream in rooms.yaml, so
 `pull.bat` first and check the frame size in `check_room.py` output is

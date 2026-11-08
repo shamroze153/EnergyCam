@@ -409,6 +409,32 @@ def main():
     finally:
         room_loop.people_boxes = real
 
+    # The evidence folder only grows unless something takes things out of
+    # it, and what it holds are unblurred pictures of the building.
+    # Its own folder: the one above already has a frame in it, and counting
+    # against a folder somebody else wrote to proves nothing.
+    folder = tempfile.mkdtemp()
+    old = time.time() - 40 * 86400
+    for n in range(6):
+        p = os.path.join(folder, "old_%d.jpg" % n)
+        open(p, "wb").write(b"x")
+        os.utime(p, (old, old))
+    for n in range(4):
+        open(os.path.join(folder, "new_%d.jpg" % n), "wb").write(b"x")
+    gone = room_loop.prune_evidence(folder, keep=100, days=21)
+    left = sorted(f for f in os.listdir(folder) if f.endswith(".jpg"))
+    check("everything older than three weeks goes", gone, 6)
+    check("and nothing recent does", len(left), 4)
+
+    # And a camera gone wrong, writing all night, is capped by count.
+    for n in range(30):
+        open(os.path.join(folder, "flood_%02d.jpg" % n), "wb").write(b"x")
+    room_loop.prune_evidence(folder, keep=12, days=365)
+    check("a flood is capped at the count",
+          len([f for f in os.listdir(folder) if f.endswith(".jpg")]), 12)
+    check("pruning a folder that is not there does not raise",
+          room_loop.prune_evidence(os.path.join(folder, "nope")), 0)
+
     print()
     if FAILURES:
         print("%d FAILURE(S):" % len(FAILURES))

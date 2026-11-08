@@ -14,8 +14,14 @@ RECEIVER_EMAIL = os.getenv("RECEIVER_EMAIL")
 DATABASE_URL = os.getenv("DATABASE_URL")
 DB_SSLMODE = os.getenv("DB_SSLMODE", "require")   # encrypted connection
 
-CHECK_INTERVAL_SECONDS = 1800
-MAX_SILENCE_HOURS = 2
+# The loop beats once a minute now, not once every five, and the thing it
+# is watching runs unattended overnight. Two hours of silence used to be a
+# reasonable alarm; it is now two hours of night nobody recorded, which is
+# the part of the day this whole system exists to measure. Twenty minutes is
+# late enough to ride out a restart and early enough that somebody can still
+# do something about it.
+CHECK_INTERVAL_SECONDS = 300
+MAX_SILENCE_MINUTES = 20
 PK_TZ = timezone(timedelta(hours=5), "PKT")   # display in Pakistan time
 
 
@@ -46,23 +52,58 @@ def safe_error(e):
     return type(e).__name__ + (" [%s]" % code if code else "")
 
 
-def send_alert():
-    msg = MIMEText("HFM System se pichle 2 ghante se koi heartbeat nahi aayi. System check karein — ho sakta hai band ho gaya ho.")
-    msg["Subject"] = "WARNING: HFM System Down"
+def spell(gap):
+    if gap is None:
+        return "an unknown time"
+    minutes = int(gap.total_seconds() // 60)
+    if minutes < 60:
+        return "%d minutes" % minutes
+    hours, rest = divmod(minutes, 60)
+    return "%dh" % hours if not rest else "%dh %02dm" % (hours, rest)
+
+
+def send(subject, body):
+    msg = MIMEText(body)
+    msg["Subject"] = subject
     msg["From"] = SENDER_EMAIL
     msg["To"] = RECEIVER_EMAIL
     try:
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30) as server:
             server.login(SENDER_EMAIL, APP_PASSWORD)
-            server.sendmail(SENDER_EMAIL, RECEIVER_EMAIL, msg.as_string())
-        print(">> Watchdog alert email sent.")
-    except Exception as e:
+            server.send_message(msg)
+        print(">> sent: %s" % subject)
+    except Exception as e:                                  # noqa: BLE001
         print(">> Watchdog email failed: %s" % safe_error(e))
+
+
+def send_alert(silence):
+    send("EnergyCam has stopped reporting",
+         "Nothing has been recorded for %s.\n\n"
+         "While it is down no room's state is being written, so these hours"
+         " will simply be missing from the record rather than showing as"
+         " empty. If this is overnight or a weekend, those are the hours the"
+         " system exists to measure.\n\n"
+         "Check the machine at 140-H: is it on, is it awake, is the cable in,"
+         " and is run_forever.bat still running in its window?"
+         % spell(silence))
+
+
+def send_recovery(gap):
+    send("EnergyCam is reporting again",
+         "It is back. The gap was %s, and nothing was recorded during it.\n\n"
+         "The dashboard draws nothing for those hours rather than drawing"
+         " them as empty rooms, so no figure is wrong because of this -- it"
+         " is just shorter." % spell(gap))
 
 
 def main():
     print("Watchdog chal raha hai... (Ctrl+C se rokein)")
+    print(">> checking every %d min, alarm after %d min of silence"
+          % (CHECK_INTERVAL_SECONDS // 60, MAX_SILENCE_MINUTES))
+    print(">> run this somewhere OTHER than the machine it watches. A"
+          " watchdog on the machine that died reports nothing.")
     already_alerted = False
+    went_quiet_at = None
 
     while True:
         try:
@@ -82,12 +123,20 @@ def main():
                 silence = now - last_beat
                 shown = last_beat.astimezone(PK_TZ) if last_beat.tzinfo is not None else last_beat
                 print(f">> Last heartbeat: {shown:%Y-%m-%d %H:%M:%S} PKT, silence: {str(silence).split('.')[0]}")
-                if silence > timedelta(hours=MAX_SILENCE_HOURS):
+                if silence > timedelta(minutes=MAX_SILENCE_MINUTES):
                     if not already_alerted:
-                        send_alert()
+                        went_quiet_at = last_beat
+                        send_alert(silence)
                         already_alerted = True
-                else:
+                elif already_alerted:
+                    # Saying it is back matters as much as saying it stopped.
+                    # Without this nobody knows whether the gap was ten
+                    # minutes or the whole night, and a night is the part
+                    # worth measuring.
+                    gap = now - went_quiet_at if went_quiet_at else None
+                    send_recovery(gap)
                     already_alerted = False
+                    went_quiet_at = None
             else:
                 print(">> Abhi tak koi heartbeat nahi mili.")
         except Exception as e:

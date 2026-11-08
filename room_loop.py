@@ -133,6 +133,13 @@ BATCH = 10
 # cutout is bigger and reaches outside it, and must still be counted.
 IGNORE_OVERLAP = 0.8
 
+# How much evidence to keep. Left alone the folder only grows: a room that
+# invents a person once an hour writes a few hundred pictures a month, and
+# they are not blurred. Enough to find a pattern, not enough to become an
+# archive of the building that nobody meant to keep.
+EVIDENCE_KEEP = 400
+EVIDENCE_DAYS = 21
+
 DETECT_SIZE = 1280
 
 # Lowering this merges two boxes drawn on one person. It is the knob for an
@@ -585,6 +592,42 @@ def examine(room, frames, model, imgsz, iou, ac_units=None):
     return people, answered, keep, ac_state, ac_detail
 
 
+def prune_evidence(folder, keep=EVIDENCE_KEEP, days=EVIDENCE_DAYS):
+    """Throw away the oldest, so the folder stops growing.
+
+    Two limits, because they fail differently. The age limit is the one that
+    matters: a picture of a corridor from a month ago is nobody's business
+    and answers no question anybody is still asking. The count is the
+    backstop for a camera that goes wrong and writes a picture every cycle
+    all night.
+    """
+    try:
+        names = [n for n in os.listdir(folder) if n.endswith(".jpg")]
+    except OSError:
+        return 0
+    paths = []
+    for name in names:
+        path = os.path.join(folder, name)
+        try:
+            paths.append((os.path.getmtime(path), path))
+        except OSError:
+            continue
+    paths.sort()
+    cutoff = time.time() - days * 86400
+    doomed = [p for when, p in paths if when < cutoff]
+    spare = len(paths) - len(doomed) - keep
+    if spare > 0:
+        doomed += [p for _, p in paths if p not in set(doomed)][:spare]
+    gone = 0
+    for path in doomed:
+        try:
+            os.remove(path)
+            gone += 1
+        except OSError:
+            pass
+    return gone
+
+
 def keep_evidence(room, frames, model, imgsz, iou, folder, now):
     """Write down what was counted as a person, when nobody should be there.
 
@@ -666,6 +709,10 @@ def sweep(rooms, recorders, model, imgsz, iou, timeout, ac_units=None,
                 for name in keep_evidence(room, frames.get(room.name, {}),
                                           model, imgsz, iou, evidence, now):
                     print(">> kept %s" % name)
+                gone = prune_evidence(evidence)
+                if gone:
+                    print(">> and removed %d older than %d days"
+                          % (gone, EVIDENCE_DAYS))
             out[room.name] = (people, answered, ac, why)
         frames.clear()
     return out
@@ -816,8 +863,10 @@ def main():
                     help="outside working hours, save a frame of anyone"
                          " counted, boxes and scores drawn on (default"
                          " evidence/). For catching a room that reports a"
-                         " person at three in the morning. NOT blurred:"
-                         " keep the folder on this machine")
+                         " person at three in the morning. NOT blurred, and"
+                         " kept for %d days or %d pictures, whichever comes"
+                         " first: keep the folder on this machine"
+                         % (EVIDENCE_DAYS, EVIDENCE_KEEP))
     args = ap.parse_args()
 
     load_dotenv()
