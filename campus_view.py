@@ -69,11 +69,13 @@ def switched_off_while_empty(recent, room, empty_since):
 
 
 def day_slots(recent, room, now):
-    """One mark per quarter hour from 06:00 to 22:00: 1 occupied, 0 not.
+    """One mark per quarter hour, midnight to midnight: 1 occupied, 0 not.
 
     Returns the marks, and the first and last slot anybody was seen in, which
     is what "first in, last out" means on this page. None where the loop was
-    not running, so an unwatched hour is not drawn as an empty room.
+    not running, so an unwatched hour is not drawn as an empty room -- the
+    caller is expected to hand in each room's last event from before the day
+    as well, or every quiet night reads as unwatched rather than as empty.
     """
     count = (DAY_END_HOUR - DAY_START_HOUR) * 60 // SLOT_MINUTES
     start = now.normalize() + pd.Timedelta(hours=DAY_START_HOUR)

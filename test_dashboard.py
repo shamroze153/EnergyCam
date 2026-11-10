@@ -124,6 +124,59 @@ def defined_before_use(source):
             if name in defined and defined[name] > line]
 
 
+def check_quiet_night(namespace):
+    """A room that changed nothing for days still has a night to draw.
+
+    room_events records changes, so a room empty since Friday has no row at
+    all inside the window the dashboard loads. The strip drew that as
+    unwatched -- a grey night that says "nobody looked" over the exact hours
+    this system is for. The dashboard now hands in each room's last event
+    from before the window, and these checks pin the two halves: the query
+    asks for that row, and day_slots draws an empty night from it.
+    """
+    import campus_view
+
+    source = open("rooms_dashboard.py").read()
+    check("the history query carries the state in from before the window",
+          "UNION ALL" in source and "DISTINCT ON (room) timestamp" in source)
+
+    now = pd.Timestamp("2026-11-10 14:00", tz="UTC")
+    anchor = now.normalize() - pd.Timedelta(days=3)      # before the window
+
+    # Empty since Friday, nothing since: the whole night so far is empty.
+    recent = pd.DataFrame([{"timestamp": anchor, "room": "Lobby",
+                            "status": "empty", "people": 0,
+                            "ac_state": None}])
+    slots, first, last = campus_view.day_slots(recent, "Lobby", now)
+    # 14:00 is slot 56, and the slot standing exactly at now is drawn, so
+    # 57 marks are behind us and the remaining 39 are still to happen.
+    drawn = [v for v in slots if v is not None]
+    check("a room quiet for days still draws its night", len(drawn) == 57,
+          "%d of 57 slots drawn" % len(drawn))
+    check("and draws it as empty, not as occupied", set(drawn) == {0},
+          str(set(drawn)))
+    check("nobody arrived, so there is no first seen", first is None)
+    check("the future is still left blank", slots[-1] is None)
+
+    # Occupied when the day began: drawn as occupied, but not as an arrival.
+    overnight = pd.DataFrame([{"timestamp": anchor, "room": "Data Centre",
+                               "status": "occupied", "people": 2,
+                               "ac_state": None}])
+    slots, first, last = campus_view.day_slots(overnight, "Data Centre", now)
+    check("a room occupied since before midnight is drawn occupied",
+          slots[0] == 1 and slots[40] == 1)
+    check("but midnight is not recorded as an arrival", first is None,
+          str(first))
+    check("and it still counts as last seen", last == 56, str(last))
+
+    # Without that carried-in row the night is unknown, which is the bug.
+    bare = pd.DataFrame(columns=["timestamp", "room", "status", "people",
+                                 "ac_state"])
+    slots, _, _ = campus_view.day_slots(bare, "Lobby", now)
+    check("with nothing carried in, the night is unknown rather than empty",
+          all(v is None for v in slots))
+
+
 def check_head_count(namespace):
     """How many people are in the campus, and what the figure is allowed to claim.
 
@@ -225,6 +278,7 @@ def main():
     check("every view and helper is still here", not missing,
           ", ".join(missing))
 
+    check_quiet_night(namespace)
     check_head_count(namespace)
 
     # Both palettes have to carry every key, or a theme switch dies on a

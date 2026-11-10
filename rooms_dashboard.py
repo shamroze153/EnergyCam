@@ -261,10 +261,26 @@ def load_state():
             "SELECT DISTINCT ON (room) room, status, people, empty_since,"
             " ac_state, timestamp"
             " FROM room_events ORDER BY room, timestamp DESC", conn)
+        # Only changes are written, so "no event" means "no change", not
+        # "nobody looked". A room empty since Friday has no row inside a
+        # twenty-five hour window at all, and the day strip drew its whole
+        # night as unwatched -- which is the opposite of the truth, and
+        # precisely the hours this system exists to watch. So each room also
+        # brings the last event before the window: the state it was in when
+        # the window opened. One extra row per room, and the night reads as
+        # the empty building it was.
         recent = pd.read_sql_query(
-            "SELECT timestamp, room, status, people, ac_state FROM room_events"
-            " WHERE timestamp >= now() - interval '%d hours'"
-            " ORDER BY room, timestamp" % (DETAIL_HOURS + 1), conn)
+            "(SELECT timestamp, room, status, people, ac_state"
+            "   FROM room_events"
+            "  WHERE timestamp >= now() - interval '%d hours')"
+            " UNION ALL "
+            "(SELECT DISTINCT ON (room) timestamp, room, status, people,"
+            "        ac_state"
+            "   FROM room_events"
+            "  WHERE timestamp < now() - interval '%d hours'"
+            "  ORDER BY room, timestamp DESC)"
+            " ORDER BY room, timestamp"
+            % (DETAIL_HOURS + 1, DETAIL_HOURS + 1), conn)
         beat = pd.read_sql_query(
             "SELECT max(timestamp) AS last_beat FROM heartbeat", conn)
     finally:
