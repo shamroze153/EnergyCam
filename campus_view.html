@@ -325,7 +325,8 @@ __BANNER__
       <span id="h-live-text"></span></span>
     <div class="cash">
       <div><div class="v" style="color:var(--act)" id="h-stake"></div>
-           <div class="k" id="h-stake-k"></div></div>
+           <div class="k" id="h-stake-k"></div>
+           <div class="kn" id="h-stake-note"></div></div>
       <div><div class="v" style="color:var(--ok)" id="h-saved"></div>
            <div class="k" id="h-saved-k"></div></div>
     <div><div class="v" id="h-people"></div>
@@ -910,6 +911,10 @@ $("#h-live").style.borderColor = M.healthy ? "var(--ok-line)" : "var(--act-line)
 $(".livedot").style.background = M.healthy ? "var(--ok)" : "var(--act)";
 $("#h-stake").textContent = M.stake;
 $("#h-stake-k").textContent = M.stake_label;
+// What the figure rests on. Empty hours are measured; that the units were
+// running is assumed, and for an uncalibrated unit it is only assumed. A
+// large number with no such line under it reads as a bill.
+$("#h-stake-note").textContent = M.stake_note || "upper bound, not a bill";
 $("#h-saved").textContent = M.saved;
 $("#h-saved-k").textContent = M.saved_label;
 $("#band-sub").textContent = M.when;

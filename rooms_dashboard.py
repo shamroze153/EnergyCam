@@ -873,7 +873,8 @@ def head_count(df, beat_age):
 <div style="width:1px;background:#2A3034;"></div>""" % (label, value, note)
 
 
-def money_strip(at_stake, saved, span, enough, people_html=""):
+def money_strip(at_stake, saved, span, enough, people_html="",
+                stake_note="upper bound, not a bill"):
     """Two figures, in the corner, with what each one actually is.
 
     The left is an upper bound and says so on the tile: the empty time is
@@ -896,7 +897,7 @@ def money_strip(at_stake, saved, span, enough, people_html=""):
       AT STAKE TODAY</div>
     <div style="color:#F0C98B;font-size:1.34rem;font-weight:760;
                 line-height:1.15;">Rs %s</div>
-    <div style="color:#5E6A70;font-size:.58rem;">upper bound, not a bill</div>
+    <div style="color:#5E6A70;font-size:.58rem;">%s</div>
   </div>
   <div style="width:1px;background:#2A3034;"></div>
   <div style="text-align:right;">
@@ -906,7 +907,7 @@ def money_strip(at_stake, saved, span, enough, people_html=""):
       %s</div>
     <div style="color:#5E6A70;font-size:.58rem;">%s</div>
   </div>
-</div>""" % (people_html, format(round(at_stake), ","),
+</div>""" % (people_html, format(round(at_stake), ","), stake_note,
              "#8FD48A" if enough and saved >= 0 else "#6E7B82",
              right[0], right[1])
 
@@ -2364,6 +2365,34 @@ at_stake = money(
     wasted_minutes(recent, discretionary["room"],
                    now - pd.Timedelta(hours=DETAIL_HOURS), now),
     assumptions)[1]
+
+
+def stake_caveat(rooms_in_figure):
+    """What the money figure is resting on, in one line.
+
+    The figure is empty room-hours multiplied by an assumed 1.2 kW and the
+    off-peak rate. The empty hours are measured. Everything else is not: it
+    assumes every one of these rooms had its unit running for every empty
+    minute, and for a room whose unit nobody has calibrated that is an
+    assumption, not a reading. With one unit measured out of forty-one, the
+    figure is almost entirely assumption -- which is fine for an upper bound
+    and dishonest as a headline, so the page says which it is and how far
+    the assumption reaches.
+    """
+    import campus_view
+
+    known = campus_view.calibrated_counts()
+    unread = sum(1 for r in rooms_in_figure if not known.get(r))
+    total = len(list(rooms_in_figure))
+    if not total:
+        return "nothing to count"
+    if unread:
+        return ("upper bound \u00b7 %d of %d units unread, assumed running"
+                % (unread, total))
+    return "upper bound, not a bill"
+
+
+stake_note = stake_caveat(list(discretionary["room"]))
 try:
     month = load_history()
 except psycopg2.Error:
@@ -2399,7 +2428,11 @@ if view == "Campus":
                       if beat_age is not None else "never reported"),
         "healthy": bool(healthy),
         "stake": "Rs %s" % format(round(at_stake), ","),
-        "stake_label": "at stake tonight",
+        # "tonight" was wrong as well as unqualified: the window is the last
+        # twenty-four hours, which at three in the afternoon is mostly
+        # yesterday.
+        "stake_label": "at stake, last 24 hours",
+        "stake_note": stake_note,
         "saved": ("Rs %s" % format(abs(round(saved)), ",")) if enough
                  else "\u2014",
         "saved_label": ("switched off, against the first fortnight" if enough
@@ -2436,7 +2469,8 @@ if view == "Campus":
 
 st.markdown(header_band(campus, df, beat_age, describe(now, hours),
                         money_strip(at_stake, saved, span, enough,
-                                    head_count(df, beat_age))),
+                                    head_count(df, beat_age),
+                                    stake_note.replace("\u00b7", "&#183;"))),
             unsafe_allow_html=True)
 
 # ---- always on screen: the job -------------------------------------------

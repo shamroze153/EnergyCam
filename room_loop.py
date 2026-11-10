@@ -217,10 +217,19 @@ def muffled():
     sys.stderr by the time they appear. So the descriptor itself is pointed at
     nowhere and put back afterwards.
 
-    Deliberately wrapped around the capture alone, and not the whole cycle. A
+    Deliberately wrapped around the grab alone, and not the whole cycle. A
     Python traceback also goes to stderr, and a loop that hides its own crash
     while continuing to print neat cycle reports would be far worse than a
     noisy one.
+
+    ONE THREAD ONLY. This swaps a file descriptor belonging to the whole
+    process, so two overlapping calls interleave into leaving stderr pointed
+    at nowhere permanently, or into closing a descriptor the other is still
+    holding -- after which the interpreter cannot flush its own output and
+    dies at shutdown with code 120, which looks like anything but this. It
+    was for a while called from fetch(), which runs eight at a time. The
+    caller now wraps the whole parallel grab instead, from one thread, and
+    collects what wants printing until the descriptor is back.
     """
     sys.stderr.flush()
     saved = os.dup(2)
@@ -318,7 +327,17 @@ def beat():
         return False
 
 
-def sweep():
+def prune_old_rows():
+    """Delete room_events older than the retention window.
+
+    Named for what it does, because it used to be called sweep() -- and so
+    did the pass over the cameras, defined four hundred lines further down.
+    Python keeps the last definition, so `sweep()` here reached the camera
+    pass with none of its eleven arguments and raised a TypeError on the
+    first cycle of every single run, which is what had been stopping the
+    loop all along. Two functions, one name, and the one that loses is the
+    one defined first.
+    """
     try:
         conn = connect()
         try:
@@ -611,8 +630,12 @@ def fetch(room, recorders, timeout):
         if gate is not None:
             gate.acquire()
         try:
-            with muffled():
-                frame, _ = grab(url, max_seconds=timeout)
+            # No muffled() here. It swaps file descriptor 2 for the whole
+            # process, and this function runs in eight threads at once: two
+            # threads overlapping would leave stderr pointed at nowhere for
+            # good, or close a descriptor the other still held. The caller
+            # muffles once, around the whole grab, from one thread.
+            frame, _ = grab(url, max_seconds=timeout)
         finally:
             if gate is not None:
                 gate.release()
@@ -747,19 +770,28 @@ def sweep(rooms, recorders, model, imgsz, iou, timeout, ac_units=None,
     for i in range(0, len(rooms), BATCH):
         batch = rooms[i:i + BATCH]
         frames = {}
-        with ThreadPoolExecutor(max_workers=workers) as pool:
-            jobs = {pool.submit(fetch, r, recorders, timeout): r
-                    for r in batch}
-            for job in as_completed(jobs):
-                room = jobs[job]
-                try:
-                    frames[room.name] = job.result()
-                except Exception as e:                  # noqa: BLE001
-                    # One camera misbehaving must not take the pass down with
-                    # it: the room reports nothing, which already means
-                    # "unknown", and the other sixty-two are still counted.
-                    print(">> %s: could not be read (%s)" % (room.name, e))
-                    frames[room.name] = {}
+        failures = []
+        # Muffle once, here, around the whole grab -- not inside fetch(),
+        # which runs in several threads and would race itself into leaving
+        # stderr permanently pointed at nowhere. Nothing inside this block
+        # is meant to print; what wants saying is collected and said after
+        # the descriptor is back.
+        with muffled():
+            with ThreadPoolExecutor(max_workers=workers) as pool:
+                jobs = {pool.submit(fetch, r, recorders, timeout): r
+                        for r in batch}
+                for job in as_completed(jobs):
+                    room = jobs[job]
+                    try:
+                        frames[room.name] = job.result()
+                    except Exception as e:              # noqa: BLE001
+                        # One camera misbehaving must not take the pass down
+                        # with it: the room reports nothing, which already
+                        # means "unknown", and the rest are still counted.
+                        failures.append((room.name, e))
+                        frames[room.name] = {}
+        for name, e in failures:
+            print(">> %s: could not be read (%s)" % (name, e))
         for room in batch:
             people, answered, keep, ac, why = examine(
                 room, frames.get(room.name, {}), model, imgsz, iou, ac_units)
@@ -1068,7 +1100,8 @@ def main():
                         print(">> recorded %d change(s)" % len(changed))
                 if time.time() - last_beat >= HEARTBEAT_SECONDS and beat():
                     last_beat = time.time()
-                if time.time() - last_sweep >= RETENTION_SECONDS and sweep():
+                if (time.time() - last_sweep >= RETENTION_SECONDS
+                        and prune_old_rows()):
                     last_sweep = time.time()
 
             worth = alerter.consider(rooms, now, hours)

@@ -94,6 +94,36 @@ def check_stays_up():
     check("the sleep timer is handed back on the way out",
           "stay_awake(False)" in source.split('__main__')[-1], True)
 
+    # Two functions called sweep() -- the camera pass and the retention
+    # delete -- and Python keeps the last one. The retention call therefore
+    # reached the camera pass with none of its arguments and raised a
+    # TypeError on the first cycle of every run. That was what had been
+    # stopping the loop. Names are checked, not behaviour, because the
+    # behaviour was perfectly fine in isolation; it was the collision that
+    # did it, and a collision is invisible to any test of either half.
+    names = [line.split("(")[0][4:] for line in source.splitlines()
+             if line.startswith("def ")]
+    check("no two top-level functions share a name",
+          len(names), len(set(names)))
+    check("the retention delete still exists under its own name",
+          callable(getattr(room_loop, "prune_old_rows", None)), True)
+
+    # muffled() swaps file descriptor 2 for the whole process. fetch() runs
+    # in eight threads, so calling it there raced stderr into /dev/null for
+    # good and took the interpreter's own shutdown with it.
+    fetch_src = source.split("def fetch(")[1].split("\ndef ")[0]
+    # The call, not the word: fetch() carries a comment saying why muffled()
+    # must not be used there, and a check that cannot tell the two apart
+    # would go green the moment somebody deleted the comment.
+    check("the grab does not muffle from inside a worker thread",
+          "with muffled():" in fetch_src, False)
+    sweep_src = source.split("\ndef sweep(")[1].split("\ndef ")[0]
+    check("the camera pass muffles once, around the whole grab",
+          "with muffled():" in sweep_src, True)
+    check("and failures are printed after the descriptor is back",
+          sweep_src.index("with muffled():")
+          < sweep_src.index("could not be read"), True)
+
 def main():
     # Seeing a person settles it. One camera is enough to prove occupancy.
     r = room()
