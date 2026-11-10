@@ -54,10 +54,29 @@ secrets box, which is not the repository.
    DASHBOARD_PASSWORD = "something long, not the office WiFi password"
    ```
 
+   Those are the **shapes**, not the values. Copy the real
+   `DASHBOARD_DATABASE_URL` out of `.env` on the office machine and paste
+   that. A string still containing `...` is the example, and the page will
+   say so rather than leaving you to guess.
+
    `energycam_dashboard`, never `energycam_app`. The camera machine's
    credential cannot read room data by design — that is the point of the
    split, and the answer to a permission error here is the second
    credential, never a wider grant on the first.
+
+   Pick the password rather than reusing one. It is the only thing between
+   a public address and a record of when each person came and went, and
+   company-name-plus-digits is the first guess anybody makes. If it has
+   ever been typed where somebody could see it — a screenshot, a chat, a
+   shared screen — it is spent; change it.
+
+   **If it says the database is unreachable even with the real string**,
+   and this is a hosted deploy: Supabase's direct host (`db.<ref>.supabase.co`)
+   answers on IPv6, and most hosts only speak IPv4. It fails in exactly the
+   way a wrong password does. Take the **Session pooler** string from
+   Supabase → Project Settings → Database instead; it is the same database
+   over IPv4. Keep the `energycam_dashboard` role — through the pooler its
+   user name carries the project reference, as that page shows it.
 
 4. Deploy. It installs `requirements.txt`, which is the cloud set — no
    OpenCV, no YOLO, because the page counts nobody.

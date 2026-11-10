@@ -179,6 +179,40 @@ def check_requirements():
           ", ".join(heavy))
 
 
+def check_connection_hint(namespace):
+    """The unreachable message has to point somewhere, without leaking.
+
+    "Database unreachable" on its own sends somebody hunting through
+    firewall rules, when the cause is nearly always one of two things that
+    can be seen from the string itself. Neither hint may print any part of
+    the credential: this page gets photographed.
+    """
+    hint = namespace["connection_hint"]
+
+    nothing = hint("")
+    check("with no connection string at all, it says so", "No connection"
+          in nothing)
+
+    example = hint("postgresql://energycam_dashboard:...@...supabase.com"
+                   ":5432/postgres")
+    check("an unfilled example is named as an unfilled example",
+          "`...`" in example and ".env" in example)
+
+    direct = hint("postgresql://energycam_dashboard:realpw@db.abcdefgh"
+                  ".supabase.co:5432/postgres")
+    check("a direct Supabase host warns about IPv6 when hosted",
+          "pooler" in direct and "IPv6" in direct)
+
+    pooled = hint("postgresql://energycam_dashboard.abcdefgh:realpw@"
+                  "aws-0-ap-south-1.pooler.supabase.com:5432/postgres")
+    check("a pooler string is left alone", pooled == "")
+
+    # Nothing it returns may carry the credential it was handed.
+    for text in (example, direct, pooled, nothing):
+        check("the hint never repeats the connection string",
+              "realpw" not in text and "abcdefgh" not in text)
+
+
 def check_guard(namespace):
     """The door that has to exist before this page leaves the office WiFi.
 
@@ -451,6 +485,7 @@ def main():
           ", ".join(missing))
 
     check_requirements()
+    check_connection_hint(namespace)
     check_guard(namespace)
     check_quiet_night(namespace)
     check_head_count(namespace)

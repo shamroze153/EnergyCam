@@ -197,6 +197,41 @@ USING_APP_CREDENTIAL = not _setting("DASHBOARD_DATABASE_URL")
 DB_SSLMODE = _setting("DB_SSLMODE") or "require"
 
 
+def connection_hint(url):
+    """Why this probably failed, without printing the credential.
+
+    The message on its own is correct and useless: it withholds the
+    driver's text because that text carries the host, the user and the
+    database name, and this page gets photographed. But "unreachable" sends
+    somebody hunting through firewall rules when the actual cause is
+    usually one of two things, and both are visible from here without
+    revealing anything.
+
+    The first is a connection string that was never filled in -- the
+    example from the documentation pasted whole, dots and all. The second
+    only happens when hosted: Supabase's direct host answers on IPv6, and a
+    host that is IPv4-only cannot reach it however correct the password is.
+    The pooler address is the same database over IPv4.
+    """
+    if not url:
+        return ("\n\nNo connection string is set at all. On this machine that"
+                " is DASHBOARD_DATABASE_URL in .env; when hosted it goes in"
+                " the host's secrets, never in the repository.")
+    if "..." in url:
+        return ("\n\nThe connection string still has `...` in it, so it is"
+                " the example from the documentation rather than the real"
+                " one. Copy the DASHBOARD_DATABASE_URL line out of .env on"
+                " the office machine and paste that value instead.")
+    if ".supabase.co" in url and "pooler" not in url:
+        return ("\n\nIf this page is hosted rather than on the office"
+                " machine: Supabase's direct host answers on IPv6 and most"
+                " hosts only speak IPv4, which fails exactly like a wrong"
+                " password. Use the Session pooler string from Supabase ->"
+                " Project Settings -> Database instead, keeping the"
+                " energycam_dashboard role.")
+    return ""
+
+
 def guard():
     """Ask for the shared word before any of this is drawn.
 
@@ -2282,7 +2317,8 @@ except psycopg2.Error as e:
             " widen the camera machine's grants to make this page work.")
     else:
         st.error("Database unreachable (%s). The driver's message is withheld"
-                 " because it contains connection details." % type(e).__name__)
+                 " because it contains connection details.%s"
+                 % (type(e).__name__, connection_hint(DATABASE_URL)))
     st.stop()
 
 now = pd.Timestamp.now(tz="UTC")
