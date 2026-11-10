@@ -378,6 +378,15 @@ def main():
     if faults:
         print("\n%d room(s) to look at: %s" % (len(faults),
                                                ", ".join(faults)))
+        print("Before walking anywhere: this opens streams on the same"
+              " recorders")
+        print("the loop is using, which slows the loop down -- so a single")
+        print("MISSED on a whole-building run can be the loop a cycle"
+              " behind,")
+        print("partly because of this. Confirm it on its own first:")
+        print('    python verify_live.py --room "%s" --rounds 3'
+              % faults[0])
+        print("That is what Old Finance Room turned out to be.")
         print("Open their pictures in %s. If the people are in the frame"
               % VERIFY_DIR)
         print("with no box on them, the detector needs help"

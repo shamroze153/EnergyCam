@@ -153,6 +153,26 @@ A count that differs by one or two is usually neither: the database holds
 the last cycle, which can be a couple of minutes old, and people move. The
 age of each reading is printed so that can be judged.
 
+**Confirm a fault on its own before walking anywhere.** This opens streams
+on the same recorders the loop is using, which slows the loop down -- so a
+single MISSED on a whole-building run can be the loop one cycle behind,
+partly because of this tool. Re-run it on that room alone:
+
+```
+python verify_live.py --room "Old Finance Room" --rounds 3
+```
+
+That is exactly what Old Finance Room was, on 10 Nov: three people at 0.78,
+0.72 and 0.28 against a page that said empty, and a MATCH the moment it was
+asked on its own.
+
+**The baseline, 10 Nov 2026, 18:26, 61 rooms:** 0 GHOST, 0 confirmed
+MISSED, 46 MATCH, 10 FOLLOWING, 2 DRIFT, 1 PASSING. No poster, coat, screen
+or reflection is being counted as a person anywhere in the building --
+which is the finding that matters most, because a ghost is what puts money
+against a room nobody used. Anything much worse than this later means
+something changed.
+
 When a MISSED turns up, open its picture and ask one question:
 
 - the people **are** in the frame, with no box on them → the detector needs
