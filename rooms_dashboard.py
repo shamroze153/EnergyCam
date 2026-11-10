@@ -24,6 +24,7 @@ work here by design: it is granted the timestamp column and nothing more.
 """
 import os
 import time
+import warnings
 from datetime import timedelta, timezone
 from urllib.parse import quote
 
@@ -31,6 +32,14 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 import psycopg2
+
+# pandas prefers SQLAlchemy and says so once per query. Four lines every time
+# the page refreshes is how a real message gets missed, and the connection
+# works: these are plain SELECTs against psycopg2, which is what the loop
+# uses too.
+warnings.filterwarnings(
+    "ignore", message="pandas only supports SQLAlchemy connectable",
+    category=UserWarning)
 import streamlit as st
 import yaml
 from streamlit_autorefresh import st_autorefresh
@@ -2161,8 +2170,15 @@ if view == "Campus":
         "when": "%s \u00b7 %s" % (now.tz_convert(PKT).strftime("%A %H:%M"),
                                   describe(now, hours)),
     }
-    components.html(campus_view.page(rows, meta),
-                    height=campus_view.height(rows), scrolling=True)
+    html = campus_view.page(rows, meta)
+    tall = campus_view.height(rows)
+    # st.components.v1.html is past the date it was due to be removed and
+    # warns on every rerun, which buries anything real in the console. st.iframe
+    # replaces it, but not every Streamlit this might run on has it yet.
+    if hasattr(st, "iframe"):
+        st.iframe(html, height=tall, scrolling=True)
+    else:
+        components.html(html, height=tall, scrolling=True)
 
 elif view == "Rooms":
     st.markdown(

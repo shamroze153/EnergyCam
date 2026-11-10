@@ -235,7 +235,7 @@ def check_cameras(cfg):
     section("Recorders")
     from dotenv import load_dotenv
     load_dotenv()
-    from room_loop import load_rooms, recorder_login
+    from room_loop import load_rooms, recorder_login, widen
     from test_camera import build_url, grab
     recorders, rooms = load_rooms("rooms.yaml")
     seen = {}
@@ -257,13 +257,21 @@ def check_cameras(cfg):
             bad("%s (%s) did not answer: %s" % (key, rec["host"], why),
                 "Is the cable in, and is this machine on that network?")
         else:
-            ok("%s (%s)" % (key, rec["host"]),
-               "%dx%d from channel %d" % (frame.shape[1], frame.shape[0],
-                                          channel))
-            if frame.shape[1] < 1000 and room.stream == "main":
-                warn("  %s asked for main and got %dx%d"
-                     % (room.name, frame.shape[1], frame.shape[0]),
-                     "a unit's display cannot be read at that size")
+            # What the loop will actually work on. dvr2 and xvr3 send
+            # 960x1080 anamorphic, which is widened to 1920x1080 before
+            # anything looks at it; judging the raw size would condemn the
+            # two recorders that are fine.
+            wide = widen(frame)
+            note = "%dx%d from channel %d" % (wide.shape[1], wide.shape[0],
+                                              channel)
+            if wide.shape[:2] != frame.shape[:2]:
+                note += " (sent %dx%d, widened)" % (frame.shape[1],
+                                                    frame.shape[0])
+            ok("%s (%s)" % (key, rec["host"]), note)
+            if wide.shape[1] < 1000:
+                warn("  %s is only %d wide" % (room.name, wide.shape[1]),
+                     "a unit's display cannot be read at that size;"
+                     " this room needs stream: main in rooms.yaml")
 
 
 def main():
