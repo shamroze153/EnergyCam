@@ -93,6 +93,15 @@ SNAPSHOT_DIR = "snapshots"
 # as having last spoken four minutes ago, which reads as stale however fresh
 # the rooms underneath it are. Once a minute matches the cycle, so the badge
 # says what is actually true.
+# How many passes in a row must see nobody before a room is called empty.
+#
+# One is not enough. A seated person at the edge of what the detector can
+# manage is found in some frames and not others -- measured at Admin Room,
+# roughly half -- so a single blank frame flips an occupied room to empty
+# and back again on the next pass. Two passes, about five minutes apart in
+# practice, against a waste threshold measured in forty-fives.
+CONFIRM_EMPTY = 2
+
 HEARTBEAT_SECONDS = 60
 RETENTION_DAYS = 90
 RETENTION_SECONDS = 24 * 3600
@@ -425,6 +434,10 @@ class Room:
         self.ac_state = None            # on / off / None when unmeasured
         self.ac_detail = "not calibrated"
         self.recorded = None            # what the database last heard
+        self.blank = 0                  # passes in a row with nobody seen
+        self.first_blank = None         # when that run of passes began
+        self.was_occupied = False       # somebody was seen, and not yet
+                                        # disproved by CONFIRM_EMPTY passes
 
     def camera_key(self, spec):
         """Turn 16 or "xvr3:16" into the (recorder, channel) pair it means."""
@@ -459,21 +472,72 @@ class Room:
         total = len(self.cameras)
         if answered == 0:
             self.status, self.people, self.empty_since = "unknown", None, None
+            # The hold is not reset here. A pass that saw nothing because
+            # no camera answered is not evidence that the room is empty,
+            # and it is not evidence that it is occupied either: it says
+            # nothing, so it changes nothing about what is being counted.
+            # Resetting would let a camera blinking once undo a hold and
+            # empty a room somebody is sitting in.
+            #
+            # The clock is a different matter. It may not be backdated
+            # across a stretch nobody could see, so the run it would be
+            # dated from ends here and the next full pass starts a new one.
+            self.first_blank = None
             self.detail = "no camera answered"
             return
         if people > 0:
             self.status, self.people, self.empty_since = "occupied", people, None
+            # first_blank too, or the next spell of emptiness is dated
+            # from the one before it: the room then looks as though it has
+            # been empty for hours, the alerter reads it as the same
+            # episode it has already mentioned, and says nothing at all.
+            self.blank, self.first_blank, self.was_occupied = 0, None, True
             self.detail = "%d %s" % (people, "person" if people == 1 else "people")
             return
         if answered < total:
             # Nobody in the frames that came back, but the room has not been
             # looked at in full, so the empty clock does not start or continue.
             self.status, self.people, self.empty_since = "unknown", 0, None
+            self.first_blank = None     # see above: no backdating over a gap
             self.detail = "%d of %d cameras answered" % (answered, total)
             return
+
+        # Every camera looked and nobody was in any of them. That is still
+        # not proof on its own.
+        #
+        # Watched live, Admin Room scored a seated person at 0.40, 0.46,
+        # 0.53, 0.31, 0.54 -- and nothing at all on four frames in between,
+        # over ninety seconds, while he sat still. The detector finds that
+        # person in roughly half the frames. Sampling once a cycle, the
+        # room then flips between occupied and empty every few minutes: the
+        # live view is wrong half the time, and first-seen and last-seen
+        # become the first and last coin toss rather than the first and
+        # last person.
+        #
+        # So the asymmetry above is extended one step. Seeing somebody once
+        # proves the room is occupied. Seeing nobody once does not prove it
+        # is empty; it takes CONFIRM_EMPTY consecutive passes with every
+        # camera answering. A room that is genuinely empty reaches that in
+        # a few minutes, against a threshold measured in forty-fives.
+        #
+        # The clock is backdated to the first of those passes, so nothing
+        # is lost: a room empty since six o'clock is still empty since six
+        # o'clock, it is simply not announced until the second pass agrees.
+        self.blank += 1
+        if self.first_blank is None:
+            self.first_blank = now
+        # was_occupied, not status == "occupied": a camera dropping out for
+        # one pass turns the status to unknown, and keying the hold off the
+        # status would let that blink end the hold and empty a room with
+        # somebody sitting in it.
+        if self.blank < CONFIRM_EMPTY and self.was_occupied:
+            self.status, self.people = "occupied", self.people or 1
+            self.detail = ("nobody seen, %d of %d passes \u2014 holding"
+                           % (self.blank, CONFIRM_EMPTY))
+            return
         if self.status != "empty" or self.empty_since is None:
-            self.empty_since = now
-        self.status, self.people = "empty", 0
+            self.empty_since = self.first_blank or now
+        self.status, self.people, self.was_occupied = "empty", 0, False
         self.detail = "%d min" % int(self.empty_minutes(now))
 
     def empty_minutes(self, now):

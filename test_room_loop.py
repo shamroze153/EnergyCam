@@ -63,6 +63,98 @@ def check(label, got, want):
 
 # ---------------------------------------------------------------- staying up
 
+def check_flicker(check, room, T0):
+    """A detector that finds somebody in half the frames must not flip a room.
+
+    Watched live, Admin Room scored a seated person at 0.40, 0.46, 0.53,
+    0.31 and 0.54, with nothing at all on four frames in between, over
+    ninety seconds, while he sat still. One blank frame used to be enough
+    to call the room empty, so the room flipped every few minutes: the
+    live view wrong half the time, and first-seen and last-seen reduced to
+    the first and last coin toss.
+    """
+    import datetime as dt
+
+    def later(minutes):
+        return T0 + dt.timedelta(minutes=minutes)
+
+    # Seen, then one blank pass: still occupied, and saying why.
+    r = room()
+    r.observe(people=1, answered=2, now=T0)
+    r.observe(people=0, answered=2, now=later(2))
+    check("one blank pass does not empty an occupied room", r.status,
+          "occupied")
+    check("and the room says it is holding", "holding" in r.detail, True)
+    check("no empty clock has started", r.empty_since, None)
+
+    # A second blank confirms it.
+    r.observe(people=0, answered=2, now=later(4))
+    check("a second blank pass does", r.status, "empty")
+
+    # ...and the clock is backdated to the first blank, so nothing is lost.
+    check("the empty clock runs from the first blank, not the second",
+          r.empty_since, later(2))
+    check("so the room is already 2 minutes empty, not 0",
+          round(r.empty_minutes(later(4))), 2)
+
+    # Somebody reappearing in between resets it: this is the flicker.
+    r = room()
+    r.observe(people=1, answered=2, now=T0)
+    for minute in (2, 6, 10):
+        r.observe(people=0, answered=2, now=later(minute))
+        check("blank at %d min holds" % minute, r.status, "occupied")
+        r.observe(people=1, answered=2, now=later(minute + 2))
+        check("and the person at %d min keeps it occupied" % (minute + 2),
+              r.status, "occupied")
+    check("ninety seconds of flicker never calls the room empty",
+          r.empty_since, None)
+
+    # Somebody being seen must also end the previous run of blanks. Leaving
+    # it in place dates the next spell of emptiness from the one before it:
+    # the room reads as empty for hours, the alerter takes it for the same
+    # episode it has already mentioned, and nobody is ever told.
+    r = room()
+    r.observe(people=0, answered=2, now=T0)
+    check("empty from the start", r.empty_since, T0)
+    r.observe(people=2, answered=2, now=later(60))
+    r.observe(people=0, answered=2, now=later(62))
+    r.observe(people=0, answered=2, now=later(64))
+    check("the new empty spell is dated from after they left",
+          r.empty_since, later(62))
+    check("not from the spell before it",
+          r.empty_minutes(later(64)), 2.0)
+
+    # A room that really is empty still gets there, and promptly.
+    r = room()
+    r.observe(people=0, answered=2, now=T0)
+    check("a room not previously occupied is empty at once", r.status,
+          "empty")
+    check("and dated from that first pass", r.empty_since, T0)
+
+    # A camera dropping out mid-hold says nothing either way. It must not
+    # count towards empty, and it must not undo the hold -- a camera
+    # blinking once would otherwise empty a room somebody is sitting in.
+    r = room()
+    r.observe(people=1, answered=2, now=T0)
+    r.observe(people=0, answered=1, now=later(2))
+    check("a half-answered pass is unknown", r.status, "unknown")
+    r.observe(people=0, answered=2, now=later(4))
+    check("and it did not count as a blank, so one blank still holds",
+          r.status, "occupied")
+    r.observe(people=0, answered=2, now=later(6))
+    check("the second real blank empties it", r.status, "empty")
+
+    # The same, with no camera answering at all.
+    r = room()
+    r.observe(people=1, answered=2, now=T0)
+    r.observe(people=0, answered=2, now=later(2))
+    r.observe(people=0, answered=0, now=later(4))
+    check("no camera answering reads as unknown", r.status, "unknown")
+    r.observe(people=0, answered=2, now=later(6))
+    check("and the hold survived it, so this is the second blank",
+          r.status, "empty")
+
+
 def check_stays_up():
     """The loop must survive the night, not just start it.
 
@@ -355,7 +447,11 @@ def main():
         check("one of two recorders answering cannot prove it empty",
               lobby.status, "unknown")
         lobby.observe(0, 2, T0)
-        check("both answering can", lobby.status, "empty")
+        check("both answering holds once, because one blank frame is not"
+              " proof", lobby.status, "occupied")
+        lobby.observe(0, 2, T0)
+        check("and a second blank pass with both answering does prove it",
+              lobby.status, "empty")
 
         # An ignore zone on a shared room has to say which recorder.
         split = Room(dict(name="Split", ac="none",
@@ -499,6 +595,7 @@ def main():
     check("pruning a folder that is not there does not raise",
           room_loop.prune_evidence(os.path.join(folder, "nope")), 0)
 
+    check_flicker(check, room, T0)
     check_stays_up()
 
     print()
