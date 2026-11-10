@@ -76,6 +76,26 @@ def main():
     check("an occupied row with no count still compares",
           verify_live.verdict(0, 1, 1, page("occupied", None))[0], "GHOST")
 
+    # fetch() reads rec["user"] and rec["password"], which rooms.yaml does
+    # not contain -- the logins are in .env and have to be attached first.
+    # Missing that is not a wrong answer, it is a KeyError on the first
+    # room, after the header has printed. The loop and check_room.py both
+    # do it; so must anything else that calls fetch.
+    source = open("verify_live.py", encoding="utf-8").read()
+    check("the recorders are given their logins before any stream opens",
+          "recorder_login(key, recorders[key])" in source, True)
+    check("and .env is loaded first", "load_dotenv()" in source, True)
+    check("the streams per recorder are capped", "set_gates(" in source,
+          True)
+    check("logins are attached before the first fetch",
+          source.index("recorder_login") < source.index("latest_state(rooms)"),
+          True)
+
+    # Every recorder any room has a camera on, not just each room's own:
+    # a room can be watched across two, and the second would have no login.
+    check("every recorder a camera sits on is covered",
+          "for rec, _ in room.cameras" in source, True)
+
     print()
     if FAILURES:
         print("%d FAILURE(S):" % len(FAILURES))

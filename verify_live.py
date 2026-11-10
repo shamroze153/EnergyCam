@@ -46,7 +46,8 @@ import psycopg2
 from dotenv import load_dotenv
 
 from check_room import OUT_DIR, draw
-from room_loop import (DETECT_IOU, DETECT_SIZE, fetch, ignored, load_rooms)
+from room_loop import (DETECT_IOU, DETECT_SIZE, fetch, ignored, load_rooms,
+                       recorder_login, set_gates)
 from privacy_blur import people_boxes
 from schedule import PKT
 
@@ -137,6 +138,10 @@ def main():
     ap.add_argument("--room", action="append")
     ap.add_argument("--zone")
     ap.add_argument("--timeout", type=float, default=8.0)
+    ap.add_argument("--per-recorder", type=int, default=2,
+                    help="streams open at once on one recorder (default 2,"
+                         " lower than the loop's because the loop is"
+                         " probably running too)")
     ap.add_argument("--pictures", choices=["disagreements", "all", "none"],
                     default="disagreements",
                     help="which rooms to write a picture for. The default"
@@ -144,11 +149,28 @@ def main():
                          " no photograph of the people in it.")
     args = ap.parse_args()
 
+    load_dotenv()
     recorders, rooms = load_rooms(args.config, None, args.room)
     if args.zone:
         rooms = [r for r in rooms if r.zone == args.zone]
     if not rooms:
         sys.exit("no rooms matched")
+
+    # load_rooms reads rooms.yaml, which holds no credentials: the logins
+    # live in .env and are attached here, exactly as the loop and
+    # check_room.py do it. Every recorder any of these rooms has a camera
+    # on, not just each room's own -- a room may be watched across two.
+    for key in {rec for room in rooms for rec, _ in room.cameras}:
+        if key not in recorders:
+            sys.exit("rooms.yaml has a camera on recorder %r but no such"
+                     " recorder" % key)
+        user, password = recorder_login(key, recorders[key])
+        recorders[key]["user"], recorders[key]["password"] = user, password
+    # And cap the streams per recorder. The loop is almost certainly running
+    # while this does, so this is a second set of connections arriving at
+    # the same four machines: without a cap they all pile onto whichever
+    # recorder answers first, which is how one of them got locked out once.
+    set_gates(recorders, args.per_recorder)
 
     state = latest_state(rooms)
     from ultralytics import YOLO
