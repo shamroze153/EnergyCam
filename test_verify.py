@@ -41,7 +41,10 @@ def main():
     # on that asymmetry and so must anything checking it.
     label, _ = verify_live.verdict(0, 1, 3, page("occupied", 2))
     check("with two of three cameras down, GHOST is not claimed",
-          label, "COUNT")
+          label in verify_live.FAULTS, False)
+    label, _ = verify_live.verdict(0, 1, 5, page("occupied", 9))
+    check("not even when the page's count is far higher",
+          label in verify_live.FAULTS, False)
     label, _ = verify_live.verdict(0, 0, 2, page("occupied", 2))
     check("with no camera answering, nothing is claimed",
           label, "NO CAMERA")
@@ -54,11 +57,28 @@ def main():
     check("the same count agrees",
           verify_live.verdict(3, 1, 1, page("occupied", 3))[0], "MATCH")
 
-    # A count that differs is a weaker finding than the other two: the
-    # reading can be minutes old and people move.
-    label, why = verify_live.verdict(5, 1, 1, page("occupied", 3))
-    check("a different count is COUNT, not MISSED", label, "COUNT")
-    check("and prints both numbers", "says 3, 5 visible" in why, True)
+    # The count moving decides nothing: occupancy is a yes or no and both
+    # sides say yes. The first version called every such room a
+    # disagreement and found 33 in 61, which is noise, not an audit.
+    check("one person either way is not a finding at all",
+          verify_live.verdict(4, 1, 1, page("occupied", 3))[0], "MATCH")
+    check("nor two", verify_live.verdict(5, 1, 1, page("occupied", 3))[0],
+          "MATCH")
+    label, why = verify_live.verdict(9, 1, 1, page("occupied", 3))
+    check("a large gap is DRIFT, never MISSED", label, "DRIFT")
+    check("and prints both numbers", "says 3, 9 visible" in why, True)
+    check("DRIFT is not counted as a fault", "DRIFT" in verify_live.FAULTS,
+          False)
+    check("MISSED and GHOST are", sorted(verify_live.FAULTS),
+          ["GHOST", "MISSED"])
+
+    # Zero visible against an occupied page is a ghost however small the
+    # page's count, and must not be softened into drift.
+    check("nobody visible is a GHOST, not DRIFT",
+          verify_live.verdict(0, 1, 1, page("occupied", 1))[0], "GHOST")
+    # And one person against an empty page is MISSED however few.
+    check("one person against an empty page is MISSED",
+          verify_live.verdict(1, 1, 1, page("empty", 0))[0], "MISSED")
 
     # A room the loop has never written down is not a disagreement.
     check("a room with no reading is called out as such",
@@ -95,6 +115,21 @@ def main():
     # a room can be watched across two, and the second would have no login.
     check("every recorder a camera sits on is covered",
           "for rec, _ in room.cameras" in source, True)
+
+    # The decoder writes its complaints straight to file descriptor 2, past
+    # anything Python can intercept. Without muffling, the table is buried
+    # in "PPS id out of range" and cannot be read at all.
+    check("the grab is muffled so the table stays readable",
+          "with muffled():" in source, True)
+
+    # A fault has to repeat, and the loop writing a change for that room
+    # while we looked is the loop working, not a fault.
+    check("faults are confirmed over more than one round",
+          "len(seen_again) < args.rounds - 1" in source, True)
+    check("and a room the loop updated meanwhile is not accused",
+          "name in moved" in source, True)
+    check("only the suspected faults are looked at again",
+          "re-checking %d room(s)" in source, True)
 
     print()
     if FAILURES:

@@ -47,7 +47,7 @@ from dotenv import load_dotenv
 
 from check_room import OUT_DIR, draw
 from room_loop import (DETECT_IOU, DETECT_SIZE, fetch, ignored, load_rooms,
-                       recorder_login, set_gates)
+                       muffled, recorder_login, set_gates)
 from privacy_blur import people_boxes
 from schedule import PKT
 
@@ -82,7 +82,13 @@ def count_now(room, recorders, model, timeout):
     confidence and its ignore zones applied. A verification that counted
     differently from the thing it verifies would prove nothing.
     """
-    frames = fetch(room, recorders, timeout)          # already widened
+    # muffled() moved out of fetch() when the sweep started doing it once
+    # around its parallel grab. This path calls fetch() directly and from
+    # one thread, so it does its own -- without it the decoder writes a
+    # screenful of "PPS id out of range" between every two rooms and the
+    # table cannot be read.
+    with muffled():
+        frames = fetch(room, recorders, timeout)      # already widened
     most, answered, drawn = 0, 0, []
     for key, frame in frames.items():
         if frame is None:
@@ -102,12 +108,32 @@ def count_now(room, recorders, model, timeout):
     return most, answered, len(frames), drawn
 
 
+# A count that differs by this much, with both sides agreeing somebody is
+# there, is people moving between two samples rather than a fault.
+DRIFT_TOLERANCE = 2
+
+FAULTS = ("MISSED", "GHOST")
+
+
 def verdict(seen, answered, cameras, state):
     """What to call the difference, if it is one.
 
     Nobody seen proves nothing unless every camera answered -- the same
     asymmetry the loop itself runs on. A room half of whose cameras are
     down cannot contradict anything.
+
+    The first version of this called everything a disagreement and found
+    thirty-three of them in sixty-one rooms, which is not an audit, it is
+    noise. Two samples of a building with people walking about in it will
+    differ almost everywhere: the loop's reading is up to a cycle old, and
+    in a cycle somebody crosses a corridor. So the verdicts now separate
+    what is a fault from what is simply two different moments:
+
+      MISSED and GHOST are faults, and only when they repeat.
+      DRIFT is the count moving, which decides nothing: occupancy is a
+        yes or no, and both sides say yes.
+      FOLLOWING means the loop recorded a change while this was looking --
+        it is keeping up, which is the opposite of a fault.
     """
     if answered == 0:
         return "NO CAMERA", "no camera answered; nothing can be said"
@@ -125,9 +151,22 @@ def verdict(seen, answered, cameras, state):
     if status == "occupied" and seen == 0 and answered == cameras:
         return "GHOST", ("the page says %d person(s), none visible on any"
                          " of %d cameras" % (page, cameras))
-    if status == "occupied" and seen != page:
-        return "COUNT", "the page says %d, %d visible now" % (page, seen)
+    if status == "occupied" and abs(seen - page) > DRIFT_TOLERANCE:
+        return "DRIFT", "the page says %d, %d visible now" % (page, seen)
     return "MATCH", ""
+
+
+def one_pass(rooms, recorders, model, timeout, state):
+    """Every room once: what was seen, and what to call it."""
+    out = {}
+    for room in sorted(rooms, key=lambda r: r.name):
+        seen, answered, cameras, drawn = count_now(room, recorders, model,
+                                                   timeout)
+        label, why = verdict(seen, answered, cameras, state.get(room.name))
+        out[room.name] = {"seen": seen, "answered": answered,
+                          "cameras": cameras, "drawn": drawn,
+                          "label": label, "why": why}
+    return out
 
 
 def main():
@@ -142,11 +181,16 @@ def main():
                     help="streams open at once on one recorder (default 2,"
                          " lower than the loop's because the loop is"
                          " probably running too)")
-    ap.add_argument("--pictures", choices=["disagreements", "all", "none"],
-                    default="disagreements",
+    ap.add_argument("--rounds", type=int, default=2,
+                    help="how many times a suspected fault must repeat"
+                         " before it is reported (default 2). One sample"
+                         " of a building with people walking about in it"
+                         " disagrees nearly everywhere and means nothing.")
+    ap.add_argument("--pictures", choices=["faults", "all", "none"],
+                    default="faults",
                     help="which rooms to write a picture for. The default"
-                         " keeps the footage down: a room that agrees needs"
-                         " no photograph of the people in it.")
+                         " keeps the footage down: a room that agrees"
+                         " needs no photograph of the people in it.")
     args = ap.parse_args()
 
     load_dotenv()
@@ -172,69 +216,139 @@ def main():
     # recorder answers first, which is how one of them got locked out once.
     set_gates(recorders, args.per_recorder)
 
-    state = latest_state(rooms)
     from ultralytics import YOLO
     model = YOLO("yolov8n.pt")
 
-    now = datetime.now(PKT)
-    print("Live check — %s, %d room(s)"
-          % (now.strftime("%a %d %b %H:%M"), len(rooms)))
+    before = latest_state(rooms)
+    started = datetime.now(PKT)
+    print("Live check \u2014 %s, %d room(s), %d round(s)"
+          % (started.strftime("%a %d %b %H:%M"), len(rooms), args.rounds))
+    print("Looking at every room, then again at anything that looked"
+          " wrong...")
+    first = one_pass(rooms, recorders, model, args.timeout, before)
+
+    # Only the suspected faults are looked at again. A room that agreed
+    # needs no second photograph of the people in it, and re-reading all
+    # sixty-one would take another three minutes to confirm what is not in
+    # question.
+    suspects = [r for r in rooms if first[r.name]["label"] in FAULTS]
+    repeats = {}
+    for extra in range(max(0, args.rounds - 1)):
+        if not suspects:
+            break
+        print("   round %d: re-checking %d room(s) that looked wrong"
+              % (extra + 2, len(suspects)))
+        again = one_pass(suspects, recorders, model, args.timeout, before)
+        for name, result in again.items():
+            repeats.setdefault(name, []).append(result)
+        suspects = [r for r in suspects
+                    if again[r.name]["label"] == first[r.name]["label"]]
+
+    # The loop is running while this looks. If it wrote a change for a room
+    # during the window, it saw what we saw -- that is the system working,
+    # and calling it a fault would be exactly backwards.
+    after = latest_state(rooms)
+    moved = {name for name, row in after.items()
+             if (before.get(name) or {}).get("at") != row.get("at")}
+
+    print()
     print("=" * 74)
-    print("%-26s %-16s %-10s %s" % ("ROOM", "THE PAGE SAYS", "VISIBLE",
+    print("%-26s %-16s %-10s %s" % ("ROOM", "THE PAGE SAID", "VISIBLE",
                                     "VERDICT"))
     print("-" * 74)
 
-    counts = {}
-    for room in sorted(rooms, key=lambda r: r.name):
-        seen, answered, cameras, drawn = count_now(room, recorders, model,
-                                                   args.timeout)
-        mine = state.get(room.name)
-        label, why = verdict(seen, answered, cameras, mine)
-        counts[label] = counts.get(label, 0) + 1
+    # A fault is confirmed only if it survived every extra round. The
+    # suspect list is narrowed each round, so a room that stopped matching
+    # simply has fewer entries than there were rounds.
+    confirmed = set()
+    for room in rooms:
+        name = room.name
+        if first[name]["label"] not in FAULTS or name in moved:
+            continue
+        seen_again = repeats.get(name, [])
+        if len(seen_again) < args.rounds - 1:
+            continue
+        if all(r["label"] == first[name]["label"] for r in seen_again):
+            confirmed.add(name)
 
+    counts, faults = {}, []
+    for room in sorted(rooms, key=lambda r: r.name):
+        result = first[room.name]
+        label, why = result["label"], result["why"]
+
+        if label in FAULTS and room.name not in confirmed:
+            if room.name in moved:
+                label, why = "FOLLOWING", ("the loop recorded a change for"
+                                           " this room while we looked")
+            else:
+                label, why = "PASSING", ("looked wrong once and not again"
+                                         " \u2014 somebody moving")
+        counts[label] = counts.get(label, 0) + 1
+        if label in FAULTS:
+            faults.append(room.name)
+
+        mine = after.get(room.name) or before.get(room.name)
         if mine and mine.get("status"):
-            age = (now - mine["at"].astimezone(PKT)).total_seconds() / 60
             says = "%s %s" % (mine["status"],
                               "" if mine.get("people") in (None, 0)
                               else "(%d)" % mine["people"])
             says = "%-14s" % says.strip()
-            age_text = "%.0fm old" % age
         else:
-            says, age_text = "%-14s" % "—", ""
+            says = "%-14s" % "\u2014"
         print("%-26s %s %-10s %s"
               % (room.name[:26], says,
-                 "%d/%d cam" % (seen, answered) if answered else "none",
-                 label))
-        if why:
-            print("%-26s   %s%s" % ("", why,
-                                    "  [reading %s]" % age_text
-                                    if age_text else ""))
+                 "%d/%d cam" % (result["seen"], result["answered"])
+                 if result["answered"] else "none", label))
+        if why and label not in ("MATCH",):
+            print("%-26s   %s" % ("", why))
 
         keep = (args.pictures == "all"
-                or (args.pictures == "disagreements"
-                    and label in ("MISSED", "GHOST", "COUNT")))
-        if keep and drawn:
+                or (args.pictures == "faults" and label in FAULTS))
+        if keep and result["drawn"]:
             os.makedirs(VERIFY_DIR, exist_ok=True)
             safe = "".join(c if c.isalnum() else "_" for c in room.name)
-            for (rec, channel), canvas, kept in drawn:
-                path = os.path.join(
+            for (rec, channel), canvas, kept in result["drawn"]:
+                cv2.imwrite(os.path.join(
                     VERIFY_DIR, "%s_%s_ch%02d_%s_%s.jpg"
                     % (label.lower(), safe, channel, rec,
-                       now.strftime("%H%M")))
-                cv2.imwrite(path, canvas)
-            print("%-26s   pictures in %s" % ("", VERIFY_DIR))
+                       started.strftime("%H%M"))), canvas)
+            print("%-26s   picture(s) in %s" % ("", VERIFY_DIR))
 
     print("-" * 74)
-    for label in ("MISSED", "GHOST", "COUNT", "NO CAMERA", "NOT RECORDED",
-                  "RECOVERED", "SILENT", "MATCH"):
+    print("FAULTS \u2014 worth acting on")
+    for label in FAULTS:
+        print("   %-13s %d" % (label, counts.get(label, 0)))
+    print("NOT FAULTS")
+    for label in ("PASSING", "FOLLOWING", "DRIFT", "MATCH", "NO CAMERA",
+                  "NOT RECORDED", "RECOVERED", "SILENT"):
         if counts.get(label):
             print("   %-13s %d" % (label, counts[label]))
+    print()
+    print("   PASSING    looked wrong once, not on the repeat: somebody")
+    print("              walking through between two samples.")
+    print("   FOLLOWING  the loop wrote a change for that room while this")
+    print("              was looking. It saw what we saw.")
+    print("   DRIFT      the count differs by more than %d but both agree"
+          % DRIFT_TOLERANCE)
+    print("              somebody is there. Occupancy is a yes or no, and")
+    print("              both say yes, so nothing is decided wrongly.")
 
-    if counts.get("MISSED"):
-        print("\nMISSED is the one to fix. Open its pictures: if the people"
-              "\nare in the frame and no box is on them, the detector needs"
-              "\nhelp (tune_detect.py). If they are not in the frame at all,"
-              "\nno setting will ever find them and the camera has to move.")
+    if faults:
+        print("\n%d room(s) to look at: %s" % (len(faults),
+                                               ", ".join(faults)))
+        print("Open their pictures in %s. If the people are in the frame"
+              % VERIFY_DIR)
+        print("with no box on them, the detector needs help"
+              " (tune_detect.py).")
+        print("If they are not in the frame at all, no setting will find"
+              " them and")
+        print("the camera has to move. A GHOST with nobody in the frame is"
+              " a poster,")
+        print("a coat, a screen or a reflection: rooms.yaml takes an"
+              " ignore zone.")
+    else:
+        print("\nNo faults that repeated. The loop is tracking the"
+              " building.")
     print("\nPictures are unblurred and stay on this machine.")
     return 0
 
