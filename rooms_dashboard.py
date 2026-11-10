@@ -782,7 +782,71 @@ def building_bar(df):
         for _, row in df.iterrows())
 
 
-def money_strip(at_stake, saved, span, enough):
+def head_count_parts(df, beat_age):
+    """How many people the cameras can see in the campus, right now.
+
+    This was already on the campus page and nowhere else, under a label that
+    said "the cameras can see inside" -- true, but it never says the word
+    people, so sitting between two rupee figures it read as a third money
+    number and the one figure everybody actually wants was invisible. It now
+    says what it is, in words, and it says it on every view.
+
+    Three honesty rules, because a headcount is the easiest number on this
+    page to believe without thinking:
+
+      * A room nobody looked at contributes nobody. So the count is a floor,
+        not a total, and when any indoor room failed to answer it says so and
+        calls itself "at least".
+      * Outside is not inside. The gate and the car park are counted, but
+        separately -- a guard at the gate is not somebody leaving an air
+        conditioner running in a room.
+      * If the loop has gone quiet the figure is the last thing it saw, not
+        the present, and saying "right now" over a stale number would be a
+        lie the page tells on its own.
+    """
+    import campus_view
+
+    outside_zones = campus_view.OUTSIDE_ZONES
+    indoors = df[~df["zone"].isin(outside_zones)]
+    here = indoors[indoors["status"] == "occupied"]
+    inside = int(here["people"].fillna(0).sum())
+    busy = int(len(here))
+    out = df[df["zone"].isin(outside_zones) & (df["status"] == "occupied")]
+    outside = int(out["people"].fillna(0).sum())
+    quiet = int((indoors["status"].isna()
+                 | (indoors["status"] == "unknown")).sum())
+
+    live = (beat_age is not None and beat_age <= STALE_AFTER_MINUTES)
+    label = "IN CAMPUS RIGHT NOW" if live else "IN CAMPUS WHEN LAST SEEN"
+    value = ("at least %d" % inside) if quiet else str(inside)
+
+    bits = ["%d room%s busy" % (busy, "" if busy == 1 else "s")]
+    if outside:
+        bits.append("%d outside" % outside)
+    if quiet:
+        bits.append("%d room%s did not answer"
+                    % (quiet, "" if quiet == 1 else "s"))
+    return label, value, " \u00b7 ".join(bits)
+
+
+def head_count(df, beat_age):
+    """The same figure as a tile for the band at the top of the other views."""
+    label, value, note = head_count_parts(df, beat_age)
+    note = note.replace("\u00b7", "&#183;")
+
+    return """
+<div style="text-align:right;">
+  <div style="color:#6E7B82;font-size:.56rem;letter-spacing:.14em;">
+    %s</div>
+  <div style="color:#8FC7F0;font-size:1.34rem;font-weight:760;
+              line-height:1.15;">%s <span style="font-size:.78rem;
+              font-weight:600;color:#6E7B82;">people</span></div>
+  <div style="color:#5E6A70;font-size:.58rem;">%s</div>
+</div>
+<div style="width:1px;background:#2A3034;"></div>""" % (label, value, note)
+
+
+def money_strip(at_stake, saved, span, enough, people_html=""):
     """Two figures, in the corner, with what each one actually is.
 
     The left is an upper bound and says so on the tile: the empty time is
@@ -798,7 +862,8 @@ def money_strip(at_stake, saved, span, enough):
         right = ("%d more days" % max(1, round(BASELINE_DAYS * 2 - span)),
                  "before a fortnight can be compared")
     return """
-<div style="display:flex;gap:18px;">
+<div style="display:flex;gap:18px;align-items:flex-start;">
+  %s
   <div style="text-align:right;">
     <div style="color:#6E7B82;font-size:.56rem;letter-spacing:.14em;">
       AT STAKE TODAY</div>
@@ -814,7 +879,7 @@ def money_strip(at_stake, saved, span, enough):
       %s</div>
     <div style="color:#5E6A70;font-size:.58rem;">%s</div>
   </div>
-</div>""" % (format(round(at_stake), ","),
+</div>""" % (people_html, format(round(at_stake), ","),
              "#8FD48A" if enough and saved >= 0 else "#6E7B82",
              right[0], right[1])
 
@@ -2322,6 +2387,12 @@ if view == "Campus":
                              .fillna(0).sum())
     meta["outside_now"] = int(here[here["zone"].isin(outside_zones)]["people"]
                               .fillna(0).sum())
+    # The same three strings the band at the top of every other view uses,
+    # so the headcount cannot be worded one way here and another way there.
+    label, value, note = head_count_parts(df, beat_age)
+    meta["people_now"] = value
+    meta["people_label"] = label.lower()
+    meta["people_note"] = note
     meta["curve_inside"] = inside_curve
     meta["curve_outside"] = outside_curve
     html = campus_view.page(rows, meta)
@@ -2336,7 +2407,8 @@ if view == "Campus":
     st.stop()
 
 st.markdown(header_band(campus, df, beat_age, describe(now, hours),
-                        money_strip(at_stake, saved, span, enough)),
+                        money_strip(at_stake, saved, span, enough,
+                                    head_count(df, beat_age))),
             unsafe_allow_html=True)
 
 # ---- always on screen: the job -------------------------------------------

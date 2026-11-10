@@ -124,6 +124,78 @@ def defined_before_use(source):
             if name in defined and defined[name] > line]
 
 
+def check_head_count(namespace):
+    """How many people are in the campus, and what the figure is allowed to claim.
+
+    This is the number everybody looks at first, so it is the easiest one to
+    believe without reading. Three things it must never do: count the car
+    park as indoors, present the last thing a stopped loop saw as "right
+    now", or report a flat total when some rooms were never looked at.
+    """
+    parts = namespace["head_count_parts"]
+    stale = namespace["STALE_AFTER_MINUTES"] + 1
+
+    df = pd.DataFrame([
+        {"room": "Marketing", "zone": "Ground floor", "status": "occupied",
+         "people": 4},
+        {"room": "HR Room", "zone": "First floor", "status": "occupied",
+         "people": 3},
+        {"room": "Lobby", "zone": "First floor", "status": "empty",
+         "people": 0},
+        {"room": "P2 Parking", "zone": "Outside & plant",
+         "status": "occupied", "people": 9},
+    ])
+    label, value, note = parts(df, 1.0)
+    check("the headcount counts indoor rooms only", value == "7",
+          "%s (%s)" % (value, note))
+    check("and says so in words", label == "IN CAMPUS RIGHT NOW", label)
+    check("the car park is counted apart, not added in", "9 outside" in note,
+          note)
+    check("and the busy rooms are named", "2 rooms busy" in note, note)
+
+    # A room nobody looked at contributes nobody, so the sum is a floor.
+    # Printing it as a total would quietly under-report the building.
+    quiet = pd.concat([df, pd.DataFrame([
+        {"room": "Dead Camera", "zone": "Ground floor", "status": "unknown",
+         "people": None}])], ignore_index=True)
+    label, value, note = parts(quiet, 1.0)
+    check("a room that did not answer makes the count a floor",
+          value == "at least 7", value)
+    check("and the page says how many did not answer",
+          "1 room did not answer" in note, note)
+
+    # NaN is the other way a room says nothing, and it must count the same.
+    nan = quiet.copy()
+    nan.loc[nan["room"] == "Dead Camera", "status"] = float("nan")
+    check("a missing status counts as not answered",
+          parts(nan, 1.0)[1] == "at least 7", parts(nan, 1.0)[1])
+
+    # With the loop stopped the figure is history, and saying "right now"
+    # over it would be the page telling its own lie.
+    check("a silent loop stops the figure claiming the present",
+          parts(df, stale)[0] == "IN CAMPUS WHEN LAST SEEN",
+          parts(df, stale)[0])
+    check("and never having reported counts as silent",
+          parts(df, None)[0] == "IN CAMPUS WHEN LAST SEEN",
+          parts(df, None)[0])
+
+    # An empty building is zero, not a dash: zero is a fact worth printing.
+    none = df.copy()
+    none["status"] = "empty"
+    check("an empty campus reads nought, not a dash",
+          parts(none, 1.0)[1] == "0", parts(none, 1.0)[1])
+    check("with nobody outside, the note leaves outside out",
+          "outside" not in parts(none, 1.0)[2], parts(none, 1.0)[2])
+
+    # The band renders the same three strings, so the two cannot drift.
+    html = namespace["head_count"](quiet, 1.0)
+    check("the band prints the headcount it was given",
+          "at least 7" in html and "IN CAMPUS RIGHT NOW" in html
+          and "did not answer" in html)
+    check("and the word people is on the page",
+          ">people<" in html.replace("</span>", "<"))
+
+
 def main():
     install_stubs()
     source = open("rooms_dashboard.py").read()
@@ -148,10 +220,12 @@ def main():
               "day_calendar", "status_row", "ac_pill", "room_card",
               "header_band", "money_strip", "wordmark", "grade",
               "show_room_day", "show_arrivals", "show_cameras", "show_stills",
-              "show_numbers"]
+              "show_numbers", "head_count", "head_count_parts"]
     missing = [n for n in wanted if "def %s(" % n not in source]
     check("every view and helper is still here", not missing,
           ", ".join(missing))
+
+    check_head_count(namespace)
 
     # Both palettes have to carry every key, or a theme switch dies on a
     # KeyError the first time somebody picks the other one.
@@ -286,8 +360,14 @@ def main():
        {by[n]["grade"] for n in ("H Stairs", "P2 Parking")}
        <= {"busy", "watch"})
 
-    check("the day strip has one mark per quarter hour",
-       len(by["Marketing"]["slots"]) == 64)
+    # 96 marks, not 64: the strip runs midnight to midnight now. The count
+    # is taken from the module rather than written out, so that moving the
+    # window again cannot leave this check passing against the old day.
+    want = ((campus_view.DAY_END_HOUR - campus_view.DAY_START_HOUR) * 60
+            // campus_view.SLOT_MINUTES)
+    check("the day strip has one mark per quarter hour, all day",
+       len(by["Marketing"]["slots"]) == want == 96,
+       "%d marks, wanted %d" % (len(by["Marketing"]["slots"]), want))
     check("first seen never comes after last seen",
        all(r["first"] is None or r["last"] is None or r["first"] <= r["last"]
            for r in rows))

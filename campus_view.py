@@ -29,10 +29,16 @@ DEPT_BY_ZONE = {
     "Outside & plant": "Facilities",
 }
 
-# The day the strips cover, in the campus's own hours rather than midnight to
-# midnight: nobody wants four hours of empty corridor at either end.
-DAY_START_HOUR = 6
-DAY_END_HOUR = 22
+# The whole day, midnight to midnight.
+#
+# This used to run 06:00 to 22:00, on the reasoning that nobody wants four
+# hours of empty corridor at either end. That reasoning was wrong for this
+# system in particular: the hours it exists to measure are the ones after
+# everybody goes home, and a chart that stops at ten at night leaves out
+# every one of them. A room cooled from eight in the evening until morning
+# appeared on that strip as two hours of waste.
+DAY_START_HOUR = 0
+DAY_END_HOUR = 24
 SLOT_MINUTES = 15
 
 
@@ -89,9 +95,15 @@ def day_slots(recent, room, now):
             continue
         state = states[prior[-1]]
         on = 1 if state == "occupied" else 0
+        # Somebody already in the room when the day began did not arrive at
+        # midnight; they were carried in from the night before. Reporting
+        # the first slot as an arrival would put the same time against every
+        # such room and make it look like a shift start.
+        carried = (stamps[prior[-1]] < start)
         slots.append(on)
-        if on:
+        if on and not carried:
             first = i if first is None else first
+        if on:
             last = i
     return slots, first, last
 

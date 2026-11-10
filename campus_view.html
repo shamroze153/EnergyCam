@@ -76,11 +76,19 @@ header{background:var(--surface);border-bottom:1px solid var(--line)}
 @media (prefers-reduced-motion: no-preference){
   .livedot{animation:pulse 2.6s ease-in-out infinite}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}}
-.cash{display:flex;gap:22px}
+/* The header has to survive a long label without pushing the theme toggle
+   onto a line of its own and leaving a band of empty page above the fold.
+   So the small print under each figure is allowed to wrap and is capped,
+   rather than being one unbreakable line that the row has to make room for. */
+.cash{display:flex;gap:20px;flex-wrap:wrap;min-width:0}
 .cash .v{font-family:var(--mono);font-weight:600;font-size:19px;
   line-height:1.1;font-variant-numeric:tabular-nums}
 .cash .k{font-size:10px;letter-spacing:.13em;color:var(--faint);
-  text-transform:uppercase;margin-top:3px;white-space:nowrap}
+  text-transform:uppercase;margin-top:3px;line-height:1.35;max-width:168px}
+.cash .kn{font-size:10px;color:var(--faint);margin-top:3px;opacity:.85;
+  line-height:1.35;max-width:168px}
+.cash .v .ppl{font-size:11.5px;font-weight:600;color:var(--faint);
+  font-family:var(--body);letter-spacing:0}
 .tgl{display:flex;background:var(--surface2);border:1px solid var(--line);
   border-radius:8px;padding:2px}
 .tgl button{padding:5px 9px;border-radius:6px;font-size:12px;
@@ -237,6 +245,17 @@ td .dept{font-size:11px;color:var(--faint);display:block;margin-top:1px}
 .strip{display:flex;gap:1px;height:14px;min-width:150px}
 .strip i{flex:1;border-radius:1px;background:var(--line)}
 .strip i.on{background:var(--busy)}
+/* The strip covers midnight to midnight now, so six o'clock is no longer
+   where the bar starts and the eye has nothing to measure against. Every
+   sixth hour gets a hairline -- drawn as a shadow, not a border, so adding
+   it does not change how wide the ninety-six slots are. The scale under the
+   column heading names the same four marks. */
+.strip i:nth-child(24n+1){box-shadow:-1px 0 0 var(--line2)}
+.scale{display:flex;justify-content:space-between;font-size:9px;
+  letter-spacing:.06em;color:var(--faint);margin-top:4px;font-weight:400;
+  text-transform:none}
+.scale span:first-child{margin-left:-2px}
+.scale span:last-child{margin-right:-6px}
 
 /* ---- detail drawer ------------------------------------------------ */
 .scrim{position:fixed;inset:0;background:rgba(4,7,11,.6);z-index:20;
@@ -303,7 +322,8 @@ __BANNER__
       <div><div class="v" style="color:var(--ok)" id="h-saved"></div>
            <div class="k" id="h-saved-k"></div></div>
     <div><div class="v" id="h-people"></div>
-         <div class="k" id="h-people-k"></div></div>
+         <div class="k" id="h-people-k"></div>
+         <div class="kn" id="h-people-note"></div></div>
     </div>
     <div class="tgl" role="group" aria-label="Theme">
       <button id="t-dark" aria-pressed="true" title="Dark">&#9790;</button>
@@ -373,7 +393,10 @@ __BANNER__
     <div class="tablewrap"><table>
       <thead><tr>
         <th>Room</th><th>First seen</th><th>Last seen</th>
-        <th class="num">Occupied</th><th>06:00 &#8212; 22:00</th>
+        <th class="num">Occupied</th>
+        <th>midnight to midnight
+          <div class="scale"><span>00</span><span>06</span><span>12</span>
+            <span>18</span><span>24</span></div></th>
       </tr></thead>
       <tbody id="arr"></tbody>
     </table></div>
@@ -423,11 +446,14 @@ function spell(m){
   const h = Math.floor(m/60), r = m%60;
   return r ? h + "h " + String(r).padStart(2,"0") + "m" : h + "h";
 }
-// Slot 0 is 06:00 and each is fifteen minutes, so the strip covers the
-// working day and a good way past it.
+// Slot 0 is midnight and each is fifteen minutes, so the strip covers
+// the whole day, including the hours after everybody has gone home.
+// Those are the hours this system exists to measure, and the strip
+// used to begin at six and end at ten at night -- so a room cooled
+// from eight in the evening until morning showed as two hours.
 function clock(slot){
   if(slot===null||slot===undefined) return "—";
-  const mins = 6*60 + slot*15;
+  const mins = slot*15;
   return String(Math.floor(mins/60)).padStart(2,"0") + ":" +
          String(mins%60).padStart(2,"0");
 }
@@ -707,8 +733,8 @@ function buildingChart(){
   }
   $("#bld-chart").innerHTML =
     '<div class="bld">' + bars + '</div>'
-    + '<div class="axis"><span>06:00</span><span>12:00</span>'
-    + '<span>18:00</span><span>22:00</span></div>';
+    + '<div class="axis"><span>00:00</span><span>06:00</span>'
+    + '<span>12:00</span><span>18:00</span><span>24:00</span></div>';
 }
 
 
@@ -737,8 +763,8 @@ function renderDepts(){
       + '<div class="hours">'
       + total.map(v => '<i class="' + (v ? "on" : "") + '" style="opacity:'
           + (v ? (0.25 + 0.75*v/peak).toFixed(2) : 1) + '"></i>').join("")
-      + '</div><div class="axis"><span>06:00</span><span>12:00</span>'
-      + '<span>18:00</span><span>22:00</span></div></div>';
+      + '</div><div class="axis"><span>00:00</span><span>06:00</span>'
+      + '<span>12:00</span><span>18:00</span><span>24:00</span></div></div>';
   }
   $("#depts").innerHTML = h;
 }
@@ -796,11 +822,11 @@ function openRoom(name){
     + '<dt>Last seen today</dt><dd>' + clock(r.last) + '</dd>'
     + '<dt>Occupied today</dt><dd>' + spell(mins) + '</dd>'
     + '</dl>'
-    + '<div class="sec" style="margin-top:4px">Today, 06:00 to 22:00</div>'
+    + '<div class="sec" style="margin-top:4px">Today, midnight to midnight</div>'
     + '<div class="hours">'
     + r.slots.map(v => '<i class="' + (v ? "on" : "") + '"></i>').join("")
-    + '</div><div class="axis"><span>06:00</span><span>12:00</span>'
-    + '<span>18:00</span><span>22:00</span></div>'
+    + '</div><div class="axis"><span>00:00</span><span>06:00</span>'
+    + '<span>12:00</span><span>18:00</span><span>24:00</span></div>'
     + '<footer style="margin-top:20px">Blue is where somebody was detected.'
     + ' Grey is where the cameras looked and found nobody. Nothing is drawn'
     + ' for hours when the loop was not running.</footer>'
@@ -868,10 +894,17 @@ $("#h-stake-k").textContent = M.stake_label;
 $("#h-saved").textContent = M.saved;
 $("#h-saved-k").textContent = M.saved_label;
 $("#band-sub").textContent = M.when;
-$("#h-people").textContent = (M.inside_now === undefined ? "\u2014"
-  : M.inside_now);
+// The headcount. It used to print a bare number under the words "the
+// cameras can see inside" -- which never says "people", so between two
+// rupee figures it read as a third money number and the one figure
+// everybody asks for was effectively not on the page. The words now come
+// from head_count_parts() in the dashboard, so this page and every other
+// view say the same thing, including when it has to say "at least".
+$("#h-people").innerHTML = (M.people_now === undefined ? "\u2014"
+  : M.people_now + ' <span class="ppl">people</span>');
 $("#h-people").style.color = "var(--busy)";
-$("#h-people-k").textContent = "the cameras can see inside";
+$("#h-people-k").textContent = M.people_label || "in campus right now";
+$("#h-people-note").textContent = M.people_note || "";
 $("#c-rooms").textContent = ROOMS.length;
 $("#c-board").textContent = ROOMS.filter(r => r.unit).length + "/"
   + ROOMS.filter(r => !r.unit).length;
