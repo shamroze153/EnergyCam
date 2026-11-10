@@ -12,6 +12,7 @@ views that break are the ones nobody opens on the way past.
 """
 import ast
 import builtins
+import os
 import sys
 import types
 
@@ -122,6 +123,60 @@ def defined_before_use(source):
     return ["%s defined line %d, called line %d" % (name, defined[name], line)
             for name, line in called.items()
             if name in defined and defined[name] > line]
+
+
+PACKAGES = {                 # import name -> what installs it
+    "dotenv": "python-dotenv", "yaml": "PyYAML", "psycopg2": "psycopg2-binary",
+    "streamlit_autorefresh": "streamlit-autorefresh",
+}
+
+
+def check_requirements():
+    """requirements.txt must cover everything the dashboard imports.
+
+    The first deploy to a host died on `import yaml` after a clean install:
+    the laptop had PyYAML because something else had pulled it in, and the
+    cloud file never listed it. That class of failure cannot be caught by
+    running the code, because the machine running it is the one that already
+    has the package -- it can only be caught by comparing the two lists.
+
+    So: walk the dashboard and the modules it reaches, collect every
+    third-party import, and check each one is named in requirements.txt.
+    Packages that another package happens to install are listed too; relying
+    on that is how this breaks the next time a dependency is slimmed down.
+    """
+    local = {f[:-3] for f in os.listdir(".") if f.endswith(".py")}
+    seen, need, queue = set(), set(), ["rooms_dashboard"]
+    while queue:
+        mod = queue.pop()
+        if mod in seen or mod not in local:
+            continue
+        seen.add(mod)
+        tree = ast.parse(open(mod + ".py", encoding="utf-8").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                names = [a.name.split(".")[0] for a in node.names]
+            elif isinstance(node, ast.ImportFrom):
+                names = [(node.module or "").split(".")[0]]
+            else:
+                continue
+            for name in names:
+                queue.append(name) if name in local else need.add(name)
+
+    outside = sorted(need - set(sys.stdlib_module_names) - local - {""})
+    listed = open("requirements.txt").read().lower()
+    missing = [n for n in outside
+               if PACKAGES.get(n, n).lower() not in listed]
+    check("requirements.txt covers every import the dashboard reaches",
+          not missing, "missing: %s" % ", ".join(missing))
+
+    # The cloud set must stay the cloud set: the heavy half belongs to the
+    # machine with the cable, and pulling it in here would make a page that
+    # counts nobody install a detector to prove it.
+    heavy = [n for n in ("opencv-python", "ultralytics", "torch")
+             if n in listed]
+    check("and does not drag the detector along with it", not heavy,
+          ", ".join(heavy))
 
 
 def check_guard(namespace):
@@ -395,6 +450,7 @@ def main():
     check("every view and helper is still here", not missing,
           ", ".join(missing))
 
+    check_requirements()
     check_guard(namespace)
     check_quiet_night(namespace)
     check_head_count(namespace)

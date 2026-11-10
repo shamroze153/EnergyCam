@@ -1,6 +1,18 @@
+# What the dashboard needs when it runs on a host rather than on the office
+# machine. Deliberately not requirements-local.txt: there is no OpenCV and no
+# YOLO here, because this page reads the database and counts nobody.
+#
+# Every third-party module the dashboard imports has to be in this file, even
+# the ones another package would install anyway. numpy arrives with pandas and
+# yaml arrives with nothing -- and a missing yaml is how the first deploy fell
+# over, at `import yaml`, after a clean install. test_dashboard.py now walks
+# the dashboard's imports and fails if any of them is missing from here, so
+# the list cannot drift away from the code again.
 streamlit==1.65.0
 streamlit-autorefresh==1.0.1
 plotly==7.1.0
 pandas==3.0.6
+numpy>=1.26,<3
+PyYAML==6.0.3
 psycopg2-binary==2.9.13
 python-dotenv==1.2.4
