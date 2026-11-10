@@ -2091,6 +2091,15 @@ if view == "Campus":
         "when": "%s \u00b7 %s" % (now.tz_convert(PKT).strftime("%A %H:%M"),
                                   describe(now, hours)),
     }
+    inside_curve, outside_curve = campus_view.building_curve(recent, df, now)
+    here = df[df["status"] == "occupied"]
+    outside_zones = campus_view.OUTSIDE_ZONES
+    meta["inside_now"] = int(here[~here["zone"].isin(outside_zones)]["people"]
+                             .fillna(0).sum())
+    meta["outside_now"] = int(here[here["zone"].isin(outside_zones)]["people"]
+                              .fillna(0).sum())
+    meta["curve_inside"] = inside_curve
+    meta["curve_outside"] = outside_curve
     html = campus_view.page(rows, meta)
     tall = campus_view.height(rows)
     # components.html warns that it is deprecated, and the warning is noise.

@@ -110,6 +110,50 @@ def calibrated_counts(path="ac_units.yaml"):
     return {name: len(cfg.get("units") or []) for name, cfg in (data or {}).items()}
 
 
+# Where somebody counted is somebody in the building. A street, a car park
+# and the smoking area all have cameras and all catch people who are passing
+# rather than working, so the headline figure counts the inside and the rest
+# is reported separately instead of being quietly added in.
+OUTSIDE_ZONES = {"H perimeter", "Outside & plant", "Unused"}
+
+
+def building_curve(recent, df, now):
+    """How many people the cameras could see, through the day.
+
+    This is not a headcount and the page must not call it one. Two cameras
+    watching one place count the same person twice; somebody at a desk no
+    camera covers is not counted at all; and a corridor camera counts
+    whoever walks past. What it is good for is shape -- when the building
+    fills, when it empties, whether today looks like yesterday.
+    """
+    count = (DAY_END_HOUR - DAY_START_HOUR) * 60 // SLOT_MINUTES
+    start = now.normalize() + pd.Timedelta(hours=DAY_START_HOUR)
+    inside_rooms = set(df[~df["zone"].isin(OUTSIDE_ZONES)]["room"])
+    inside = [None] * count
+    outside = [None] * count
+    for i in range(count):
+        at = start + pd.Timedelta(minutes=i * SLOT_MINUTES)
+        if at > now:
+            continue
+        seen_in = seen_out = 0
+        answered = False
+        for room, rows_ in recent.groupby("room"):
+            prior = rows_[rows_["timestamp"] <= at]
+            if prior.empty:
+                continue
+            answered = True
+            last = prior.iloc[-1]
+            if last["status"] != "occupied" or pd.isna(last["people"]):
+                continue
+            if room in inside_rooms:
+                seen_in += int(last["people"])
+            else:
+                seen_out += int(last["people"])
+        if answered:
+            inside[i], outside[i] = seen_in, seen_out
+    return inside, outside
+
+
 def rows(df, recent, now, grade, spell, minutes_since, hours=None,
          calibrated=None):
     """Every room, as the page wants it.

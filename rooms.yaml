@@ -289,6 +289,9 @@ rooms:
   # ---- offices: unit in frame -----------------------------------------------
 
   - name: DL Department
+    dept: Disrupt Labs
+    # Basement, disrupt labs. Told by Shamroze, 10 November.
+    meter: gf_basement
     zone: Offices
     recorder: dvr2
     channels: [1]
@@ -328,6 +331,8 @@ rooms:
       being wrong is not symmetric.
 
   - name: Creative Room
+    # Ground floor. Told by Shamroze, 10 November.
+    meter: gf_basement
     zone: Offices
     recorder: dvr2
     channels: [4]
@@ -350,6 +355,8 @@ rooms:
         - [1425, 100, 1690, 790]   # corridor beyond the glass door
 
   - name: Admin Room
+    # Ground floor. Told by Shamroze, 10 November.
+    meter: gf_basement
     zone: Offices
     recorder: dvr2
     channels: [9]
@@ -357,6 +364,8 @@ rooms:
     empty_after_minutes: 45
 
   - name: AutoOS
+    # Ground floor. Told by Shamroze, 10 November.
+    meter: gf_basement
     zone: Offices
     recorder: dvr2
     channels: [10, 14]
@@ -369,6 +378,8 @@ rooms:
     note: Two cameras assumed to be one room, as with Marketing.
 
   - name: IT Head Room
+    # Ground floor. Told by Shamroze, 10 November.
+    meter: gf_basement
     zone: Offices
     recorder: dvr2
     channels: [11]
@@ -395,6 +406,8 @@ rooms:
   # ---- lobbies: no unit -----------------------------------------------------
 
   - name: First Floor Lobby
+    # First floor. Told by Shamroze, 10 November.
+    meter: first_cafe
     zone: Offices
     recorder: dvr2
     channels: [7]
@@ -547,6 +560,8 @@ rooms:
     empty_after_minutes: null
 
   - name: DR Rooms Lobby
+    # First floor. Told by Shamroze, 10 November.
+    meter: first_cafe
     zone: H offices
     recorder: nvr1
     channels: [23]
@@ -668,6 +683,8 @@ rooms:
   # ---- offices: unit in frame -----------------------------------------------
 
   - name: Cyber Security Room
+    # First floor. Told by Shamroze, 10 November.
+    meter: first_cafe
     zone: H offices
     recorder: xvr3
     channels: [2]
@@ -677,6 +694,8 @@ rooms:
     empty_after_minutes: 45
 
   - name: Room 17
+    # First floor. Told by Shamroze, 10 November.
+    meter: first_cafe
     zone: H offices
     recorder: xvr3
     channels: [3, 5, 8]
@@ -693,6 +712,8 @@ rooms:
       somebody.
 
   - name: Room 18
+    # First floor. Told by Shamroze, 10 November.
+    meter: first_cafe
     zone: H offices
     recorder: xvr3
     channels: [11, 13]
@@ -739,6 +760,8 @@ rooms:
   # ---- offices: unit out of frame -------------------------------------------
 
   - name: Old Finance Room
+    # First floor. Told by Shamroze, 10 November.
+    meter: first_cafe
     zone: H offices
     recorder: xvr3
     channels: [7]
@@ -856,6 +879,7 @@ rooms:
   # ---- rooms with a unit the camera cannot see ------------------------------
 
   - name: Basement
+    dept: Disrupt Labs
     # 7 Nov: this recorder's sub stream is 640x360, too small to read
     # a unit's display. Main stream for this room only.
     stream: main
@@ -979,6 +1003,8 @@ rooms:
       worth trying only after the rooms above are running.
 
   - name: Atrium Glass
+    # Second floor, with the cafe. Told by Shamroze, 10 November.
+    meter: first_cafe
     zone: Outside & plant
     recorder: nvr4
     channels: [9]
