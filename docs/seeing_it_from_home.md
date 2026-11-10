@@ -77,15 +77,80 @@ laptop reaches it now.
 - Everything else — campus, rooms, meters, analysis, history — is database
   only and works unchanged.
 
-## The other way: no cloud at all
+## The other way: Tailscale, and no cloud at all
 
-If putting occupancy data on somebody else's computer is not wanted, a
-private network between the phone and the office machine does the same job
-and nothing leaves the building: **Tailscale** or **ZeroTier**, free, an app
-on the phone and the same on the laptop. The phone then reaches
-`http://<laptop>:8501` from anywhere, exactly as if it were on the office
-WiFi.
+Tailscale puts the phone and the office machine on one small private
+network of their own. The phone then opens `http://<laptop>:8501` from
+home, from mobile data, from anywhere — as if it were sitting on the
+office WiFi. Nothing is published, nothing is hosted, and the occupancy
+data never lands on anybody's server: the two devices talk to each other
+directly.
 
-The trade is the one above in reverse: nothing is hosted, so the page is
+The trade is the one above in reverse. Nothing is hosted, so the page is
 reachable only while that machine is awake — which, once the always-on
 machine exists, it always is.
+
+### Before installing it
+
+This is a company laptop, on a company network, and Tailscale is a way in
+to it from outside the building. **Tell IT, and let them agree.** They gave
+you the cable; this is the same conversation. A tool installed quietly on a
+work machine to reach an internal page from home is the kind of thing that
+is fine when asked about and a serious problem when discovered.
+
+The free plan is for personal use. One person reaching their own machine is
+what it is for; a team sharing a company dashboard is what the paid tiers
+are for. Check the current limits and terms on tailscale.com/pricing rather
+than taking a number from here — plans change, and this file does not.
+
+### On the office machine
+
+1. **tailscale.com/download/windows** — install, then sign in with a
+   Google, Microsoft or GitHub account. Use an account you will still have
+   next year; everything below hangs off it.
+2. It joins and takes an address in the 100.64.x–100.127.x range. To see
+   it, in any prompt:
+
+   ```
+   tailscale ip -4
+   ```
+
+   `run_dashboard.bat` prints it too, under **FROM ANYWHERE**, which is the
+   easier place to read it.
+3. In the Tailscale admin console, **disable key expiry** for this machine.
+   Keys expire after a few months by default, and the machine then silently
+   drops off the network — on an always-on box nobody logs into, that is a
+   dashboard that stops working for a reason nobody will guess.
+
+### On the phone
+
+1. Tailscale from the Play Store or App Store.
+2. Sign in with the **same account**.
+3. Turn it on. That is the whole of it.
+
+### Then
+
+Open `http://100.x.y.z:8501` in the phone's browser. With MagicDNS on, the
+machine's own name works too, which is easier to remember than four
+numbers:
+
+```
+http://energycam-pc:8501
+```
+
+If the page will not load, the port is blocked: Windows treats the
+Tailscale adapter as a new network and the firewall follows. One line, in
+an Administrator prompt, once:
+
+```
+netsh advfirewall firewall add rule name="EnergyCam dashboard" dir=in action=allow protocol=TCP localport=8501
+```
+
+`run_dashboard.bat` prints that line as well.
+
+### The password still matters
+
+Tailscale limits *who can reach* the page to devices signed into that
+account. It does nothing about a phone left unlocked on a table, and
+nothing about the day somebody adds a device to the account to be helpful.
+`DASHBOARD_PASSWORD` costs one typing and covers both. Set it.
