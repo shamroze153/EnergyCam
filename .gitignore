@@ -34,3 +34,8 @@ snapshots/
 
 # evidence frames from --evidence (unblurred; never committed)
 evidence/
+
+# verify_live.py's pictures of the rooms it disagreed with -- unblurred,
+# and taken while people are at their desks, which is the whole point of
+# them. They settle an argument on this machine and go no further.
+frames/verify/

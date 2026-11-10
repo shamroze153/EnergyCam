@@ -116,6 +116,51 @@ the dashboard should read AC ON or AC OFF rather than a question mark.
 `--evidence` keeps a picture of anyone counted outside working hours, which is
 how the rooms that count people who are not there will finally be caught.
 
+## Checking it is telling the truth
+
+Two tools, and they answer different questions.
+
+```
+python audit.py
+```
+
+reads the record back and looks for patterns that cannot be true: a room
+occupied fourteen hours at a stretch, a room never once seen with anybody
+in it, a count that never varies. It needs no cable and says first how much
+of the period anything was watching at all, because everything else is only
+about the watched part.
+
+```
+python verify_live.py
+```
+
+needs the cable. It grabs a live frame from every camera, counts people
+with the same detector and the same settings the loop uses, and puts that
+beside what the database currently holds. Where they disagree it writes the
+picture out with the boxes drawn on, so it can be settled by looking.
+
+Two verdicts matter, and not equally:
+
+- **MISSED** — the page says empty, the camera can see somebody. This is
+  the fault that makes the system ask for the cooling to be switched off in
+  a room with people in it, and it raises nothing else, so nobody ever
+  looks at that room. Admin Room was this.
+- **GHOST** — the page says occupied, the camera can see nobody. Noise, and
+  money counted against a room nobody used. Usually a poster, a coat, a
+  screen or a reflection, and rooms.yaml takes an ignore zone for it.
+
+A count that differs by one or two is usually neither: the database holds
+the last cycle, which can be a couple of minutes old, and people move. The
+age of each reading is printed so that can be judged.
+
+When a MISSED turns up, open its picture and ask one question:
+
+- the people **are** in the frame, with no box on them → the detector needs
+  help. `tune_detect.py capture` while they are still sitting there, then
+  `compare` at a desk afterwards.
+- the people are **not in the frame at all** → no setting will ever find
+  them. The camera has to move, or the room needs a second one.
+
 ## What is still not done after tomorrow
 
 - An always-on machine at 140-H. The loop stops when the laptop goes home, so
