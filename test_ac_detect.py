@@ -99,6 +99,15 @@ def check_inverted(ok):
     ok("and the gap is measured in whichever direction it runs",
        "gap = abs(on_std - off_std)" in source)
 
+    # --inverted took its own branch and never set the box the rest of the
+    # function works from, so it crashed on the line after announcing
+    # itself. The branch that chooses a candidate has to choose one.
+    branch = source.split("if args.inverted:")[1].split("else:")[0]
+    ok("the inverted branch picks a box like every other path",
+       "box = found[args.choice - 1][\"box\"]" in branch)
+    ok("and honours --choice the same way",
+       "--choice must be between 1 and" in branch)
+
 
 def check_several_units(ok):
     """A room with five air conditioners is not five rooms.

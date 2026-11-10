@@ -488,6 +488,9 @@ def main():
             found = candidates(off, on)
             print(">> inverted: measuring what goes DARK when the unit"
                   " runs, rather than what lights up.")
+            if not 1 <= args.choice <= len(found):
+                sys.exit("--choice must be between 1 and %d" % len(found))
+            box = found[args.choice - 1]["box"]
         else:
             sys.exit(
                 ">> nothing lit up going from the off frame to the on"
@@ -531,13 +534,19 @@ def main():
         box = found[args.choice - 1]["box"]
 
     if found:
-        print(">> %d thing(s) lit up between the two frames:" % len(found))
+        print(">> %d thing(s) %s between the two frames:"
+              % (len(found),
+                 "went DARK when the unit started" if args.inverted
+                 else "lit up"))
         for n, cand in enumerate(found, 1):
             x1, y1, x2, y2 = cand["box"]
-            print("   %s%d  box %4d,%4d %4d,%4d  %3dx%-3d  on %6.2f  off %6.2f"
-                  "  gap %6.2f"
+            running, idle = ((cand["off"], cand["on"]) if args.inverted
+                             else (cand["on"], cand["off"]))
+            print("   %s%d  box %4d,%4d %4d,%4d  %3dx%-3d  running %6.2f"
+                  "  off %6.2f  gap %6.2f"
                   % ("*" if cand["box"] == box else " ", n, x1, y1, x2, y2,
-                     x2 - x1, y2 - y1, cand["on"], cand["off"], cand["gap"]))
+                     x2 - x1, y2 - y1, running, idle,
+                     abs(running - idle)))
 
     on_std, off_std = contrast(on, box), contrast(off, box)
     if on_std is None or off_std is None:
