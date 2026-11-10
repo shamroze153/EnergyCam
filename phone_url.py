@@ -18,6 +18,20 @@ import sys
 CAMERA_VLAN = "192.168.67."
 
 
+def is_tailscale(address):
+    """Addresses in 100.64.0.0/10 -- the range Tailscale hands out.
+
+    Worth telling apart from the WiFi address, because they are good for
+    different things and saying so saves a confused evening. The WiFi
+    address works from the office and nowhere else; this one works from
+    home, from mobile data, from anywhere the phone has signal, and only
+    for the devices signed into the same Tailscale account.
+    """
+    parts = address.split(".")
+    return (len(parts) == 4 and parts[0] == "100"
+            and parts[1].isdigit() and 64 <= int(parts[1]) <= 127)
+
+
 def routed_address():
     """The address this machine would answer on for ordinary traffic.
 
@@ -71,14 +85,31 @@ def main():
               " this machine at http://localhost:%s" % port)
         return 0
 
-    usable = [a for a in found if not a.startswith(CAMERA_VLAN)]
+    tailscale = [a for a in found if is_tailscale(a)]
+    usable = [a for a in found
+              if not a.startswith(CAMERA_VLAN) and not is_tailscale(a)]
+
+    if tailscale:
+        print()
+        print("   FROM ANYWHERE (phone signed into the same Tailscale):")
+        print()
+        for address in tailscale:
+            print("       http://%s:%s" % (address, port))
+
     print()
-    print("   On a phone, join the SAME WiFi as this laptop and open:")
+    print("   On the office WiFi, from a phone on that same WiFi:")
     print()
     for address in usable:
         print("       http://%s:%s" % (address, port))
     if not usable:
         print("       (none -- this machine is only on the camera network)")
+    if not tailscale:
+        print()
+        print("   Nothing for outside the office. docs/seeing_it_from_home.md"
+              " has the")
+        print("   ten minutes of Tailscale that gives this machine an address"
+              " that")
+        print("   works from home.")
     for address in found:
         if address.startswith(CAMERA_VLAN):
             print()
