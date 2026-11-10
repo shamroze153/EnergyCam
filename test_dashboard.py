@@ -124,6 +124,86 @@ def defined_before_use(source):
             if name in defined and defined[name] > line]
 
 
+def check_guard(namespace):
+    """The door that has to exist before this page leaves the office WiFi.
+
+    What is behind it is not a chart of kilowatts: it is which rooms people
+    sat in, when each arrived and when they left, by department -- a record
+    about identified people at work -- and the page can now be written to as
+    well. On the office network that needs no door, because whoever is on
+    the WiFi is already in the building. Reachable from home, it does.
+    """
+    guard = namespace["guard"]
+    source = open("rooms_dashboard.py").read()
+
+    class FakeStop(Exception):
+        pass
+
+    class Fake:
+        def __init__(self, typed=None):
+            self.session_state, self.typed = {}, typed
+            self.stopped = self.reran = False
+            self.errors = []
+
+        def markdown(self, *a, **k): pass
+        def caption(self, *a, **k): pass
+        def text_input(self, *a, **k): return self.typed
+        def error(self, m): self.errors.append(m)
+        def rerun(self): self.reran = True; raise FakeStop()
+        def stop(self): self.stopped = True; raise FakeStop()
+
+    def run(password, typed=None, already=False):
+        fake = Fake(typed)
+        if already:
+            fake.session_state["let_in"] = True
+        saved_st, saved_setting = namespace["st"], namespace["_setting"]
+        namespace["st"] = fake
+        namespace["_setting"] = lambda n: (password
+                                           if n == "DASHBOARD_PASSWORD"
+                                           else None)
+        try:
+            guard()
+        except FakeStop:
+            pass
+        finally:
+            namespace["st"] = saved_st
+            namespace["_setting"] = saved_setting
+        return fake
+
+    # No password: the laptop on the office desk, where a door would only be
+    # one more thing to type. Open, and openly so.
+    opened = run(None)
+    check("with no password set the page is open", not opened.stopped)
+
+    # Set: nothing is drawn until the word is right.
+    shut = run("hunter2")
+    check("with one set, the page stops before drawing anything",
+          shut.stopped)
+    check("and says nothing about what was wrong", not shut.errors)
+
+    wrong = run("hunter2", typed="letmein")
+    check("a wrong word does not open it",
+          wrong.stopped and not wrong.session_state.get("let_in"))
+    check("and it says so", bool(wrong.errors))
+
+    right = run("hunter2", typed="hunter2")
+    check("the right word opens it",
+          right.session_state.get("let_in") is True)
+    check("and the page is reloaded rather than half drawn", right.reran)
+
+    back = run("hunter2", already=True)
+    check("and it is not asked for again in the same session",
+          not back.stopped)
+
+    # Comparing with == leaks how much of the word was right in the time it
+    # takes, which is the whole of a guessing attack.
+    check("the comparison does not leak the answer in its timing",
+          "hmac.compare_digest" in source)
+    # The gate must run before anything draws, not after the first chart.
+    check("the door is before the page, not after it",
+          source.index("guard()\n") < source.index("def load_state"))
+
+
 def check_quiet_night(namespace):
     """A room that changed nothing for days still has a night to draw.
 
@@ -315,6 +395,7 @@ def main():
     check("every view and helper is still here", not missing,
           ", ".join(missing))
 
+    check_guard(namespace)
     check_quiet_night(namespace)
     check_head_count(namespace)
 

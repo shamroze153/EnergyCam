@@ -22,6 +22,7 @@ Connects as energycam_dashboard, which reads and cannot write, via
 DASHBOARD_DATABASE_URL in .env. The camera machine's own credential will not
 work here by design: it is granted the timestamp column and nothing more.
 """
+import hmac
 import os
 import time
 import warnings
@@ -194,6 +195,57 @@ load_dotenv()
 DATABASE_URL = _setting("DASHBOARD_DATABASE_URL") or _setting("DATABASE_URL")
 USING_APP_CREDENTIAL = not _setting("DASHBOARD_DATABASE_URL")
 DB_SSLMODE = _setting("DB_SSLMODE") or "require"
+
+
+def guard():
+    """Ask for the shared word before any of this is drawn.
+
+    On the office network the page needs no door: whoever is on the WiFi is
+    already in the building. Put it somewhere reachable from home and that
+    stops being true, and what is behind it is not a chart of kilowatts --
+    it is which rooms people sat in, what time each of them arrived and what
+    time they left, grouped by department. That is a record about identified
+    people at work, and the whole of it is one URL away from anyone the URL
+    reaches. It can also now be written to: the meter and solar readings go
+    in from this page.
+
+    So the door is here, in the application, rather than left to whatever
+    the host offers. A host's own sharing settings may be the better lock
+    where they exist, but they are not everywhere and they are not ours;
+    this works wherever the page is put.
+
+    Set DASHBOARD_PASSWORD -- in Streamlit's secrets when hosted, in .env on
+    the laptop. Unset means no door, which is right for a machine on the
+    office desk and wrong for anything with a public address, so the page
+    says which one it is rather than being quietly open.
+
+    What this is not: a login. There are no accounts and no record of who
+    looked, so it keeps out passers-by and search engines, not a colleague
+    who has been told the word. For anything stronger the host's own viewer
+    list is the answer.
+    """
+    wanted = _setting("DASHBOARD_PASSWORD")
+    if not wanted:
+        return
+    if st.session_state.get("let_in"):
+        return
+
+    st.markdown("### EnergyCam")
+    st.caption("140-H · Disrupt")
+    typed = st.text_input("Password", type="password",
+                          label_visibility="collapsed",
+                          placeholder="password")
+    if typed:
+        # compare_digest so the time taken does not vary with how much of
+        # the word is right, which is the whole of a guessing attack.
+        if hmac.compare_digest(str(typed), str(wanted)):
+            st.session_state["let_in"] = True
+            st.rerun()
+        st.error("Not that.")
+    st.stop()
+
+
+guard()
 
 
 # ----------------------------------------------------------------- loading
