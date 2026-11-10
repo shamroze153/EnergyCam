@@ -76,9 +76,35 @@ def main():
     # page's count, and must not be softened into drift.
     check("nobody visible is a GHOST, not DRIFT",
           verify_live.verdict(0, 1, 1, page("occupied", 1))[0], "GHOST")
-    # And one person against an empty page is MISSED however few.
+    # And one person against an empty page is MISSED however few --
+    # provided the detection is one the loop could not have missed.
     check("one person against an empty page is MISSED",
-          verify_live.verdict(1, 1, 1, page("empty", 0))[0], "MISSED")
+          verify_live.verdict(1, 1, 1, page("empty", 0), 0.84)[0], "MISSED")
+
+    # The tool runs the detector at the same confidence the loop does, so a
+    # detection on the threshold is not a person the page failed to see: it
+    # is a detection that lands in some frames and not others, and the loop
+    # would have missed it the same way a second later. Solar Array came
+    # back MISSED on 0.26 against a 0.25 threshold, which accuses the page
+    # of being a detector -- the same one.
+    label, why = verify_live.verdict(1, 1, 1, page("empty", 0), 0.26)
+    check("a detection on the threshold is FAINT, not MISSED", label,
+          "FAINT")
+    check("and it is not a fault", "FAINT" in verify_live.FAULTS, False)
+    check("the reason gives both numbers",
+          "0.26" in why and "0.25" in why, True)
+    check("just under the bar is still FAINT",
+          verify_live.verdict(1, 1, 1, page("empty", 0), 0.49)[0], "FAINT")
+    check("and at the bar it counts",
+          verify_live.verdict(1, 1, 1, page("empty", 0), 0.50)[0], "MISSED")
+    check("the bar is well above what the loop runs at",
+          verify_live.SURE_CONF > verify_live.DETECT_CONF, True)
+
+    # A faint detection says nothing about an occupied page either way: the
+    # ghost rule is about seeing nobody, which has no confidence at all.
+    check("a ghost is unaffected by confidence",
+          verify_live.verdict(0, 1, 1, page("occupied", 2), 0.0)[0],
+          "GHOST")
 
     # A room the loop has never written down is not a disagreement.
     check("a room with no reading is called out as such",

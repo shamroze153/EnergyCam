@@ -48,7 +48,7 @@ from dotenv import load_dotenv
 from check_room import OUT_DIR, draw
 from room_loop import (DETECT_IOU, DETECT_SIZE, fetch, ignored, load_rooms,
                        muffled, recorder_login, set_gates)
-from privacy_blur import people_boxes
+from privacy_blur import DETECT_CONF, people_boxes
 from schedule import PKT
 
 VERIFY_DIR = os.path.join(OUT_DIR, "verify")
@@ -89,7 +89,7 @@ def count_now(room, recorders, model, timeout):
     # table cannot be read.
     with muffled():
         frames = fetch(room, recorders, timeout)      # already widened
-    most, answered, drawn = 0, 0, []
+    most, answered, drawn, best = 0, 0, [], 0.0
     for key, frame in frames.items():
         if frame is None:
             continue
@@ -104,19 +104,35 @@ def count_now(room, recorders, model, timeout):
         # from the thing being verified would manufacture disagreements and
         # prove nothing about either.
         most = max(most, len(kept))
+        best = max([best] + [b[4] for b in kept])
         drawn.append((key, draw(frame, boxes, zones),
                       sorted((round(b[4], 2) for b in kept), reverse=True)))
-    return most, answered, len(frames), drawn
+    return most, answered, len(frames), drawn, best
 
 
 # A count that differs by this much, with both sides agreeing somebody is
 # there, is people moving between two samples rather than a fault.
 DRIFT_TOLERANCE = 2
 
+# How sure a detection has to be before it is allowed to accuse the page of
+# missing somebody.
+#
+# This tool runs the detector at the same confidence the loop does, 0.25.
+# So a person found at 0.26 is not a person the loop failed to see: it is a
+# detection sitting on the threshold, which lands in some frames and not
+# others, and the loop would have missed it in exactly the same way on a
+# frame taken a second later. Accusing the page of a fault on that evidence
+# is accusing it of being a detector, which it is -- the same one.
+#
+# A MISSED therefore needs a detection the loop could not reasonably have
+# missed. Below this it is FAINT: worth knowing, not worth walking to, and
+# not evidence of anything about the page.
+SURE_CONF = 0.50
+
 FAULTS = ("MISSED", "GHOST")
 
 
-def verdict(seen, answered, cameras, state):
+def verdict(seen, answered, cameras, state, best=1.0):
     """What to call the difference, if it is one.
 
     Nobody seen proves nothing unless every camera answered -- the same
@@ -147,8 +163,13 @@ def verdict(seen, answered, cameras, state):
                 % (answered, cameras))
     page = int((state.get("people") or 0))
     if status == "empty" and seen > 0:
+        if best < SURE_CONF:
+            return "FAINT", ("the page says empty; something scored %.2f,"
+                             " which is too close to the %.2f the loop"
+                             " itself runs at to call it a missed person"
+                             % (best, DETECT_CONF))
         return "MISSED", ("the page says empty, %d person(s) visible"
-                          % seen)
+                          " (best %.2f)" % (seen, best))
     if status == "occupied" and seen == 0 and answered == cameras:
         return "GHOST", ("the page says %d person(s), none visible on any"
                          " of %d cameras" % (page, cameras))
@@ -161,12 +182,13 @@ def one_pass(rooms, recorders, model, timeout, state):
     """Every room once: what was seen, and what to call it."""
     out = {}
     for room in sorted(rooms, key=lambda r: r.name):
-        seen, answered, cameras, drawn = count_now(room, recorders, model,
-                                                   timeout)
-        label, why = verdict(seen, answered, cameras, state.get(room.name))
+        seen, answered, cameras, drawn, best = count_now(
+            room, recorders, model, timeout)
+        label, why = verdict(seen, answered, cameras, state.get(room.name),
+                             best)
         out[room.name] = {"seen": seen, "answered": answered,
                           "cameras": cameras, "drawn": drawn,
-                          "label": label, "why": why}
+                          "best": best, "label": label, "why": why}
     return out
 
 
@@ -306,7 +328,7 @@ def main():
                  if result["answered"] else "none", label))
         if why and label != "MATCH":
             print("%-26s   %s" % ("", why))
-        if label in FAULTS:
+        if label in FAULTS or label == "FAINT":
             # How confident, which is the whole diagnosis. A person found
             # at 0.9 that the loop missed is a timing difference; one found
             # at 0.27 against a 0.25 threshold is a detection that lands
@@ -335,11 +357,15 @@ def main():
     for label in FAULTS:
         print("   %-13s %d" % (label, counts.get(label, 0)))
     print("NOT FAULTS")
-    for label in ("PASSING", "FOLLOWING", "DRIFT", "MATCH", "NO CAMERA",
-                  "NOT RECORDED", "RECOVERED", "SILENT"):
+    for label in ("FAINT", "PASSING", "FOLLOWING", "DRIFT", "MATCH",
+                  "NO CAMERA", "NOT RECORDED", "RECOVERED", "SILENT"):
         if counts.get(label):
             print("   %-13s %d" % (label, counts[label]))
     print()
+    print("   FAINT      something scored under %.2f, against the %.2f"
+          % (SURE_CONF, DETECT_CONF))
+    print("              the loop runs at. The loop would have missed it")
+    print("              too, on a frame a second later. Not evidence.")
     print("   PASSING    looked wrong once, not on the repeat: somebody")
     print("              walking through between two samples.")
     print("   FOLLOWING  the loop wrote a change for that room while this")
