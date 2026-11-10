@@ -31,6 +31,16 @@ import pandas as pd
 # dominating the answer.
 ENOUGH_DAYS = 24
 
+# A sanity bound that comes from the connection rather than from a guess:
+# 19 kW cannot draw more than 456 units in a day and 37 kW cannot draw more
+# than 888, whatever happens in the building. Anything above is arithmetic
+# that has gone wrong somewhere upstream, and should be shown as a problem
+# rather than averaged in.
+def impossible(units, sanctioned_kw, hours):
+    if not sanctioned_kw or not hours:
+        return False
+    return float(units) > float(sanctioned_kw) * float(hours) * 1.02
+
 
 def load(conn, days=120):
     """Readings, bills and the meters themselves."""

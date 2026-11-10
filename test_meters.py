@@ -105,6 +105,24 @@ def main():
         pd.DataFrame(columns=["meter", "taken", "reading", "units",
                               "max_temp"]))), 0)
 
+    # The ceiling comes from the connection itself, which is a far better
+    # bound than any round number: these two really are 19 kW and 37 kW.
+    check("19 kW over a day cannot exceed 456 units",
+          meters_view.impossible(500, 19, 24), True)
+    check("and 450 is fine", meters_view.impossible(450, 19, 24), False)
+    check("37 kW over a day cannot plausibly reach 950",
+          meters_view.impossible(950, 37, 24), True)
+    # A sanctioned load is a contractual limit rather than a physical one:
+    # a connection can be overdrawn for a while and billed for it. So a
+    # reading a little over the ceiling is allowed through rather than
+    # called a typo.
+    check("a little over the ceiling is allowed through",
+          meters_view.impossible(895, 37, 24), False)
+    check("a short reading period scales the ceiling down",
+          meters_view.impossible(300, 19, 12), True)
+    check("no sanctioned load, no opinion",
+          meters_view.impossible(99999, None, 24), False)
+
     print()
     if FAILURES:
         print("%d FAILURE(S):" % len(FAILURES))

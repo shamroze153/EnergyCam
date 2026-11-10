@@ -126,6 +126,13 @@ Every rupee on the dashboard rests on two guesses — 1.2 kW per unit and
 Rs 55 per kWh — which is why the page says "at stake" and never "bill". The
 meters are what replace them.
 
+The two connections at 140-H:
+
+| | Account | Meter | Sanctioned | Covers | Solar |
+|---|---|---|---|---|---|
+| `gf_basement` | 0400006377759 | TU09890 | 19 kW | Ground floor, basement | **yes** |
+| `first_cafe` | 0400006377837 | TU09825 | 37 kW | First floor, cafe (second) | no |
+
 Once, as the project owner, in the Supabase SQL editor: `sql/06_meters.sql`.
 
 Then two numbers a day, at roughly the same hour:

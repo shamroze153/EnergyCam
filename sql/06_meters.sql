@@ -28,22 +28,38 @@ CREATE TABLE IF NOT EXISTS public.meters (
     code        TEXT PRIMARY KEY,          -- 'gf_basement' | 'first_cafe'
     label       TEXT        NOT NULL,
     covers      TEXT        NOT NULL,
+    account     TEXT,                      -- the K-Electric account number
+    meter_no    TEXT,                      -- the number stamped on the meter
+    sanctioned_kw NUMERIC(6,1),            -- the connection's sanctioned load
     behind_solar BOOLEAN    NOT NULL DEFAULT FALSE,
     note        TEXT
 );
+-- The account and meter numbers are here so a bill can be matched to a meter
+-- without anybody having to remember which is which. The sanctioned load is
+-- here because it is a hard ceiling: a day cannot draw more than the load
+-- times twenty-four hours, so a reading above that is a mistyped digit
+-- rather than a remarkable day.
 
-INSERT INTO public.meters (code, label, covers, behind_solar, note) VALUES
+INSERT INTO public.meters
+  (code, label, covers, account, meter_no, sanctioned_kw, behind_solar, note)
+VALUES
   ('gf_basement', 'Ground floor + basement',
-   'Ground floor and basement',  TRUE,
+   'Ground floor and basement',
+   '0400006377759', 'TU09890', 19.0, TRUE,
    'The solar array feeds this meter, so its units are what was drawn from '
    'the grid after the panels. A sunny day reads low for reasons unrelated '
-   'to anyone switching anything off.'),
+   'to anyone switching anything off, and this meter alone cannot show a '
+   'saving.'),
   ('first_cafe',  'First floor + cafe',
-   'First floor and Prompt Cafe', FALSE,
+   'First floor, and the cafe on the second',
+   '0400006377837', 'TU09825', 37.0, FALSE,
    'No solar behind this one, so it is the meter to trust when asking '
-   'whether a change in behaviour changed consumption.')
+   'whether a change in behaviour changed consumption. Twice the sanctioned '
+   'load of the other, which the cafe''s equipment explains.')
 ON CONFLICT (code) DO UPDATE
   SET label = EXCLUDED.label, covers = EXCLUDED.covers,
+      account = EXCLUDED.account, meter_no = EXCLUDED.meter_no,
+      sanctioned_kw = EXCLUDED.sanctioned_kw,
       behind_solar = EXCLUDED.behind_solar, note = EXCLUDED.note;
 
 -- ------------------------------------------------------- 2. the readings

@@ -44,7 +44,28 @@ ALIASES = {
 # A day's consumption outside this is almost certainly a typo, and a typo
 # here is worse than a missing day: it goes into an average and quietly
 # moves every figure built on it.
-SANE_UNITS = (1, 3000)
+#
+# The ceiling comes from the connection's own sanctioned load, read from the
+# meters table, which is a far better bound than any round number I could
+# pick: 19 kW cannot draw more than 456 units in a day and 37 kW cannot draw
+# more than 888, whatever happens in the building. The floor is a round
+# number, because a building that drew nothing all day is a meter somebody
+# read wrong.
+MINIMUM_UNITS = 1
+FALLBACK_MAXIMUM = 3000
+
+
+def sane_range(cur, code):
+    """What a day's units can possibly be on this meter."""
+    try:
+        cur.execute("SELECT sanctioned_kw FROM meters WHERE code = %s",
+                    (code,))
+        row = cur.fetchone()
+    except psycopg2.Error:
+        return MINIMUM_UNITS, FALLBACK_MAXIMUM
+    if not row or row[0] is None:
+        return MINIMUM_UNITS, FALLBACK_MAXIMUM
+    return MINIMUM_UNITS, float(row[0]) * 24
 
 
 def connect():
@@ -104,10 +125,14 @@ def add_reading(args):
                       " to measure against yet. Tomorrow's gives the first"
                       " day's units.")
 
-        if units is not None and not (SANE_UNITS[0] <= float(units)
-                                      <= SANE_UNITS[1]):
-            print(">> %.1f units for one day is outside %d-%d, which usually"
-                  " means a digit is wrong." % (float(units), *SANE_UNITS))
+        low, high = sane_range(cur, code)
+        if units is not None and not (low <= float(units) <= high):
+            print(">> %.1f units is outside %.0f-%.0f for this meter."
+                  % (float(units), low, high))
+            if float(units) > high:
+                print(">> The connection's sanctioned load makes anything"
+                      " above %.0f impossible in a day, so a digit is wrong."
+                      % high)
             if input(">> write it anyway? [y/N] ").strip().lower() not in \
                     ("y", "yes"):
                 sys.exit(">> nothing written")
