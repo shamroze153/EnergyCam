@@ -131,6 +131,21 @@ def main():
     check("only the suspected faults are looked at again",
           "re-checking %d room(s)" in source, True)
 
+    # The table has to show the state the verdict was taken against. It
+    # was showing the state at the end, which produced rows nobody can
+    # read: "occupied (1), 0 visible, MATCH" -- true only because the page
+    # said empty at the moment of comparison and changed afterwards.
+    check("the table prints the state the verdict used",
+          "mine = before.get(room.name)" in source, True)
+    check("and not the one read afterwards",
+          "mine = after.get(room.name)" in source, False)
+
+    # The confidence is the whole diagnosis for a MISSED room: 0.9 means a
+    # timing difference, 0.27 against a 0.25 threshold means a detection
+    # that lands in some frames and not others.
+    check("a fault reports how confident the detection was",
+          'print("%-26s   %s ch%d: %s"' in source, True)
+
     print()
     if FAILURES:
         print("%d FAILURE(S):" % len(FAILURES))

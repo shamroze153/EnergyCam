@@ -104,7 +104,8 @@ def count_now(room, recorders, model, timeout):
         # from the thing being verified would manufacture disagreements and
         # prove nothing about either.
         most = max(most, len(kept))
-        drawn.append((key, draw(frame, boxes, zones), len(kept)))
+        drawn.append((key, draw(frame, boxes, zones),
+                      sorted((round(b[4], 2) for b in kept), reverse=True)))
     return most, answered, len(frames), drawn
 
 
@@ -287,7 +288,11 @@ def main():
         if label in FAULTS:
             faults.append(room.name)
 
-        mine = after.get(room.name) or before.get(room.name)
+        # The state the verdict was taken against, not the state at the
+        # end. Printing the later one produced rows that cannot be read --
+        # "occupied (1), 0 visible, MATCH" -- because the page had said
+        # something different at the moment the comparison was made.
+        mine = before.get(room.name)
         if mine and mine.get("status"):
             says = "%s %s" % (mine["status"],
                               "" if mine.get("people") in (None, 0)
@@ -299,15 +304,26 @@ def main():
               % (room.name[:26], says,
                  "%d/%d cam" % (result["seen"], result["answered"])
                  if result["answered"] else "none", label))
-        if why and label not in ("MATCH",):
+        if why and label != "MATCH":
             print("%-26s   %s" % ("", why))
+        if label in FAULTS:
+            # How confident, which is the whole diagnosis. A person found
+            # at 0.9 that the loop missed is a timing difference; one found
+            # at 0.27 against a 0.25 threshold is a detection that lands
+            # some frames and not others, and the room needs a lower
+            # confidence or a larger input size rather than a new camera.
+            for (rec, channel), _, scores in result["drawn"]:
+                if scores:
+                    print("%-26s   %s ch%d: %s" % ("", rec, channel,
+                                                   ", ".join("%.2f" % v
+                                                             for v in scores)))
 
         keep = (args.pictures == "all"
                 or (args.pictures == "faults" and label in FAULTS))
         if keep and result["drawn"]:
             os.makedirs(VERIFY_DIR, exist_ok=True)
             safe = "".join(c if c.isalnum() else "_" for c in room.name)
-            for (rec, channel), canvas, kept in result["drawn"]:
+            for (rec, channel), canvas, scores in result["drawn"]:
                 cv2.imwrite(os.path.join(
                     VERIFY_DIR, "%s_%s_ch%02d_%s_%s.jpg"
                     % (label.lower(), safe, channel, rec,
