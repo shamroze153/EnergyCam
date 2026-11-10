@@ -2056,6 +2056,52 @@ saved, span, enough = against_baseline(month, discretionary["room"], now,
                                        assumptions)
 
 beat_age = minutes_since(last_beat, now)
+
+if view == "Campus":
+    # One page: what wants doing at the top, then every room drawn, the units
+    # and the people side by side, who arrived when, and any room close up.
+    # The layout lives in campus_view.html and the figures are computed here
+    # from the same helpers the rest of this file uses, so the page and the
+    # loop cannot start disagreeing about what a room is.
+    import streamlit.components.v1 as components
+
+    import campus_view
+
+    try:
+        rows = campus_view.rows(df, recent, now, grade, spell, minutes_since,
+                                hours)
+    except Exception as e:                                  # noqa: BLE001
+        st.error("The campus page could not be built (%s: %s). Every other"
+                 " view still works \u2014 pick Rooms in the sidebar. Please"
+                 " send this line on." % (type(e).__name__, e))
+        st.stop()
+    healthy = beat_age is not None and beat_age <= STALE_AFTER_MINUTES
+    meta = {
+        "campus": campus,
+        "live": ("live \u00b7 reported %s ago" % spell(beat_age)) if healthy
+                else ("silent for %s" % spell(beat_age)
+                      if beat_age is not None else "never reported"),
+        "healthy": bool(healthy),
+        "stake": "Rs %s" % format(round(at_stake), ","),
+        "stake_label": "at stake tonight",
+        "saved": ("Rs %s" % format(abs(round(saved)), ",")) if enough
+                 else "\u2014",
+        "saved_label": ("switched off, against the first fortnight" if enough
+                        else "not two fortnights of history yet"),
+        "when": "%s \u00b7 %s" % (now.tz_convert(PKT).strftime("%A %H:%M"),
+                                  describe(now, hours)),
+    }
+    html = campus_view.page(rows, meta)
+    tall = campus_view.height(rows)
+    # st.components.v1.html is past the date it was due to be removed and
+    # warns on every rerun, which buries anything real in the console. st.iframe
+    # replaces it, but not every Streamlit this might run on has it yet.
+    if hasattr(st, "iframe"):
+        st.iframe(html, height=tall, scrolling=True)
+    else:
+        components.html(html, height=tall, scrolling=True)
+    st.stop()
+
 st.markdown(header_band(campus, df, beat_age, describe(now, hours),
                         money_strip(at_stake, saved, span, enough)),
             unsafe_allow_html=True)
@@ -2136,51 +2182,7 @@ if hunt:
             unsafe_allow_html=True)
     st.divider()
 
-if view == "Campus":
-    # One page: what wants doing at the top, then every room drawn, the units
-    # and the people side by side, who arrived when, and any room close up.
-    # The layout lives in campus_view.html and the figures are computed here
-    # from the same helpers the rest of this file uses, so the page and the
-    # loop cannot start disagreeing about what a room is.
-    import streamlit.components.v1 as components
-
-    import campus_view
-
-    try:
-        rows = campus_view.rows(df, recent, now, grade, spell, minutes_since,
-                                hours)
-    except Exception as e:                                  # noqa: BLE001
-        st.error("The campus page could not be built (%s: %s). Every other"
-                 " view still works \u2014 pick Rooms in the sidebar. Please"
-                 " send this line on." % (type(e).__name__, e))
-        st.stop()
-    healthy = beat_age is not None and beat_age <= STALE_AFTER_MINUTES
-    meta = {
-        "campus": campus,
-        "live": ("live \u00b7 reported %s ago" % spell(beat_age)) if healthy
-                else ("silent for %s" % spell(beat_age)
-                      if beat_age is not None else "never reported"),
-        "healthy": bool(healthy),
-        "stake": "Rs %s" % format(round(at_stake), ","),
-        "stake_label": "at stake tonight",
-        "saved": ("Rs %s" % format(abs(round(saved)), ",")) if enough
-                 else "\u2014",
-        "saved_label": ("switched off, against the first fortnight" if enough
-                        else "not two fortnights of history yet"),
-        "when": "%s \u00b7 %s" % (now.tz_convert(PKT).strftime("%A %H:%M"),
-                                  describe(now, hours)),
-    }
-    html = campus_view.page(rows, meta)
-    tall = campus_view.height(rows)
-    # st.components.v1.html is past the date it was due to be removed and
-    # warns on every rerun, which buries anything real in the console. st.iframe
-    # replaces it, but not every Streamlit this might run on has it yet.
-    if hasattr(st, "iframe"):
-        st.iframe(html, height=tall, scrolling=True)
-    else:
-        components.html(html, height=tall, scrolling=True)
-
-elif view == "Rooms":
+if view == "Rooms":
     st.markdown(
         '<div style="display:flex;align-items:baseline;gap:10px;'
         'margin:0 0 6px;"><span style="font-size:1.1rem;font-weight:720;">'

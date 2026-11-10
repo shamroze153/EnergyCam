@@ -131,7 +131,7 @@ def rows(df, recent, now, grade, spell, minutes_since, hours=None,
 
         note = None
         kind = {"Red": "act", "Amber": "act", "Green": "good",
-                "Cool": "cold", "Fault": "unknown"}.get(level, "watch")
+                "Cool": "cold", "Fault": "silent"}.get(level, "watch")
         if row["status"] == "occupied":
             kind = "cold" if (has_unit and ac == "off") else "busy"
         elif not has_unit:
@@ -152,8 +152,15 @@ def rows(df, recent, now, grade, spell, minutes_since, hours=None,
                 kind = "good"
         else:
             kind = "unknown"
-        if level == "Fault":
-            kind = "unknown"
+        if level == "Fault" or row["status"] == "unknown" \
+                or pd.isna(row["status"]):
+            # Nobody looked. That is not the same as a unit nobody has
+            # calibrated, and calling both "unknown" would hide a camera
+            # that stopped answering behind a sentence about air
+            # conditioners. One is a job for whoever walks the building;
+            # the other is a job for whoever fixes cameras.
+            kind = "silent"
+            note = caption
         if kind == "cold":
             note = caption
 

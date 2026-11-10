@@ -389,8 +389,8 @@ const esc = s => String(s).replace(/[&<>"]/g,
 const ZONE_ORDER = ["Offices","H offices","H common","Cafe & common",
   "H entrance","Basement","Server rooms","H perimeter","Outside & plant",
   "Unused"];
-const GRADE_ORDER = {act:0,sorted:1,cold:2,unknown:3,busy:4,good:5,
-  onpurpose:6,watch:7};
+const GRADE_ORDER = {act:0,sorted:1,cold:2,unknown:3,silent:4,busy:5,
+  good:6,onpurpose:7,watch:8};
 
 function spell(m){
   if(m===null||m===undefined) return "—";
@@ -420,6 +420,7 @@ function headline(r){
     case "cold":    return r.note;
     case "busy":    return r.people + (r.people===1?" in here":" in here");
     case "unknown": return "empty " + spell(r.empty) + " · unit not read";
+    case "silent":  return "no camera answered";
     case "onpurpose": return "cooled on purpose";
     case "good":    return "empty " + spell(r.empty) + " · already off";
     default:        return r.state === "occupied"
@@ -432,7 +433,8 @@ function headline(r){
 function drawing(r){
   const col = {act:"var(--act)",sorted:"var(--ok)",good:"var(--ok)",
     busy:"var(--busy)",cold:"var(--warn)",unknown:"var(--unknown)",
-    watch:"var(--unknown)",onpurpose:"var(--unknown)"}[r.grade];
+    silent:"var(--warn)",watch:"var(--unknown)",
+    onpurpose:"var(--unknown)"}[r.grade];
   const n = Math.min(r.people || 0, 5);
   let people = "";
   for(let i=0;i<n;i++){
@@ -477,10 +479,16 @@ function drawing(r){
            + ' font-family="var(--body)">+' + ((r.units_total||1)-3) + '</text>';
     }
   }
-  const empty = n ? "" :
-    '<text x="75" y="50" font-size="8" fill="'+col+'" opacity=".45"'
-    + ' text-anchor="middle" letter-spacing="1.6"'
-    + ' font-family="var(--body)">EMPTY</text>';
+  // A room nobody could see is not drawn as an empty room. Drawing it
+  // empty is the single most misleading thing this page could do.
+  const empty = r.grade === "silent"
+    ? '<text x="75" y="50" font-size="7.5" fill="'+col+'" opacity=".75"'
+      + ' text-anchor="middle" letter-spacing="1.2"'
+      + ' font-family="var(--body)">NOBODY LOOKED</text>'
+    : (n ? "" :
+      '<text x="75" y="50" font-size="8" fill="'+col+'" opacity=".45"'
+      + ' text-anchor="middle" letter-spacing="1.6"'
+      + ' font-family="var(--body)">EMPTY</text>');
   return '<svg viewBox="0 0 150 70" role="img" aria-label="'
     + esc(r.name + ", " + headline(r)) + '">'
     + '<rect x="4" y="4" width="142" height="62" rx="8" fill="none"'
@@ -496,6 +504,7 @@ function renderBand(){
                    .sort((a,b) => b.empty - a.empty);
   const done = ROOMS.filter(r => r.grade === "sorted");
   const ask = ROOMS.filter(r => r.grade === "unknown" && r.unit).slice(0,2);
+  const silent = ROOMS.filter(r => r.grade === "silent");
   $("#band-title").textContent = act.length
     ? act.length + (act.length === 1 ? " room wants doing" : " rooms want doing")
     : "Nothing wants doing";
@@ -527,6 +536,17 @@ function renderBand(){
       + '<div class="lab">empty ' + spell(r.empty) + '. Nobody has'
       + ' calibrated this unit, so its state is unknown rather than off'
       + ' — somebody go and look.</div></button>';
+  }
+  if(silent.length){
+    // Said plainly and once, because it is a different kind of problem from
+    // everything else on this band: nobody to send, something to fix.
+    h += '<button class="act quiet" style="grid-column:1/-1"'
+      + ' data-room="' + esc(silent[0].name) + '">'
+      + '<div class="nm">' + silent.length + ' camera'
+      + (silent.length === 1 ? '' : 's') + ' not answering</div>'
+      + '<div class="lab">' + silent.map(r => esc(r.name)).join(", ")
+      + '. Reported as unknown rather than empty, because nobody looked.'
+      + '</div></button>';
   }
   $("#acts").innerHTML = h;
 }
@@ -684,9 +704,14 @@ function openRoom(name){
     + '<div class="dbody">'
     + '<div style="margin-bottom:14px">' + drawing(r) + '</div>'
     + (r.note ? '<div class="note">' + esc(r.note) + '</div>' : '')
-    + (!r.unit ? '<div class="note">No air conditioner in this room, so'
-        + ' there is nothing here to switch off. It is watched for who comes'
-        + ' and goes.</div>' : '')
+    + (r.grade === "silent" ? '<div class="note">No camera answered for'
+        + ' this room on the last pass, so nothing about it is known right'
+        + ' now ' + "—" + ' not that it is empty, not that'
+        + ' anybody is in it. This is a camera or a recorder to look at,'
+        + ' not a room to walk to.</div>' : '')
+    + (!r.unit && r.grade !== "silent" ? '<div class="note">No air'
+        + ' conditioner in this room, so there is nothing here to switch'
+        + ' off. It is watched for who comes and goes.</div>' : '')
     + (r.unit && r.ac === null ? '<div class="note">'
         + ((r.units_total || 1) > 1
             ? 'None of the ' + r.units_total + ' units in this room has been'

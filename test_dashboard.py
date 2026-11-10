@@ -266,6 +266,14 @@ def main():
        by["Old Finance"]["grade"] == "cold")
     check("an uncalibrated unit is unknown, not off",
        by["Board Room"]["grade"] == "unknown")
+    # The distinction that matters: a camera that did not answer is not a
+    # unit nobody has calibrated. Conflating them hides a dead camera behind
+    # a sentence about air conditioners, and sends somebody to a room when
+    # what needs looking at is a recorder.
+    check("a room no camera answered for is silent, not unknown",
+       by["Dead Camera"]["grade"] == "silent")
+    check("and it is not reported as empty",
+       by["Dead Camera"]["state"] == "unknown")
     check("a room cooled on purpose is never flagged",
        by["UPS Room"]["grade"] == "onpurpose")
 
