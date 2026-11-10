@@ -20,7 +20,14 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo.
+rem Which address to type into a phone. Streamlit prints a Network URL of
+rem its own, but this laptop sits on two networks -- the cable to the camera
+rem VLAN and the office WiFi -- and Streamlit picks one without knowing
+rem which. When it picks the camera VLAN the address it prints is one no
+rem phone can reach, and the obvious conclusion is that the dashboard does
+rem not work on a phone. It does.
+python phone_url.py
+
 echo Starting the dashboard. It opens in your browser. Ctrl+C to stop.
 echo.
 streamlit run rooms_dashboard.py %*
