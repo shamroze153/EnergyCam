@@ -588,6 +588,17 @@ def main():
     check_why_unreachable(namespace)
     check_connection_hint(namespace)
     check_guard(namespace)
+    spell = namespace["spell"]
+    # The heartbeat is written at 140-H; this page may run elsewhere, so
+    # the two clocks differ by a minute or so and the age can come out
+    # negative. "reported -1 min ago" reads as a broken badge.
+    check("a clock a minute apart does not report the future",
+          spell(-1), "under a min")
+    check("nor does a dead heat", spell(0), "under a min")
+    check("an ordinary age still reads normally", spell(7), "7 min")
+    check("and so does a long one", spell(185), "3h 05m")
+    check("no reading at all is still a dash", spell(None), "\u2014")
+
     check_quiet_night(namespace)
     check_head_count(namespace)
 

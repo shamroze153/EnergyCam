@@ -525,6 +525,13 @@ def spell(minutes):
     if minutes is None:
         return "—"
     minutes = int(minutes)
+    # "reported -1 min ago". The heartbeat is written by the machine at
+    # 140-H and this page may be running somewhere else entirely, so the
+    # two clocks are not the same clock and a minute of disagreement is
+    # ordinary. A negative age is that disagreement, not a reading from
+    # the future, and printing it as one makes the whole badge look broken.
+    if minutes <= 0:
+        return "under a min"
     if minutes < 60:
         return "%d min" % minutes
     hours, rest = divmod(minutes, 60)
