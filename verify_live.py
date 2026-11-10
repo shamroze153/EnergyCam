@@ -39,6 +39,7 @@ Pictures have faces in them and are not blurred. They stay on this machine.
 import argparse
 import os
 import sys
+import time
 from datetime import datetime
 
 import cv2
@@ -178,6 +179,35 @@ def verdict(seen, answered, cameras, state, best=1.0):
     return "MATCH", ""
 
 
+def watch(room, recorders, model, timeout, every):
+    """One room, over and over, saying what the camera can see right now.
+
+    For standing in a room and finding out whether it can see you. The
+    whole-building pass answers a different question and takes minutes; a
+    person testing one room wants an answer every few seconds, and wants it
+    without a database, a verdict or a photograph of themselves.
+
+    This writes nothing anywhere.
+    """
+    print("Watching %s. Ctrl+C to stop." % room.name)
+    print("%-9s %-8s %s" % ("TIME", "PEOPLE", "CONFIDENCE OF EACH"))
+    while True:
+        seen, answered, cameras, drawn, best = count_now(
+            room, recorders, model, timeout)
+        now = datetime.now(PKT).strftime("%H:%M:%S")
+        if answered == 0:
+            print("%-9s %-8s no camera answered" % (now, "\u2014"))
+        else:
+            scores = []
+            for (rec, channel), _, each in drawn:
+                scores.extend("%s ch%d %.2f" % (rec, channel, v)
+                              for v in each)
+            print("%-9s %-8d %s"
+                  % (now, seen, ", ".join(scores) if scores
+                     else "nothing above %.2f" % DETECT_CONF))
+        time.sleep(max(0.0, every))
+
+
 def one_pass(rooms, recorders, model, timeout, state):
     """Every room once: what was seen, and what to call it."""
     out = {}
@@ -209,6 +239,11 @@ def main():
                          " before it is reported (default 2). One sample"
                          " of a building with people walking about in it"
                          " disagrees nearly everywhere and means nothing.")
+    ap.add_argument("--watch", type=float, metavar="SECONDS",
+                    help="one room, over and over, every SECONDS: what the"
+                         " camera can see right now and how sure it is."
+                         " For standing in a room and finding out whether"
+                         " it can see you. Needs --room, writes nothing.")
     ap.add_argument("--pictures", choices=["faults", "all", "none"],
                     default="faults",
                     help="which rooms to write a picture for. The default"
@@ -241,6 +276,15 @@ def main():
 
     from ultralytics import YOLO
     model = YOLO("yolov8n.pt")
+
+    if args.watch:
+        if len(rooms) != 1:
+            sys.exit("--watch takes one room: add --room \"Admin Room\"")
+        try:
+            watch(rooms[0], recorders, model, args.timeout, args.watch)
+        except KeyboardInterrupt:
+            print("\nstopped.")
+        return 0
 
     before = latest_state(rooms)
     started = datetime.now(PKT)

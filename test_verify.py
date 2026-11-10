@@ -169,6 +169,18 @@ def main():
     # The confidence is the whole diagnosis for a MISSED room: 0.9 means a
     # timing difference, 0.27 against a 0.25 threshold means a detection
     # that lands in some frames and not others.
+    # Standing in a room and refreshing a page that is up to a cycle
+    # behind is not a test anybody can read. --watch answers the question
+    # being asked -- can it see me, right now -- without a database, a
+    # verdict, or a photograph of the person asking.
+    check("there is a way to watch one room live",
+          '"--watch"' in source, True)
+    check("it refuses more than one room",
+          '--watch takes one room' in source, True)
+    check("and it writes nothing: no database, no pictures",
+          "latest_state" in source.split("if args.watch:")[1]
+          .split("return 0")[0], False)
+
     check("a fault reports how confident the detection was",
           'print("%-26s   %s ch%d: %s"' in source, True)
 
