@@ -36,6 +36,7 @@ import json
 import os
 import sys
 import time
+import traceback
 from datetime import datetime, timedelta, timezone
 
 # Joining a stream part way through means ffmpeg decodes a few frames against a
@@ -99,6 +100,66 @@ RETENTION_SECONDS = 24 * 3600
 # Same code unified_system uses, so run_system.bat can tell a misconfiguration
 # apart from a crash and stop retrying instead of looping on it forever.
 EXIT_CONFIG = 78
+
+# How long to wait after a cycle blows up, and the ceiling it backs off to.
+# A recorder that has gone away is not helped by being asked every second,
+# and a loop that gives up entirely records nothing at all.
+RETRY_SECONDS = 15
+RETRY_CEILING = 300
+
+
+def no_quick_edit():
+    """Stop a stray click in the console window freezing the loop.
+
+    Windows consoles ship with QuickEdit on. Clicking anywhere in the window
+    starts a text selection, and from that moment every write to stdout
+    blocks until somebody presses Escape or Enter. The loop has not crashed
+    and has not exited; it is simply stopped, silently, and the rooms go
+    unrecorded until whoever clicked happens to notice. From the outside
+    this is indistinguishable from a hang, which is why it is worth a dozen
+    lines to make impossible rather than a paragraph in a document nobody
+    reads at the moment it matters.
+
+    Only the console this process owns is touched, and only for as long as
+    it runs. Nothing is written to the registry and no other window changes.
+    """
+    if os.name != "nt":
+        return False
+    try:
+        import ctypes
+        kernel = ctypes.windll.kernel32
+        handle = kernel.GetStdHandle(-10)            # STD_INPUT_HANDLE
+        mode = ctypes.c_uint()
+        if not kernel.GetConsoleMode(handle, ctypes.byref(mode)):
+            return False                             # not a console at all
+        quick_edit, extended = 0x0040, 0x0080
+        # The extended flag has to be set for the quick-edit bit to be read.
+        wanted = (mode.value & ~quick_edit) | extended
+        return bool(kernel.SetConsoleMode(handle, wanted))
+    except Exception:                                # noqa: BLE001
+        return False
+
+
+def stay_awake(on=True):
+    """Ask Windows not to go to sleep while the loop is running.
+
+    This covers the idle timer, which is what sends an unattended desk
+    machine to sleep in the middle of the night -- the hours this system
+    exists to measure. It covers nothing else, and the difference matters:
+    closing a laptop lid, choosing Sleep from the menu, or a policy that
+    suspends on lock will all still stop the machine, and this call will not
+    argue. A laptop therefore still needs its lid action set to "do nothing"
+    in Power Options; see docs/always_on.md.
+    """
+    if os.name != "nt":
+        return False
+    try:
+        import ctypes
+        continuous, system_required = 0x80000000, 0x00000001
+        flags = (continuous | system_required) if on else continuous
+        return bool(ctypes.windll.kernel32.SetThreadExecutionState(flags))
+    except Exception:                                # noqa: BLE001
+        return False
 
 # The two errors here do not cost the same. Counting someone who is not there
 # wastes nobody's time: the room reads occupied and no alert goes out, and the
@@ -944,6 +1005,16 @@ def main():
     print(">> %d room(s) can raise an air-conditioner check; the rest are"
           " counted but never alert" % len(watched))
 
+    # Two Windows habits that stop this loop without stopping the process,
+    # and without saying anything. Both are turned off for this console and
+    # this process only.
+    if no_quick_edit():
+        print(">> click-to-select is off in this window; a stray click"
+              " cannot freeze the loop now")
+    if not args.once and stay_awake():
+        print(">> asked Windows not to idle-sleep while this runs (a closed"
+              " lid or a chosen Sleep will still stop it)")
+
     from ultralytics import YOLO          # slow import, so not at module level
     model = YOLO("yolov8n.pt")
 
@@ -960,65 +1031,100 @@ def main():
     # Sweep on the first pass rather than a day in: a machine restarted daily
     # would otherwise never reach the interval and never delete anything.
     last_beat, last_sweep = 0.0, 0.0
+    # A cycle that throws used to end the process, and with it the night. A
+    # recorder rebooting, a switch dropping a packet, the database refusing a
+    # connection for ten seconds -- any of them was the whole building
+    # unrecorded until somebody noticed the window had closed. None of those
+    # is a reason to stop watching; they are reasons to wait and look again.
+    # Configuration errors still exit, because they are caught before the
+    # loop and restarting cannot fix them.
+    trouble, wait = 0, RETRY_SECONDS
     while True:
-        cycle += 1
-        started = time.time()
-        readings = sweep(rooms, recorders, model, args.imgsz, args.iou,
-                         args.timeout, ac_units, args.workers, keeper,
-                         args.evidence, hours)
-        now = datetime.now(PKT)
-        for room in rooms:
-            people, answered, ac, why = readings[room.name]
-            room.observe(people, answered, now, ac, why)
-        elapsed = time.time() - started
-        report(rooms, now, cycle, elapsed, hours)
-        save_state(rooms, args.state, now)
+        try:
+            cycle += 1
+            started = time.time()
+            readings = sweep(rooms, recorders, model, args.imgsz, args.iou,
+                             args.timeout, ac_units, args.workers, keeper,
+                             args.evidence, hours)
+            now = datetime.now(PKT)
+            for room in rooms:
+                people, answered, ac, why = readings[room.name]
+                room.observe(people, answered, now, ac, why)
+            elapsed = time.time() - started
+            report(rooms, now, cycle, elapsed, hours)
+            save_state(rooms, args.state, now)
 
-        if not args.no_db:
-            changed = [r for r in rooms if r.state() != r.recorded]
-            if record([(now, r.recorder, r.name, r.status, r.people,
-                        r.empty_since, r.ac_state) for r in changed]):
-                # Only once the insert has landed. Marking them recorded on a
-                # failed write would drop the change silently, and the next
-                # cycle, seeing no difference, would never write it either:
-                # the room would simply go missing from its own history.
-                for room in changed:
-                    room.recorded = room.state()
-                if changed:
-                    print(">> recorded %d change(s)" % len(changed))
-            if time.time() - last_beat >= HEARTBEAT_SECONDS and beat():
-                last_beat = time.time()
-            if time.time() - last_sweep >= RETENTION_SECONDS and sweep():
-                last_sweep = time.time()
+            if not args.no_db:
+                changed = [r for r in rooms if r.state() != r.recorded]
+                if record([(now, r.recorder, r.name, r.status, r.people,
+                            r.empty_since, r.ac_state) for r in changed]):
+                    # Only once the insert has landed. Marking them recorded on a
+                    # failed write would drop the change silently, and the next
+                    # cycle, seeing no difference, would never write it either:
+                    # the room would simply go missing from its own history.
+                    for room in changed:
+                        room.recorded = room.state()
+                    if changed:
+                        print(">> recorded %d change(s)" % len(changed))
+                if time.time() - last_beat >= HEARTBEAT_SECONDS and beat():
+                    last_beat = time.time()
+                if time.time() - last_sweep >= RETENTION_SECONDS and sweep():
+                    last_sweep = time.time()
 
-        worth = alerter.consider(rooms, now, hours)
-        if worth:
-            subject, body = compose(worth, now, hours)
-            if args.alerts:
-                try:
-                    sent_to = deliver(subject, body)
-                    print(">> alert sent to %d address(es): %s"
-                          % (sent_to, subject))
-                except Exception as e:                  # noqa: BLE001
-                    # A mail server refusing is not a reason to stop
-                    # watching the building. It is a reason to say so and
-                    # to let the room be mentioned again, rather than
-                    # marking it told when nobody was told.
-                    print(">> COULD NOT SEND ALERT: %s" % safe_error(e))
-                    for room in worth:
-                        alerter.episode.pop(room.name, None)
-                        alerter.last_said.pop(room.name, None)
-            else:
-                print(">> would have sent: %s" % subject)
-                for line in body.splitlines()[2:2 + len(worth)]:
-                    print("   %s" % line)
+            worth = alerter.consider(rooms, now, hours)
+            if worth:
+                subject, body = compose(worth, now, hours)
+                if args.alerts:
+                    try:
+                        sent_to = deliver(subject, body)
+                        print(">> alert sent to %d address(es): %s"
+                              % (sent_to, subject))
+                    except Exception as e:                  # noqa: BLE001
+                        # A mail server refusing is not a reason to stop
+                        # watching the building. It is a reason to say so and
+                        # to let the room be mentioned again, rather than
+                        # marking it told when nobody was told.
+                        print(">> COULD NOT SEND ALERT: %s" % safe_error(e))
+                        for room in worth:
+                            alerter.episode.pop(room.name, None)
+                            alerter.last_said.pop(room.name, None)
+                else:
+                    print(">> would have sent: %s" % subject)
+                    for line in body.splitlines()[2:2 + len(worth)]:
+                        print("   %s" % line)
 
-        if args.once:
-            return
-        spare = args.min_cycle - elapsed
-        if spare > 0:
-            time.sleep(spare)
+            if args.once:
+                return
+            spare = args.min_cycle - elapsed
+            if spare > 0:
+                time.sleep(spare)
+
+
+        except KeyboardInterrupt:
+            raise
+        except SystemExit:
+            raise
+        except Exception as e:                      # noqa: BLE001
+            trouble += 1
+            print("\n>> CYCLE %d FAILED (%s). Waiting %ds, then looking"
+                  " again. This is failure %d in a row."
+                  % (cycle, safe_error(e), wait, trouble))
+            traceback.print_exc()
+            if args.once:
+                return 1          # a crash, not a misconfiguration
+            time.sleep(wait)
+            wait = min(wait * 2, RETRY_CEILING)
+            continue
+        trouble, wait = 0, RETRY_SECONDS
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        print("\n>> stopped by hand. Nothing is watching the rooms now.")
+        sys.exit(0)
+    finally:
+        # Hand the sleep timer back. Leaving a machine unable to sleep
+        # because a loop exited badly is somebody else's problem later.
+        stay_awake(False)

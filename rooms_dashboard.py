@@ -283,12 +283,23 @@ def load_state():
             % (DETAIL_HOURS + 1, DETAIL_HOURS + 1), conn)
         beat = pd.read_sql_query(
             "SELECT max(timestamp) AS last_beat FROM heartbeat", conn)
+        # Every beat in the window, not only the last one. The last beat
+        # says whether the loop is alive now; these say which quarter hours
+        # it was alive for, which is what separates "the building was empty"
+        # from "nobody was looking". Timestamps only -- the table holds
+        # nothing else.
+        beats = pd.read_sql_query(
+            "SELECT timestamp FROM heartbeat"
+            " WHERE timestamp >= now() - interval '%d hours'"
+            " ORDER BY timestamp" % (DETAIL_HOURS + 1), conn)
     finally:
         conn.close()
     for column in ("empty_since", "timestamp"):
         latest[column] = pd.to_datetime(latest[column], utc=True)
     recent["timestamp"] = pd.to_datetime(recent["timestamp"], utc=True)
-    return latest, recent, pd.to_datetime(beat["last_beat"].iloc[0], utc=True)
+    beats["timestamp"] = pd.to_datetime(beats["timestamp"], utc=True)
+    return (latest, recent, pd.to_datetime(beat["last_beat"].iloc[0], utc=True),
+            beats["timestamp"].tolist())
 
 
 @st.cache_data(ttl=60)
@@ -2203,7 +2214,7 @@ def show_numbers(df, cooled, recent, now):
 
 try:
     rooms = load_rooms_config()
-    latest, recent, last_beat = load_state()
+    latest, recent, last_beat, beats = load_state()
 except FileNotFoundError:
     st.error("rooms.yaml not found. Run this from the project folder.")
     st.stop()
@@ -2374,7 +2385,7 @@ if view == "Campus":
 
     try:
         rows = campus_view.rows(df, recent, now, grade, spell, minutes_since,
-                                hours)
+                                hours, beats=beats)
     except Exception as e:                                  # noqa: BLE001
         st.error("The campus page could not be built (%s: %s). Every other"
                  " view still works \u2014 pick Rooms in the sidebar. Please"
@@ -2396,7 +2407,8 @@ if view == "Campus":
         "when": "%s \u00b7 %s" % (now.tz_convert(PKT).strftime("%A %H:%M"),
                                   describe(now, hours)),
     }
-    inside_curve, outside_curve = campus_view.building_curve(recent, df, now)
+    inside_curve, outside_curve = campus_view.building_curve(recent, df, now,
+                                                             beats)
     here = df[df["status"] == "occupied"]
     outside_zones = campus_view.OUTSIDE_ZONES
     meta["inside_now"] = int(here[~here["zone"].isin(outside_zones)]["people"]

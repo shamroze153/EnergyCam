@@ -82,11 +82,51 @@ An old office PC is the right answer. It does not need to be a server.
    beat less than three minutes old. If it does not, the task did not start,
    and finding that out now is the entire point of this step.
 
+## Why it stops, when it stops
+
+Three things stop this loop on Windows without it crashing, so nothing in
+the window says what happened. Two are now handled by the loop itself; the
+third it can only warn about.
+
+**A click in the console window.** Windows consoles ship with QuickEdit on:
+clicking anywhere in the window starts a text selection, and every write to
+the screen blocks until somebody presses Escape or Enter. The loop has not
+crashed and has not exited — it is stopped, silently, and the rooms go
+unrecorded until whoever clicked notices. The loop now turns QuickEdit off
+for its own window at startup and says so on the first line. This is the
+most likely explanation for a loop that "was running a minute ago".
+
+**A cycle throwing.** A recorder rebooting, a switch dropping a packet, the
+database refusing a connection for ten seconds — any of these used to end
+the process, and with it the night. The cycle is now wrapped: the loop says
+what failed, waits, and looks again, backing off from fifteen seconds to
+five minutes so a recorder that has gone away is not asked every second. It
+never gives up on its own. Configuration errors still exit with code 78,
+because restarting cannot fix them.
+
+**The machine sleeping.** The loop asks Windows not to idle-sleep while it
+runs. That covers the idle timer and nothing else: closing a laptop lid,
+choosing Sleep from the menu, or a policy that suspends on lock will still
+stop the machine, and the loop cannot argue with any of them. On a laptop,
+set the lid action to "do nothing" and run the `powercfg` lines above.
+
+What none of this fixes is a window somebody closes, or a laptop that goes
+home at seven. That is what the always-on machine is for.
+
 ## How you will know it is working
 
 The dashboard's live badge counts from the heartbeat, which the loop writes
 once a minute. Three missed beats and the badge turns red and says how long
 it has been silent.
+
+The day strip on the campus page draws the same thing per quarter hour, so
+the gaps are visible rather than implied. Three marks, and the difference
+between the last two is the whole point: a blue bar is somebody in the
+room, a solid grey bar is a room that was looked at and found empty, and a
+thin hairline is a quarter hour when nothing was watching. Before this, the
+last two were drawn the same, so a night when the laptop was shut looked
+exactly like a night when the building was quiet — the more dangerous of
+the two wrong answers, because it looks like a measurement.
 
 That badge is only useful to somebody looking at the page. `heartbeat_watchdog.py`
 is the version that does not need anybody looking: it emails when the beats

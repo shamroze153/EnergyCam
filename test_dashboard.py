@@ -169,6 +169,43 @@ def check_quiet_night(namespace):
           str(first))
     check("and it still counts as last seen", last == 56, str(last))
 
+    # The other half of the same truth. Carrying the state in says what the
+    # room was doing; the heartbeat says whether anybody was there to see it.
+    # Without this, a night when the laptop was shut draws as a peacefully
+    # empty building -- which is the more dangerous of the two wrong answers,
+    # because it looks like a measurement.
+    # Beats every two minutes from 09:00 until 11:28, then nothing.
+    watched = [now.normalize() + pd.Timedelta(hours=9)
+               + pd.Timedelta(minutes=m) for m in range(0, 150, 2)]
+    slots, first, last = campus_view.day_slots(recent, "Lobby", now, watched)
+    check("hours with no heartbeat are unknown, not empty",
+          all(v is None for v in slots[:36]), str(slots[:36]))
+    check("and hours with one are drawn", slots[36] == 0 and slots[46] == 0,
+          "%r %r" % (slots[36], slots[46]))
+    check("the hours after the beats stop are unknown again",
+          slots[47] is None and slots[55] is None,
+          "%r %r" % (slots[47], slots[55]))
+
+    # A slot is watched if a beat lands in it; a cycle takes over two
+    # minutes, so the quarter hour just entered counts on the last beat.
+    edge = [now.normalize() + pd.Timedelta(hours=13, minutes=59)]
+    cover = campus_view.watched_slots(edge, now)
+    check("a beat near the end of a slot also vouches for the next",
+          cover[55] and cover[56], "%r %r" % (cover[55], cover[56]))
+    check("and not for the rest of the day",
+          not cover[0] and not cover[57], "%r %r" % (cover[0], cover[57]))
+    check("no heartbeats at all means nothing is claimed",
+          not any(campus_view.watched_slots([], now)))
+    check("and beats of None keeps the old, database-free behaviour",
+          all(campus_view.watched_slots(None, now)))
+
+    # The curve must not invent a quiet building out of an absent loop either.
+    df = pd.DataFrame([{"room": "Lobby", "zone": "First floor"}])
+    inside, _ = campus_view.building_curve(recent, df, now, watched)
+    check("the building curve leaves unwatched hours blank",
+          inside[0] is None and inside[36] == 0,
+          "%r %r" % (inside[0], inside[36]))
+
     # Without that carried-in row the night is unknown, which is the bug.
     bare = pd.DataFrame(columns=["timestamp", "room", "status", "people",
                                  "ac_state"])

@@ -68,7 +68,50 @@ def switched_off_while_empty(recent, room, empty_since):
     return {"at": at, "ran": max(0.0, ran)}
 
 
-def day_slots(recent, room, now):
+BEAT_GRACE_SECONDS = 180
+
+
+def watched_slots(beats, now):
+    """Which quarter hours the loop was actually running for.
+
+    The two ways a slot can be blank look identical in room_events and mean
+    opposite things: the room did not change (so it was whatever it was), or
+    nothing was watching (so nobody knows). Carrying each room's state in
+    from before the window fixed the first and, on its own, would have
+    answered the second wrongly -- a night when the laptop was shut would
+    have been drawn as a peacefully empty building.
+
+    The heartbeat is what tells them apart. The loop writes one every minute
+    it is alive, so a quarter hour with no beat in it is a quarter hour
+    nobody was looking, and it is drawn as unknown however much is known
+    about the rooms either side of it.
+
+    `beats` of None means the caller has nothing to say about coverage, and
+    every slot is treated as watched -- the old behaviour, kept so that the
+    helper can be used without a database.
+    """
+    count = (DAY_END_HOUR - DAY_START_HOUR) * 60 // SLOT_MINUTES
+    if beats is None:
+        return [True] * count
+    start = now.normalize() + pd.Timedelta(hours=DAY_START_HOUR)
+    covered = [False] * count
+    grace = pd.Timedelta(seconds=BEAT_GRACE_SECONDS)
+    for stamp in beats:
+        if pd.isna(stamp):
+            continue
+        # The grace lets a beat vouch for the slot it has just entered. A
+        # cycle takes over two minutes, so the quarter hour we are standing
+        # in may hold no beat yet and is not therefore unwatched.
+        offset = (stamp + grace - start).total_seconds()
+        for index in {int(offset // (SLOT_MINUTES * 60)),
+                      int((stamp - start).total_seconds()
+                          // (SLOT_MINUTES * 60))}:
+            if 0 <= index < count:
+                covered[index] = True
+    return covered
+
+
+def day_slots(recent, room, now, beats=None):
     """One mark per quarter hour, midnight to midnight: 1 occupied, 0 not.
 
     Returns the marks, and the first and last slot anybody was seen in, which
@@ -79,6 +122,7 @@ def day_slots(recent, room, now):
     """
     count = (DAY_END_HOUR - DAY_START_HOUR) * 60 // SLOT_MINUTES
     start = now.normalize() + pd.Timedelta(hours=DAY_START_HOUR)
+    watched = watched_slots(beats, now)
     mine = recent[recent["room"] == room].sort_values("timestamp")
     if mine.empty:
         return [None] * count, None, None
@@ -87,7 +131,7 @@ def day_slots(recent, room, now):
     slots, first, last = [], None, None
     for i in range(count):
         at = start + pd.Timedelta(minutes=i * SLOT_MINUTES)
-        if at > now:
+        if at > now or not watched[i]:
             slots.append(None)
             continue
         # The state in force at that moment is the last event before it.
@@ -131,7 +175,7 @@ def calibrated_counts(path="ac_units.yaml"):
 OUTSIDE_ZONES = {"H perimeter", "Outside & plant", "Unused"}
 
 
-def building_curve(recent, df, now):
+def building_curve(recent, df, now, beats=None):
     """How many people the cameras could see, through the day.
 
     This is not a headcount and the page must not call it one. Two cameras
@@ -142,12 +186,13 @@ def building_curve(recent, df, now):
     """
     count = (DAY_END_HOUR - DAY_START_HOUR) * 60 // SLOT_MINUTES
     start = now.normalize() + pd.Timedelta(hours=DAY_START_HOUR)
+    watched = watched_slots(beats, now)
     inside_rooms = set(df[~df["zone"].isin(OUTSIDE_ZONES)]["room"])
     inside = [None] * count
     outside = [None] * count
     for i in range(count):
         at = start + pd.Timedelta(minutes=i * SLOT_MINUTES)
-        if at > now:
+        if at > now or not watched[i]:
             continue
         seen_in = seen_out = 0
         answered = False
@@ -169,7 +214,7 @@ def building_curve(recent, df, now):
 
 
 def rows(df, recent, now, grade, spell, minutes_since, hours=None,
-         calibrated=None):
+         calibrated=None, beats=None):
     """Every room, as the page wants it.
 
     `grade` and `spell` are passed in rather than imported so that this view
@@ -185,7 +230,7 @@ def rows(df, recent, now, grade, spell, minutes_since, hours=None,
         ac = row["ac_state"] if pd.notna(row.get("ac_state")) else None
         has_unit = bool(row.get("has_unit"))
         alerts = bool(row.get("alerts", True))
-        slots, first, last = day_slots(recent, room, now)
+        slots, first, last = day_slots(recent, room, now, beats)
 
         note = None
         kind = {"Red": "act", "Amber": "act", "Green": "good",

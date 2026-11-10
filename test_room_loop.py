@@ -60,6 +60,40 @@ def check(label, got, want):
         FAILURES.append("%s: got %r, wanted %r" % (label, got, want))
 
 
+
+# ---------------------------------------------------------------- staying up
+
+def check_stays_up():
+    """The loop must survive the night, not just start it.
+
+    Three ways it used to stop without crashing -- each of which loses the
+    hours this system exists to measure, and none of which announces itself:
+    a cycle throwing, a click in the console window, and the machine going to
+    sleep. The first is structure, so it is read out of the source; the other
+    two only do anything on Windows, so what is checked here is that they are
+    safe to call anywhere and never become the reason the loop will not start.
+    """
+    source = open("room_loop.py", encoding="utf-8").read()
+
+    check("a failing cycle is caught rather than ending the loop",
+          "except Exception as e:" in source and "RETRY_CEILING" in source,
+          True)
+    check("and a hand on Ctrl+C still stops it",
+          "except KeyboardInterrupt:\n            raise" in source, True)
+    check("the retry backs off rather than hammering the recorders",
+          "wait = min(wait * 2, RETRY_CEILING)" in source, True)
+    check("and one good cycle clears the count",
+          "trouble, wait = 0, RETRY_SECONDS" in source, True)
+
+    check("turning off click-to-select is safe to call anywhere",
+          room_loop.no_quick_edit() in (True, False), True)
+    check("so is asking the machine to stay awake",
+          room_loop.stay_awake() in (True, False), True)
+    check("and handing the sleep timer back",
+          room_loop.stay_awake(False) in (True, False), True)
+    check("the sleep timer is handed back on the way out",
+          "stay_awake(False)" in source.split('__main__')[-1], True)
+
 def main():
     # Seeing a person settles it. One camera is enough to prove occupancy.
     r = room()
@@ -434,6 +468,8 @@ def main():
           len([f for f in os.listdir(folder) if f.endswith(".jpg")]), 12)
     check("pruning a folder that is not there does not raise",
           room_loop.prune_evidence(os.path.join(folder, "nope")), 0)
+
+    check_stays_up()
 
     print()
     if FAILURES:
