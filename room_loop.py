@@ -676,6 +676,23 @@ def ignored(box, zones):
     return False
 
 
+def wants_main(room, rec):
+    """Whether this room is read from the recorder's main stream.
+
+    One answer, used by everything that grabs a frame. The room's own
+    `stream:` wins over the recorder's, because some rooms on a sub-stream
+    recorder are too far from their camera to be read at 640x360.
+
+    This used to be worked out separately in three places, and two of them
+    -- tune_detect and calibrate_room --live -- looked only at the
+    recorder. So a room the loop reads at 2560x1440 was calibrated on a
+    640x360 frame, and the loop refused every reading from it for ever,
+    quietly, as "frame size does not match". A calibration that can never
+    be used is worse than none: it looks finished.
+    """
+    return (room.stream or rec.get("stream", "sub")) == "main"
+
+
 def fetch(room, recorders, timeout):
     """Every one of a room's cameras, as {(recorder, channel): frame or None}.
 
@@ -687,7 +704,7 @@ def fetch(room, recorders, timeout):
     for key in room.cameras:
         name, channel = key
         rec = recorders[name]
-        want_main = (room.stream or rec.get("stream", "sub")) == "main"
+        want_main = wants_main(room, rec)
         gate = rec.get("gate")
         url = build_url(rec["host"], channel, rec["user"], rec["password"],
                         want_main, rec.get("brand", "hikvision"))

@@ -45,7 +45,8 @@ os.environ.setdefault("OPENCV_FFMPEG_LOGLEVEL", "-8")
 import cv2  # noqa: E402
 from dotenv import load_dotenv  # noqa: E402
 
-from room_loop import PKT, load_rooms, recorder_login, widen  # noqa: E402
+from room_loop import (PKT, load_rooms, recorder_login, wants_main,  # noqa: E402
+                       widen)
 from test_camera import build_url, grab  # noqa: E402
 
 FRAME_DIR = "tune_frames"
@@ -59,7 +60,9 @@ def capture(args):
         rooms = [r for r in rooms if r.watched_for_waste]
         print(">> no --room given, so capturing the %d room(s) that can alert"
               % len(rooms))
-    for key in {r.recorder for r in rooms}:
+    # Every recorder any camera of these rooms sits on, not each room's
+    # first one: H First Floor Lobby is watched from nvr1 and xvr3.
+    for key in {rec for r in rooms for rec, _ in r.cameras}:
         user, password = recorder_login(key, recorders[key])
         recorders[key]["user"], recorders[key]["password"] = user, password
 
@@ -68,19 +71,29 @@ def capture(args):
     for round_no in range(1, args.rounds + 1):
         print(">> round %d of %d" % (round_no, args.rounds))
         for room in rooms:
-            rec = recorders[room.recorder]
-            want_main = rec.get("stream", "sub") == "main"
-            for channel in room.channels:
+            # room.cameras, not room.recorder + room.channels: a room watched
+            # across two recorders used to have its second camera fetched
+            # from the first recorder -- "H First Floor Lobby ch16" came
+            # back as a picture of Reception, which is nvr1 ch16. And the
+            # stream is the loop's own choice, or the frame is the wrong
+            # size for anything calibrated from it.
+            spans = len({rec_name for rec_name, _ in room.cameras}) > 1
+            for rec_name, channel in room.cameras:
+                rec = recorders[rec_name]
                 url = build_url(rec["host"], channel, rec["user"],
-                                rec["password"], want_main,
+                                rec["password"], wants_main(room, rec),
                                 rec.get("brand", "hikvision"))
                 frame, _ = grab(url, max_seconds=args.timeout)
                 if frame is None:
                     print("   %-26s ch%-3d no frame" % (room.name, channel))
                     continue
                 tag = args.label or datetime.now(PKT).strftime("%H%M%S")
-                name = "%s_ch%02d_%s.jpg" % (room.name.replace(" ", "_"),
-                                             channel, tag)
+                # The recorder goes in the name only where a room spans two,
+                # so single-recorder names still pair with frames taken
+                # before this change.
+                name = "%s_%sch%02d_%s.jpg" % (room.name.replace(" ", "_"),
+                                               rec_name + "_" if spans else "",
+                                               channel, tag)
                 cv2.imwrite(os.path.join(FRAME_DIR, name), widen(frame))
                 saved += 1
                 print("   %-26s ch%-3d %s" % (room.name, channel, name))

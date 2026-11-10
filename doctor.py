@@ -235,7 +235,7 @@ def check_cameras(cfg):
     section("Recorders")
     from dotenv import load_dotenv
     load_dotenv()
-    from room_loop import load_rooms, recorder_login, widen
+    from room_loop import load_rooms, recorder_login, wants_main, widen
     from test_camera import build_url, grab
     recorders, rooms = load_rooms("rooms.yaml")
     seen = {}
@@ -250,7 +250,7 @@ def check_cameras(cfg):
             bad("%s: no login" % key, "add it to .env")
             continue
         url = build_url(rec["host"], channel, user, password,
-                        (room.stream or rec.get("stream", "sub")) == "main",
+                        wants_main(room, rec),
                         rec.get("brand", "hikvision"))
         frame, why = grab(url, max_seconds=8.0)
         if frame is None:

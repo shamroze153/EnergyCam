@@ -155,6 +155,49 @@ def check_flicker(check, room, T0):
           r.status, "empty")
 
 
+def check_one_stream_rule(check):
+    """Everything that grabs a frame must grab the one the loop reads.
+
+    tune_detect and calibrate_room --live chose the stream from the
+    recorder alone and ignored the room's own `stream: main`. A room the
+    loop reads at 2560x1440 was then calibrated on 640x360, and the loop
+    refused every reading from it for ever as a size mismatch -- a
+    calibration that looks finished and can never be used. tune_detect
+    also fetched a cross-recorder room's second camera from its first
+    recorder, so "H First Floor Lobby ch16" came back as Reception.
+    """
+    import glob
+    import re
+    import types
+
+    room = types.SimpleNamespace(stream="main")
+    check("a room's own main stream wins over a sub-stream recorder",
+          room_loop.wants_main(room, {"stream": "sub"}), True)
+    room = types.SimpleNamespace(stream=None)
+    check("with no room setting the recorder decides",
+          room_loop.wants_main(room, {"stream": "main"}), True)
+    check("and the default is the sub-stream",
+          room_loop.wants_main(room, {}), False)
+
+    offenders = []
+    for path in glob.glob("*.py"):
+        if path.startswith("test_"):
+            continue
+        text = open(path, encoding="utf-8").read()
+        # Reading the recorder's stream setting is the decision; reading a
+        # room's own setting into room.stream is just loading config.
+        body = text.split("def wants_main(")[0] + \
+            text.split("def wants_main(")[-1].split("\ndef ", 1)[-1] \
+            if "def wants_main(" in text else text
+        if re.search(r'rec(?:orders\[[^]]+\])?\.get\("stream"', body):
+            offenders.append(path)
+    check("no file decides the stream for itself", offenders, [])
+
+    tune = open("tune_detect.py", encoding="utf-8").read()
+    check("tune_detect walks every camera, recorder included",
+          "for rec_name, channel in room.cameras" in tune, True)
+
+
 def check_stays_up():
     """The loop must survive the night, not just start it.
 
@@ -595,6 +638,7 @@ def main():
     check("pruning a folder that is not there does not raise",
           room_loop.prune_evidence(os.path.join(folder, "nope")), 0)
 
+    check_one_stream_rule(check)
     check_flicker(check, room, T0)
     check_stays_up()
 

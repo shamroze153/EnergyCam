@@ -354,7 +354,7 @@ def take_both(args):
     """
     from dotenv import load_dotenv
 
-    from room_loop import (load_rooms, recorder_login, widen)
+    from room_loop import (load_rooms, recorder_login, wants_main, widen)
     from test_camera import build_url, grab
 
     load_dotenv()
@@ -368,7 +368,7 @@ def take_both(args):
     rec = recorders[recorder]
     user, password = recorder_login(recorder, rec)
     url = build_url(rec["host"], args.channel, user, password,
-                    rec.get("stream", "sub") == "main",
+                    wants_main(room, rec),
                     rec.get("brand", "hikvision"))
 
     def shot(what):
