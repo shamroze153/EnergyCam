@@ -326,6 +326,14 @@ rooms:
     zone: Offices
     recorder: dvr2
     channels: [2]
+    # 10 Nov, 20:32, from check_room --all: every box below was looked
+    # at by eye and is a fixed object, not a person. Zones were only
+    # written where nobody sits and nobody walks through; chairs and
+    # benches were left alone on purpose, because a zone on a chair
+    # also hides the person sitting in it.
+    ignore:
+      2:
+        - [1390, 21, 1425, 122]  # door frame beyond the glass, 0.25
     # 7 Nov: no unit in any of this room's frames, read at full width
     # across the upper part of the picture, where a split unit is
     # mounted. It was labelled visible from the survey contact sheet,
@@ -628,6 +636,16 @@ rooms:
     zone: H perimeter
     recorder: nvr1
     channels: [27, 29, 30, 31]
+    # 10 Nov, 20:32, from check_room --all: every box below was looked
+    # at by eye and is a fixed object, not a person. Zones were only
+    # written where nobody sits and nobody walks through; chairs and
+    # benches were left alone on purpose, because a zone on a chair
+    # also hides the person sitting in it.
+    ignore:
+      29:
+        - [0, 1, 158, 354]       # the wall along the left edge, 0.47
+      31:
+        - [391, 47, 400, 70]     # a post, 0.31
     ac: none
     empty_after_minutes: null
 
@@ -661,6 +679,14 @@ rooms:
     zone: H perimeter
     recorder: nvr1
     channels: [10, 13]
+    # 10 Nov, 20:32, from check_room --all: every box below was looked
+    # at by eye and is a fixed object, not a person. Zones were only
+    # written where nobody sits and nobody walks through; chairs and
+    # benches were left alone on purpose, because a zone on a chair
+    # also hides the person sitting in it.
+    ignore:
+      13:
+        - [499, 95, 640, 353]    # stacked boxes and a dispenser, 0.41
     ac: none
     empty_after_minutes: null
 
@@ -668,6 +694,14 @@ rooms:
     zone: H perimeter
     recorder: nvr1
     channels: [12]
+    # 10 Nov, 20:32, from check_room --all: every box below was looked
+    # at by eye and is a fixed object, not a person. Zones were only
+    # written where nobody sits and nobody walks through; chairs and
+    # benches were left alone on purpose, because a zone on a chair
+    # also hides the person sitting in it.
+    ignore:
+      12:
+        - [415, 1, 633, 322]     # tree trunk, 0.58 -- counted as a person every pass
     ac: none
     empty_after_minutes: null
 
@@ -949,6 +983,14 @@ rooms:
     zone: Cafe & common
     recorder: nvr4
     channels: [2, 8, 12]
+    # 10 Nov, 20:32, from check_room --all: every box below was looked
+    # at by eye and is a fixed object, not a person. Zones were only
+    # written where nobody sits and nobody walks through; chairs and
+    # benches were left alone on purpose, because a zone on a chair
+    # also hides the person sitting in it.
+    ignore:
+      8:
+        - [511, 166, 527, 198]   # a blue bottle on the counter, 0.34
     ac: none
     empty_after_minutes: null
     note: >

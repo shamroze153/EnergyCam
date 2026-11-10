@@ -20,7 +20,18 @@ import yaml
 
 import ac_detect
 
-UNITS = yaml.safe_load(open("ac_units.yaml"))["rooms"]
+ON_DISK = yaml.safe_load(open("ac_units.yaml"))["rooms"]
+
+# The checks below read the real calibration against pictures drawn here --
+# a grey frame with a lit box painted on. Those pictures are not of the
+# room, so a calibration carrying an anchor rightly refuses them as "the
+# camera has moved". The anchor is exercised on its own further down; for
+# everything else the anchor is set aside, so these checks keep testing the
+# box and the threshold rather than failing on a room they were never of.
+UNITS = {room: dict(cfg, units=[{k: v for k, v in unit.items()
+                                 if k != "anchor"}
+                                for unit in cfg.get("units", [])])
+         for room, cfg in ON_DISK.items()}
 FAILED = []
 
 
@@ -423,6 +434,10 @@ def main():
     ok("it reads", ac_detect.read_room(with_lit_display("Admin Room"),
                                        "Old Room", plain)[0] == "on")
 
+    # The one calibration in use carries its anchor, so a nudged camera
+    # refuses itself instead of reading a running unit as off for ever.
+    ok("Admin Room's calibration on disk carries an anchor",
+       bool(ON_DISK["Admin Room"]["units"][0].get("anchor")))
     check_inverted(ok)
     check_people_masked(ok)
     check_several_units(ok)
