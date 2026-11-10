@@ -146,16 +146,27 @@ snapshots:
 
 assumptions:
   unit_kw: 1.2                 # a split unit while it is actually cooling
-  # Measured, not assumed. Sixteen clean months of K-Electric bills across
-  # both connections at 140-H came to Rs 73.38 a unit: Rs 71.92 on the
-  # ground-floor meter and Rs 78.03 on the first-floor one, the difference
-  # being fixed charges spread over very different consumption. July 2026 is
-  # left out of that average because its bill is physically impossible --
-  # see sql/07_bills_and_solar.sql.
+  # What one more unit actually costs, worked out from the October 2026
+  # detailed bill for account 0400006377759 rather than assumed.
   #
-  # The old figure here was 55, which understated every rupee this dashboard
-  # has shown by about a third.
-  tariff_rs_per_kwh: 73        # replace with the effective rate off the bill
+  # The all-in average on that bill was Rs 76.33, but an average is the wrong
+  # number here. Fixed charges do not change when a room's air conditioner
+  # goes off, so the money a switch actually saves is the marginal cost: the
+  # variable energy rate, plus the per-unit adders (quarterly adjustment
+  # 0.5194, fuel adjustment 1.1086, PHL surcharge 3.23), plus the taxes,
+  # which come to 67.1% on top of the electricity charges.
+  #
+  # And it is not one number, because the tariff is time-of-use. An hour of
+  # cooling an empty room in the evening costs 22% more than the same hour in
+  # the afternoon, and the evening is exactly when offices empty and units
+  # get left on. That is the hour worth walking for.
+  tariff_rs_per_kwh: 67          # off-peak, and the default
+  peak_rs_per_kwh: 81            # 18:30-22:30
+  peak_start: "18:30"
+  peak_end: "22:30"
+  # Confirm the window against a bill: it is not printed on the summary page,
+  # and K-Electric shifts it between summer and winter. 18:30-22:30 is what
+  # Shamroze reported and matches the winter window.        # replace with the effective rate off the bill
   co2_kg_per_kwh: 0.45         # grid average; the national figure moves
   co2_kg_per_tree_year: 21     # what one mature tree takes up in a year
 

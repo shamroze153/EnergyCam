@@ -45,11 +45,12 @@ INSERT INTO public.meters
 VALUES
   ('gf_basement', 'Ground floor + basement',
    'Ground floor and basement',
-   '0400006377759', 'TU09890', 19.0, TRUE,
+   '0400006377759', 'TY75237', 19.0, TRUE,
    'The solar array feeds this meter, so its units are what was drawn from '
    'the grid after the panels. A sunny day reads low for reasons unrelated '
    'to anyone switching anything off, and this meter alone cannot show a '
-   'saving.'),
+   'saving. Tariff A-2B, time-of-use. October 2026 billed fixed charges on '
+   'an MDI of 38 kW against a sanctioned 19 -- see the analysis notes.'),
   ('first_cafe',  'First floor + cafe',
    'First floor, and the cafe on the second',
    '0400006377837', 'TU09825', 37.0, FALSE,
