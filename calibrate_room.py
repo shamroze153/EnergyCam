@@ -60,7 +60,38 @@ def grey(frame):
     return cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) if frame.ndim == 3 else frame
 
 
-def candidates(on, off, limit=6):
+def people_in(frames, margin=24):
+    """Every box a person stands in, in either frame, a little enlarged.
+
+    Marketing's first preview put all six candidates on people: somebody
+    bending over a desk, two at the back, a bag on a desk somebody had
+    moved. Between two frames thirty seconds apart, in a room in use, the
+    biggest changes are always people, and a person at the far end of an
+    open-plan office is small enough to pass the "too big for a display"
+    filter. A change that lands on a person is not an air conditioner.
+
+    The model is loaded only here, and only when asked: the rest of this
+    tool runs without it.
+    """
+    from privacy_blur import people_boxes
+    from ultralytics import YOLO
+    model = YOLO("yolov8n.pt")
+    out = []
+    for frame in frames:
+        h, w = frame.shape[:2]
+        for x1, y1, x2, y2, _ in people_boxes(frame, model):
+            out.append((max(0, x1 - margin), max(0, y1 - margin),
+                        min(w, x2 + margin), min(h, y2 + margin)))
+    return out
+
+
+def overlaps(box, others):
+    x1, y1, x2, y2 = box
+    return any(x1 < b[2] and b[0] < x2 and y1 < b[3] and b[1] < y2
+               for b in others)
+
+
+def candidates(on, off, limit=6, people=None):
     """Boxes round the things that are lit in one frame and dark in the other.
 
     Returned best-first. The best is usually the display, but a person who
@@ -95,6 +126,8 @@ def candidates(on, off, limit=6):
             continue                      # too big for a display: a person, a lamp
         box = (max(0, x - PAD), max(0, y - PAD),
                min(width, x + w + PAD), min(height, y + h + PAD))
+        if people and overlaps(box, people):
+            continue                      # somebody moved; not a unit
         lit, dark = contrast(on, box), contrast(off, box)
         if lit is None or dark is None:
             continue
@@ -398,6 +431,10 @@ def main():
                     help="put the result in ac_units.yaml")
     ap.add_argument("--replace", action="store_true",
                     help="overwrite this room if it is already calibrated")
+    ap.add_argument("--no-people-mask", action="store_true",
+                    help="do not ignore changes where a person stands. Only"
+                         " for an empty room, where loading the detector is"
+                         " a waste of time.")
     ap.add_argument("--inverted", action="store_true",
                     help="this unit goes DARK when it runs rather than"
                          " lighting up -- a vent flap opening, or a display"
@@ -466,14 +503,20 @@ def main():
     if not recorder:
         sys.exit("give --recorder, or add the room to rooms.yaml first")
 
-    found = candidates(on, off)
+    # Anything that changed where a person stands is that person moving.
+    # Found once, from both frames, and handed to every search below.
+    people = [] if args.no_people_mask else people_in((on, off))
+    if people:
+        print(">> %d person box(es) masked out: a change there is somebody"
+              " moving, not a unit" % len(people))
+    found = candidates(on, off, people=people)
     if args.roi:
         try:
             box = tuple(int(v) for v in args.roi.split(","))
             assert len(box) == 4
         except (ValueError, AssertionError):
             sys.exit("--roi wants four numbers: x1,y1,x2,y2")
-    elif candidates(off, on):
+    elif candidates(off, on, people=people):
         # Swapping --on and --off is the easy mistake to make, and left alone
         # it reads as "nothing lit up", which sends somebody back to the
         # recorder to retake two perfectly good frames.
@@ -485,7 +528,7 @@ def main():
         # is running. Either is a real and repeatable difference between
         # the two states, and --inverted measures it that way round.
         if args.inverted:
-            found = candidates(off, on)
+            found = candidates(off, on, people=people)
             print(">> inverted: measuring what goes DARK when the unit"
                   " runs, rather than what lights up.")
             if not 1 <= args.choice <= len(found):

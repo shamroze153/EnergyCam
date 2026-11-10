@@ -109,6 +109,41 @@ def check_inverted(ok):
        "--choice must be between 1 and" in branch)
 
 
+def check_people_masked(ok):
+    """A change where a person stands is that person moving.
+
+    Marketing's preview put all six candidates on people -- somebody bent
+    over a desk, two at the back -- and none on the five units in plain
+    view near the ceiling. Thirty seconds apart, in a room in use, the
+    biggest differences between two frames are people, and one at the far
+    end of an open-plan office is small enough to pass as a display.
+    """
+    import calibrate_room as cr
+
+    off = np.full((1080, 1920, 3), 40, np.uint8)
+    on = off.copy()
+    # A "display" lights up near the ceiling...
+    on[100:116, 1400:1440] = 240
+    # ...and a person moves at a desk, which also lights pixels up.
+    on[700:716, 500:540] = 240
+
+    everything = cr.candidates(on, off)
+    ok("without a mask the moving person is a candidate",
+       any(b["box"][1] > 600 for b in everything))
+
+    person = [(470, 650, 600, 900)]
+    masked = cr.candidates(on, off, people=person)
+    ok("with the person masked, they are not",
+       not any(b["box"][1] > 600 for b in masked))
+    ok("and the display near the ceiling still is",
+       any(b["box"][1] < 200 for b in masked))
+
+    ok("boxes that touch overlap", cr.overlaps((0, 0, 10, 10),
+                                               [(5, 5, 20, 20)]))
+    ok("boxes that do not, do not", not cr.overlaps((0, 0, 10, 10),
+                                                    [(11, 11, 20, 20)]))
+
+
 def check_several_units(ok):
     """A room with five air conditioners is not five rooms.
 
@@ -389,6 +424,7 @@ def main():
                                        "Old Room", plain)[0] == "on")
 
     check_inverted(ok)
+    check_people_masked(ok)
     check_several_units(ok)
 
     print()
