@@ -97,16 +97,31 @@ def money(off_minutes, peak_minutes, assumptions):
     return (off_kwh, peak_kwh, off_kwh * off_rate + peak_kwh * peak_rate)
 
 
-def load_bills(conn):
-    bills = pd.read_sql_query(
-        "SELECT meter, period_start, period_end, units, amount_rs, note"
-        " FROM meter_bills ORDER BY period_start", conn)
-    if not bills.empty:
-        bills["period_start"] = pd.to_datetime(bills["period_start"])
-        bills["month"] = bills["period_start"].dt.strftime("%b %y")
-        bills["rs_per_unit"] = (bills["amount_rs"].astype(float)
-                                / bills["units"].astype(float))
+def enrich_bills(bills):
+    """The two columns every reader of a bill wants, added once.
+
+    `month` and `rs_per_unit` are not in the table; they are derived. They
+    used to be derived inside load_bills, which meant a caller that got its
+    bills from anywhere else -- meters_view.load, as the dashboard's
+    analysis page does -- held a frame missing both, and found out by
+    raising KeyError halfway down a rendered page.
+
+    Idempotent, so it is safe to call on a frame that has been through it.
+    """
+    if bills.empty:
+        return bills
+    bills = bills.copy()
+    bills["period_start"] = pd.to_datetime(bills["period_start"])
+    bills["month"] = bills["period_start"].dt.strftime("%b %y")
+    bills["rs_per_unit"] = (bills["amount_rs"].astype(float)
+                            / bills["units"].astype(float))
     return bills
+
+
+def load_bills(conn):
+    return enrich_bills(pd.read_sql_query(
+        "SELECT meter, period_start, period_end, units, amount_rs, note"
+        " FROM meter_bills ORDER BY period_start", conn))
 
 
 def impossible_months(bills, meters):

@@ -7,6 +7,8 @@ a currency symbol on it, which is the hardest kind of error to doubt.
 """
 import sys
 
+from decimal import Decimal
+
 import pandas as pd
 
 import analysis_view as av
@@ -26,6 +28,64 @@ def check(label, got, want):
 
 def T(s):
     return pd.Timestamp(s, tz="UTC")
+
+
+
+def check_bill_columns():
+    """Every column the analysis page reads must exist on the frame it gets.
+
+    The page took its bills from meters_view.load and asked for a `month`
+    column, which only analysis_view.load_bills ever added. Two loaders,
+    one shape expected, and the difference surfaced as a KeyError halfway
+    down an already-rendered page -- after the headline figures, so it
+    looked like the bills were broken rather than the frame.
+
+    The columns the page reads are taken from its source rather than
+    written out here, so a new one cannot be added without this noticing.
+    """
+    import re
+
+    import analysis_view as av
+
+    source = open("rooms_dashboard.py", encoding="utf-8").read()
+    start = source.index("def show_analysis")
+    end = source.index("\ndef ", start + 10)
+    body = source[start:end]
+    wanted = set(re.findall(r'bills\["(\w+)"\]', body))
+    wanted |= set(re.findall(r'drop_duplicates\("(\w+)"\)', body))
+    wanted |= set(re.findall(r'(?:index|columns|values)="(\w+)"', body))
+    wanted |= set(re.findall(r'b\["(\w+)"\]', body))
+
+    # Exactly the columns meters_view.load selects, before enrichment.
+    raw = pd.DataFrame({
+        "meter": ["first_cafe", "gf_basement"],
+        "period_start": ["2026-09-01", "2026-10-01"],
+        "period_end": ["2026-09-30", "2026-10-31"],
+        "units": [5986, 11623],
+        "amount_rs": [Decimal("594336.61"), Decimal("887174.92")],
+    })
+    have = set(av.enrich_bills(raw).columns)
+    missing = sorted(wanted - have)
+    check("the analysis page's bill columns all exist", missing, [])
+
+    # And the pivot the page builds must actually build.
+    rich = av.enrich_bills(raw)
+    wide = rich.pivot_table(index="month", columns="meter", values="units",
+                            aggfunc="sum")
+    check("the bills chart pivots", sorted(wide.columns),
+          ["first_cafe", "gf_basement"])
+    check("one row per month", len(wide), 2)
+
+    check("enriching twice changes nothing",
+          list(av.enrich_bills(rich).columns), list(rich.columns))
+    check("and an empty frame is left alone",
+          av.enrich_bills(pd.DataFrame()).empty, True)
+
+    # meters_view.load must be the one that hands them over enriched, or
+    # the page is back where it started.
+    loader = open("meters_view.py", encoding="utf-8").read()
+    check("meters_view hands its bills over enriched",
+          "enrich_bills(bills)" in loader, True)
 
 
 def main():
@@ -123,6 +183,8 @@ def main():
         pd.DataFrame(columns=["meter", "units", "amount_rs"]))[0], None)
 
     print()
+    check_bill_columns()
+
     if FAILURES:
         print("%d FAILURE(S):" % len(FAILURES))
         for line in FAILURES:

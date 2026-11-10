@@ -54,6 +54,11 @@ def load(conn, days=120):
         " FROM meter_bills ORDER BY period_end DESC", conn)
     if not readings.empty:
         readings["taken"] = pd.to_datetime(readings["taken"], utc=True)
+    # month and rs_per_unit are derived, not stored, and every page that
+    # shows a bill wants them. Adding them here rather than at each caller
+    # is what stops one path holding a frame the next one cannot read.
+    import analysis_view
+    bills = analysis_view.enrich_bills(bills)
     return meters, readings, bills
 
 
