@@ -179,6 +179,46 @@ def check_requirements():
           ", ".join(heavy))
 
 
+def check_why_unreachable(namespace):
+    """The verdict must be specific, and must not repeat the message.
+
+    Withholding the driver's text entirely was cautious and wrong: it
+    carries the host, the user and the database name, so it cannot be
+    shown -- but what it says is the only thing separating a wrong password
+    from a role that was never created, and those have different answers.
+    Several deploys were spent guessing between them.
+    """
+    why = namespace["why_unreachable"]
+
+    cases = [
+        ('connection to server at "db.abcdefgh.supabase.co", port 5432'
+         ' failed: FATAL:  password authentication failed for user'
+         ' "energycam_dashboard"', "pg_roles"),
+        ('FATAL:  database "postgres2" does not exist', "02_roles.sql"),
+        ('could not translate host name "aws-0-nowhere.pooler.supabase.com"'
+         ' to address', "does not resolve"),
+        ("connection timeout expired", "IPv6"),
+        ("connection refused\n\tIs the server running on that host?",
+         "port"),
+        ('FATAL:  no pg_hba.conf entry for host "1.2.3.4"', "DB_SSLMODE"),
+    ]
+    for message, wanted in cases:
+        verdict = why(Exception(message))
+        check("'%s...' is named, not withheld" % message[:34],
+              wanted in verdict, verdict[:90])
+        # The whole point: the verdict is a verdict, not an echo.
+        for secret in ("abcdefgh", "energycam_dashboard", "1.2.3.4",
+                       "aws-0-nowhere"):
+            check("  and it does not repeat %s" % secret,
+                  secret not in verdict, verdict[:90])
+
+    unknown = why(Exception("something nobody has seen before"))
+    check("an unrecognised failure says so rather than guessing",
+          "no cause this page recognises" in unknown)
+    check("and points at where the message can safely be read",
+          "office machine" in unknown)
+
+
 def check_connection_hint(namespace):
     """The unreachable message has to point somewhere, without leaking.
 
@@ -485,6 +525,7 @@ def main():
           ", ".join(missing))
 
     check_requirements()
+    check_why_unreachable(namespace)
     check_connection_hint(namespace)
     check_guard(namespace)
     check_quiet_night(namespace)

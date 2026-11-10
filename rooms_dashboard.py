@@ -197,6 +197,47 @@ USING_APP_CREDENTIAL = not _setting("DASHBOARD_DATABASE_URL")
 DB_SSLMODE = _setting("DB_SSLMODE") or "require"
 
 
+def why_unreachable(e):
+    """Name the cause from the driver's text, without repeating the text.
+
+    Withholding the message entirely was the cautious choice and the wrong
+    one. It carries the host, the user and the database name, so it cannot
+    be printed -- but what it *says* is the only thing that separates a
+    wrong password from a role that was never created from a host that does
+    not resolve, and those have completely different answers. Three deploys
+    were spent guessing between them.
+
+    So the text is read and thrown away, and only the verdict is shown.
+    """
+    text = str(e).lower()
+    if "password authentication failed" in text:
+        return ("The password was refused. Either it is not the one this"
+                " role has, or the role does not exist -- PostgreSQL"
+                " answers both the same way, on purpose. Check with:"
+                "\n\n    SELECT rolname FROM pg_roles"
+                " WHERE rolname LIKE 'energycam%';")
+    if "does not exist" in text:
+        return ("The role or the database named in the connection string"
+                " does not exist. If the roles were never created, that is"
+                " sql/02_roles.sql, then sql/04_rooms.sql for the grants.")
+    if "could not translate host name" in text or "nodename nor" in text:
+        return ("The host name does not resolve, so it is mistyped or it is"
+                " not the address this project uses.")
+    if "timeout" in text or "timed out" in text:
+        return ("Nothing answered in time. From a host, this is usually"
+                " Supabase's direct address, which answers only on IPv6 --"
+                " use the Session pooler string instead.")
+    if "connection refused" in text:
+        return ("The host answered and refused the port. Check the port in"
+                " the string: the pooler is not always 5432.")
+    if "pg_hba" in text or "ssl" in text:
+        return ("The server refused the connection's settings. DB_SSLMODE"
+                " should be \"require\".")
+    return ("The driver gave no cause this page recognises. Running the"
+            " same connection string from the office machine will show the"
+            " message in full, where it is safe to read.")
+
+
 def connection_hint(url):
     """Why this probably failed, without printing the credential.
 
@@ -2316,9 +2357,11 @@ except psycopg2.Error as e:
             " sql/02_roles.sql to .env as `DASHBOARD_DATABASE_URL`. Do not"
             " widen the camera machine's grants to make this page work.")
     else:
-        st.error("Database unreachable (%s). The driver's message is withheld"
-                 " because it contains connection details.%s"
-                 % (type(e).__name__, connection_hint(DATABASE_URL)))
+        st.error("Database unreachable (%s). The driver's own message is"
+                 " withheld because it carries the host, the user and the"
+                 " database name.\n\n%s%s"
+                 % (type(e).__name__, why_unreachable(e),
+                    connection_hint(DATABASE_URL)))
     st.stop()
 
 now = pd.Timestamp.now(tz="UTC")
