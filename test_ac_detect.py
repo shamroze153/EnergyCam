@@ -12,6 +12,7 @@ A wrong "on" means somebody walks upstairs for nothing and stops believing the
 system. Refusing to answer costs neither.
 """
 import os
+import shutil
 import sys
 
 import numpy as np
@@ -43,6 +44,90 @@ def with_lit_display(room="Admin Room", level=60):
     # rectangle, and it is that mixture which produces the contrast.
     frame[y1:y2, x1:x2:2] = 235
     return frame
+
+
+
+def check_several_units(ok):
+    """A room with five air conditioners is not five rooms.
+
+    calibrate_room.py wrote one unit and refused a second; the only way to
+    record another was --replace, which deleted the first. On a room with
+    five units that is one switch-on by a technician and four measurements
+    silently lost -- and the only way to discover it was to do it.
+    """
+    import tempfile
+
+    import calibrate_room as cr
+
+    folder = tempfile.mkdtemp()
+    path = os.path.join(folder, "ac_units.yaml")
+    cr.write_config(path, "Marketing", "dvr2", 13, (1920, 1080), False,
+                    "unit 1, left", (10, 20, 40, 50), 18.0,
+                    36.0, 1.0, 240, 120, "2026-11-10T17:00+0500",
+                    anchor="AAA")
+    cr.write_config(path, "Wellows", "dvr2", 15, (1920, 1080), False,
+                    "only unit", (60, 70, 90, 100), 15.0,
+                    30.0, 2.0, 230, 110, "2026-11-10T17:05+0500",
+                    anchor="BBB")
+    for n in (2, 3):
+        cr.add_unit(path, "Marketing", "unit %d, right" % n,
+                    (100 * n, 20, 100 * n + 30, 50), 17.0,
+                    35.0, 1.5, 238, 118, "2026-11-10T17:10+0500",
+                    anchor="CCC")
+
+    loaded = yaml.safe_load(open(path))["rooms"]
+    ok("a room can hold more than one unit",
+       len(loaded["Marketing"]["units"]) == 3)
+    ok("and they are told apart by label",
+       [u["label"] for u in loaded["Marketing"]["units"]]
+       == ["unit 1, left", "unit 2, right", "unit 3, right"])
+    ok("the first unit is not overwritten",
+       loaded["Marketing"]["units"][0]["led_roi"] == [10, 20, 40, 50])
+    ok("another room is left alone",
+       loaded["Wellows"]["units"][0]["led_roi"] == [60, 70, 90, 100])
+    ok("the room's own settings are kept",
+       loaded["Marketing"]["channel"] == 13)
+
+    # The comments are the reasoning behind each threshold. A reload-and-dump
+    # would produce valid YAML and delete all of them.
+    ok("the reasoning in the file survives an append",
+       "# The lighting the measurement" in open(path).read())
+
+    # Two units with the same label cannot be told apart in an alert.
+    try:
+        cr.add_unit(path, "Marketing", "unit 1, left", (1, 2, 3, 4), 9.0,
+                    20.0, 1.0, 200, 100, "x")
+        ok("a repeated label is refused", False)
+    except SystemExit as e:
+        ok("a repeated label is refused", "already has a unit" in str(e))
+    try:
+        cr.add_unit(path, "Nowhere", "u", (1, 2, 3, 4), 9.0, 20.0, 1.0,
+                    200, 100, "x")
+        ok("adding to a room not in the file is refused", False)
+    except SystemExit as e:
+        ok("adding to a room not in the file is refused",
+           "not in" in str(e))
+
+    # And the detector must read all of them: any one running means the
+    # room is being cooled, so one unit on is not an off room.
+    frame = np.full((1080, 1920, 3), 60, np.uint8)
+    frame[20:50, 10:40] = np.random.default_rng(1).integers(
+        0, 255, (30, 30, 3), dtype=np.uint8)          # unit 1 lit
+    config = {"Marketing": {"frame_size": [1920, 1080], "units": [
+        {"label": "a", "led_roi": [10, 20, 40, 50], "led_std_threshold": 18.0},
+        {"label": "b", "led_roi": [200, 20, 230, 50], "led_std_threshold": 17.0},
+        {"label": "c", "led_roi": [300, 20, 330, 50], "led_std_threshold": 17.0},
+    ]}}
+    state, why = ac_detect.read_room(frame, "Marketing", config)
+    ok("one unit of three running reads as on", state == "on")
+    ok("and the reason says how many were read", why == "3 unit(s) read")
+
+    dark = np.full((1080, 1920, 3), 60, np.uint8)
+    ok("all three dark reads as off",
+       ac_detect.read_room(dark, "Marketing", config)[0] == "off")
+
+    shutil.rmtree(folder)
+
 
 
 def main():
@@ -241,12 +326,15 @@ def main():
     ok("it reads", ac_detect.read_room(with_lit_display("Admin Room"),
                                        "Old Room", plain)[0] == "on")
 
+    check_several_units(ok)
+
     print()
     if FAILED:
         print("%d check(s) failed:" % len(FAILED))
         for label in FAILED:
             print("   - %s" % label)
         sys.exit(1)
+
     print("all checks passed")
 
 

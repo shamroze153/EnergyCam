@@ -339,7 +339,13 @@ rooms:
     channels: [3, 13]
     # 7 Nov: the unit is on ch13, above the green door, top right. ch3
     # sees none of it. Calibrate on ch13. docs/camera_survey.md.
+    # 10 Nov: five units in this room, not one -- counted on site while the
+    # technician was switching them. Any one of them running means the room
+    # is being cooled, so the state is honest as soon as one is calibrated;
+    # what is not honest until all five are is the money, which assumes a
+    # room's worth of cooling from whichever units have been measured.
     ac: visible
+    ac_count: 5
     empty_after_minutes: 45
     note: >
       Two cameras, written down as "marketingroom" and "marketing". Grouped on

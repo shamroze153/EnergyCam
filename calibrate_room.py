@@ -179,6 +179,78 @@ def block(room, recorder, channel, size, infrared, label, box, threshold,
        on_std, off_std, int(on_peak), int(off_peak), taken, on_std - off_std)
 
 
+def unit_block(label, box, threshold, on_std, off_std, on_peak, off_peak,
+               taken, anchor=""):
+    """One unit, as text, to go under a room that already has others.
+
+    A room with five air conditioners is not five rooms. The first version
+    of this wrote one unit and refused a second, so the only way to record
+    the other four was --replace, which threw away the first -- and the
+    only way to find that out was to do it. Five units, one switch-on, four
+    silently lost.
+    """
+    x1, y1, x2, y2 = (int(v) for v in box)
+    return """      - label: %s
+        led_roi: [%d, %d, %d, %d]
+        led_std_threshold: %.1f
+        anchor: %s
+        measured:
+          on_std: %.2f          # display lit
+          off_std: %.2f          # display blank
+          on_peak: %d
+          off_peak: %d
+          taken: %s
+          # A gap of %.1f between the two states.
+""" % (label, x1, y1, x2, y2, threshold, anchor, on_std, off_std,
+       int(on_peak), int(off_peak), taken, on_std - off_std)
+
+
+def add_unit(path, room, label, box, threshold, on_std, off_std, on_peak,
+             off_peak, taken, anchor=""):
+    """Append one unit to a room already in the file, leaving the rest alone.
+
+    Text again, not a reload-and-dump, for the same reason write_config
+    does it: a dump produces valid YAML and deletes every comment, and the
+    comments are the reasoning behind each threshold.
+    """
+    existing = io.open(path, newline="").read()
+    lines = existing.splitlines(True)
+    start = None
+    for i, line in enumerate(lines):
+        if re.match(r"^  %s:" % re.escape(room), line):
+            start = i
+            break
+    if start is None:
+        sys.exit(">> %s is not in %s yet. Run this without --add first, so"
+                 " the room and its first unit are written together."
+                 % (room, path))
+
+    # The room ends where the next one at the same indent begins.
+    end = len(lines)
+    for i in range(start + 1, len(lines)):
+        if re.match(r"^  \S", lines[i]):
+            end = i
+            break
+    inside = "".join(lines[start:end])
+    if "    units:" not in inside:
+        sys.exit(">> %s has no units: list to add to." % room)
+    if re.search(r"^      - label: %s\s*$" % re.escape(label), inside, re.M):
+        sys.exit(">> %s already has a unit called %r. Give this one a"
+                 " different --label, so the two can be told apart in an"
+                 " alert." % (room, label))
+
+    # Append after the last line of the room block, trimming the blank
+    # lines that separate rooms so the new unit lands inside this one.
+    body = "".join(lines[start:end]).rstrip("\n") + "\n"
+    new = body + unit_block(label, box, threshold, on_std, off_std, on_peak,
+                            off_peak, taken, anchor)
+    tmp = path + ".tmp"
+    with io.open(tmp, "w", newline="\n") as fh:
+        fh.write("".join(lines[:start]) + new + "\n"
+                 + "".join(lines[end:]).lstrip("\n"))
+    os.replace(tmp, path)
+
+
 def write_config(path, room, recorder, channel, size, infrared, label,
                  box, threshold, on_std, off_std, on_peak, off_peak, taken,
                  replace=False, anchor=""):
@@ -322,6 +394,11 @@ def main():
                     help="put the result in ac_units.yaml")
     ap.add_argument("--replace", action="store_true",
                     help="overwrite this room if it is already calibrated")
+    ap.add_argument("--add", action="store_true",
+                    help="add another unit to a room already calibrated,"
+                         " instead of replacing it. For a room with more"
+                         " than one air conditioner: measure each from the"
+                         " same pair of frames with --choice")
     args = ap.parse_args()
 
     if args.live:
@@ -458,7 +535,9 @@ def main():
         print()
         print(">> Open the preview above. The green box should sit on the"
               " unit's display.")
-        answer = ask(">> Write this to %s? [y/N] " % args.config).strip().lower()
+        answer = ask(">> %s %s? [y/N] "
+                     % ("Add this unit to" if args.add else "Write this to",
+                        args.config)).strip().lower()
         if answer not in ("y", "yes"):
             print(">> not written. The two frames are kept, so you can try a"
                   " different box without touching the unit again:")
@@ -478,15 +557,20 @@ def main():
 
     from datetime import datetime
     from schedule import PKT
-    write_config(args.config, args.room, recorder, args.channel,
-                 (width, height), on_ir, args.label, box, threshold,
-                 on_std, off_std, on_peak, off_peak,
-                 datetime.now(PKT).strftime("%Y-%m-%dT%H:%M%z"),
-                 replace=args.replace,
-                 anchor=pack(fingerprint(off,
-                                         anchor_box(box, (width, height)),
-                                         hide=box)))
-    print("\n>> written to %s" % args.config)
+    taken = datetime.now(PKT).strftime("%Y-%m-%dT%H:%M%z")
+    anchor = pack(fingerprint(off, anchor_box(box, (width, height)),
+                              hide=box))
+    if args.add:
+        add_unit(args.config, args.room, args.label, box, threshold,
+                 on_std, off_std, on_peak, off_peak, taken, anchor)
+        print("\n>> added %r to %s in %s" % (args.label, args.room,
+                                             args.config))
+    else:
+        write_config(args.config, args.room, recorder, args.channel,
+                     (width, height), on_ir, args.label, box, threshold,
+                     on_std, off_std, on_peak, off_peak, taken,
+                     replace=args.replace, anchor=anchor)
+        print("\n>> written to %s" % args.config)
     print(">> restart the loop and this room's air conditioner stops being a"
           " question mark on the dashboard.")
 
