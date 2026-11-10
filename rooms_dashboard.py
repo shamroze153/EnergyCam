@@ -1170,6 +1170,229 @@ def load_meters(days=120):
         conn.close()
 
 
+def write_reading(meter, taken, reading, units, temp, note):
+    """One reading, from the page rather than from a command line."""
+    conn = psycopg2.connect(DATABASE_URL, sslmode=DB_SSLMODE,
+                            connect_timeout=10)
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO meter_readings (meter, taken, reading, units,"
+            " max_temp, note) VALUES (%s,%s,%s,%s,%s,%s)"
+            " ON CONFLICT (meter, taken) DO UPDATE SET reading ="
+            " EXCLUDED.reading, units = EXCLUDED.units,"
+            " max_temp = EXCLUDED.max_temp, note = EXCLUDED.note",
+            (meter, taken, reading, units, temp, note))
+        conn.commit()
+        cur.close()
+    finally:
+        conn.close()
+
+
+def write_solar(taken, kwh, note):
+    conn = psycopg2.connect(DATABASE_URL, sslmode=DB_SSLMODE,
+                            connect_timeout=10)
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO solar_daily (taken, kwh, note) VALUES (%s,%s,%s)"
+            " ON CONFLICT (taken) DO UPDATE SET kwh = EXCLUDED.kwh,"
+            " note = EXCLUDED.note", (taken, kwh, note))
+        conn.commit()
+        cur.close()
+    finally:
+        conn.close()
+
+
+def reading_form(now):
+    """Three numbers, once a day, by whoever is in the building.
+
+    It used to take a command line on one machine, which meant the day that
+    person was away was a day with no reading -- and a gap in a daily series
+    costs more than the number missing from it, because every comparison
+    that crosses the gap is spoilt.
+    """
+    st.markdown(
+        '<div style="font-size:1rem;font-weight:700;margin:4px 0 2px;">'
+        'Today&#8217;s readings</div>'
+        '<div style="font-size:.78rem;color:%s;margin-bottom:10px;">'
+        'The number on the face of each meter, and what the solar array has'
+        ' generated. Anybody can fill this in; it does not need the person'
+        ' who set the system up.</div>' % MUTED, unsafe_allow_html=True)
+    with st.form("readings"):
+        a, b, c, d = st.columns(4)
+        gf = a.number_input("Ground floor + basement (TY75237)",
+                            min_value=0.0, step=1.0, format="%.0f",
+                            key="gf_reading")
+        first = b.number_input("First floor + cafe (TU09825)",
+                               min_value=0.0, step=1.0, format="%.0f",
+                               key="first_reading")
+        solar = c.number_input("Solar generated, units", min_value=0.0,
+                               step=1.0, format="%.0f", key="solar_units")
+        temp = d.number_input("Today&#8217;s high, \u00b0C", min_value=0.0,
+                              max_value=60.0, step=1.0, format="%.0f",
+                              key="max_temp")
+        note = st.text_input("Anything worth noting (optional)", key="r_note")
+        sent = st.form_submit_button("Save today\u2019s readings")
+    if not sent:
+        return
+    taken = now.tz_convert(PKT)
+    wrote = []
+    try:
+        if gf:
+            write_reading("gf_basement", taken, gf, None,
+                          temp or None, note or None)
+            wrote.append("ground floor + basement")
+        if first:
+            write_reading("first_cafe", taken, first, None,
+                          temp or None, note or None)
+            wrote.append("first floor + cafe")
+        if solar:
+            write_solar(taken, solar, note or None)
+            wrote.append("solar")
+    except psycopg2.Error as e:
+        if getattr(e, "pgcode", None) == "42501":
+            st.error("This page is connected read-only. An administrator runs"
+                     " `sql/08_readings_from_the_page.sql` once to let it"
+                     " write meter readings \u2014 and nothing else.")
+        else:
+            st.error("Could not save (%s)." % type(e).__name__)
+        return
+    if wrote:
+        load_meters.clear()
+        st.success("Saved: %s." % ", ".join(wrote))
+    else:
+        st.info("Nothing entered, so nothing was saved.")
+
+
+def show_analysis(df, recent, now):
+    """Everything the bills, the meters and the cameras say, kept apart.
+
+    The three are not equal and the page says so. The bills are settled. The
+    meter readings are ours and measured. What the cameras give becomes money
+    only through an assumption that has not been replaced yet, and the whole
+    value of this project rests on that third one never quietly wearing the
+    authority of the first.
+    """
+    import analysis_view as av
+
+    assumptions = load_assumptions()
+    window = av.peak_window(assumptions)
+
+    reading_form(now)
+    st.divider()
+
+    try:
+        meters, readings, bills = load_meters()
+    except psycopg2.Error:
+        st.info("The meter tables are not there yet. An administrator runs"
+                " `sql/06_meters.sql` and `sql/07_bills_and_solar.sql` once.")
+        meters = bills = pd.DataFrame()
+
+    # ---- what a unit costs ------------------------------------------------
+    st.markdown(
+        '<div style="font-size:1rem;font-weight:700;margin:10px 0 2px;">'
+        'What a unit costs</div>', unsafe_allow_html=True)
+    cols = st.columns(3)
+    cols[0].markdown(figure_row("Off-peak",
+                                "Rs %.0f" % assumptions.get(
+                                    "tariff_rs_per_kwh", 67),
+                                "one more unit, all in"),
+                     unsafe_allow_html=True)
+    cols[1].markdown(figure_row("Peak %s\u2013%s" % (
+        assumptions.get("peak_start", "?"), assumptions.get("peak_end", "?")),
+        "Rs %.0f" % assumptions.get("peak_rs_per_kwh", 81),
+        "%d%% more than off-peak" % round(
+            100 * (assumptions.get("peak_rs_per_kwh", 81)
+                   / max(1, assumptions.get("tariff_rs_per_kwh", 67)) - 1))),
+        unsafe_allow_html=True)
+    if not bills.empty and not meters.empty:
+        rate, months = av.tariff_from_bills(bills, True, meters)
+        cols[2].markdown(figure_row(
+            "On the bills", "Rs %.0f" % (rate or 0),
+            "average across %d months" % months), unsafe_allow_html=True)
+    st.caption("Marginal, not average. Fixed charges do not change when a"
+               " room's unit goes off, so what a switch actually saves is"
+               " the cost of one more unit, which is lower than the average"
+               " on a bill. Both figures come from the October detailed bill"
+               " \u2014 see docs/what_the_bills_say.md.")
+
+    # ---- what the cameras add --------------------------------------------
+    st.divider()
+    cooled = df[df["has_unit"] & df["alerts"]]
+    since = now - pd.Timedelta(days=7)
+    off_min, peak_min = av.cooled_while_empty(
+        recent, list(cooled["room"]), since, now, window)
+    off_kwh, peak_kwh, rupees = av.money(off_min, peak_min, assumptions)
+    st.markdown(
+        '<div style="font-size:1rem;font-weight:700;margin:4px 0 2px;">'
+        'Empty and still cooled, last 7 days</div>', unsafe_allow_html=True)
+    cols = st.columns(3)
+    cols[0].markdown(figure_row("Off-peak hours", "%.0f" % (off_min / 60),
+                                "across %d rooms" % len(cooled)),
+                     unsafe_allow_html=True)
+    cols[1].markdown(figure_row("Peak hours", "%.0f" % (peak_min / 60),
+                                "the expensive ones", "warn"),
+                     unsafe_allow_html=True)
+    cols[2].markdown(figure_row("At stake", "Rs %s"
+                                % format(round(rupees), ","),
+                                "if those units were running", "act"),
+                     unsafe_allow_html=True)
+    known = int(cooled["ac_state"].notna().sum()) if len(cooled) else 0
+    st.caption(
+        "The hours are measured from the cameras. The rupees are not: they"
+        " assume every unit draws %.1f kW, which is the one figure here"
+        " still taken on trust. %d of %d units are calibrated, so for the"
+        " rest \u201cstill cooled\u201d means nobody knows it was off"
+        " rather than that anybody saw it on."
+        % (assumptions.get("unit_kw", 1.2), known, len(cooled)))
+
+    # ---- the bills --------------------------------------------------------
+    if bills.empty:
+        return
+    st.divider()
+    st.markdown(
+        '<div style="font-size:1rem;font-weight:700;margin:4px 0 8px;">'
+        'What the building actually spent</div>', unsafe_allow_html=True)
+    wide = bills.pivot_table(index="month", columns="meter", values="units",
+                             aggfunc="sum")
+    wide = wide.reindex(bills.drop_duplicates("month")
+                        .set_index("month").index)
+    st.bar_chart(wide, height=260)
+    bad = av.impossible_months(bills, meters)
+    for _, b in bad.iterrows():
+        days = (pd.to_datetime(b["period_end"])
+                - pd.to_datetime(b["period_start"])).days + 1
+        kw = dict(zip(meters["code"], meters["sanctioned_kw"]))[b["meter"]]
+        st.error(
+            "**%s, %s: %s units for Rs %s.** That is %.0f%% of what a %.0f kW"
+            " connection can deliver in %d days. It cannot be a month that"
+            " building used \u2014 worth asking K-Electric about."
+            % (b["month"], b["meter"], format(int(b["units"]), ","),
+               format(round(float(b["amount_rs"])), ","),
+               100 * float(b["units"]) / (float(kw) * 24 * days),
+               float(kw), days), icon="\u26a0\ufe0f")
+
+    # ---- the demand charge ------------------------------------------------
+    st.divider()
+    st.markdown(
+        '<div style="font-size:1rem;font-weight:700;margin:4px 0 2px;">'
+        'The one that is not about units at all</div>',
+        unsafe_allow_html=True)
+    st.warning(
+        "October's ground-floor bill charged fixed charges on a **maximum"
+        " demand of 38 kW** against a **sanctioned 19**: Rs 47,500 where 19"
+        " kW would cost Rs 23,750. **Rs 285,000 a year.**\n\nThis is a"
+        " different lever from everything else here. It is not about using"
+        " fewer units \u2014 it is about how many things are drawing at the"
+        " same instant. Spreading the same work across the day would cut it"
+        " with nothing used less.", icon="\u26a1")
+    st.caption("This system cannot see demand; a meter can. It is here"
+               " because it is the largest single number the bills"
+               " contained, and it would be strange to find it and not say"
+               " so.")
+
+
 def show_meters(df, recent, now):
     """What the building actually drew, beside what this says was wasted.
 
@@ -1922,7 +2145,8 @@ everything = rooms.merge(latest, on="room", how="left")
 everything["status"] = everything["status"].fillna("unknown")
 
 VIEWS = ["Campus", "Rooms", "One room", "Who comes when", "Meters",
-         "Camera health", "Look at the rooms", "Numbers & history"]
+         "Analysis", "Camera health", "Look at the rooms",
+         "Numbers & history"]
 
 # A click on a room is a request to see that room, so it carries the name in
 # the query string and lands on the view that shows it. Tracked rather than
@@ -2259,6 +2483,9 @@ elif view == "Who comes when":
 
 elif view == "Meters":
     show_meters(df, recent, now)
+
+elif view == "Analysis":
+    show_analysis(df, recent, now)
 
 elif view == "Camera health":
     show_cameras(df, now)
