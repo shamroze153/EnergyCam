@@ -47,6 +47,59 @@ def with_lit_display(room="Admin Room", level=60):
 
 
 
+def check_inverted(ok):
+    """A unit that goes dark when it runs is still a unit.
+
+    Marketing produced the same result twice, in the right order both
+    times: nothing lights up when those five units start, something goes
+    dark instead -- a vent flap opening onto a cavity, or a display that
+    switches itself off once running. The tool only knew how to find
+    things that light up, so it called the frames swapped and refused.
+
+    Which side means "running" is read back off the two measurements
+    rather than stored as a separate flag, so the numbers and the
+    direction cannot drift apart.
+    """
+    bright = np.full((1080, 1920, 3), 60, np.uint8)
+    bright[20:50, 10:40] = np.random.default_rng(3).integers(
+        0, 255, (30, 30, 3), dtype=np.uint8)          # high contrast
+    flat = np.full((1080, 1920, 3), 60, np.uint8)     # low contrast
+
+    normal = {"R": {"frame_size": [1920, 1080], "units": [
+        {"label": "glows", "led_roi": [10, 20, 40, 50],
+         "led_std_threshold": 18.0,
+         "measured": {"on_std": 36.8, "off_std": 1.1}}]}}
+    ok("a unit that lights up reads on when the box is bright",
+       ac_detect.read_room(bright, "R", normal)[0] == "on")
+    ok("and off when it is flat",
+       ac_detect.read_room(flat, "R", normal)[0] == "off")
+
+    # The same box and threshold, with the measurements the other way round.
+    inverted = {"R": {"frame_size": [1920, 1080], "units": [
+        {"label": "goes dark", "led_roi": [10, 20, 40, 50],
+         "led_std_threshold": 18.0,
+         "measured": {"on_std": 1.1, "off_std": 36.8}}]}}
+    ok("a unit that goes dark reads ON when the box is flat",
+       ac_detect.read_room(flat, "R", inverted)[0] == "on")
+    ok("and OFF when it is bright",
+       ac_detect.read_room(bright, "R", inverted)[0] == "off")
+
+    # A calibration written before any of this has no measurements to read
+    # the direction from, and must keep behaving as it always did.
+    older = {"R": {"frame_size": [1920, 1080], "units": [
+        {"label": "old", "led_roi": [10, 20, 40, 50],
+         "led_std_threshold": 18.0}]}}
+    ok("a calibration with no measurements still reads the old way",
+       ac_detect.read_room(bright, "R", older)[0] == "on")
+
+    source = open("calibrate_room.py", encoding="utf-8").read()
+    ok("the refusal offers --inverted rather than only blaming the order",
+       "--inverted" in source and "goes dark rather than lighting up"
+       in source)
+    ok("and the gap is measured in whichever direction it runs",
+       "gap = abs(on_std - off_std)" in source)
+
+
 def check_several_units(ok):
     """A room with five air conditioners is not five rooms.
 
@@ -326,6 +379,7 @@ def main():
     ok("it reads", ac_detect.read_room(with_lit_display("Admin Room"),
                                        "Old Room", plain)[0] == "on")
 
+    check_inverted(ok)
     check_several_units(ok)
 
     print()

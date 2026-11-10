@@ -201,7 +201,23 @@ def read_room(frame, room, units=None):
         value = contrast(frame, box)
         if value is None:
             return None, "a box is empty"
-        lit.append(value >= threshold)
+        # Which side of the threshold means "running" is taken from the
+        # measurements themselves, not assumed.
+        #
+        # Most units glow: the display lights up and contrast inside the
+        # box goes up with it. Marketing does the opposite -- nothing lights
+        # up when those units start, something goes dark instead, twice
+        # over, on two separate attempts. Whether that is the vent flap
+        # opening onto a dark cavity or a display that switches itself off
+        # once the unit is running does not matter here: it is a real and
+        # repeatable difference between the two states, and the direction
+        # of it is already written down in on_std and off_std.
+        measured = unit.get("measured") or {}
+        on_std, off_std = measured.get("on_std"), measured.get("off_std")
+        higher_is_on = (on_std is None or off_std is None
+                        or on_std >= off_std)
+        lit.append(value >= threshold if higher_is_on
+                   else value <= threshold)
 
     if not lit:
         return None, "no usable boxes"

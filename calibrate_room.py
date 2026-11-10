@@ -174,6 +174,10 @@ def block(room, recorder, channel, size, infrared, label, box, threshold,
           taken: %s
           # A gap of %.1f between the two states. The threshold is the
           # midpoint, so anything inside that gap would read the same.
+          # Negative means this unit goes DARK when it runs rather than
+          # lighting up, and the reading is taken that way round: the
+          # direction is read back off these two numbers, not stored
+          # separately, so they cannot disagree with each other.
 """ % (room, recorder, channel, "infrared" if infrared else "colour",
        int(size[0]), int(size[1]), label, x1, y1, x2, y2, threshold, anchor,
        on_std, off_std, int(on_peak), int(off_peak), taken, on_std - off_std)
@@ -394,6 +398,11 @@ def main():
                     help="put the result in ac_units.yaml")
     ap.add_argument("--replace", action="store_true",
                     help="overwrite this room if it is already calibrated")
+    ap.add_argument("--inverted", action="store_true",
+                    help="this unit goes DARK when it runs rather than"
+                         " lighting up -- a vent flap opening, or a display"
+                         " that switches itself off once running. Measure"
+                         " the difference that way round.")
     ap.add_argument("--add", action="store_true",
                     help="add another unit to a room already calibrated,"
                          " instead of replacing it. For a room with more"
@@ -468,10 +477,47 @@ def main():
         # Swapping --on and --off is the easy mistake to make, and left alone
         # it reads as "nothing lit up", which sends somebody back to the
         # recorder to retake two perfectly good frames.
-        sys.exit(">> nothing lit up going from the off frame to the on frame,\n"
-                 "   but plenty does the other way round. The two frames look\n"
-                 "   swapped: --on wants the one with the unit RUNNING. Swap\n"
-                 "   them and run this again.")
+        #
+        # But it is not always the mistake. Marketing produced this twice,
+        # in the right order both times: nothing lights up when those units
+        # start, something goes dark instead -- a vent flap opening onto a
+        # dark cavity, or a display that switches itself off once the unit
+        # is running. Either is a real and repeatable difference between
+        # the two states, and --inverted measures it that way round.
+        if args.inverted:
+            found = candidates(off, on)
+            print(">> inverted: measuring what goes DARK when the unit"
+                  " runs, rather than what lights up.")
+        else:
+            sys.exit(
+                ">> nothing lit up going from the off frame to the on"
+                " frame,\n"
+                "   but plenty does the other way round. Two possibilities,\n"
+                "   and the preview will settle which:\n"
+                "\n"
+                "   1. The frames are swapped -- --on wants the one with"
+                " the\n"
+                "      unit RUNNING. Retake them in that order.\n"
+                "   2. This unit goes dark rather than lighting up: a vent\n"
+                "      flap opening, or a display that switches itself off\n"
+                "      once the unit is running. Then run the same command\n"
+                "      again with --inverted, on the same two frames:\n"
+                "\n"
+                "        python calibrate_room.py --room %r --channel %d \\\n"
+                "            --on %s \\\n"
+                "            --off %s --inverted\n"
+                "\n"
+                "   Look at the preview either way. If the box lands on the\n"
+                "   vent or the display it is right; if it lands on a window\n"
+                "   or a lamp, the room light changed between the frames and\n"
+                "   neither reading means anything."
+                % (args.room, args.channel,
+                   os.path.join(PREVIEW_DIR, "%s_ch%02d_on.jpg"
+                                % (args.room.replace(" ", "_"),
+                                   args.channel)),
+                   os.path.join(PREVIEW_DIR, "%s_ch%02d_off.jpg"
+                                % (args.room.replace(" ", "_"),
+                                   args.channel))))
     elif not found:
         sys.exit(">> nothing lit up between the two frames. Either the unit was\n"
                  "   in the same state in both, or its display is not visible to\n"
@@ -496,10 +542,17 @@ def main():
     on_std, off_std = contrast(on, box), contrast(off, box)
     if on_std is None or off_std is None:
         sys.exit("that box is empty -- check the numbers against the picture")
-    if off_std > on_std:
+    if off_std > on_std and not args.inverted:
         print(">> the box has MORE contrast with the unit off than on. The two"
-              " frames are probably the wrong way round: check --on and --off.")
-    gap = on_std - off_std
+              " frames are probably the wrong way round: check --on and --off,"
+              " or use --inverted if this unit really does go dark when it"
+              " runs.")
+    # The gap is how far apart the two states are, whichever way round they
+    # sit. An inverted unit has a perfectly good gap in the other direction,
+    # and taking it unsigned is what lets the refusal below mean "these two
+    # states are indistinguishable" rather than "these two states are the
+    # wrong way round".
+    gap = abs(on_std - off_std)
     threshold = (on_std + off_std) / 2
     x1, y1, x2, y2 = box
     on_peak = int(grey(on)[y1:y2, x1:x2].max())
