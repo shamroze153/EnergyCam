@@ -2137,8 +2137,14 @@ if view == "Campus":
 
     import campus_view
 
-    rows = campus_view.rows(df, recent, now, grade, spell, minutes_since,
-                            hours)
+    try:
+        rows = campus_view.rows(df, recent, now, grade, spell, minutes_since,
+                                hours)
+    except Exception as e:                                  # noqa: BLE001
+        st.error("The campus page could not be built (%s: %s). Every other"
+                 " view still works \u2014 pick Rooms in the sidebar. Please"
+                 " send this line on." % (type(e).__name__, e))
+        st.stop()
     healthy = beat_age is not None and beat_age <= STALE_AFTER_MINUTES
     meta = {
         "campus": campus,
