@@ -179,6 +179,65 @@ def check_requirements():
           ", ".join(heavy))
 
 
+def check_secrets_for_cloud():
+    """Converting the credential that works, rather than minting a new one.
+
+    Three deploys went on inventing passwords and retyping strings. The
+    office machine already holds one that reads this database every day;
+    the job is to carry it across unchanged. These pin the two conversions
+    that are invisible when they go wrong -- the password simply appears
+    to be wrong -- and the one that silently corrupts it.
+    """
+    import secrets_for_cloud as sfc
+
+    direct = ("postgresql://energycam_dashboard:Simple123"
+              "@db.abcdefgh.supabase.co:5432/postgres")
+    pooler = "aws-0-ap-south-1.pooler.supabase.com"
+
+    out, notes = sfc.convert(direct, pooler)
+    check("the direct host becomes the pooler host", pooler in out, out)
+    check("and the user name gains the project reference",
+          "energycam_dashboard.abcdefgh:" in out, out)
+    check("the password is carried across untouched", "Simple123@" in out,
+          out)
+
+    # Without a pooler to move to, it must not pretend it has fixed
+    # anything -- an IPv6-only host that looks converted is worse than one
+    # that is obviously not.
+    out, notes = sfc.convert(direct, None)
+    check("with nowhere to move it, it says so rather than guessing",
+          any("IPv6" in n for n in notes), str(notes))
+    check("and leaves the string alone", "db.abcdefgh.supabase.co" in out)
+
+    # A password with URL-meaningful characters ends the field early and
+    # the result is indistinguishable from a wrong password.
+    raw = ("postgresql://energycam_dashboard:p%40ss%3Aword"
+           "@db.abcdefgh.supabase.co:5432/postgres")
+    out, notes = sfc.convert(raw, pooler)
+    check("an already-encoded password is not encoded twice",
+          "p%40ss%3Aword@" in out and "%2540" not in out, out)
+
+    plain = ("postgresql://energycam_dashboard:p@ssword"
+             "@db.abcdefgh.supabase.co:5432/postgres")
+    out, _ = sfc.convert(plain, pooler)
+    check("and one that was never encoded is encoded once",
+          out is None or "%40" in out or "p@ssword" not in out, str(out))
+
+    already = ("postgresql://energycam_dashboard.abcdefgh:Simple123@"
+               "aws-0-ap-south-1.pooler.supabase.com:5432/postgres")
+    out, notes = sfc.convert(already, None)
+    check("a string already in pooler form passes through unchanged",
+          out == already, out)
+
+    # The pooler needs the reference; without it the failure is, again,
+    # "password refused".
+    missing = ("postgresql://energycam_dashboard:Simple123@"
+               "aws-0-ap-south-1.pooler.supabase.com:5432/postgres")
+    _, notes = sfc.convert(missing, None)
+    check("a pooler string missing the reference is called out",
+          any("project reference" in n for n in notes), str(notes))
+
+
 def check_why_unreachable(namespace):
     """The verdict must be specific, and must not repeat the message.
 
@@ -525,6 +584,7 @@ def main():
           ", ".join(missing))
 
     check_requirements()
+    check_secrets_for_cloud()
     check_why_unreachable(namespace)
     check_connection_hint(namespace)
     check_guard(namespace)
