@@ -77,6 +77,36 @@ Run the loop with `--evidence` and these will declare themselves: any one of
 them that counts somebody at two in the morning leaves a picture of exactly
 what it counted, and then the zone is measured rather than guessed.
 
+## 10 November, after nvr1 and nvr4 went to main stream
+
+The 7 November survey judged nvr1 and nvr4 from 640x360 frames, because that
+is all they were serving. They now serve 2560x1440 and 1920x1080, and three
+things look different.
+
+**140-H Reception has a floor-standing unit.** On nvr1 ch16 the tall white
+column beside the disrupt.com wall, which at 640x360 could have been a
+cupboard, is a tower air conditioner. The room keeps `ac: visible` and is
+worth trying.
+
+**Mosque's unit is real but at the extreme left edge** of nvr4 ch6, partly
+out of frame. Worth trying; if the display is outside the picture the
+calibration will refuse, which is the right outcome.
+
+**140-H Board Room counts the television.** A face in a video call on the
+wall TV was detected as a person in the room at 0.69 — above the room's own
+confidence, so only a zone catches it. This is the worst kind of false
+person for a meeting room: the meeting ends, everybody leaves, the call is
+left running, and the room reports itself occupied all evening without ever
+being flagged as empty. A zone over the screen now filters it. A real person
+standing in front of the TV is taller than it and reaches below it, measured
+at 0.20 and 0.45 overlap against a filter that needs 0.80.
+
+Room 18's sixteen detections are sixteen real people. It is a full open
+office at one in the afternoon, and nothing there needs fixing.
+
+Atrium Glass (nvr4 ch9) did not answer on either day. That is a camera or a
+recorder channel to look at.
+
 ## What a second pass over all 95 frames found
 
 Measured rather than eyeballed, across every frame at once.

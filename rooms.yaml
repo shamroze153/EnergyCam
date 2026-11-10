@@ -462,6 +462,20 @@ rooms:
     # well lit and the table is close to the camera, so a real person here
     # scores far above this.
     conf: 0.40
+    # 10 November, now that this camera serves 2560x1440: a face in a video
+    # call on the wall TV was counted as a person in the room, at 0.69 --
+    # well above the confidence above, so only a zone catches it. This is
+    # the worst kind of false person for a meeting room: the meeting ends,
+    # everybody leaves, the call is left running, and the room reports
+    # itself occupied all evening and is never once flagged as empty.
+    #
+    # The box is the screen. A real person standing in front of the TV is
+    # taller than it and reaches below it, so they are still counted --
+    # measured at 0.20 and 0.45 overlap against this zone, both well under
+    # the 0.8 that filters.
+    ignore:
+      24:
+        - [570, 0, 1050, 275]   # the wall TV
     note: >
       A board room empties all at once and the unit gets left on, so thirty
       minutes rather than forty-five. If its unit can be brought into frame
