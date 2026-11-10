@@ -1,13 +1,17 @@
 """Write down what the two K-Electric meters said.
 
 Thirty seconds a day, and it is the thing that turns the money on the
-dashboard from an assumption into a measurement. Everything there now rests
-on two guesses -- 1.2 kW per unit, Rs 55 per kWh -- and the page is careful
-to call the result "at stake" rather than a bill. A month of readings beside
-the hours rooms sat empty and cooled replaces the first guess; the monthly
-bills replace the second.
+dashboard from an assumption into a measurement.
 
-    python log_meter.py gf 48231                 the number on the meter
+The tariff half is already done: seventeen months of bills, loaded by
+sql/07_bills_and_solar.sql, put a unit at Rs 73.38 rather than the Rs 55
+that had been assumed. What is still assumed is the other half -- 1.2 kW per
+air conditioner -- and that is what a month of daily readings beside the
+hours rooms sat empty and cooled replaces.
+
+    python log_meter.py day 48231 20114 --solar 95 --temp 33
+                                                 both meters and the solar
+    python log_meter.py gf 48231                 one meter on its own
     python log_meter.py first 142 --units        units for the day instead
     python log_meter.py gf 48231 --temp 34       with the day's high
     python log_meter.py --show                   the last fortnight
@@ -231,15 +235,56 @@ def show(args):
         conn.close()
 
 
+def add_day(args):
+    """Both meters and the solar in one go, which is how it is actually read.
+
+    Somebody standing in front of two meters with a phone should type one
+    line, not three. Two meters is exactly the number where one gets
+    forgotten, and the solar inverter is read on the same walk.
+    """
+    taken = (datetime.fromisoformat(args.at).replace(tzinfo=PKT)
+             if args.at else datetime.now(PKT))
+    for meter, value in (("gf", args.value), ("first", args.amount)):
+        if value is None:
+            continue
+        one = argparse.Namespace(meter=meter, value=value, units=args.units,
+                                 temp=args.temp, at=taken.isoformat(),
+                                 note=args.note)
+        add_reading(one)
+    if args.solar is not None:
+        conn = connect()
+        try:
+            cur = conn.cursor()
+            cur.execute(
+                "INSERT INTO solar_daily (taken, kwh, note) VALUES (%s,%s,%s)"
+                " ON CONFLICT (taken) DO UPDATE SET kwh = EXCLUDED.kwh,"
+                " note = EXCLUDED.note", (taken, args.solar, args.note))
+            conn.commit()
+            print(">> solar: %.1f units generated" % args.solar)
+            # Worth saying out loud: the generation is why the ground floor
+            # meter reads low on a bright day, and without this line nobody
+            # could tell that apart from somebody switching things off.
+            cur.close()
+        finally:
+            conn.close()
+
+
 def main():
     ap = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("meter", nargs="?", help="gf or first")
+    ap.add_argument("meter", nargs="?",
+                    help="gf, first, or day for both at once")
     ap.add_argument("value", nargs="?", type=float,
-                    help="the meter's reading, or units with --units")
+                    help="the meter's reading, or units with --units."
+                         " With `day`, the gf meter")
     ap.add_argument("amount", nargs="?", type=float,
-                    help="with --bill: the rupees on the bill")
+                    help="with --bill the rupees on the bill;"
+                         " with `day` the first-floor meter")
+    ap.add_argument("--solar", type=float,
+                    help="units the array generated since the last reading."
+                         " The array feeds the gf meter, so without this a"
+                         " bright day looks like somebody switched things off")
     ap.add_argument("--units", action="store_true",
                     help="the number given is units for the day, not the"
                          " cumulative reading")
@@ -266,6 +311,11 @@ def main():
             sys.exit("--bill needs: meter units rupees --from DATE --to DATE")
         args.units_billed = args.value
         return add_bill(args)
+    if args.meter and args.meter.lower() == "day":
+        if args.value is None and args.amount is None and args.solar is None:
+            sys.exit("day wants at least one number:"
+                     " log_meter.py day <gf> <first> --solar <units>")
+        return add_day(args)
     if not (args.meter and args.value is not None):
         ap.print_help()
         sys.exit(1)

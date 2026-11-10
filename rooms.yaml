@@ -146,7 +146,16 @@ snapshots:
 
 assumptions:
   unit_kw: 1.2                 # a split unit while it is actually cooling
-  tariff_rs_per_kwh: 55        # replace with the effective rate off the bill
+  # Measured, not assumed. Sixteen clean months of K-Electric bills across
+  # both connections at 140-H came to Rs 73.38 a unit: Rs 71.92 on the
+  # ground-floor meter and Rs 78.03 on the first-floor one, the difference
+  # being fixed charges spread over very different consumption. July 2026 is
+  # left out of that average because its bill is physically impossible --
+  # see sql/07_bills_and_solar.sql.
+  #
+  # The old figure here was 55, which understated every rupee this dashboard
+  # has shown by about a third.
+  tariff_rs_per_kwh: 73        # replace with the effective rate off the bill
   co2_kg_per_kwh: 0.45         # grid average; the national figure moves
   co2_kg_per_tree_year: 21     # what one mature tree takes up in a year
 
