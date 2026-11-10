@@ -2093,13 +2093,13 @@ if view == "Campus":
     }
     html = campus_view.page(rows, meta)
     tall = campus_view.height(rows)
-    # st.components.v1.html is past the date it was due to be removed and
-    # warns on every rerun, which buries anything real in the console. st.iframe
-    # replaces it, but not every Streamlit this might run on has it yet.
-    if hasattr(st, "iframe"):
-        st.iframe(html, height=tall, scrolling=True)
-    else:
-        components.html(html, height=tall, scrolling=True)
+    # components.html warns that it is deprecated, and the warning is noise.
+    # It is also the call that demonstrably works. st.iframe was swapped in
+    # to quieten the console and took the whole page down with a TypeError,
+    # because its signature was assumed rather than checked -- a working
+    # call traded for an unverified one to tidy up a log line. Back to the
+    # one that works; the warning can stay.
+    components.html(html, height=tall, scrolling=True)
     st.stop()
 
 st.markdown(header_band(campus, df, beat_age, describe(now, hours),
