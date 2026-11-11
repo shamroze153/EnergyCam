@@ -164,7 +164,7 @@ def check_requirements():
                 queue.append(name) if name in local else need.add(name)
 
     outside = sorted(need - set(sys.stdlib_module_names) - local - {""})
-    listed = open("requirements.txt").read().lower()
+    listed = open("requirements.txt", encoding="utf-8").read().lower()
     missing = [n for n in outside
                if PACKAGES.get(n, n).lower() not in listed]
     check("requirements.txt covers every import the dashboard reaches",
@@ -346,7 +346,7 @@ def check_guard(namespace):
     the WiFi is already in the building. Reachable from home, it does.
     """
     guard = namespace["guard"]
-    source = open("rooms_dashboard.py").read()
+    source = open("rooms_dashboard.py", encoding="utf-8").read()
 
     class FakeStop(Exception):
         pass
@@ -428,7 +428,7 @@ def check_quiet_night(namespace):
     """
     import campus_view
 
-    source = open("rooms_dashboard.py").read()
+    source = open("rooms_dashboard.py", encoding="utf-8").read()
     check("the history query carries the state in from before the window",
           "UNION ALL" in source and "DISTINCT ON (room) timestamp" in source)
 
@@ -584,7 +584,7 @@ def check_head_count(namespace):
 
 def main():
     install_stubs()
-    source = open("rooms_dashboard.py").read()
+    source = open("rooms_dashboard.py", encoding="utf-8").read()
 
     try:
         namespace = load_helpers(source)

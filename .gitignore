@@ -56,3 +56,12 @@ frames/*.zip
 pack_*/
 pack_*.zip
 cycles.csv
+
+# CLAUDE.md promises these are ignored; evidence.zip (84 MB of unblurred
+# frames) and frames/report.txt were sitting untracked, one "git add -A"
+# away from a public repository.
+frames/
+*.zip
+
+# this laptop's own Claude settings (paths with the user's name in them)
+.claude/

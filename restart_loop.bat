@@ -15,7 +15,10 @@ setlocal
 cd /d "%~dp0"
 
 powershell -NoProfile -Command "$p = Get-CimInstance Win32_Process | Where-Object { $_.Name -like 'python*' -and $_.CommandLine -like '*room_loop.py*' }; if ($p) { $p | ForEach-Object { Write-Host ('stopping the loop, process ' + $_.ProcessId); Stop-Process -Id $_.ProcessId -Force } } else { Write-Host 'no loop was running' }"
-timeout /t 5 /nobreak >nul
+rem Not "timeout /t 5": with no keyboard behind it (a window Claude runs
+rem commands in) it fails at once with "Input redirection is not supported"
+rem and the wait is skipped. ping waits the same five seconds anywhere.
+ping -n 6 127.0.0.1 >nul
 
 set CONDA_ROOT=%LOCALAPPDATA%\miniconda3
 if not exist "%CONDA_ROOT%\Scripts\activate.bat" set CONDA_ROOT=%USERPROFILE%\miniconda3
