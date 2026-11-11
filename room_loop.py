@@ -67,7 +67,7 @@ from ac_detect import load_units, read_room
 from alerts import Alerter, compose, configured, deliver, why_not_configured
 from concurrent.futures import ThreadPoolExecutor, as_completed  # noqa: E402
 
-from privacy_blur import anonymize, people_boxes
+from privacy_blur import DETECTOR, anonymize, people_boxes
 from schedule import (WORKING, describe, in_operations, period,  # noqa: F401
                       wait_before_reporting)
 from test_camera import build_url, grab
@@ -443,6 +443,11 @@ class Room:
         # a coat on a chair while every other camera is fine. Raising it for
         # the whole building to fix one room would cost real people elsewhere.
         self.conf = cfg.get("conf")
+        # Stricter only when nobody should be here. Creative Room needed a
+        # high bar at night, when its chairs scored like people, and the
+        # normal one by day: at 17:10 on 11 November six people sat at its
+        # desks and not one scored the night's 0.40 under the purple light.
+        self.conf_after_hours = cfg.get("conf_after_hours")
         # Boxes where a camera reliably sees a person who is not there. On
         # this site that is mostly a doorway or a pane of glass: the camera
         # looks straight through into a corridor, and the people it finds are
@@ -463,6 +468,12 @@ class Room:
         self.first_blank = None         # when that run of passes began
         self.was_occupied = False       # somebody was seen, and not yet
                                         # disproved by CONFIRM_EMPTY passes
+
+    def conf_for(self, after_hours):
+        """The confidence this room is read at, at this hour."""
+        if after_hours and self.conf_after_hours:
+            return self.conf_after_hours
+        return self.conf
 
     def camera_key(self, spec):
         """Turn 16 or "xvr3:16" into the (recorder, channel) pair it means."""
@@ -749,7 +760,8 @@ def fetch(room, recorders, timeout):
     return frames
 
 
-def examine(room, frames, model, imgsz, iou, ac_units=None):
+def examine(room, frames, model, imgsz, iou, ac_units=None,
+            after_hours=False):
     """Count the people in a room's frames and read its air conditioner.
 
     Returns the count, how many cameras answered, the frame worth keeping --
@@ -774,7 +786,8 @@ def examine(room, frames, model, imgsz, iou, ac_units=None):
         answered += 1
         if key[1] == ac_channel and key[0] == ac_recorder:
             ac_state, ac_detail = read_room(wide, room.name, ac_units)
-        boxes = people_boxes(wide, model, conf=room.conf, imgsz=imgsz, iou=iou)
+        boxes = people_boxes(wide, model, conf=room.conf_for(after_hours),
+                             imgsz=imgsz, iou=iou)
         here = sum(1 for b in boxes if not ignored(b, room.ignore.get(key)))
         if keep is None or here > people:
             keep = wide
@@ -857,7 +870,11 @@ def keep_evidence(room, frames, model, imgsz, iou, folder, now):
         wide = frames.get(key)
         if wide is None:
             continue
-        boxes = [b for b in people_boxes(wide, model, conf=room.conf,
+        # Evidence is only taken out of hours, so the night's bar applies.
+        night = getattr(room, "conf_for", None)
+        boxes = [b for b in people_boxes(wide, model,
+                                         conf=night(True) if night
+                                         else room.conf,
                                          imgsz=imgsz, iou=iou)
                  if not ignored(b, room.ignore.get(key))]
         if not boxes:
@@ -915,9 +932,11 @@ def sweep(rooms, recorders, model, imgsz, iou, timeout, ac_units=None,
                         frames[room.name] = {}
         for name, e in failures:
             print(">> %s: could not be read (%s)" % (name, e))
+        after = not in_operations(datetime.now(PKT), hours)
         for room in batch:
             people, answered, keep, ac, why = examine(
-                room, frames.get(room.name, {}), model, imgsz, iou, ac_units)
+                room, frames.get(room.name, {}), model, imgsz, iou, ac_units,
+                after_hours=after)
             if on_frame is not None and keep is not None:
                 on_frame(room, keep)
             now = datetime.now(PKT)
@@ -1124,11 +1143,16 @@ def main():
     if muted:
         print(">> %d ignore zone(s) in place: detections that sit inside one"
               " are known false people and are not counted" % muted)
-    strict = [r for r in rooms if r.conf]
+    strict = [r for r in rooms if r.conf or r.conf_after_hours]
     if strict:
         print(">> %d room(s) use their own confidence: %s"
-              % (len(strict), ", ".join("%s %.2f" % (r.name, r.conf)
-                                        for r in strict)))
+              % (len(strict), ", ".join(
+                  "%s %s" % (r.name, " / ".join(
+                      bit for bit in (
+                          ("%.2f" % r.conf) if r.conf else "",
+                          ("%.2f after hours" % r.conf_after_hours)
+                          if r.conf_after_hours else "") if bit))
+                  for r in strict)))
 
     alerter = Alerter(send=args.alerts)
     if args.alerts:
@@ -1171,7 +1195,7 @@ def main():
               " lid or a chosen Sleep will still stop it)")
 
     from ultralytics import YOLO          # slow import, so not at module level
-    model = YOLO("yolov8n.pt")
+    model = YOLO(DETECTOR)
 
     load_state(rooms, args.state, max_gap_minutes=max(10.0,
                                                       args.min_cycle / 60 * 3))

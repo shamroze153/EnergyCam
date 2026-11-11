@@ -49,7 +49,7 @@ if __name__ == "__main__":
 import cv2
 from dotenv import load_dotenv
 
-from privacy_blur import DETECT_CONF, people_boxes
+from privacy_blur import DETECT_CONF, DETECTOR, people_boxes
 from room_loop import (BATCH, DETECT_IOU, DETECT_SIZE, PKT, WORKERS, fetch,
                        ignored, load_rooms, recorder_login, set_gates)
 from schedule import WORKING, describe, period
@@ -104,7 +104,8 @@ def look(rooms, recorders, model, args, say):
                     say("   %-28s could not be read (%s)" % (room.name, e))
                     frames[room.name] = {}
         for room in batch:
-            conf = args.conf or room.conf
+            conf = args.conf or room.conf_for(
+                getattr(args, "after_hours", False))
             for key in room.cameras:
                 frame = frames[room.name].get(key)
                 if frame is None:
@@ -214,7 +215,7 @@ def main():
     set_gates(recorders, args.per_recorder)
 
     from ultralytics import YOLO
-    model = YOLO("yolov8n.pt")
+    model = YOLO(DETECTOR)
     os.makedirs(OUT_DIR, exist_ok=True)
 
     now = datetime.now(PKT)
@@ -227,6 +228,7 @@ def main():
     say(">> %s" % now.strftime("%A %d %B %Y, %H:%M"))
     say(">> %s" % describe(now, None))
     quiet = period(now, None) != WORKING
+    args.after_hours = quiet     # the bar each room is read at tonight
     if args.all and not quiet:
         say(">> NOTE: the building is inside its working hours, so some of"
             " these will be")

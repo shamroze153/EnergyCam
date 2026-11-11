@@ -38,7 +38,8 @@ def main():
     os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
     print("Camera se connect ho raha hai...")
     cap = cv2.VideoCapture(os.getenv("RTSP_URL"))
-    model = YOLO("yolov8n.pt")
+    from privacy_blur import DETECTOR
+    model = YOLO(DETECTOR)
 
     for _ in range(10):   # skip the first frames (often grey/partial)
         cap.read()

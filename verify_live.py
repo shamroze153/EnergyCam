@@ -49,12 +49,13 @@ if __name__ == "__main__":
 
 import cv2
 import psycopg2
+import yaml
 from dotenv import load_dotenv
 
 from check_room import OUT_DIR, draw
 from room_loop import (DETECT_IOU, DETECT_SIZE, fetch, ignored, load_rooms,
                        muffled, recorder_login, set_gates)
-from privacy_blur import DETECT_CONF, people_boxes
+from privacy_blur import DETECT_CONF, DETECTOR, people_boxes
 from schedule import PKT
 
 VERIFY_DIR = os.path.join(OUT_DIR, "verify")
@@ -100,7 +101,10 @@ def count_now(room, recorders, model, timeout):
         if frame is None:
             continue
         answered += 1
-        boxes = people_boxes(frame, model, conf=room.conf,
+        # The bar the loop is using at this hour, or the two would argue
+        # about Creative Room every evening and agree about nothing.
+        boxes = people_boxes(frame, model,
+                             conf=room.conf_for(AFTER_HOURS[0]),
                              imgsz=DETECT_SIZE, iou=DETECT_IOU)
         zones = room.ignore.get(key) or []
         kept = [b for b in boxes if not ignored(b, zones)]
@@ -227,6 +231,10 @@ def one_pass(rooms, recorders, model, timeout, state):
     return out
 
 
+# Whether the building is out of hours as this check runs; set in main().
+AFTER_HOURS = [False]
+
+
 def main():
     ap = argparse.ArgumentParser(
         description=__doc__,
@@ -258,6 +266,9 @@ def main():
 
     load_dotenv()
     recorders, rooms = load_rooms(args.config, None, args.room)
+    from schedule import in_operations
+    AFTER_HOURS[0] = not in_operations(
+        datetime.now(PKT), yaml.safe_load(open(args.config)).get("hours"))
     if args.zone:
         rooms = [r for r in rooms if r.zone == args.zone]
     if not rooms:
@@ -280,7 +291,7 @@ def main():
     set_gates(recorders, args.per_recorder)
 
     from ultralytics import YOLO
-    model = YOLO("yolov8n.pt")
+    model = YOLO(DETECTOR)
 
     if args.watch:
         if len(rooms) != 1:

@@ -30,7 +30,8 @@ for name, module in (
         ("psycopg2", types.SimpleNamespace(Error=Exception, connect=None)),
         ("privacy_blur", types.SimpleNamespace(count_people=lambda *a, **k: 0,
                                                people_boxes=lambda *a, **k: [],
-                                               anonymize=lambda f, m: f)),
+                                               anonymize=lambda f, m: f,
+            DETECTOR="yolov8s.pt")),
         ("test_camera", types.SimpleNamespace(build_url=lambda *a, **k: "",
                                               grab=lambda *a, **k: (None, "")))):
     sys.modules.setdefault(name, module)
@@ -557,6 +558,17 @@ def main():
         room_loop.examine(plain, {("dvr2", 10): "frame"}, model=None,
                           imgsz=1280, iou=0.7)
         check("and a room without one leaves it alone", seen, [None])
+
+        # Creative Room: strict at night, when its chairs score like people;
+        # the normal bar by day, when its people score like chairs.
+        nightly = room(channels=[10], conf_after_hours=0.40)
+        seen[:] = []
+        room_loop.examine(nightly, {("dvr2", 10): "frame"}, model=None,
+                          imgsz=1280, iou=0.7, after_hours=True)
+        room_loop.examine(nightly, {("dvr2", 10): "frame"}, model=None,
+                          imgsz=1280, iou=0.7, after_hours=False)
+        check("a night-only bar applies at night and not by day", seen,
+              [0.40, None])
 
         # A camera that did not answer must not be counted as having answered
         # with nobody in it -- that is the reading that empties a room nobody

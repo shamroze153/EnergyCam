@@ -56,7 +56,8 @@ for name, module in (
         ("psycopg2", types.SimpleNamespace(Error=Exception, connect=None)),
         ("privacy_blur", types.SimpleNamespace(
             count_people=lambda *a, **k: 0, people_boxes=fake_boxes,
-            anonymize=lambda f, m: f)),
+            anonymize=lambda f, m: f,
+            DETECTOR="yolov8s.pt")),
         ("test_camera", types.SimpleNamespace(
             build_url=lambda host, ch, u, p, main=False, brand="hikvision":
                 "rtsp://%s/%s/%d" % (host, "main" if main else "sub", ch),

@@ -213,11 +213,13 @@ def check_machine():
             "The loop writes frames and the model needs room. Clear space.")
     else:
         ok("%.1f GB free" % free)
-    if os.path.exists("yolov8n.pt"):
-        ok("the detector's weights are here")
+    from privacy_blur import DETECTOR
+    if os.path.exists(DETECTOR):
+        ok("the detector's weights are here", DETECTOR)
     else:
-        warn("yolov8n.pt is not here",
-             "it downloads on the first run, which needs the internet")
+        warn("%s is not here" % DETECTOR,
+             "it downloads on the first run (22 MB), which needs the"
+             " internet")
     for folder, limit in (("evidence", 400), ("frames", None)):
         if os.path.isdir(folder):
             n = len([f for f in os.listdir(folder) if f.endswith(".jpg")])

@@ -424,14 +424,14 @@ rooms:
     zone: Offices
     recorder: dvr2
     channels: [4]
-    # 11 Nov: empty all morning, yet counted at 0.25-0.35 on a different
-    # chair each time round the centre desk. A zone there would blind
-    # the desk people work at, so the room's confidence goes up instead,
-    # as for the Board Room. A seated person here scored 0.31-0.54 on a
-    # similar camera; the two-pass empty rule keeps the room occupied
-    # through the frames that dip below 0.40. Watch this room: if it
-    # reads empty with somebody in it, take this line out.
-    conf: 0.40
+    # 11 Nov, morning: empty, yet counted at 0.25-0.35 on a different chair
+    # each time round the centre desk. A zone there would blind the desk
+    # people work at, so the confidence went up to 0.40 -- and at 17:10
+    # the same day field_audit found six people at those desks, under the
+    # purple light, and not one scoring 0.40: the room read 0 to 2. So the
+    # high bar is for when nobody should be here, and working hours use
+    # the normal one.
+    conf_after_hours: 0.40
     # 7 Nov: no unit in any of this room's frames, read at full width
     # across the upper part of the picture, where a split unit is
     # mounted. It was labelled visible from the survey contact sheet,
@@ -883,6 +883,12 @@ rooms:
     cameras:
       - {recorder: nvr1, channel: 22}
       - {recorder: xvr3, channel: 16}
+    # 11 Nov, field_audit 17:15 with the yolov8s detector: a dark object
+    # against the right-hand wall of the corridor scored 0.28 with nobody
+    # there. Not the armchairs -- those are left alone, people sit in them.
+    ignore:
+      "xvr3:16":
+        - [1615, 480, 1720, 620]
     ac: visible
     empty_after_minutes: 45
     note: >
@@ -1305,6 +1311,15 @@ rooms:
     zone: Offices
     recorder: cd_nvr1
     channels: [7, 27, 30]
+    # Main stream: ch 30 shows a split unit with its display lit, about
+    # twenty pixels across at 1920x1080 and a few at the sub stream's 704.
+    stream: main
+    # 11 Nov, field_audit 17:12: an empty black chair behind the glass on
+    # the left of ch 27 scored 0.53 as a person. It is on the far side of
+    # the partition, so nobody in this room ever sits there.
+    ignore:
+      27:
+        - [100, 290, 250, 495]
     ac: visible
     empty_after_minutes: 45
 
@@ -1313,6 +1328,8 @@ rooms:
     zone: Offices
     recorder: cd_nvr1
     channels: [16, 25, 26]
+    # Main stream: ch 25 has a split unit with a lit display, top right.
+    stream: main
     ac: visible
     empty_after_minutes: 45
 
@@ -1544,6 +1561,9 @@ rooms:
     zone: Offices
     recorder: cd_nvr2
     channels: [2]
+    # Main stream: ch 2 shows the unit's display reading 25, top left. At
+    # the sub stream's 640x360 it is a smudge.
+    stream: main
     ac: visible
     empty_after_minutes: 45
 
@@ -1560,6 +1580,12 @@ rooms:
     zone: Offices
     recorder: cd_nvr2
     channels: [9, 10]
+    # 11 Nov, field_audit 17:14: ch 10 looks through the glass wall at the
+    # reception desk, and the receptionist was counted (0.73) as somebody in
+    # this meeting room. Real person, wrong room -- the desk is zoned.
+    ignore:
+      10:
+        - [330, 150, 620, 520]
     ac: hidden
     empty_after_minutes: 30
 

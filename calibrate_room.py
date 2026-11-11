@@ -73,9 +73,9 @@ def people_in(frames, margin=24):
     The model is loaded only here, and only when asked: the rest of this
     tool runs without it.
     """
-    from privacy_blur import people_boxes
+    from privacy_blur import DETECTOR, people_boxes
     from ultralytics import YOLO
-    model = YOLO("yolov8n.pt")
+    model = YOLO(DETECTOR)
     out = []
     for frame in frames:
         h, w = frame.shape[:2]

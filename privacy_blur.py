@@ -12,6 +12,17 @@ BLUR_CLASSES = [PERSON, TV_MONITOR, LAPTOP, KEYBOARD, CELL_PHONE]
 
 DETECT_CONF = 0.25     # lower = blur more (but more false boxes)
 
+# Which weights find the people: the "small" model, not the "nano" one, since
+# 11 November. On that day's field audit, run over the same frames: Creative
+# Room under its purple light, 0 people found by nano and 3 by small; Squat
+# Wolf Room 0, 1 and 2 (there were 2); Room 4, 1 and 4; Marketing, 3 and 6.
+# Small also stopped seeing the cafe's shoe rack as a person. It is about two
+# and a half times the work per frame, which on the laptop is seconds a
+# cycle, not minutes. Set ENERGYCAM_DETECTOR=yolov8n.pt in .env to go back
+# if a slower machine cannot keep up. Downloads itself once (22 MB).
+import os as _os
+DETECTOR = _os.getenv("ENERGYCAM_DETECTOR", "yolov8s.pt")
+
 # How much two boxes of the same class may overlap before one is thrown away.
 # This is the knob for a person counted twice, and it is not the confidence
 # knob. Confidence decides how faint a detection may be, so raising it to clear
