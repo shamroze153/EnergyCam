@@ -80,7 +80,10 @@ PKT = timezone(timedelta(hours=5))
 # detector was ever shown. Widening it first costs a resize and buys back the
 # accuracy. Listed explicitly rather than guessed from the aspect ratio: a
 # camera genuinely mounted in portrait would be ruined by the same correction.
-ANAMORPHIC = {(960, 1080): (1920, 1080)}
+# 141-C/D's NVR3 (an HVR, 11 Nov) sends the same 1080N as 960x1088: eight
+# rows of padding from the encoder's sixteen-pixel blocks. Squat Wolf's five
+# rooms are read from it, so its people were being counted as thin columns.
+ANAMORPHIC = {(960, 1080): (1920, 1080), (960, 1088): (1920, 1088)}
 
 STATE_FILE = "room_state.json"
 SNAPSHOT_DIR = "snapshots"
