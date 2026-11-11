@@ -50,3 +50,9 @@ ac_survey_*.zip
 field_audit_*/
 field_audit_*.zip
 frames/*.zip
+
+# collect_pack.py output and the loop's pass log -- the pack holds unblurred
+# frames, and cycles.csv is this machine's own record.
+pack_*/
+pack_*.zip
+cycles.csv

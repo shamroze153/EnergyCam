@@ -1043,6 +1043,31 @@ def load_state(rooms, path, max_gap_minutes):
     print(">> carried %d room(s) over from %.0f min ago" % (restored, gap))
 
 
+CYCLE_LOG = "cycles.csv"
+
+
+def log_cycle(rooms, now, cycle, seconds, path=CYCLE_LOG):
+    """One line a pass: when, how long, and how the rooms came out.
+
+    "Walk into a room and the page says so" is only as quick as one pass
+    over every camera, and that number was only ever on the console, gone
+    when the window closed. Written down, it can be looked at later -- and
+    sent -- without anybody having watched the window.
+    """
+    try:
+        new = not os.path.exists(path)
+        with open(path, "a", encoding="utf-8") as fh:
+            if new:
+                fh.write("time,cycle,seconds,rooms,occupied,empty,unknown\n")
+            states = [r.status for r in rooms]
+            fh.write("%s,%d,%.0f,%d,%d,%d,%d\n" % (
+                now.strftime("%Y-%m-%d %H:%M:%S"), cycle, seconds, len(rooms),
+                states.count("occupied"), states.count("empty"),
+                states.count("unknown")))
+    except OSError:
+        pass        # a log that cannot be written must not stop the loop
+
+
 def report(rooms, now, cycle, seconds, hours=None):
     print("\n>> cycle %d  %s  (%.0fs)  %s"
           % (cycle, now.strftime("%H:%M:%S"), seconds, describe(now, hours)))
@@ -1231,6 +1256,7 @@ def main():
                 room.observe(people, answered, now, ac, why)
             elapsed = time.time() - started
             report(rooms, now, cycle, elapsed, hours)
+            log_cycle(rooms, now, cycle, elapsed)
             save_state(rooms, args.state, now)
 
             if not args.no_db:
