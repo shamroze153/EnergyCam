@@ -57,3 +57,7 @@ Two or three lines a round; picture file names, never pictures.
 * 21:30 Empty time gets "Last 7 days": one row a room, one cell a day,
   coloured by the share of watched time it sat empty. Checked on real data
   (Old Finance Room 9h 34m of 15h watched is 140-H's emptiest this week).
+* 21:47 AC re-check: Room 32 and Admin Room still read on. Learning Center
+  box (196,136-222,174) still shows a dark "25" on a pale face, only dimmer
+  with the room light: it looks like a sticker or an always-on display, so
+  it cannot tell on from off. For Shamroze: is that "25" a label?
