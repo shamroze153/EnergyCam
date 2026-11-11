@@ -83,3 +83,12 @@ Two or three lines a round; picture file names, never pictures.
   the table read at 0.27-0.42 (evidence 23:54, 00:07, 00:25; a real
   cleaner at 23:29) -> ignore box on the table top, cd_nvr1 ch9.
   IT Head Room at 00:08 is a real person. 141-D Genset: outside, no unit.
+* 02:15 round 5: 0 MISSED, 2 GHOST. The MR 01 and Gym zones hold (their
+  detections now "0 counted"). Pantry: a real person 01:11-01:41 (0.57-
+  0.93), left alone. DL Department still flickered on one chair at 0.47-
+  0.49 (a real person at 01:04 scored 0.85) -> night bar 0.40 -> 0.55.
+  Night-only bars: Room 17 chairs 0.26-0.32 -> 0.40; Prompt Cafe chair
+  0.41 -> 0.50 (real people 0.81); H First Floor Sitting Area cushion
+  0.32 -> 0.40. Creative Room chair at 0.42 is over its 0.40 night bar,
+  but its real people under the purple light score below 0.40, so left
+  for Shamroze (frames/Creative_Room_dvr2_ch04_boxes.jpg). Loop restarted.

@@ -379,7 +379,9 @@ rooms:
     # at 0.28 and 0.29, and the room flickered occupied/empty all night
     # (the "first in 2:43 night" of 11 Nov). Chairs are seats, so no zone:
     # a stricter bar at night only. People here at night score 0.7+.
-    conf_after_hours: 0.40
+    # 02:15 round: still flickering, now on one chair at 0.47-0.49 (01:43,
+    # 02:26); a real person at 01:04 scored 0.79-0.85. Raised to 0.55.
+    conf_after_hours: 0.55
 
   - name: HR Room
     zone: Offices
@@ -854,6 +856,9 @@ rooms:
     # that part was read. Left as visible pending one look on site.
     ac: visible
     ac_channel: 5
+    # 12 Nov 02:15 night check, nobody in: chairs at 0.32 (ch3) and 0.26
+    # (ch5) counted as people. Seats, so a night-only bar, not a zone.
+    conf_after_hours: 0.40
     empty_after_minutes: 45
     note: >
       Three cameras on one room, and only channel 5 can see the unit. Which
@@ -973,6 +978,9 @@ rooms:
     channels: [15]
     ac: none
     empty_after_minutes: null
+    # 12 Nov 02:15 night check: a round cushion on the glass ledge read as
+    # a person at 0.32. A sitting area, so a night-only bar, not a zone.
+    conf_after_hours: 0.40
 
   - name: H Stairs
     zone: H common
@@ -1042,6 +1050,10 @@ rooms:
     channels: [13, 14, 15, 20]
     ac: visible
     empty_after_minutes: 45
+    # 12 Nov night checks: an orange-and-blue chair on ch14 at 0.41 (02:15)
+    # and a glass reflection on ch20 at 0.27 (00:15); real people here at
+    # night scored 0.81. Seats, so a night-only bar, not a zone.
+    conf_after_hours: 0.50
     note: >
       Four cameras on one space. All four must read empty before the room does.
 
