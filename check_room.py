@@ -124,6 +124,20 @@ def look(rooms, recorders, model, args, say):
     return findings
 
 
+def zones_past_frame(zones, width, height):
+    """Zones that reach past the frame they are meant for.
+
+    A zone is pixels in one picture. 141 Reception Meeting Room's was
+    measured on the 1920x1080 main stream while the loop reads that camera
+    at 640x360, where it covered the room's own table and hid the people
+    at it -- for a day, with nothing to show for it but a ghost elsewhere.
+    A zone drawn on a bigger picture nearly always runs off the smaller one,
+    so this is the cheap test that would have caught it.
+    """
+    return [z for z in zones or []
+            if z[2] > width + 2 or z[3] > height + 2]
+
+
 def describe_finding(f, say):
     room, (recorder, channel) = f["room"], f["camera"]
     if f["frame"] is None:
@@ -134,6 +148,12 @@ def describe_finding(f, say):
         % (room.name, recorder, channel, f["frame"].shape[1],
            f["frame"].shape[0], len(f["boxes"]), len(f["counted"])))
     zones = room.ignore.get(f["camera"])
+    for z in zones_past_frame(zones, f["frame"].shape[1],
+                              f["frame"].shape[0]):
+        say("   !! zone %s reaches past this %dx%d frame: it was drawn on a"
+            " picture of another size and covers the wrong place. Redraw it"
+            " in this frame's pixels." % (list(z), f["frame"].shape[1],
+                                          f["frame"].shape[0]))
     for n, (x1, y1, x2, y2, score) in enumerate(f["boxes"], 1):
         mark = "ignored" if ignored((x1, y1, x2, y2, score), zones) \
             else ("faint  " if score < FAINT else "counted")

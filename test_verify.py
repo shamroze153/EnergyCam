@@ -184,6 +184,24 @@ def main():
     check("a fault reports how confident the detection was",
           'print("%-26s   %s ch%d: %s"' in source, True)
 
+    # 12 Nov: a zone measured on 1920x1080 sat on a 640x360 camera, over
+    # the room's own table. The night check now says so.
+    import check_room
+    check("a zone drawn on a bigger picture is caught",
+          check_room.zones_past_frame([[330, 150, 620, 520]], 640, 360),
+          [[330, 150, 620, 520]])
+    check("and a zone that fits is not",
+          check_room.zones_past_frame([[108, 44, 212, 178]], 640, 360), [])
+    said = []
+    room = type("R", (), {"name": "X", "ignore": {("r", 1): [[330, 150, 620,
+                                                              520]]}})()
+    frame = type("F", (), {"shape": (360, 640, 3)})()
+    check_room.describe_finding({"room": room, "camera": ("r", 1),
+                                 "frame": frame, "boxes": [], "counted": []},
+                                said.append)
+    check("and the night check prints the warning",
+          any("reaches past this 640x360 frame" in s for s in said), True)
+
     print()
     if FAILURES:
         print("%d FAILURE(S):" % len(FAILURES))

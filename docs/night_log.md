@@ -101,3 +101,6 @@ Two or three lines a round; picture file names, never pictures.
   Now [108,44,212,178] (checked: desk dropped, table kept). Every other
   zone checked against its real frame size: all inside. Outdoor ghosts
   (Solar Array, parkings) left. Loop restarted.
+* 04:40 check_room (and so every night check) now warns when a zone
+  reaches past the frame it is used on -- the test that would have caught
+  the Reception Meeting Room zone a day earlier. Test in test_verify.py.
