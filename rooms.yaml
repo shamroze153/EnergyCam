@@ -370,6 +370,14 @@ rooms:
     zone: Offices
     recorder: dvr2
     channels: [4]
+    # 11 Nov: empty all morning, yet counted at 0.25-0.35 on a different
+    # chair each time round the centre desk. A zone there would blind
+    # the desk people work at, so the room's confidence goes up instead,
+    # as for the Board Room. A seated person here scored 0.31-0.54 on a
+    # similar camera; the two-pass empty rule keeps the room occupied
+    # through the frames that dip below 0.40. Watch this room: if it
+    # reads empty with somebody in it, take this line out.
+    conf: 0.40
     # 7 Nov: no unit in any of this room's frames, read at full width
     # across the upper part of the picture, where a split unit is
     # mounted. It was labelled visible from the survey contact sheet,
@@ -403,6 +411,12 @@ rooms:
     zone: Offices
     recorder: dvr2
     channels: [10, 14]
+    # 11 Nov, from the evidence pack (09:15-09:59, rooms empty): a box
+    # in the same place in every picture, looked at by eye, and in a
+    # spot nobody sits in or walks through.
+    ignore:
+      10:
+        - [255, 885, 447, 1080]  # a coil of cable on a box, 0.26-0.33
     # 7 Nov: no unit in any of this room's frames, read at full width
     # across the upper part of the picture, where a split unit is
     # mounted. It was labelled visible from the survey contact sheet,
@@ -608,6 +622,12 @@ rooms:
     zone: H perimeter
     recorder: nvr1
     channels: [2, 3]
+    # 11 Nov, from the evidence pack (09:15-09:59, rooms empty): a box
+    # in the same place in every picture, looked at by eye, and in a
+    # spot nobody sits in or walks through.
+    ignore:
+      3:
+        - [0, 18, 112, 360]      # the wall on the left, washing hanging on it
     ac: none
     empty_after_minutes: null
 
@@ -643,7 +663,7 @@ rooms:
     # also hides the person sitting in it.
     ignore:
       29:
-        - [0, 1, 158, 354]       # the wall along the left edge, 0.47
+        - [0, 0, 175, 360]       # the wall along the left edge, 0.47; widened 11 Nov
       31:
         - [391, 47, 400, 70]     # a post, 0.31
     ac: none
@@ -726,6 +746,12 @@ rooms:
     zone: H perimeter
     recorder: nvr1
     channels: [19]
+    # 11 Nov, from the evidence pack (09:15-09:59, rooms empty): a box
+    # in the same place in every picture, looked at by eye, and in a
+    # spot nobody sits in or walks through.
+    ignore:
+      19:
+        - [618, 274, 640, 360]   # a sliver at the right edge
     ac: none
     empty_after_minutes: null
 
@@ -733,6 +759,12 @@ rooms:
     zone: H perimeter
     recorder: nvr1
     channels: [26]
+    # 11 Nov, from the evidence pack (09:15-09:59, rooms empty): a box
+    # in the same place in every picture, looked at by eye, and in a
+    # spot nobody sits in or walks through.
+    ignore:
+      26:
+        - [363, 0, 563, 82]      # the silencer pipe on the genset
     ac: none
     empty_after_minutes: null
 
@@ -825,6 +857,12 @@ rooms:
     zone: H offices
     recorder: xvr3
     channels: [7]
+    # 11 Nov, from the evidence pack (09:15-09:59, rooms empty): a box
+    # in the same place in every picture, looked at by eye, and in a
+    # spot nobody sits in or walks through.
+    ignore:
+      7:
+        - [760, 225, 960, 576]   # chair cut off by the right edge, 8 of 8
     ac: hidden
     empty_after_minutes: 45
 
@@ -1005,6 +1043,12 @@ rooms:
     zone: Cafe & common
     recorder: nvr4
     channels: [16, 17, 18]
+    # 11 Nov, from the evidence pack (09:15-09:59, rooms empty): a box
+    # in the same place in every picture, looked at by eye, and in a
+    # spot nobody sits in or walks through.
+    ignore:
+      16:
+        - [296, 28, 324, 73]     # through the doorway, the cafe beyond
     ac: none
     empty_after_minutes: null
     note: >
@@ -1051,6 +1095,12 @@ rooms:
     zone: Cafe & common
     recorder: nvr4
     channels: [5]
+    # 11 Nov, from the evidence pack (09:15-09:59, rooms empty): a box
+    # in the same place in every picture, looked at by eye, and in a
+    # spot nobody sits in or walks through.
+    ignore:
+      5:
+        - [0, 120, 295, 360]     # the orange steps, 0.28-0.58
     ac: none
     empty_after_minutes: null
 

@@ -63,7 +63,8 @@ from alerts import Alerter, compose, configured, deliver, why_not_configured
 from concurrent.futures import ThreadPoolExecutor, as_completed  # noqa: E402
 
 from privacy_blur import anonymize, people_boxes
-from schedule import WORKING, describe, period, wait_before_reporting
+from schedule import (WORKING, describe, in_operations, period,  # noqa: F401
+                      wait_before_reporting)
 from test_camera import build_url, grab
 
 PKT = timezone(timedelta(hours=5))
@@ -209,6 +210,22 @@ IGNORE_OVERLAP = 0.8
 # archive of the building that nobody meant to keep.
 EVIDENCE_KEEP = 400
 EVIDENCE_DAYS = 21
+
+# The evidence folder exists to catch the chair that reads as a person at
+# three in the morning. On 11 Nov it held nothing from the night at all:
+# 10:00 is opening time, so 09:15 counts as after hours, everybody
+# arriving between then and ten was photographed every two minutes on
+# every camera, the folder hit its 400 cap in three quarters of an hour,
+# and the oldest -- the whole night -- were pruned to make room. People
+# arriving at work are not the question.
+#
+# So two limits. Nothing within this margin of the working day, either
+# side, where people coming and going is expected and real. And no more
+# than one picture per camera per EVIDENCE_EVERY, which is plenty to see
+# what a ghost is and keeps one stuck camera from evicting the rest.
+EVIDENCE_MARGIN_MINUTES = 60
+EVIDENCE_EVERY = 600            # seconds between pictures from one camera
+_last_evidence = {}
 
 DETECT_SIZE = 1280
 
@@ -793,6 +810,19 @@ def prune_evidence(folder, keep=EVIDENCE_KEEP, days=EVIDENCE_DAYS):
     return gone
 
 
+def evidence_worthy(now, hours=None):
+    """Is a person counted now worth photographing?
+
+    Only when the building is well away from its working day on both
+    sides: an hour before opening is people arriving, an hour after
+    closing is people leaving, and neither is a ghost.
+    """
+    margin = timedelta(minutes=EVIDENCE_MARGIN_MINUTES)
+    return not (in_operations(now, hours)
+                or in_operations(now - margin, hours)
+                or in_operations(now + margin, hours))
+
+
 def keep_evidence(room, frames, model, imgsz, iou, folder, now):
     """Write down what was counted as a person, when nobody should be there.
 
@@ -813,6 +843,9 @@ def keep_evidence(room, frames, model, imgsz, iou, folder, now):
     os.makedirs(folder, exist_ok=True)
     written = []
     for key in room.cameras:
+        last = _last_evidence.get((room.name, key))
+        if last is not None and (now - last).total_seconds() < EVIDENCE_EVERY:
+            continue
         wide = frames.get(key)
         if wide is None:
             continue
@@ -830,6 +863,7 @@ def keep_evidence(room, frames, model, imgsz, iou, folder, now):
                                         key[1], now.strftime("%Y%m%d_%H%M%S"))
         cv2.imwrite(os.path.join(folder, name), shot)
         written.append(name)
+        _last_evidence[(room.name, key)] = now
     return written
 
 
@@ -879,7 +913,7 @@ def sweep(rooms, recorders, model, imgsz, iou, timeout, ac_units=None,
             if on_frame is not None and keep is not None:
                 on_frame(room, keep)
             now = datetime.now(PKT)
-            if evidence and people and period(now, hours) != WORKING:
+            if evidence and people and evidence_worthy(now, hours):
                 for name in keep_evidence(room, frames.get(room.name, {}),
                                           model, imgsz, iou, evidence, now):
                     print(">> kept %s" % name)

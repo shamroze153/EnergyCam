@@ -198,6 +198,64 @@ def check_one_stream_rule(check):
           "for rec_name, channel in room.cameras" in tune, True)
 
 
+def check_evidence_keeps_the_night(check):
+    """The night's pictures must survive the morning.
+
+    On 11 Nov the evidence folder held nothing from the night. Opening is
+    10:00, so 09:15 counted as after hours; everybody arriving was
+    photographed every two minutes on every camera, the 400-picture cap
+    filled in three quarters of an hour, and the night -- the only part
+    anybody wanted -- was pruned to make room.
+    """
+    import datetime as dt
+    from schedule import PKT
+
+    hours = {"operations": {"days": ["mon", "tue", "wed", "thu", "fri"],
+                            "start": "10:00", "end": "20:00"}}
+    def at(h, m=0, day=11):                       # 11 Nov 2026 is a Wednesday
+        return dt.datetime(2026, 11, day, h, m, tzinfo=PKT)
+
+    worthy = room_loop.evidence_worthy
+    check("three in the morning is worth a picture", worthy(at(3), hours), True)
+    check("half past nine is people arriving", worthy(at(9, 30), hours), False)
+    check("so is nine o'clock", worthy(at(9, 0), hours), False)
+    check("ten to nine is still the night", worthy(at(8, 50), hours), True)
+    check("half past eight in the evening is people leaving",
+          worthy(at(20, 30), hours), False)
+    check("ten past nine at night is the night again",
+          worthy(at(21, 10), hours), True)
+    check("working hours never are", worthy(at(14), hours), False)
+    check("a Saturday afternoon is", worthy(at(15, day=14), hours), True)
+
+    # One picture per camera per EVIDENCE_EVERY, so one stuck camera cannot
+    # evict every other camera's night.
+    import tempfile
+    import types
+    import numpy as np
+
+    folder = tempfile.mkdtemp()
+    room_loop._last_evidence.clear()
+    fake_room = types.SimpleNamespace(name="Lobby", cameras=[("dvr2", 12)],
+                                      conf=None, ignore={})
+    frame = np.zeros((1080, 1920, 3), np.uint8)
+    saved_boxes = room_loop.people_boxes
+    room_loop.people_boxes = lambda *a, **k: [(10, 10, 60, 160, 0.9)]
+    try:
+        first = room_loop.keep_evidence(fake_room, {("dvr2", 12): frame},
+                                        None, 1280, 0.7, folder, at(3, 0))
+        again = room_loop.keep_evidence(fake_room, {("dvr2", 12): frame},
+                                        None, 1280, 0.7, folder, at(3, 2))
+        later = room_loop.keep_evidence(fake_room, {("dvr2", 12): frame},
+                                        None, 1280, 0.7, folder, at(3, 11))
+    finally:
+        room_loop.people_boxes = saved_boxes
+        room_loop._last_evidence.clear()
+    check("the first sighting is kept", len(first), 1)
+    check("two minutes later the same camera is not photographed again",
+          len(again), 0)
+    check("ten minutes later it is", len(later), 1)
+
+
 def check_stays_up():
     """The loop must survive the night, not just start it.
 
@@ -638,6 +696,7 @@ def main():
     check("pruning a folder that is not there does not raise",
           room_loop.prune_evidence(os.path.join(folder, "nope")), 0)
 
+    check_evidence_keeps_the_night(check)
     check_one_stream_rule(check)
     check_flicker(check, room, T0)
     check_stays_up()
