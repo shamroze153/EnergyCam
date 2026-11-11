@@ -184,7 +184,10 @@ def ledger(events, rooms, windows, alive):
             "longest_to": longest[2],
             "pieces": pieces,
         })
-    rows.sort(key=lambda x: (-x["empty"], x["room"]))
+    # Rooms cooled on purpose (server rooms) go last: they are empty by
+    # design, and at the top they pushed the rooms somebody could act on
+    # off the first screen of a phone.
+    rows.sort(key=lambda x: (not x["alerts"], -x["empty"], x["room"]))
     return rows
 
 
@@ -344,7 +347,9 @@ def page(theme, rows, now_rows, start, end, day_text, window_text, base,
                  'right now.</div>')
 
     # ---- the day --------------------------------------------------------
-    counted = [r for r in rows if r["seen"] > 0]
+    # The figures are about rooms somebody could switch off: a server room
+    # empty all day is the system working, not the emptiest room.
+    counted = [r for r in rows if r["seen"] > 0 and r["alerts"]]
     total_empty = sum(r["empty"] for r in counted)
     h.append('<div class="ec-h"><span class="t">%s</span><span class="c">%s'
              '</span></div>' % (esc(day_text), esc(window_text)))

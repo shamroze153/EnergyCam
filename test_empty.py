@@ -96,6 +96,23 @@ def main():
           [x["room"] for x in now_rows], ["B", "A"])
     check("with how long", [round(x["minutes"]) for x in now_rows], [360, 60])
 
+    server = pd.DataFrame([
+        {"room": "Data Centre", "zone": "Server rooms", "has_unit": True,
+         "alerts": False, "ac_count": 1, "status": "empty", "ac_state": None},
+        {"room": "Board", "zone": "Offices", "has_unit": True, "alerts": True,
+         "ac_count": 1, "status": "empty", "ac_state": None}])
+    ev2 = events([("Data Centre", pkt(1), "empty"),
+                  ("Board", pkt(21, day=10), "empty"),
+                  ("Board", pkt(11), "occupied"), ("Board", pkt(13), "empty")])
+    whole = [(spans[0][0], spans[0][1])]
+    ranked = evw.ledger(ev2, server, spans, whole)
+    check("a server room, empty by design, goes below the rooms to act on",
+          [r["room"] for r in ranked], ["Board", "Data Centre"])
+    page2 = evw.page("dark", ranked, [], spans[0][0], spans[0][1], "Today",
+                     "working hours", {}, None)
+    check("and is never called the emptiest room",
+          "Emptiest</div><div class=\"v\">Board" in page2, True)
+
     html = evw.page("dark", evw.ledger(ev, rooms, spans, alive), now_rows,
                     spans[0][0], spans[0][1], "Today", "working hours",
                     {"campus": "140-H"}, (432, 480))
