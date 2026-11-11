@@ -171,6 +171,19 @@ assumptions:
   co2_kg_per_tree_year: 21     # what one mature tree takes up in a year
 
 recorders:
+  # ------------------------------------------------------------ 141-C/D
+  # Added 11 Nov. Same 192.168.67.x network as 140-H, so the laptop on
+  # the camera cable should reach it directly -- ping first to be sure.
+  # No rooms yet: the loop only visits a recorder once a room names it,
+  # so this line on its own changes nothing until the scan is mapped.
+  cd_nvr1:
+    campus: 141-C/D
+    host: 192.168.67.70
+    brand: hikvision     # from its menu screen; the scan confirms or corrects
+    user_env: CD_NVR1_USER
+    pass_env: CD_NVR1_PASS
+    stream: sub
+
   nvr4:
     campus: 140-H
     host: 192.168.67.57

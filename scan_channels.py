@@ -4,6 +4,8 @@ Mapping a recorder's channels to real rooms by hand is slow: open a channel,
 look at it, write it down, open the next. This does the whole recorder in one
 command and leaves you a single contact sheet to label.
 
+    python scan_channels.py 192.168.67.70 --env CD_NVR1 --channels 1-32
+          (the login from .env: CD_NVR1_USER and CD_NVR1_PASS)
     python scan_channels.py 192.168.67.57 energycam MYPASSWORD
     python scan_channels.py 192.168.67.57 energycam MYPASSWORD --channels 1-32
     python scan_channels.py 192.168.67.57 energycam MYPASSWORD --main
@@ -150,7 +152,20 @@ def main():
         sys.exit("--brand must be one of: %s" % ", ".join(sorted(PATHS)))
     stop_after = int(take_value(argv, "--stop-after", STOP_AFTER_DEAD))
     outdir = take_value(argv, "--out")
+    env_name = take_value(argv, "--env")
     args = [a for a in argv if a != "--main"]
+    if env_name and len(args) == 1:
+        # The login from .env rather than the command line. A password typed
+        # as an argument stays in the console's history and in anything that
+        # photographs the window; one read from .env does neither.
+        from dotenv import load_dotenv
+        load_dotenv()
+        user = os.getenv(env_name + "_USER")
+        password = os.getenv(env_name + "_PASS")
+        if not user or not password:
+            sys.exit("%s_USER and %s_PASS are not both in .env -- add them,"
+                     " then run this again." % (env_name, env_name))
+        args = [args[0], user, password]
     if len(args) != 3:
         sys.exit(__doc__)
 
