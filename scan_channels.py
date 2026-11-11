@@ -320,7 +320,11 @@ def main():
     # names from the earlier passes instead of starting the map over.
     map_path = os.path.join(outdir, "channel_map.txt")
     rows = load_map(map_path)
-    kept = sum(1 for ch in rows if ch not in live and rows[ch])
+    # A line nobody has filled in still carries its "ac=" -- that is not a
+    # room name, and counting it said "kept 10 room names" about a map
+    # with none in it.
+    kept = sum(1 for ch in rows if ch not in live
+               and re.sub(r"\bac=\S*", "", rows[ch]).strip())
     for ch in live:
         rows.setdefault(ch, "")
     with open(map_path, "w") as fh:
