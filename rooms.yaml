@@ -183,6 +183,39 @@ recorders:
     user_env: CD_NVR1_USER
     pass_env: CD_NVR1_PASS
     stream: sub
+  cd_nvr2:
+    campus: 141-C/D
+    host: 192.168.67.168
+    brand: hikvision   # same menu layout as NVR3; the scan confirms
+    user_env: CD_NVR2_USER
+    pass_env: CD_NVR2_PASS
+    stream: sub
+  cd_nvr3:
+    campus: 141-C/D
+    host: 192.168.67.56
+    brand: hikvision   # its screen says HVR and Hik-Connect
+    user_env: CD_NVR3_USER
+    pass_env: CD_NVR3_PASS
+    stream: sub
+  cd_nvr4:
+    campus: 141-C/D
+    host: 192.168.67.17
+    brand: hikvision   # DHCP is ON: the address can change on a reboot -- ask IT to fix it
+    user_env: CD_NVR4_USER
+    pass_env: CD_NVR4_PASS
+    stream: sub
+  cd_xvr2:
+    campus: 141-C/D
+    host: 192.168.67.59
+    brand: xmeye       # white-label XMeye/Xiongmai: Net Card, Media Port 8201, HS Download
+    user_env: CD_XVR2_USER
+    pass_env: CD_XVR2_PASS
+    stream: sub
+  # Still to come: XVR1, XVR3 and XVR4 (Dahua -- the photos were of the
+  # date page, not the network page), and the DVR, which is on its
+  # Hikvision factory address 192.168.1.64 with DHCP on and no lease:
+  # a different network from everything else here, so unreachable until
+  # IT gives it a fixed 192.168.67.x address.
 
   nvr4:
     campus: 140-H

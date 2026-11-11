@@ -34,6 +34,12 @@ PATHS = {
         ch, 0 if main else 1),
     "uniview": lambda ch, main: "/unicast/c%d/s%d/live" % (
         ch, 1 if main else 2),
+    # XMeye / Xiongmai -- the white-label DVRs with "Net Card", "Media Port"
+    # and "HS Download" in their network menu (141-C/D's XVR2). They want
+    # the login inside the path rather than in front of the host; the
+    # placeholders are filled in by build_url. stream 0 is main, 1 is sub.
+    "xmeye": lambda ch, main: ("/user={user}&password={password}"
+                               "&channel=%d&stream=%d.sdp?" % (ch, 0 if main else 1)),
 }
 
 
@@ -43,16 +49,25 @@ def build_url(host, channel, user, password, main=False, brand="hikvision"):
     if brand not in PATHS:
         raise ValueError("unknown make %r; known: %s"
                          % (brand, ", ".join(sorted(PATHS))))
+    path = PATHS[brand](int(channel), main)
+    if "{password}" in path:
+        path = path.replace("{user}", quote(user, safe="")) \
+                   .replace("{password}", quote(password, safe=""))
     return "rtsp://%s:%s@%s:554%s" % (
-        quote(user, safe=""), quote(password, safe=""), host,
-        PATHS[brand](int(channel), main))
+        quote(user, safe=""), quote(password, safe=""), host, path)
 
 
 def mask(url):
-    """The console is read over someone's shoulder and pasted into chats."""
-    if "@" not in url:
-        return url
-    return url[:url.index("://") + 3] + "***@" + url.split("@", 1)[1]
+    """The console is read over someone's shoulder and pasted into chats.
+
+    Both places a password can sit: in front of the host, and -- for XMeye
+    recorders -- inside the path as password=..., which the first version
+    of this did not know about and would have printed in full.
+    """
+    import re
+    if "@" in url:
+        url = url[:url.index("://") + 3] + "***@" + url.split("@", 1)[1]
+    return re.sub(r"(user|password)=[^&]*", r"\1=***", url)
 
 
 def probe(host, channel, user, password, main=False, brand=None,

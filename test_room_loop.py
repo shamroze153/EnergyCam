@@ -256,6 +256,35 @@ def check_evidence_keeps_the_night(check):
     check("ten minutes later it is", len(later), 1)
 
 
+def check_xmeye(check):
+    """XMeye recorders want the login inside the path, and it must not leak.
+
+    141-C/D's XVR2 is a white-label XMeye/Xiongmai DVR, which none of the
+    three known makes describes. Its RTSP path carries user= and password=
+    itself, so the console mask that hid "user:pass@" would have printed
+    that password in full on every failed grab.
+    """
+    # The real module, by path: this file puts a stand-in for test_camera
+    # in sys.modules so the loop can be run without cameras.
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("real_test_camera",
+                                                  "test_camera.py")
+    tc = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(tc)
+    url = tc.build_url("192.168.67.59", 3, "admin", "p@ss#1", False, "xmeye")
+    check("the XMeye path carries channel and sub-stream",
+          "channel=3&stream=1.sdp" in url, True)
+    check("and the login, escaped", "password=p%40ss%231" in url, True)
+    masked = tc.mask(url)
+    check("the mask hides the password in the path too",
+          "p%40ss" in masked or "p@ss" in masked, False)
+    check("and still shows which recorder and channel",
+          "192.168.67.59" in masked and "channel=3" in masked, True)
+    hik = tc.mask(tc.build_url("192.168.67.70", 1, "admin", "p@ss", True))
+    check("the other makes are masked as before",
+          hik, "rtsp://***@192.168.67.70:554/Streaming/Channels/101")
+
+
 def check_stays_up():
     """The loop must survive the night, not just start it.
 
@@ -696,6 +725,7 @@ def main():
     check("pruning a folder that is not there does not raise",
           room_loop.prune_evidence(os.path.join(folder, "nope")), 0)
 
+    check_xmeye(check)
     check_evidence_keeps_the_night(check)
     check_one_stream_rule(check)
     check_flicker(check, room, T0)
