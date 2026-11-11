@@ -246,6 +246,31 @@ def main():
     check("a room with no rows at all is not 0% busy, it is unknown",
           s["busy_pct"] is None, s["busy_pct"])
 
+    # The timeline: one track per room, early visits hatched, nothing drawn
+    # for a "now" that is not inside the day.
+    import day_timeline as dt
+    day = ds.spells(room, DAY, END)
+    st_ = ds.story(day, DAY)
+    html = dt.render([("Marketing", day, st_, True)], DAY, at(21, 30),
+                     (18.5, 22.5), "light")
+    check("the room is on the timeline", "Marketing" in html)
+    check("the early visit is hatched, not solid", "(early visit)" in html
+          and "repeating-linear-gradient(45deg" in html)
+    check("the peak tariff is shaded", "peak tariff" in html)
+    check("now is marked when it falls inside the day", 'title="now"' in html)
+    yesterday = dt.render([("Marketing", day, st_, True)], DAY,
+                          at(21, 30) + timedelta(days=1), (18.5, 22.5), "dark")
+    check("and not on a day that is over", 'title="now"' not in yesterday)
+    check("more people are drawn darker on light",
+          dt.colour(1, "light") != dt.colour(9, "light"))
+    check("and every bucket has its own step",
+          len({dt.colour(n, "light") for n in (1, 2, 5, 9)}) == 4)
+    unwatched = ds.spells(room, DAY, END, [at(9) + timedelta(minutes=m)
+                                           for m in range(0, 120, 2)])
+    html = dt.render([("Marketing", unwatched, ds.story(unwatched, DAY), True)],
+                     DAY, at(21, 30), (18.5, 22.5), "light")
+    check("time nobody watched is drawn as such", "nobody watching" in html)
+
     print()
     if FAILURES:
         print("%d FAILURE(S): %s" % (len(FAILURES), "; ".join(FAILURES)))
