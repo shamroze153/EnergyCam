@@ -32,3 +32,8 @@ Two or three lines a round; picture file names, never pictures.
   1-4 all last night). Not a ghost, so no ignore box. The 7-minute gap at
   midnight made it an "arrival"; first sight within 30 min of midnight is
   now carried over from the night.
+* 20:30 money fixed: the peak was counted on UTC (23:30-03:30, not
+  18:30-22:30); Analysis now ranks by working-hours empty time (Rs 23,627
+  a week) with nights/weekends apart (Rs 105,365 only if units left on);
+  front page "at stake today" working hours only (140-H 13,100 -> 2,579).
+  "First in" ignores before 5am (DL at 2:43am: check at the 2am round).
