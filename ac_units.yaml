@@ -67,3 +67,38 @@ rooms:
             and read the same. Taken forty seconds apart, so the room, the
             light and the camera's gain were identical -- the only thing that
             changed was the unit.
+
+  141 Finance Room:
+    recorder: cd_nvr1
+    channel: 30
+    # The lighting the measurement was taken in. The contrast inside a box
+    # depends on it, so a reading under the other kind is refused rather
+    # than guessed at.
+    expect: colour
+    # The frame this box was drawn on. A box is a position in pixels, so it
+    # means nothing on a picture of a different size: switch the stream from
+    # main to sub and these numbers land somewhere else entirely while still
+    # producing a confident answer. Checked before every reading.
+    frame_size: [1920, 1080]
+    units:
+      - label: split unit
+        led_roi: [1088, 99, 1103, 112]
+        led_std_threshold: 21.6
+        # A thumbnail of the unit and the wall round the box, levelled for
+        # brightness, compared before every reading. Nudge the camera and the
+        # box lands on blank wall, where it reads low contrast for ever and
+        # calls a running unit off -- silently, and in the direction nobody
+        # notices, because a unit never reported as on sends nobody anywhere.
+        anchor: Uz8/RWayyZKQybl0hXRJND42QU2AvcGvuc7n0trHu7e1vsPGx8fKy8rQ08/U19TU4ubi2L/CnmdDTVZLY4mioKzY1qGFoYtaUWNTYn+pw8bGvsK+ydTQzc/Lz9TX2tvXpKahs8bX8f3q2MGymqnJbkNXaG+LknRvcnOVvqGv1vn9uo+WscXPytDN0tPc29vYmaSmnpKYkqGss8HFzc/K1NDFnHNzcIPW+dCsw82qQz4aXIF3b2xmeb3Py8/r++3tnJ2dnqKmpqipqqiqqq21wcrS2trr/OfWyoxfWFtraIikxbm33uO2nc6tblJeWm+dnJycnqChoqSmpqipqaqusrKxrq+xsrfBzuz//+bNuaqm0KBveIe7rKR1cISdpqicnZ2dnZydnqChpKWoqamsrrGxsrWyrrGzub7Cv87r7PP36Njarn9uWGid+ejC5PvFnJydnJqcnZ2goqKlqKiqrK6urrGzs7Kztbq+vb+/wsPHztjj7ff38+zi461vZ3h7mZqcnJqampqdoaGlqKaopqqsra+xsbKytrq9v8G/wsHCwsXKycfJ2ufs7f//8+bGlZaYmpyamZqcnZ2eoaSlpKaoqqyvsrO1tbe5uru+wcLDw8XGx8nKxsbHycvU2uLvkpKUlpiampqampqcnZ6eoqSlqKmopqqxs7O2ur2+vr6/v8HCw8XGysrLzc3Nzs3NkJCRlJWWlpiZmpqcnJycnqCipaapqaqur7Gytre3ubq7vb6/wcLDxsfJy83P0tLSjIyPkJGRkZSWmJmampycnJ2eoaKmqqqoqKyusbO2t7e5urq7vr+/wsPGx8nKzs7PiYmLjY2PkZGSlJaYmZqamZqdnqGlpqimpaitsbO3ubm3tbe3ubq7vb7Bw8XGx8nKiYmJi4uNj5CRkZKUlpmampqcnZ6kpKSkpKSqrq+vsrW2tre3tra3uru9v8HCw8XGh4iIiYmJi4yNj5CRkpWWmpqanJ2dnqGgpaWmqKqsrKyvs7W3ubaztba3ubq7vsHChYeHiIiIiImLjI2PkZKUlZaYnJ6eoZ2ioaShoKCkpqmqqq2xtbWzs7O1tba5uru7gYOEhISFhYeIiYyNj5CQkZKUmJqRrL2zoqKhoKCgoqWoqKiqrrGxsbGysrO2t7m5gH+AgICBg4SEhYiLi4yMkJCRkpRfLFhnkaCipaaopaSioqWmqKqtra2ur7Gzs7a3f4GBgYGAgYGDhIWFh4iJi4uMjYuEdEEkWJmcoKGipaWlpKKipaaoqamqrK2vr7GyfH+AgICAgIGDhIODhIWHhIWFh4mVoKSZgImLi5CdoKKlpqSioqKhpaWmpqioqayud3V3eHh5e3t8fYCAgYOEg4OEhYWBgYGBgYGBgYeYmZygpKSlpaSkoqSkpKSlpaisc3NzdHV1dXd4eHt8fX1/f3+AgYOBgYGBgYGBgYWUlJWYnJ6goqSlpKSkpKSkpKSmcnR1dXd4eHh5e3t8fHx9fH19f3+BgYGBgYGBgYWSkZKSlJaZnKCipKSkpKSkpKWldXR0cnNzc3R1d3d4eXt8fHx8fX2BgYGBgYGBgYSNj5CRkpGSlZianp6goaGioqSkam5ycnR3d3d1dXd3eHh4eXl7e3yBgYGBgYGBgYOIi4yPkJCQkpKUlpianJ2dnZ6gV15jZmtwcnR4eXl5eXh4eXl5eXuBgYGBgYGBgYOFh4iJjI2PkJGSkZKUlZaWmJmaXFxcWFhbXmJkaG9ydHd4e3t5eXmBgYGBgYGBgYOFhYWHh4eIi4yNj5CQkZGRkpWWZGJgX2BfW1tbXF9iZmtvcHN3eHh4eXl7e3x8fH+Bg4SEhYWFh4mJiYuMj4+QkJGSX2JgZmZmaGtnX1taWFhaX2JnbnJ0dXh7e3t7fHx8f4CBg4SFhIWFhYeIi4uNjY+QVFpgY2RnZ2dnaGdmZmZkXltaWFpbYGdudHt/gIB/fX18fH+BhIeIiIiJiYmHh4iJLjo/R1FXXGBkZmdnZmRiX1xaWFdXWFpcX2Nna25ydHh7f3+AgYOEhYWEhISEhYWHNDAdJi40Nz1HU1xfX1xbW1xeXFxcWlhXVlRWWl5gY2ducnh5fX+Bg4GBgIB/gICBNENGQz46NTEuMTtBRk1RVFZaX2BgYGBeXFtaWFdYWlpbXmBiZ25ye31/fHt7fHx8NT9BQT9BQkNDQj07Ojo6PkJGS05WWlxeXF5cW1taW1xcXFxcXF5fYGJmbnN4fYGBP0dDQkE/Pj49PUJCQT8+Pj07OTk3O0JLUlZaXGBjZmZjX2BfXl5fWFpbYGNobHN3R05NSklHQz89Ojc5Oz5BQkJBQUE/Ozo7PT9DSk5UWlxfYF9fYGNmZGZmYmBgXFteP0dKTU1NT09OSkZFQj8+Ojs9Pj49Pz8/Pj4/QUJGSUpNUVZXW2BjY2NjZGRmZmZmQ0NCQkNGSUpLTU5OTUtJRUM/PT0/Pz9BPz8/QUFBPz9CQ0ZHS1JWW2BjYmNnaGprOzo6Oz0/P0FCQ0dJSk5RVlNRTktJRkNBQT8/Pz9CRkpHQkFBQUVHR0pNUlhcX2JjOjo6Oz4/Pz8/Pz8/QUVHR0pNT1JTUlFPTUdFQT49PkJFQj8/QUE+QT46P0dLTlJUNzY2OTs9PT4/Pz8/QUFBP0FDRkdGSU1OUVJRUVFPTUc+NjY3Oz9CQUVFQT9CQ0VGU1FLQj45NTQ0Njk6PTs7Ojo6PT5BQUNFRUJGSk1RXmpvc3JjTUI+Q0VDRkdCQj89UVJSU1NSTUdBOzc2Njc3Oj0+PTs+Pj07PkFCQkJBQ0NHWGRnZmBbTkpFQUFCQ0VGTU5PT1FPUlZWUlNRRz85NzY2Njc3Oz07Oz4/QUJBQkVCPkJCQ0lRV1dWU09KRkNDTk5OTU1NTUtLS05PUVJTU09HQT03Nzk7Pj4+PTs+PT1BQT9BQkJCQkdOUlNSUk5JTk5OTk5OTU1OT01OTk9PT1FTUlFSSkI7OTo6Ojo7PT49PkJBPj4+QUJFRkdJS05PS0tLTU1OTk1NTU5OTk1NT05NTk9RUVJRTkpKRTsxMTU3OTs9Pj07Pz8/Q0VCRUZH
+        measured:
+          on_std: 34.56          # display lit
+          off_std: 8.73          # display blank
+          on_peak: 254
+          off_peak: 199
+          taken: 2026-11-11T20:57+0500
+          # A gap of 25.8 between the two states. The threshold is the
+          # midpoint, so anything inside that gap would read the same.
+          # Negative means this unit goes DARK when it runs rather than
+          # lighting up, and the reading is taken that way round: the
+          # direction is read back off these two numbers, not stored
+          # separately, so they cannot disagree with each other.

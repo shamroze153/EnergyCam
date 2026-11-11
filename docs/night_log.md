@@ -37,3 +37,12 @@ Two or three lines a round; picture file names, never pictures.
   a week) with nights/weekends apart (Rs 105,365 only if units left on);
   front page "at stake today" working hours only (140-H 13,100 -> 2,579).
   "First in" ignores before 5am (DL at 2:43am: check at the 2am round).
+* 20:45 round 2: 0 MISSED, 1 GHOST (Entry H, nvr1 ch5, page said 1 at
+  20:45, nobody in frame). check_room at 20:52 finds 0.51 at the bottom-
+  right corner (536,326-585,360) that looks like the top of a seated
+  guard's head: left for Shamroze, no ignore box (frames/verify/
+  ghost_Entry_H_ch05_nvr1_2045.jpg, frames/Entry_H_nvr1_ch05_boxes.jpg).
+  No unit in Entry H, so no money on it.
+* 20:55 AC calibrated: 141 Finance Room ch30, box 1088,99-1103,112 (digits
+  only, the CLAUDE.md box held the logo too): on 34.6, off 8.7, gap 25.8.
+  Room 32 and Learning Center still on at 20:46; Admin Room reads on.
