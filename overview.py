@@ -314,7 +314,13 @@ def short(name):
 
 
 def link(base, **extra):
-    """A link to this page with different settings; nothing else changes."""
+    """A link to this page with different settings; nothing else changes.
+
+    Every anchor that uses one also says target="_self". Streamlit opens any
+    link in its markdown in a new tab unless the anchor names a target
+    itself, so entering a campus opened a second copy of the dashboard
+    beside the first, and every room chip did the same.
+    """
     params = {k: v for k, v in dict(base, **extra).items() if v}
     return "?" + urlencode(params) if params else "?"
 
@@ -666,7 +672,7 @@ def topbar(mark, live_text, healthy, when, base, theme, extra=""):
             '</span><span class="prod">ENERGYCAM</span></div>%s'
             '<span class="sp"></span><span class="ec-live%s"><span class="d">'
             '</span>%s</span><span class="ec-when">%s</span>'
-            '<a class="ec-theme" href="%s">%s</a></div>'
+            '<a target="_self" class="ec-theme" href="%s">%s</a></div>'
             % (mark, extra, "" if healthy else " off", esc(live_text),
                esc(when), link(base, theme=None if other == "dark" else other),
                "Light" if other == "light" else "Dark"))
@@ -707,7 +713,7 @@ def welcome(summaries, theme, mark, live_text, healthy, when, base):
         last = (clock(s["last_out_yday"]) if s["last_out_yday"] is not None
                 else "stayed overnight" if s["overnight"] else "—")
         h.append(
-            '<a class="ec-card ec-camp" href="%s"><div class="head"><span '
+            '<a target="_self" class="ec-card ec-camp" href="%s"><div class="head"><span '
             'class="name">%s</span><span class="ec-enter">Enter campus →'
             '</span></div>'
             '<div class="ec-big"><span class="n">%d</span><span class="l">in '
@@ -753,13 +759,13 @@ def welcome(summaries, theme, mark, live_text, healthy, when, base):
 
 def campus_head(summary, names, theme, mark, live_text, healthy, when, base):
     """The bar above every view of one campus: back, switch, live."""
-    switch = "".join('<a class="%s" href="%s">%s</a>'
+    switch = "".join('<a target="_self" class="%s" href="%s">%s</a>'
                      % ("on" if n == summary["name"] else "",
                         link(base, campus=n), esc(n)) for n in names)
     return "".join([
         css(theme), '<div class="ec">',
         topbar(mark, live_text, healthy, when, base, theme),
-        '<div class="ec-title"><a class="ec-back" href="%s">← All '
+        '<div class="ec-title"><a target="_self" class="ec-back" href="%s">← All '
         'campuses</a><div class="ec-switch">%s</div></div></div>'
         % (link(base, campus=None), switch)])
 
@@ -789,7 +795,7 @@ def _chip(e, t, base):
     else:
         dot = "background:%s" % ("#4a4a46" if theme_is_dark(t) else "#c3c2b7")
         tail = '<span class="m">%s</span>' % _since_text(e)
-    return ('<a class="ec-chip" href="%s" title="%s"><span class="b" '
+    return ('<a target="_self" class="ec-chip" href="%s" title="%s"><span class="b" '
             'style="%s"></span>%s %s</a>'
             % (link(base, room=e["name"]) + "#roomdetail",
                esc("%s · %s" % (e["name"], e["headline"] or e["status"])),
@@ -896,7 +902,7 @@ def campus_body(summary, theme, base, tariff=(18.5, 22.5)):
         for e in s["walk"]:
             unit = ("unit in frame" if e["ac"] == "visible"
                     else "unit out of frame, look in")
-            h.append('<a class="ec-walk" href="%s"><div class="nm">%s</div>'
+            h.append('<a target="_self" class="ec-walk" href="%s"><div class="nm">%s</div>'
                      '<div class="z">%s</div><div class="w">%s%s · %s'
                      '</div></a>'
                      % (link(base, room=e["name"]) + "#roomdetail",

@@ -180,6 +180,12 @@ def main():
               % theme, "<details" in body and "never counted" in body)
         check("%s: the walk card says what to check" % theme,
               "Worth a walk" in body and "SW Room 0" in body)
+        # Streamlit opens a markdown link in a new tab unless the anchor
+        # names its own target: entering a campus opened a second copy.
+        anchors = re.findall(r"<a [^>]*>", page + body)
+        check("%s: every link stays in this tab" % theme,
+              anchors and all('target="_self"' in a for a in anchors),
+              [a for a in anchors if 'target="_self"' not in a][:2])
     chart = ov.area_chart(s, ov.TOKENS["dark"])
     check("no words inside the stretched SVG -- they would stretch too",
           "<text" not in chart)

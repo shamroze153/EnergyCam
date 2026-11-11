@@ -510,21 +510,21 @@ rooms:
   - name: First Floor Lobby
     # First floor. Told by Shamroze, 10 November.
     meter: first_cafe
-    zone: Offices
+    zone: Cafe & common   # a lobby, not a department -- moved 11 Nov
     recorder: dvr2
     channels: [7]
     ac: none
     empty_after_minutes: null
 
   - name: Lobby 1
-    zone: Offices
+    zone: Cafe & common   # a lobby, not a department -- moved 11 Nov
     recorder: dvr2
     channels: [8]
     ac: none
     empty_after_minutes: null
 
   - name: Lobby
-    zone: Offices
+    zone: Cafe & common   # a lobby, not a department -- moved 11 Nov
     recorder: dvr2
     channels: [12]
     ac: none
@@ -655,7 +655,7 @@ rooms:
   # ---- inside, nothing to switch off ---------------------------------------
 
   - name: 140-H Commons
-    zone: H offices
+    zone: H common   # a shared space, not a department -- moved 11 Nov
     recorder: nvr1
     channels: [18, 21]
     ac: none
@@ -664,7 +664,7 @@ rooms:
   - name: DR Rooms Lobby
     # First floor. Told by Shamroze, 10 November.
     meter: first_cafe
-    zone: H offices
+    zone: H common   # a lobby, not a department -- moved 11 Nov
     recorder: nvr1
     channels: [23]
     ac: none

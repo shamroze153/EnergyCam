@@ -787,7 +787,8 @@ def linked(html, room):
     # because the panel that changed is further down than they are looking.
     # And the campus and theme: since the front page came in, a link that
     # carried only the room landed on the welcome page, in the dark theme.
-    return ('<a href="%s#roomdetail" style="text-decoration:none;'
+    return ('<a href="%s#roomdetail" target="_self" '
+            'style="text-decoration:none;'
             'display:contents;">%s</a>'
             % (overview.link(LINK_BASE, room=room), html))
 
