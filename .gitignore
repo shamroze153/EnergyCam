@@ -39,3 +39,6 @@ evidence/
 # and taken while people are at their desks, which is the whole point of
 # them. They settle an argument on this machine and go no further.
 frames/verify/
+
+# pack_evidence.py output -- unblurred pictures, for a reviewer only
+evidence_pack_*.zip

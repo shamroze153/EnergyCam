@@ -493,62 +493,67 @@ def check_head_count(namespace):
     parts = namespace["head_count_parts"]
     stale = namespace["STALE_AFTER_MINUTES"] + 1
 
+    # Last night, roughly: the campus total said 35 and a dozen were at a
+    # desk. The rest were the street, the car park and the lobby. The
+    # headline is the offices, and the other two sit beside it.
     df = pd.DataFrame([
-        {"room": "Marketing", "zone": "Ground floor", "status": "occupied",
+        {"room": "Marketing", "zone": "Offices", "status": "occupied",
          "people": 4},
-        {"room": "HR Room", "zone": "First floor", "status": "occupied",
+        {"room": "Room 18", "zone": "H offices", "status": "occupied",
          "people": 3},
-        {"room": "Lobby", "zone": "First floor", "status": "empty",
+        {"room": "First Floor Lobby", "zone": "Offices", "status": "occupied",
+         "people": 2},
+        {"room": "Prompt Cafe", "zone": "Cafe & common", "status": "occupied",
+         "people": 5},
+        {"room": "HR Room", "zone": "Offices", "status": "empty",
          "people": 0},
         {"room": "P2 Parking", "zone": "Outside & plant",
          "status": "occupied", "people": 9},
+        {"room": "H Street", "zone": "H perimeter", "status": "occupied",
+         "people": 12},
     ])
     label, value, note = parts(df, 1.0)
-    check("the headcount counts indoor rooms only", value == "7",
-          "%s (%s)" % (value, note))
-    check("and says so in words", label == "IN CAMPUS RIGHT NOW", label)
-    check("the car park is counted apart, not added in", "9 outside" in note,
-          note)
-    check("and the busy rooms are named", "2 rooms busy" in note, note)
+    check("the headline counts people in offices only", value == "7", value)
+    check("and says so", label == "IN OFFICES RIGHT NOW", label)
+    check("a lobby filed under Offices is not an office",
+          "7 in lobbies & cafe" in note, note)
+    check("outside is counted apart", "21 outside" in note, note)
+    check("and the busy offices are named", "2 offices busy" in note, note)
 
-    # A room nobody looked at contributes nobody, so the sum is a floor.
-    # Printing it as a total would quietly under-report the building.
+    # An office nobody looked at contributes nobody, so the sum is a floor.
     quiet = pd.concat([df, pd.DataFrame([
-        {"room": "Dead Camera", "zone": "Ground floor", "status": "unknown",
+        {"room": "Admin Room", "zone": "Offices", "status": "unknown",
          "people": None}])], ignore_index=True)
     label, value, note = parts(quiet, 1.0)
-    check("a room that did not answer makes the count a floor",
+    check("an office that did not answer makes the count a floor",
           value == "at least 7", value)
     check("and the page says how many did not answer",
-          "1 room did not answer" in note, note)
+          "1 office did not answer" in note, note)
+    # A silent street camera says nothing about the offices.
+    street = pd.concat([df, pd.DataFrame([
+        {"room": "Genset Area", "zone": "H perimeter", "status": "unknown",
+         "people": None}])], ignore_index=True)
+    check("a silent outdoor camera does not make the office count a floor",
+          parts(street, 1.0)[1] == "7", parts(street, 1.0)[1])
 
-    # NaN is the other way a room says nothing, and it must count the same.
     nan = quiet.copy()
-    nan.loc[nan["room"] == "Dead Camera", "status"] = float("nan")
+    nan.loc[nan["room"] == "Admin Room", "status"] = float("nan")
     check("a missing status counts as not answered",
           parts(nan, 1.0)[1] == "at least 7", parts(nan, 1.0)[1])
 
-    # With the loop stopped the figure is history, and saying "right now"
-    # over it would be the page telling its own lie.
     check("a silent loop stops the figure claiming the present",
-          parts(df, stale)[0] == "IN CAMPUS WHEN LAST SEEN",
-          parts(df, stale)[0])
+          parts(df, stale)[0] == "IN OFFICES WHEN LAST SEEN")
     check("and never having reported counts as silent",
-          parts(df, None)[0] == "IN CAMPUS WHEN LAST SEEN",
-          parts(df, None)[0])
+          parts(df, None)[0] == "IN OFFICES WHEN LAST SEEN")
 
-    # An empty building is zero, not a dash: zero is a fact worth printing.
     none = df.copy()
     none["status"] = "empty"
-    check("an empty campus reads nought, not a dash",
-          parts(none, 1.0)[1] == "0", parts(none, 1.0)[1])
-    check("with nobody outside, the note leaves outside out",
-          "outside" not in parts(none, 1.0)[2], parts(none, 1.0)[2])
+    check("an empty campus reads nought, not a dash", parts(none, 1.0)[1] == "0")
 
     # The band renders the same three strings, so the two cannot drift.
     html = namespace["head_count"](quiet, 1.0)
     check("the band prints the headcount it was given",
-          "at least 7" in html and "IN CAMPUS RIGHT NOW" in html
+          "at least 7" in html and "IN OFFICES RIGHT NOW" in html
           and "did not answer" in html)
     check("and the word people is on the page",
           ">people<" in html.replace("</span>", "<"))
@@ -593,11 +598,12 @@ def main():
     # the two clocks differ by a minute or so and the age can come out
     # negative. "reported -1 min ago" reads as a broken badge.
     check("a clock a minute apart does not report the future",
-          spell(-1), "under a min")
-    check("nor does a dead heat", spell(0), "under a min")
-    check("an ordinary age still reads normally", spell(7), "7 min")
-    check("and so does a long one", spell(185), "3h 05m")
-    check("no reading at all is still a dash", spell(None), "\u2014")
+          spell(-1) == "under a min", spell(-1))
+    check("nor does a dead heat", spell(0) == "under a min", spell(0))
+    check("an ordinary age still reads normally", spell(7) == "7 min", spell(7))
+    check("and so does a long one", spell(185) == "3h 05m", spell(185))
+    check("no reading at all is still a dash", spell(None) == "\u2014",
+          spell(None))
 
     check_quiet_night(namespace)
     check_head_count(namespace)

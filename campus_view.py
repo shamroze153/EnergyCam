@@ -174,6 +174,35 @@ def calibrated_counts(path="ac_units.yaml"):
 # is reported separately instead of being quietly added in.
 OUTSIDE_ZONES = {"H perimeter", "Outside & plant", "Unused"}
 
+# Where people actually work. The headcount everybody reads first is this
+# one: at night the campus total said 35, and 10 or 12 of them were in an
+# office -- the rest were the street, the car parks, the smoking area and
+# the lobbies. A guard at the gate is not somebody leaving the cooling on.
+OFFICE_ZONES = {"Offices", "H offices", "Basement", "Server rooms"}
+
+# Rooms that sit in an office zone but are somewhere people pass through,
+# not somewhere they sit. Zones were drawn by floor, and a lobby on an
+# office floor is still a lobby.
+PASSING_WORDS = ("lobby", "commons", "stairs", "entrance", "entry",
+                 "reception", "sitting area")
+
+
+def place(room, zone):
+    """office, common or outside -- which of the three headcounts a room is in.
+
+    Outside is decided by zone. A passage is decided by name, before the
+    office zones are consulted, because "First Floor Lobby" is filed under
+    Offices and nobody works in it. Anything left that is not an office
+    zone -- the cafe, the mosque, the gaming area -- is common.
+    """
+    if zone in OUTSIDE_ZONES:
+        return "outside"
+    if any(word in str(room).lower() for word in PASSING_WORDS):
+        return "common"
+    if zone in OFFICE_ZONES:
+        return "office"
+    return "common"
+
 
 def building_curve(recent, df, now, beats=None):
     """How many people the cameras could see, through the day.
