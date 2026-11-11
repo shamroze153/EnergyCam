@@ -1327,11 +1327,26 @@ rooms:
     dept: Room 32
     zone: Offices
     recorder: cd_nvr1
-    channels: [16, 25, 26]
+    # ch 16 was here too until 11 Nov; it is the meeting room next door
+    # (below), which has its own unit and empties at its own times.
+    channels: [25, 26]
     # Main stream: ch 25 has a split unit with a lit display, top right.
     stream: main
     ac: visible
     empty_after_minutes: 45
+
+  - name: 141 Room 32 Meeting Room (2nd floor)
+    # Split out of Room 32 on 11 Nov. The field audit's frame from ch 16 is a
+    # different room altogether -- a long table, a dozen white chairs, dark
+    # and empty at five in the evening while Room 32 next door was full.
+    # Counted as one with Room 32 it could never read empty while anybody
+    # was at a desk next door, so its unit could never be flagged.
+    dept: Meeting rooms
+    zone: Offices
+    recorder: cd_nvr1
+    channels: [16]
+    ac: hidden
+    empty_after_minutes: 30
 
   - name: 141 Room 21 (1st floor)
     dept: Room 21

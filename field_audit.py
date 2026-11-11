@@ -13,6 +13,10 @@ minutes and does, in order:
   3. ac_survey.py          a full-size picture from every camera of every
                            room with an air conditioner, to find the displays
                            and draw the calibration boxes
+  4. check_room.py --all   only out of working hours: every detection on
+                           every camera, drawn. With nobody in the building
+                           each one is a ghost by definition -- a chair, a
+                           coat, a poster -- and this is where they show.
 
 and puts every output in field_audit_<date>.zip for review.
 
@@ -50,6 +54,16 @@ def run(cmd, log):
     return proc.wait()
 
 
+def out_of_hours():
+    try:
+        import yaml
+        from schedule import PKT, in_operations
+        hours = yaml.safe_load(open("rooms.yaml", encoding="utf-8")).get("hours")
+        return not in_operations(datetime.now(PKT), hours)
+    except Exception:                                       # noqa: BLE001
+        return False
+
+
 def main():
     if not os.path.exists("rooms.yaml"):
         sys.exit("run this from the project folder")
@@ -58,7 +72,10 @@ def main():
     os.makedirs(work, exist_ok=True)
     began = time.time()
     codes = {}
-    for name, cmd in STEPS:
+    steps = list(STEPS)
+    if out_of_hours():
+        steps.append(("night_check", ["check_room.py", "--all"]))
+    for name, cmd in steps:
         print("\n" + "=" * 70 + "\n>> %s: python %s\n" % (name, " ".join(cmd))
               + "=" * 70)
         codes[name] = run(cmd, os.path.join(work, name + ".txt"))
@@ -68,6 +85,8 @@ def main():
     survey = [p for p in glob.glob(os.path.join("ac_survey", "**", "*"),
                                    recursive=True)
               if os.path.isfile(p) and os.path.getmtime(p) >= began]
+    ghosts = [p for p in glob.glob(os.path.join("frames", "*_boxes.jpg"))
+              if os.path.getmtime(p) >= began]
     name = work + ".zip"
     with zipfile.ZipFile(name, "w", zipfile.ZIP_STORED) as z:
         for log in sorted(glob.glob(os.path.join(work, "*.txt"))):
@@ -76,13 +95,16 @@ def main():
             z.write(p, os.path.join("verify", os.path.basename(p)))
         for p in survey:
             z.write(p, os.path.join("ac_survey", os.path.relpath(p, "ac_survey")))
+        for p in ghosts:
+            z.write(p, os.path.join("night", os.path.basename(p)))
     size = os.path.getsize(name) / 1e6
     print("\n>> done in %d min. %s"
           % ((time.time() - began) // 60,
              ", ".join("%s %s" % (k, "ok" if v == 0 else "exit %d" % v)
                        for k, v in codes.items())))
-    print(">> %s -- %d disagreement picture(s), %d survey file(s), %.1f MB"
-          % (name, len(pictures), len(survey), size))
+    print(">> %s -- %d disagreement picture(s), %d survey file(s), %d night"
+          " detection(s), %.1f MB"
+          % (name, len(pictures), len(survey), len(ghosts), size))
     print(">> These pictures are NOT blurred. Look through the zip before"
           " sending it.")
     if size > 28:
