@@ -67,3 +67,7 @@ Two or three lines a round; picture file names, never pictures.
   635] on cd_nvr3 ch4 (checked: drops it, keeps a person beside it).
   Reception Roof, Cafe Shoe Rack, H Basement Parking, P1 Parking: on/off
   all evening like people passing, no units -- left alone. Loop restarted.
+* 22:47 AC: Admin Room now reads off (1.3). Room 32's display went dark
+  (14.8 -> 5.1) but the camera is in infrared now, and calibrate_room
+  refuses colour-on against infrared-off, rightly. Room 32 needs an off
+  frame with the lights on (or an on frame in infrared): for the day.
