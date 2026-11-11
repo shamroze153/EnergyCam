@@ -56,6 +56,10 @@ def solar_per_day(solar):
     s = solar.copy()
     s["taken"] = pd.to_datetime(s["taken"], utc=True)
     s = s.sort_values("taken")
+    # The form saves every press of its button: one figure a day, the last
+    # typed, or four identical saves read as a running total that never
+    # moved.
+    s = s.groupby(s["taken"].dt.tz_convert(LOCAL).dt.normalize()).tail(1)
     values = s["kwh"].astype(float).tolist()
     steps = [b - a for a, b in zip(values, values[1:])]
     total = (len(values) >= 3 and all(d >= 0 for d in steps)
@@ -101,22 +105,27 @@ def daily_table(readings, meters, solar):
     sun, kind = solar_per_day(solar)
     if not len(sun):
         sun = pd.DataFrame(columns=["day", "kwh"])
-    days = sorted(set(periods["day"]) if len(periods) else set())
+    # Solar typed in on a day is drawn on the day before, with the reading
+    # it was entered beside: the form asks for yesterday's full figure.
+    shifted = (dict(zip(sun["day"] - pd.Timedelta(days=1), sun["kwh"]))
+               if len(sun) else {})
+    days = set(periods["day"]) if len(periods) else set()
+    if days:
+        # A solar day before the first pair of readings still happened:
+        # the panels' first figure is drawn, the meters' columns stay blank.
+        days |= {d for d in shifted if d >= min(days) - pd.Timedelta(days=7)}
+    days = sorted(days)
     if not days:
         return pd.DataFrame(), kind
     table = pd.DataFrame({"day": days})
     for code in meters["code"] if len(meters) else []:
-        mine = periods[periods["meter"] == code]
-        table[code] = table["day"].map(dict(zip(mine["day"], mine["units"])))
+        mine = periods[periods["meter"] == code] if len(periods) else periods
+        table[code] = table["day"].map(
+            dict(zip(mine["day"], mine["units"])) if len(mine) else {})
         table[code + "_shared"] = table["day"].map(
-            dict(zip(mine["day"], mine["shared"]))).fillna(False)
-    # Solar typed in on a day is drawn on the day before, with the reading
-    # it was entered beside: the form asks for yesterday's full figure.
-    if len(sun):
-        shifted = dict(zip(sun["day"] - pd.Timedelta(days=1), sun["kwh"]))
-        table["solar"] = table["day"].map(shifted)
-    else:
-        table["solar"] = None
+            dict(zip(mine["day"], mine["shared"])) if len(mine) else {}) \
+            .fillna(False).astype(bool)
+    table["solar"] = table["day"].map(shifted) if shifted else None
     return table, kind
 
 
@@ -322,8 +331,23 @@ overflow:hidden;text-overflow:ellipsis}
 .en-warn{background:var(--crit-bg);border:1px solid var(--crit-line);
 border-radius:12px;padding:11px 14px;margin-top:10px;font-size:13px}
 .en-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+.en-sun{display:grid;grid-template-columns:minmax(230px,1fr) 2fr;gap:26px;
+align-items:center}
+.en-sun .lbl{font-size:11.5px;letter-spacing:.13em;text-transform:uppercase;
+color:var(--t3);margin-bottom:8px}
+.en-sun .big{font-size:46px;font-weight:760;letter-spacing:-.02em;line-height:1;
+font-variant-numeric:tabular-nums}
+.en-sun .big small{font-size:17px;font-weight:600;color:var(--t3);margin-left:6px}
+.en-sun .sub{font-size:13.5px;margin-top:10px;line-height:1.5}
+.en-sun .sub b{font-variant-numeric:tabular-nums}
+.en-sun .chg{display:inline-block;font-size:12px;font-weight:650;padding:2px 9px;
+border-radius:99px;margin-top:10px;border:1px solid var(--line)}
+.en-sun-share{margin-top:16px;font-size:13px;line-height:1.5}
+.en-sun-share .bar{height:12px;border-radius:99px;background:var(--meter);
+overflow:hidden;margin:0 0 7px;display:flex}
+.en-sun-share .bar i{display:block;height:100%%}
 @media (max-width:760px){.en-ranked .row{grid-template-columns:1fr 90px}
-.en-ranked .tr{grid-column:1/-1;order:3}}
+.en-ranked .tr{grid-column:1/-1;order:3}.en-sun{grid-template-columns:1fr}}
 </style>""".replace("\n", "")
 
 
@@ -340,6 +364,70 @@ def tile(label, value, note, tone=""):
 
 def day_label(day):
     return pd.Timestamp(day).strftime("%a %d")
+
+
+def _n(value):
+    return format(int(round(float(value))), ",")
+
+
+def solar_block(table, gf, rate, sun_colour, grid_colour):
+    """The panels on their own card: what they made, saved and covered.
+
+    Three readings of one number, each a different question somebody asks:
+    how much (kWh), what was it worth (rupees not bought from the grid, at
+    the unit rate), and how much of the floor it feeds did it carry (the
+    share of solar in solar + that meter's grid units, same day). Under
+    them every day typed in so far, the number written on each column.
+    """
+    if table is None or table.empty or "solar" not in table.columns:
+        return ""
+    sun = table[table["solar"].notna()]
+    if sun.empty:
+        return ""
+    last = sun.iloc[-1]
+    kwh = float(last["solar"])
+    out = ['<div class="ec-h"><span class="t">Solar</span><span class="c">'
+           'what the panels made, from the inverter\'s daily figure</span>'
+           '</div><div class="ec-card" style="padding:20px 22px 24px">'
+           '<div class="en-sun"><div>'
+           '<div class="lbl">%s</div>'
+           '<div class="big" style="color:%s">%s<small>kWh</small></div>'
+           '<div class="sub">about <b>Rs %s</b> not bought from the grid, '
+           'at Rs %.0f a unit</div>'
+           % (esc(pd.Timestamp(last["day"]).strftime("%A %d %B")), sun_colour,
+              _n(kwh), _n(kwh * rate), rate)]
+    if len(sun) >= 2 and float(sun.iloc[-2]["solar"]) > 0:
+        prev = float(sun.iloc[-2]["solar"])
+        change = 100.0 * (kwh / prev - 1)
+        out.append('<span class="chg">%s%.0f%% on %s (%s kWh)</span>'
+                   % ("+" if change >= 0 else "−", abs(change),
+                      esc(day_label(sun.iloc[-2]["day"])), _n(prev)))
+    grid = float(last[gf]) if gf and pd.notna(last.get(gf)) else None
+    if grid is not None and grid + kwh > 0:
+        pct = 100.0 * kwh / (grid + kwh)
+        out.append('<div class="en-sun-share"><div class="bar">'
+                   '<i style="width:%.1f%%;background:%s"></i>'
+                   '<i style="width:%.1f%%;background:%s;opacity:.55"></i>'
+                   '</div><b>%.0f%%</b> of what the ground floor + basement '
+                   'used that day came off the roof: %s kWh solar, %s units '
+                   'grid.</div>'
+                   % (pct, sun_colour, 100 - pct, grid_colour, pct, _n(kwh),
+                      _n(grid)))
+    values = [float(v) for v in sun["solar"]]
+    total = sum(values)
+    out.append('</div><div>%s<div class="en-note">%d day%s typed in, %s kWh '
+               'in all, worth about Rs %s. Hover a column for the day.</div>'
+               '</div></div></div>'
+               % (columns([day_label(d) for d in sun["day"]],
+                          [[v] for v in values], [sun_colour],
+                          ["%s · %s kWh · about Rs %s" % (
+                              pd.Timestamp(d).strftime("%A %d %B"), _n(v),
+                              _n(v * rate))
+                           for d, v in zip(sun["day"], values)],
+                          height=170, marks=[_n(v) for v in values]),
+                  len(values), "" if len(values) == 1 else "s", _n(total),
+                  _n(total * rate)))
+    return "".join(out)
 
 
 # ===================================================================== pages
@@ -369,7 +457,13 @@ def meters_page(theme, table, kind, meters, bills, cooled_hours, rate,
                  'meter is in. Tomorrow\'s gives the first day\'s units: a day '
                  'is one reading to the next.</div>')
     else:
-        last = table.iloc[-1]
+        # The last day the meters cover, not merely the last row: a solar
+        # figure typed in on its own makes a row with no units in it.
+        metered = [k for k in (gf, ff) if k and k in table.columns]
+        has_units = table[metered].notna().any(axis=1) if metered else None
+        last = (table[has_units].iloc[-1]
+                if has_units is not None and has_units.any()
+                else table.iloc[-1])
         grid = sum(float(last[k]) for k in (gf, ff)
                    if k and pd.notna(last.get(k)))
         sun = float(last["solar"]) if pd.notna(last.get("solar")) else None
@@ -395,6 +489,7 @@ def meters_page(theme, table, kind, meters, bills, cooled_hours, rate,
                       "%s units at Rs %.0f" % (format(int(round(grid)), ","),
                                                rate)))
         h.append("</div>")
+        h.append(solar_block(table, gf, rate, c["solar"], c["gf"]))
 
         labels = [day_label(d) for d in table["day"]]
         stacks, tips, marks = [], [], []

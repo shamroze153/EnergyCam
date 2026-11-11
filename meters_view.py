@@ -62,6 +62,32 @@ def load(conn, days=120):
     return meters, readings, bills
 
 
+LOCAL = "Asia/Karachi"
+
+
+def last_of_each_day(readings):
+    """One reading per meter per day: the last one typed that day.
+
+    The form saves every press of its button, and on 10 and 11 November it
+    was pressed five to nine times, seconds apart. Each neighbouring pair
+    became a "period" of three seconds and no units, the shortest of them
+    was drawn as a whole day, and the page said both meters used 0 units
+    and the grid cost Rs 0. The last number typed on a day is that day's
+    reading -- a corrected typo included -- and a temperature typed into
+    any of that day's saves is kept.
+    """
+    if readings is None or readings.empty:
+        return readings
+    r = readings.copy()
+    r["taken"] = pd.to_datetime(r["taken"], utc=True)
+    r = r.sort_values("taken")
+    keys = [r["meter"], r["taken"].dt.tz_convert(LOCAL).dt.normalize()]
+    if "max_temp" in r.columns:
+        r["max_temp"] = r.groupby(keys)["max_temp"].transform(
+            lambda s: s.ffill())
+    return r.groupby(keys).tail(1)
+
+
 def daily_units(readings):
     """Units per reading period, whichever way the number was given.
 
@@ -73,6 +99,7 @@ def daily_units(readings):
     if readings.empty:
         return pd.DataFrame(columns=["meter", "from", "to", "units",
                                      "hours", "max_temp"])
+    readings = last_of_each_day(readings)
     out = []
     for meter, rows in readings.groupby("meter"):
         rows = rows.sort_values("taken")

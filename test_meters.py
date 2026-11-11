@@ -71,6 +71,27 @@ def main():
     check("and the days either side still count",
           [round(u) for u in out["units"]], [100, 120])
 
+    # 10-11 Nov: the Save button pressed again and again, seconds apart.
+    # Each pair became a three-second "day" of 0 units, and the page said
+    # both meters used nothing. The last save of a day is that day.
+    burst = [{"meter": "gf", "taken": at(10, 12) + pd.Timedelta(seconds=s),
+              "reading": 51282} for s in (0, 12, 35, 36, 52)]
+    burst += [{"meter": "gf", "taken": at(11, 11) + pd.Timedelta(seconds=s),
+               "reading": 51505} for s in (0, 5, 32, 35, 38)]
+    out = meters_view.daily_units(readings(burst))
+    check("repeated saves on a day are one reading",
+          [round(u) for u in out["units"]], [223])
+    check("and the period between them is most of a day",
+          round(out["hours"].iloc[0]), 23)
+    fixed = readings([
+        {"meter": "gf", "taken": at(1, 11), "reading": 1000},
+        {"meter": "gf", "taken": at(2, 11), "reading": 9120},       # typo
+        {"meter": "gf", "taken": at(2, 11) + pd.Timedelta(minutes=2),
+         "reading": 1120},                                         # fixed
+    ])
+    check("a typo corrected the same day is the corrected number",
+          [round(u) for u in meters_view.daily_units(fixed)["units"]], [120])
+
     # The derived figure is withheld until there is enough behind it.
     figure, days, why = meters_view.per_hour([100] * 10, [50] * 10)
     check("a fortnight gives no figure", figure, None)

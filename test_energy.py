@@ -49,6 +49,12 @@ def main():
     sun, kind = ev.solar_per_day(total)
     check("the inverter's lifetime total is turned into days",
           kind == "total" and list(sun["kwh"]) == [92, 88], (kind, sun))
+    saved_twice = pd.DataFrame({
+        "taken": [at(2), at(2, 11, 1), at(2, 11, 2), at(1), at(1, 11, 1)],
+        "kwh": [132.0, 132.0, 132.0, 281.0, 281.0]})
+    sun, kind = ev.solar_per_day(saved_twice)
+    check("a figure saved four times is one day's figure",
+          kind == "daily" and list(sun["kwh"]) == [132, 281], (kind, sun))
 
     # ---- the readings ----------------------------------------------------
     readings = pd.DataFrame([
