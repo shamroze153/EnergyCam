@@ -271,6 +271,36 @@ def main():
                      DAY, at(21, 30), (18.5, 22.5), "light")
     check("time nobody watched is drawn as such", "nobody watching" in html)
 
+    # ---- a department: several rooms read as one --------------------------
+    # Squat Wolf: Room 0 opens at 9:30 with two, Room 3 at 10:00 with three,
+    # Room 0 empties at 18:00, Room 3 at 19:15. Room 4 nobody watched.
+    r0 = ds.spells(events([(at(-3), "empty", 0), (at(9, 30), "occupied", 2),
+                           (at(18), "empty", 0)]), DAY, END)
+    r3 = ds.spells(events([(at(-3), "empty", 0), (at(10), "occupied", 3),
+                           (at(19, 15), "empty", 0)]), DAY, END)
+    r4 = ds.spells(events([]), DAY, END)
+    dept = ds.combine([r0, r3, r4])
+    s = ds.story(dept, DAY)
+    check("the department starts with its first room", s["starts"] == at(9, 30),
+          s["starts"])
+    check("and ends with its last", s["last_out"] == at(19, 15), s["last_out"])
+    check("its people are added across rooms, not the largest",
+          s["peak"] == 5, s["peak"])
+    check("an unwatched room does not make the department unknown",
+          s["busy_pct"] is not None and s["watched_min"] == 24 * 60,
+          s["watched_min"])
+    w = ds.window(dept, DAY, 18.5, 22.5)
+    check("the peak tariff sees the last room leave", w["left_at"] == at(19, 15),
+          w["left_at"])
+    check("with three people still in when it opened", w["at_start"] == 3,
+          w["at_start"])
+    check("unknown only where every room is",
+          ds.combine([r4, r4]) == [("unknown", 0, DAY, END)], ds.combine([r4, r4]))
+    check("one room is its own department", ds.combine([r0]) == r0)
+    check("the spells still cover the day end to end",
+          dept[0][2] == DAY and dept[-1][3] == END and all(
+              x[3] == y[2] for x, y in zip(dept, dept[1:])))
+
     print()
     if FAILURES:
         print("%d FAILURE(S): %s" % (len(FAILURES), "; ".join(FAILURES)))

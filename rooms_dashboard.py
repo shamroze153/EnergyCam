@@ -167,7 +167,7 @@ COLD_AFTER_MINUTES = 30
 # Inside first, outside last, and the channels that show nothing at the very
 # end. A zone not listed here still appears, sorted after these, so adding a
 # campus does not mean remembering to come back and edit this.
-ZONE_ORDER = ["Offices", "H offices", "H entrance", "Basement",
+ZONE_ORDER = ["Offices", "H offices", "Entrance", "H entrance", "Basement",
               "Cafe & common", "H common", "Server rooms",
               "Outside & plant", "H perimeter", "Unused"]
 
@@ -357,6 +357,10 @@ def load_rooms_config(path="rooms.yaml"):
             "recorder": recorder,
             "campus": recorders[recorder].get("campus", "unknown"),
             "zone": room.get("zone", "Other"),
+            # Whose space it is. Empty when nobody has said; a blank rather
+            # than None so that "dept or something" reads the same on every
+            # row, and never NaN, which is true.
+            "dept": room.get("dept") or "",
             "cameras": len(cameras),
             "ac": room["ac"],
             "ac_count": (0 if not has_unit
@@ -1814,6 +1818,17 @@ def show_arrivals(df, now):
     if presets[choice] is None:
         with_outside = False
 
+    # A department is several rooms read as one: Squat Wolf is five rooms,
+    # and the question about it is when the department started and finished,
+    # not when Room 3 did. Offered first wherever departments have been
+    # written down; a campus with none opens on rooms as before.
+    named = bool((df["dept"].astype(str) != "").any()) if "dept" in df else False
+    by_dept = st.radio(
+        "Show", ["By department", "By room"], index=0 if named else 1,
+        horizontal=True, key="arrivals_group",
+        label_visibility="collapsed") == "By department"
+    noun = "Department" if by_dept else "Room"
+
     day_starts = [pd.Timestamp(d).tz_localize(PKT)
                   for d in pd.date_range(d_from, d_to, freq="D")]
     try:
@@ -1832,34 +1847,75 @@ def show_arrivals(df, now):
     if not win_days:
         win_days = [day_starts[0] - pd.Timedelta(days=1)]
         win_note = "today's has not started yet, so this is yesterday's"
-    rows = []
+    # Split once. Filtering the month for every room on every day, twice
+    # over now that departments are worked out beside rooms, was thousands
+    # of passes over the same table for a four-week range.
+    by_room = {name: rows for name, rows in month.groupby("room")}
+    none_yet = month.iloc[0:0]
+
+    def day_for(names, start, end):
+        # One room's day, or a department's: its rooms' days laid together.
+        return ds.combine([ds.spells(by_room.get(n, none_yet), start, end,
+                                     beats) for n in names])
+
+    def entity_rows(entities):
+        out = []
+        for room in entities:
+            stories, windows, last = [], [], None
+            for start in day_starts:
+                end = min(start + pd.Timedelta(days=1), local_now)
+                if end <= start:
+                    continue
+                day = day_for(room["members"], start, end)
+                story = ds.story(day, start)
+                story["brief"] = len(ds.kinds(ds.visits(day))[0])
+                # Still busy when the day ended -- at midnight, or now for
+                # today -- is not a departure. The first cut only checked
+                # today, and a room busy round the clock averaged a "last
+                # out" of midnight.
+                story["left"] = not (
+                    story["last_out"] is not None
+                    and story["last_out"] >= end - pd.Timedelta(minutes=1))
+                stories.append(story)
+                last = (start, end, day, story)
+            for start in win_days:
+                end = min(start + pd.Timedelta(days=1), local_now)
+                windows.append(ds.window(day_for(room["members"], start, end),
+                                         start, w_a, w_b))
+            if stories:
+                out.append((room, stories, windows, last))
+        return out
+
+    singles = []
     for _, room in df.iterrows():
         if campus_view.place(room["room"], room.get("zone")) == "outside" \
                 and not with_outside:
             continue
-        mine = month[month["room"] == room["room"]]
-        stories, windows, last = [], [], None
-        for start in day_starts:
-            end = min(start + pd.Timedelta(days=1), local_now)
-            if end <= start:
-                continue
-            day = ds.spells(mine, start, end, beats)
-            story = ds.story(day, start)
-            story["brief"] = len(ds.kinds(ds.visits(day))[0])
-            # Still busy when the day ended -- at midnight, or now for
-            # today -- is not a departure. The first cut only checked today,
-            # and a room busy round the clock averaged a "last out" of
-            # midnight.
-            story["left"] = not (story["last_out"] is not None
-                                 and story["last_out"] >= end - pd.Timedelta(minutes=1))
-            stories.append(story)
-            last = (start, end, day, story)
-        for start in win_days:
-            end = min(start + pd.Timedelta(days=1), local_now)
-            windows.append(ds.window(ds.spells(mine, start, end, beats),
-                                     start, w_a, w_b))
-        if stories:
-            rows.append((room, stories, windows, last))
+        singles.append(dict(room, members=[room["room"]]))
+    room_rows = entity_rows(singles)
+
+    if by_dept:
+        # A room nobody has given a department to is grouped by where it
+        # is instead -- its zone, under the zone's own name, rather than
+        # under a department somebody would have had to guess.
+        groups = {}
+        for room in singles:
+            groups.setdefault(room.get("dept") or room.get("zone") or "Other",
+                              []).append(room)
+        depts = []
+        for name, members in sorted(groups.items()):
+            units = sum(int(m.get("ac_count") or 0) for m in members
+                        if m.get("has_unit"))
+            depts.append({
+                "room": name if len(members) == 1 else
+                "%s \u00b7 %d rooms" % (name, len(members)),
+                "members": [m["room"] for m in members],
+                "has_unit": bool(units), "ac_count": units,
+                "alerts": any(m.get("alerts", True) for m in members),
+            })
+        rows = entity_rows(depts)
+    else:
+        rows = room_rows
 
     single = len(day_starts) == 1
     span_text = (("Today" if d_from == today else d_from.strftime("%a %d %b"))
@@ -1894,8 +1950,11 @@ def show_arrivals(df, now):
     rate = (assumptions.get("peak_rs_per_kwh", 81) * rate_frac
             + assumptions.get("tariff_rs_per_kwh", 67) * (1 - rate_frac))
     kw = assumptions.get("unit_kw", 1.2)
-    win_rows, at_stake, empty_units_h = [], 0.0, 0.0
-    for room, stories, windows, last in rows:
+    # Money is worked out room by room whichever way the page is grouped:
+    # a department with one room busy is "busy", but the empty room next
+    # door is still cooling nobody, and that is the money.
+    win_rows, at_stake, empty_units_h, room_money = [], 0.0, 0.0, {}
+    for room, stories, windows, last in room_rows:
         a = ds.average_days(stories, windows)["window"]
         if a["busy_pct"] is None:
             continue
@@ -1905,6 +1964,13 @@ def show_arrivals(df, now):
         if money:
             at_stake += money
             empty_units_h += a["empty_min"] / 60.0 * units
+            room_money[room["room"]] = money
+    for room, stories, windows, last in rows:
+        a = ds.average_days(stories, windows)["window"]
+        if a["busy_pct"] is None:
+            continue
+        units = int(room.get("ac_count") or 0) if room.get("has_unit") else 0
+        money = sum(room_money.get(m, 0.0) for m in room["members"])
         win_rows.append((money or 0, a["busy_pct"], [
             room["room"],
             "<b>%d%%</b>" % round(a["busy_pct"]),
@@ -1929,11 +1995,15 @@ def show_arrivals(df, now):
         ' <b>empty</b> is per day; <b>Rs at stake</b> is that empty time'
         ' multiplied by each room\'s units at %.1f kW and Rs %.0f a unit'
         '%s -- an upper bound, because for most rooms nobody can see'
-        ' whether the unit was actually running.</div>'
+        ' whether the unit was actually running.%s</div>'
         % (choice if presets[choice] else "Custom window", MUTED, label,
            win_note or span_text, kw, rate,
            " (the peak rate)" if rate_frac >= 0.999 else
-           " (blended with the peak rate)" if rate_frac > 0 else ""),
+           " (blended with the peak rate)" if rate_frac > 0 else "",
+           " A department is busy while any of its rooms is, with its"
+           " people added up across them; its Rs is still added up room by"
+           " room, so an empty room beside a busy one still counts."
+           if by_dept else ""),
         unsafe_allow_html=True))
     if at_stake:
         later.append(lambda: st.markdown(
@@ -1944,7 +2014,7 @@ def show_arrivals(df, now):
                format(int(round(at_stake * 30)), ",")),
             unsafe_allow_html=True))
     later.append(lambda: st.markdown(table(
-        ["Room", "Busy", "Avg people", "Most", "Empty", "Brief visits",
+        [noun, "Busy", "Avg people", "Most", "Empty", "Brief visits",
          "Last left", "Rs at stake"],
         [r[2] for r in win_rows],
         ["left", "right", "right", "right", "right", "right", "left",
@@ -1988,7 +2058,7 @@ def show_arrivals(df, now):
             ]))
         body.sort(key=lambda b: b[0])
         st.markdown(table(
-            ["Room", "Days used", "First in", "Early visit", "Day starts",
+            [noun, "Days used", "First in", "Early visit", "Day starts",
              "Peak", "Busy", "Brief / day", "Last out"],
             [b[1] for b in body],
             ["left", "right", "left", "left", "left", "left", "right",
@@ -2118,7 +2188,7 @@ def show_arrivals(df, now):
     body.append((True, None, [""] * 9 + [
         '<span style="font-size:.64rem;color:%s">%s</span>' % (FAINT, axis)]))
     detail.markdown(table(
-        ["Room", "First in", "Early visit", "Day starts", "Peak",
+        [noun, "First in", "Early visit", "Day starts", "Peak",
          "Busy stretch", "Brief visits", "Busy", "Last out", ""],
         [b[2] for b in body],
         ["left", "left", "left", "left", "left", "left", "center", "right",
@@ -2151,7 +2221,7 @@ def show_arrivals(df, now):
         'margin-bottom:8px;">one person in and out is an office boy or a'
         ' guard; one person sitting there all evening is somebody working'
         ' late.</div>' % MUTED, unsafe_allow_html=True)
-    detail.markdown(table(["Room"] + titles, part_rows),
+    detail.markdown(table([noun] + titles, part_rows),
                     unsafe_allow_html=True)
 
 

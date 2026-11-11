@@ -103,6 +103,54 @@ def spells(events, start, end, beats=None):
     return [tuple(s) for s in out]
 
 
+def combine(days):
+    """One department's day, from the days of each of its rooms.
+
+    Squat Wolf is five rooms and Finance is one, and both asked to be read
+    the same way: when did the department start, when did it finish, how
+    many of its people were in at once. So the department is busy whenever
+    any of its rooms is, and its people are the rooms' people added up --
+    added, not the largest, because these are different rooms with
+    different people in them. (Several cameras on one room are the other
+    case, and the loop already takes the largest for those.)
+
+    Unknown only where every room is unknown. A department with one room
+    unwatched and the rest empty is reported empty; with one room busy it
+    is busy whatever the others were doing.
+
+    Every day in `days` must cover the same stretch, as spells() makes them.
+    """
+    days = [d for d in days if d]
+    if not days:
+        return []
+    if len(days) == 1:
+        return list(days[0])
+    cuts = sorted({t for day in days for _, _, a, b in day for t in (a, b)})
+    at = [0] * len(days)
+    out = []
+    for a, b in zip(cuts, cuts[1:]):
+        known, busy, people = None, False, 0
+        for i, day in enumerate(days):
+            while at[i] < len(day) and day[at[i]][3] <= a:
+                at[i] += 1
+            if at[i] >= len(day) or day[at[i]][2] > a:
+                continue
+            status, n = day[at[i]][0], day[at[i]][1]
+            if status == "unknown":
+                continue
+            known = known or status
+            if status == "occupied":
+                busy, people = True, people + n
+        status = "occupied" if busy else (known or "unknown")
+        people = people if busy else 0
+        if out and out[-1][0] == status and out[-1][1] == people \
+                and out[-1][3] == a:
+            out[-1][3] = b
+        else:
+            out.append([status, people, a, b])
+    return [tuple(s) for s in out]
+
+
 def visits(day):
     """Occupied spells, with flickers shorter than MERGE_GAP joined up.
 

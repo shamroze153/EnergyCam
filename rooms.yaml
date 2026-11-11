@@ -1225,3 +1225,303 @@ rooms:
       Five cameras on the roof. Nothing to switch off, but a person on the roof
       is a cleaning visit, and the date and time of one is a fact nobody
       currently records.
+
+  # ===========================================================================
+  # 141-C/D -- one campus, C and D together. Mapped by Shamroze from the
+  # contact sheets, 11 November: NVR1 (32), NVR3 (16), NVR4 (10).
+  # NVR2 (16 live) and the XVRs are not mapped yet, so the loop does not
+  # visit them.
+  #
+  # Every name starts "141" (or 141-C / 141-D where the building is known)
+  # because a room is known by its name alone in the database, and 140-H
+  # already has an "Ablution Area", an "Outside" and a "UPS Room".
+  #
+  # dept: is whose space it is. "Who comes when" can show a department as
+  # one thing -- first in and last out across all its rooms, people added
+  # up -- which is how Squat Wolf and Finance asked to be seen. A room's
+  # own row still decides its air conditioner, because one busy room does
+  # not cool the empty one next to it.
+  #
+  # Not told yet, so not guessed: which meter pays for these rooms, and
+  # how many units each has (ac_count is left at one).
+  # ===========================================================================
+
+  # ---- Squat Wolf: one department, five rooms, 141-D first floor ------------
+  # NVR3's sub stream is 352x288, too small for a seated person across a
+  # room, so these ask for the main stream. Units are in the rooms but out
+  # of frame on all five.
+
+  - name: 141-D Squat Wolf Room 0
+    dept: Squat Wolf
+    zone: Offices
+    recorder: cd_nvr3
+    channels: [4]
+    stream: main
+    ac: hidden
+    empty_after_minutes: 45
+
+  - name: 141-D Squat Wolf Room 1
+    dept: Squat Wolf
+    zone: Offices
+    recorder: cd_nvr3
+    channels: [5]
+    stream: main
+    ac: hidden
+    empty_after_minutes: 45
+
+  - name: 141-D Squat Wolf Room 2
+    dept: Squat Wolf
+    zone: Offices
+    recorder: cd_nvr3
+    channels: [6]
+    stream: main
+    ac: hidden
+    empty_after_minutes: 45
+
+  - name: 141-D Squat Wolf Room 3
+    dept: Squat Wolf
+    zone: Offices
+    recorder: cd_nvr3
+    channels: [7]
+    stream: main
+    ac: hidden
+    empty_after_minutes: 45
+
+  - name: 141-D Squat Wolf Room 4
+    dept: Squat Wolf
+    zone: Offices
+    recorder: cd_nvr3
+    channels: [8]
+    stream: main
+    ac: hidden
+    empty_after_minutes: 45
+
+  # ---- offices on NVR1 ------------------------------------------------------
+  # Several cameras on one room: the room is busy when any of them sees
+  # somebody, and empty only when all of them agree.
+
+  - name: 141 Finance Room
+    dept: Finance
+    zone: Offices
+    recorder: cd_nvr1
+    channels: [7, 27, 30]
+    ac: visible
+    empty_after_minutes: 45
+
+  - name: 141 Room 32 (2nd floor)
+    dept: Room 32
+    zone: Offices
+    recorder: cd_nvr1
+    channels: [16, 25, 26]
+    ac: visible
+    empty_after_minutes: 45
+
+  - name: 141 Room 21 (1st floor)
+    dept: Room 21
+    zone: Offices
+    recorder: cd_nvr1
+    channels: [23, 24]
+    ac: hidden
+    empty_after_minutes: 45
+
+  - name: 141 Room 20 (1st floor)
+    dept: Room 20
+    zone: Offices
+    recorder: cd_nvr1
+    channels: [29]
+    ac: hidden
+    empty_after_minutes: 45
+
+  - name: 141 IT Sub Store
+    dept: IT
+    zone: Offices
+    recorder: cd_nvr1
+    # Four cameras; only ch 18 has the unit in frame, which is the one to
+    # calibrate on.
+    channels: [13, 18, 20, 32]
+    ac: visible
+    empty_after_minutes: 45
+
+  - name: 141 MR 01 (1st floor)
+    dept: Meeting rooms
+    zone: Offices
+    recorder: cd_nvr1
+    channels: [9]
+    ac: hidden
+    empty_after_minutes: 30
+
+  - name: 141 MR 02 (1st floor)
+    dept: Meeting rooms
+    zone: Offices
+    recorder: cd_nvr1
+    channels: [22]
+    ac: hidden
+    empty_after_minutes: 30
+
+  - name: 141 First Aid Room
+    dept: Facilities
+    zone: Offices
+    recorder: cd_nvr1
+    channels: [28]
+    ac: hidden
+    empty_after_minutes: 45
+
+  - name: 141 HFM Workshop
+    dept: Facilities
+    zone: Offices
+    recorder: cd_nvr1
+    channels: [15]
+    ac: none
+    empty_after_minutes: null
+
+  - name: 141 SoftFM Store
+    dept: Facilities
+    zone: Offices
+    recorder: cd_nvr4
+    channels: [1]
+    ac: none
+    empty_after_minutes: null
+
+  # ---- cooled on purpose: watched, never alerted on --------------------------
+
+  - name: 141 Data Centre
+    dept: IT
+    zone: Server rooms
+    recorder: cd_nvr1
+    channels: [11, 19]
+    ac: hidden
+    alert: never
+    empty_after_minutes: null
+
+  - name: 141 UPS Room (1st floor)
+    dept: IT
+    zone: Server rooms
+    recorder: cd_nvr1
+    channels: [8]
+    ac: none
+    alert: never
+    empty_after_minutes: null
+
+  # ---- cafe, lobbies and the way in: counted as inside ----------------------
+
+  - name: 141-C Cafe
+    dept: Cafe
+    zone: Cafe & common
+    recorder: cd_nvr1
+    channels: [2, 14]
+    ac: visible
+    empty_after_minutes: 60
+
+  - name: 141 Main Entrance
+    dept: Shared
+    zone: Entrance
+    recorder: cd_nvr1
+    channels: [17, 21]
+    ac: none
+    empty_after_minutes: null
+
+  - name: 141 Meeting Room Lobby (1st floor)
+    dept: Shared
+    zone: Cafe & common
+    recorder: cd_nvr1
+    channels: [1]
+    ac: none
+    empty_after_minutes: null
+
+  - name: 141 Lobby & Stairs (1st floor)
+    dept: Shared
+    zone: Cafe & common
+    recorder: cd_nvr1
+    channels: [4]
+    ac: none
+    empty_after_minutes: null
+
+  - name: 141 Finance Lobby (1st floor)
+    dept: Shared
+    zone: Cafe & common
+    recorder: cd_nvr1
+    channels: [6]
+    ac: none
+    empty_after_minutes: null
+
+  - name: 141 Room 32 Lobby (2nd floor)
+    dept: Shared
+    zone: Cafe & common
+    recorder: cd_nvr1
+    channels: [12]
+    ac: none
+    empty_after_minutes: null
+
+  - name: 141-C Corridor
+    dept: Shared
+    zone: Cafe & common
+    recorder: cd_nvr4
+    channels: [3]
+    ac: none
+    empty_after_minutes: null
+
+  - name: 141 Ablution Area
+    dept: Shared
+    zone: Cafe & common
+    recorder: cd_nvr1
+    channels: [31]
+    ac: none
+    empty_after_minutes: null
+
+  # ---- outside and plant: watched, never counted as people inside -----------
+
+  - name: 141-D Outside Area
+    dept: Security
+    zone: Outside & plant
+    cameras:
+      - {recorder: cd_nvr1, channel: 3}
+      - {recorder: cd_nvr1, channel: 5}
+      - {recorder: cd_nvr4, channel: 6}
+    ac: none
+    empty_after_minutes: null
+
+  - name: 141-D Street
+    dept: Security
+    zone: Outside & plant
+    recorder: cd_nvr1
+    channels: [10]
+    ac: none
+    empty_after_minutes: null
+
+  - name: 141-C Outside Area
+    dept: Security
+    zone: Outside & plant
+    recorder: cd_nvr4
+    channels: [2]
+    ac: none
+    empty_after_minutes: null
+
+  - name: 141-D Genset
+    dept: Facilities
+    zone: Outside & plant
+    recorder: cd_nvr4
+    channels: [4, 5]
+    ac: none
+    empty_after_minutes: null
+
+  # Fifteen cameras labelled only "outside". Every camera costs the loop a
+  # detection each cycle, and these add nothing to the energy question and
+  # are never counted, so they are kept here but not visited. Name them and
+  # set watch: true if the history is wanted.
+  - name: 141 Outside (NVR 4)
+    watch: false
+    dept: Security
+    zone: Outside & plant
+    recorder: cd_nvr4
+    channels: [7, 9, 10, 11]
+    ac: none
+    empty_after_minutes: null
+
+  - name: 141 Outside (NVR 3)
+    watch: false
+    dept: Security
+    zone: Outside & plant
+    recorder: cd_nvr3
+    channels: [1, 2, 3, 9, 10, 11, 12, 13, 14, 15, 16]
+    ac: none
+    empty_after_minutes: null
