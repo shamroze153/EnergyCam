@@ -139,6 +139,64 @@ def main():
     check("six people for ten minutes is a meeting, not an office boy",
           len(brief) == 0)
 
+    # The peak tariff window, 18:30 to 22:30. Three people until 19:40,
+    # one working late until 21:00, then empty: an hour and a half of
+    # peak-rate time with nobody in the room.
+    late = events([(at(-3), "empty", 0), (at(9, 0), "occupied", 3),
+                   (at(19, 40), "occupied", 1), (at(21, 0), "empty", 0)])
+    w = ds.window(ds.spells(late, DAY, END), DAY, 18.5, 22.5)
+    check("the window is four hours", w["watched_min"] == 240, w)
+    check("somebody there for 150 of them", round(w["busy_pct"]) == 62,
+          w["busy_pct"])
+    check("empty for the last 90", w["empty_min"] == 90, w["empty_min"])
+    check("three at its start", w["at_start"] == 3, w["at_start"])
+    check("nobody at its end", w["at_end"] == 0, w["at_end"])
+    check("and the last person left at 9:00 night",
+          w["left_at"] == at(21, 0), w["left_at"])
+    check("most at once was three", w["most"] == 3, w["most"])
+    check("time-weighted average, not a headcount",
+          abs(w["avg"] - (70 * 3 + 80 * 1) / 240.0) < 0.01, w["avg"])
+    still = ds.window(ds.spells(events([(at(-3), "empty", 0),
+                                        (at(17, 0), "occupied", 2)]),
+                                DAY, END), DAY, 18.5, 22.5)
+    check("a room still busy at the end has no leaving time",
+          still["left_at"] is None and still["empty_min"] == 0)
+
+    # Averaging several days. Three days: two normal, one where the room
+    # was busy from the night before. The carried day must not drag the
+    # average arrival towards midnight.
+    stories, wins = [], []
+    for d, (arrive, leave, early) in enumerate([(9 * 60, 19 * 60, True),
+                                                (9 * 60 + 20, 18 * 60, False),
+                                                (None, 18 * 60 + 30, False)]):
+        base = DAY - timedelta(days=3 - d)
+        rows = [(base - timedelta(hours=3), "empty" if arrive else "occupied",
+                 0 if arrive else 2)]
+        if early:
+            rows += [(base + timedelta(hours=7), "occupied", 1),
+                     (base + timedelta(hours=7, minutes=20), "empty", 0)]
+        if arrive:
+            rows.append((base + timedelta(minutes=arrive), "occupied", 4))
+        rows.append((base + timedelta(minutes=leave), "empty", 0))
+        day = ds.spells(events(rows), base, base + timedelta(days=1))
+        stories.append(ds.story(day, base))
+        wins.append(ds.window(day, base, 18.5, 22.5))
+    avg = ds.average_days(stories, wins)
+    check("three days averaged", avg["days"] == 3)
+    check("the carried day is left out of the arrival average",
+          avg["starts"] == 9 * 60 + 10, avg["starts"])
+    check("and reads as 9:10 morning",
+          ds.clock_minutes(avg["starts"]) == "9:10 morning",
+          ds.clock_minutes(avg["starts"]))
+    check("an early visit is a frequency, on 1 of 3 days",
+          avg["early_days"] == 1, avg["early_days"])
+    check("last out averages 7:00, 6:00 and 6:30 evening",
+          ds.clock_minutes(avg["last_out"]) == "6:30 evening",
+          ds.clock_minutes(avg["last_out"]))
+    check("the peak window is averaged too", avg["window"]["days"] == 3)
+    check("and says how many evenings anybody was there in it",
+          avg["window"]["busy_days"] == 1, avg["window"]["busy_days"])
+
     # A first visit long enough to be work is not "early".
     long_first = events([(at(-3), "empty", 0), (at(8, 0), "occupied", 2),
                          (at(10, 0), "empty", 0), (at(11, 0), "occupied", 3),

@@ -314,3 +314,108 @@ def parts(day, start):
                     "brief": len(brief), "stays": len(stays),
                     "most": max([v for v in span if v] or [0])})
     return out
+
+
+def window(day, start, a_hours, b_hours):
+    """One room inside a stretch of the day -- the peak tariff, usually.
+
+    18:30 to 22:30 is when every unit costs the most, and it falls after
+    most people have gone home, which is exactly when a room is most
+    likely to be empty with its cooling left on. So: how much of the
+    window somebody was there, how many on average and at most, how long
+    it sat empty, any brief visits, and when the last person left if they
+    left inside it.
+    """
+    mins = by_minute(day, start)
+    a, b = int(round(a_hours * 60)), int(round(b_hours * 60))
+    span = mins[a:b]
+    watched = [v for v in span if v is not None]
+    lo, hi = start + timedelta(minutes=a), start + timedelta(minutes=b)
+    here = [v for v in visits(day) if v[1] > lo and v[0] < hi]
+    brief, _ = kinds([v for v in here if v[0] >= lo])
+    left = None
+    if watched and span[-1] == 0:
+        busy_idx = [i for i, v in enumerate(span) if v]
+        if busy_idx:
+            left = lo + timedelta(minutes=busy_idx[-1] + 1)
+    return {
+        "watched_min": len(watched),
+        "busy_pct": (100.0 * sum(1 for v in watched if v) / len(watched))
+                    if watched else None,
+        "avg": (sum(watched) / float(len(watched))) if watched else None,
+        "most": max(watched or [0]),
+        "empty_min": sum(1 for v in watched if v == 0),
+        "brief": len(brief),
+        "at_start": span[0] if span else None,
+        "at_end": span[-1] if span else None,
+        "left_at": left,
+    }
+
+
+def minute_of_day(ts):
+    """Minutes past local midnight, so times on different days can be averaged."""
+    ts = pd.Timestamp(ts)
+    if ts.tzinfo is not None:
+        ts = ts.tz_convert(LOCAL)
+    return ts.hour * 60 + ts.minute
+
+
+def _mean(values):
+    values = [v for v in values if v is not None]
+    return (sum(values) / float(len(values))) if values else None
+
+
+def average_days(stories, windows=None):
+    """One room over several days: the usual day, and how often things happen.
+
+    Times are averaged as minutes past midnight, and only over the days
+    they happened on: a day the room was busy from the night before has no
+    arrival, a day nobody came has no start, and neither is counted as
+    midnight. Counts that matter as frequencies -- an early visit, a room
+    used at all -- are given as "on n of m days" rather than averaged away.
+    """
+    days = len(stories)
+    used = [s for s in stories if s["first_in"] is not None]
+    arrived = [s for s in used if not s["carried"]]
+    out = {
+        "days": days,
+        "days_used": len(used),
+        "first_in": _mean([minute_of_day(s["first_in"]) for s in arrived]),
+        "starts": _mean([minute_of_day(s["starts"]) for s in used
+                         if s["starts"] is not None and not s["carried"]]),
+        "early_days": sum(1 for s in used if s["early"]),
+        "early_empty": _mean([s["early"]["empty_after_min"] for s in used
+                              if s["early"]]),
+        "peak": max([s["peak"] for s in used] or [0]),
+        "peak_avg": _mean([s["peak"] for s in used]),
+        "peak_at": _mean([minute_of_day(s["peak_at"]) for s in used
+                          if s["peak_at"] is not None]),
+        "busy_pct": _mean([s["busy_pct"] for s in stories]),
+        "last_out": _mean([minute_of_day(s["last_out"]) for s in used
+                           if s["last_out"] is not None
+                           and s.get("left") is not False]),
+        "brief": _mean([s.get("brief", 0) for s in stories]),
+    }
+    if windows is not None:
+        seen = [w for w in windows if w["busy_pct"] is not None]
+        out["window"] = {
+            "days": len(seen),
+            "busy_pct": _mean([w["busy_pct"] for w in seen]),
+            "avg": _mean([w["avg"] for w in seen]),
+            "most": max([w["most"] for w in seen] or [0]),
+            "empty_min": _mean([w["empty_min"] for w in seen]),
+            "brief": _mean([w["brief"] for w in seen]),
+            "left_at": _mean([minute_of_day(w["left_at"]) for w in seen
+                              if w["left_at"] is not None]),
+            "busy_days": sum(1 for w in seen if w["most"]),
+        }
+    return out
+
+
+def clock_minutes(minutes):
+    """A minute-of-day average as a time, said the same way as clock()."""
+    if minutes is None:
+        return "\u2014"
+    m = int(round(minutes)) % 1440
+    h, m = divmod(m, 60)
+    return "%d:%02d %s" % (h % 12 or 12, m, part_of(h))
