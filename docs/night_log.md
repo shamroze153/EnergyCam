@@ -79,3 +79,7 @@ Two or three lines a round; picture file names, never pictures.
   "2:43am first in"); Room 18 plant/monitor 0.48, clutter 0.28-0.31 ->
   0.55; 141 Assembly Meeting Room chairs 0.34 -> 0.40. 141 Gym poster
   0.34 -> ignore box. Loop restarted.
+* 00:50 the round-4 ghosts followed up: 141 MR 01 had an object left on
+  the table read at 0.27-0.42 (evidence 23:54, 00:07, 00:25; a real
+  cleaner at 23:29) -> ignore box on the table top, cd_nvr1 ch9.
+  IT Head Room at 00:08 is a real person. 141-D Genset: outside, no unit.

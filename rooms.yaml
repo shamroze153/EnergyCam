@@ -1400,6 +1400,14 @@ rooms:
     channels: [9]
     ac: hidden
     empty_after_minutes: 30
+    # 12 Nov night: something left in the middle of the table read as a
+    # person at 0.27-0.42 in the 23:54, 00:07 and 00:25 evidence frames,
+    # lights off and nobody in (a ghost in verify_live at 00:15). Nobody
+    # sits on the table top; a person beside it is a bigger box. In the
+    # loop's own 720x576 frame.
+    ignore:
+      9:
+        - [365, 240, 441, 323]   # object on the table, 0.27-0.42
 
   - name: 141 MR 02 (1st floor)
     dept: Meeting rooms
