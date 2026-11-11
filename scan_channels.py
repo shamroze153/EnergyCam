@@ -34,6 +34,12 @@ import cv2  # noqa: E402  (must follow the env var above)
 import numpy as np  # noqa: E402
 
 from test_camera import PATHS, build_url, grab, probe
+from room_loop import muffled  # noqa: E402
+
+# The decoder writes "PPS id out of range" straight to file descriptor 2,
+# several lines per channel. A 32-channel scan printed some three hundred of
+# them and the twenty lines that mattered could not be found among them.
+# muffled() is safe here: this walks one channel at a time, in one thread.
 
 TILE_W, TILE_H, COLS = 320, 180, 4
 
@@ -187,14 +193,16 @@ def main():
     for ch in channels:
         scanned.append(ch)
         if brand:
-            frame, status = grab(
-                build_url(host, ch, user, password, want_main, brand))
+            with muffled():
+                frame, status = grab(
+                    build_url(host, ch, user, password, want_main, brand))
         else:
             # Work out the make once, on the first channel that answers, then
             # stop guessing: trying three paths on every dead channel would
             # treble the time a scan spends on the ones with no camera.
-            frame, status, found = probe(host, ch, user, password, want_main,
-                                         verbose=True)
+            with muffled():
+                frame, status, found = probe(host, ch, user, password,
+                                             want_main, verbose=True)
             if found:
                 brand = found
                 remember_brand(outdir, brand)
