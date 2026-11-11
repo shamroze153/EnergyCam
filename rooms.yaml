@@ -186,7 +186,7 @@ recorders:
   cd_nvr2:
     campus: 141-C/D
     host: 192.168.67.168
-    brand: hikvision   # scan 11 Nov: 16 of 16 live, sub 640x360, some H.265
+    brand: hikvision   # scan 11 Nov: 16 of 16 live, sub 640x360, some H.265; mapped the same day
     user_env: CD_NVR2_USER
     pass_env: CD_NVR2_PASS
     stream: sub
@@ -1415,8 +1415,13 @@ rooms:
   - name: 141 Main Entrance
     dept: Shared
     zone: Entrance
-    recorder: cd_nvr1
-    channels: [17, 21]
+    # NVR1 calls it "Campus Main Entrance" and NVR2 "Campus Entrance":
+    # taken as one place seen from three cameras. If they are two gates,
+    # split NVR2's channel 6 into a room of its own.
+    cameras:
+      - {recorder: cd_nvr1, channel: 17}
+      - {recorder: cd_nvr1, channel: 21}
+      - {recorder: cd_nvr2, channel: 6}
     ac: none
     empty_after_minutes: null
 
@@ -1520,5 +1525,104 @@ rooms:
     zone: Outside & plant
     recorder: cd_nvr3
     channels: [1, 2, 3, 9, 10, 11, 12, 13, 14, 15, 16]
+    ac: none
+    empty_after_minutes: null
+
+  # ---- NVR2: mapped by Shamroze, 11 November ---------------------------------
+
+  - name: 141 Assembly Meeting Room
+    dept: Assembly
+    zone: Offices
+    recorder: cd_nvr2
+    # ch 1 has the unit in frame; ch 4 sees the room from the other side.
+    channels: [1, 4]
+    ac: visible
+    empty_after_minutes: 30
+
+  - name: 141 Learning Center
+    dept: Learning Center
+    zone: Offices
+    recorder: cd_nvr2
+    channels: [2]
+    ac: visible
+    empty_after_minutes: 45
+
+  - name: 141 Admin Room
+    dept: Admin
+    zone: Offices
+    recorder: cd_nvr2
+    channels: [5, 12]
+    ac: hidden
+    empty_after_minutes: 45
+
+  - name: 141 Reception Meeting Room
+    dept: Meeting rooms
+    zone: Offices
+    recorder: cd_nvr2
+    channels: [9, 10]
+    ac: hidden
+    empty_after_minutes: 30
+
+  - name: 141-C Room 3 (1st floor)
+    dept: Room 3
+    zone: Offices
+    recorder: cd_nvr2
+    channels: [13]
+    ac: hidden
+    empty_after_minutes: 45
+
+  - name: 141-D MR01 (2nd floor)
+    dept: Meeting rooms
+    zone: Offices
+    recorder: cd_nvr2
+    channels: [15]
+    ac: hidden
+    empty_after_minutes: 30
+
+  - name: 141-D MR02 (2nd floor)
+    dept: Meeting rooms
+    zone: Offices
+    recorder: cd_nvr2
+    channels: [16]
+    ac: hidden
+    empty_after_minutes: 30
+
+  - name: 141 Assembly Corridor
+    dept: Shared
+    zone: Cafe & common
+    recorder: cd_nvr2
+    channels: [3]
+    ac: none
+    empty_after_minutes: null
+
+  - name: 141 Gym
+    dept: Shared
+    zone: Cafe & common
+    recorder: cd_nvr2
+    channels: [7]
+    ac: none
+    empty_after_minutes: null
+
+  - name: 141-C Genset
+    dept: Facilities
+    zone: Outside & plant
+    recorder: cd_nvr2
+    channels: [8]
+    ac: none
+    empty_after_minutes: null
+
+  - name: 141 Corridor Roof
+    dept: Security
+    zone: Outside & plant
+    recorder: cd_nvr2
+    channels: [11]
+    ac: none
+    empty_after_minutes: null
+
+  - name: 141 Reception Roof
+    dept: Security
+    zone: Outside & plant
+    recorder: cd_nvr2
+    channels: [14]
     ac: none
     empty_after_minutes: null
