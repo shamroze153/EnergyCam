@@ -40,6 +40,12 @@ MERGE_GAP = timedelta(minutes=10)
 EARLY_MAX = timedelta(minutes=45)
 EARLY_GAP = timedelta(minutes=30)
 
+# Somebody first seen this soon after midnight is last night still going,
+# not today starting. 11 Nov: Marketing worked through the night, the
+# detector lost them for seven minutes either side of twelve, and the
+# front page said 140-H's day began at "12:06 night".
+CARRY_GRACE = timedelta(minutes=30)
+
 # Heartbeats further apart than this mean the loop was not running between.
 BEAT_GAP = timedelta(minutes=10)
 
@@ -215,7 +221,7 @@ def story(day, start):
         return result
 
     result["first_in"] = found[0][0]
-    result["carried"] = found[0][0] <= start
+    result["carried"] = found[0][0] <= start + CARRY_GRACE
     result["last_out"] = found[-1][1]
     most = max(found, key=lambda v: (v[2], -v[3].timestamp()))
     result["peak"], result["peak_at"] = most[2], most[3]

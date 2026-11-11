@@ -220,6 +220,16 @@ def main():
     check("a room busy at midnight is marked carried over", s["carried"])
     check("and that is not taken for an early visit", s["early"] is None)
 
+    # 11 Nov: a night shift lost for seven minutes either side of midnight.
+    # Seen again at 12:06, that is last night still going, not an arrival.
+    shift = events([(at(-1), "occupied", 2), (at(-1) + timedelta(minutes=59),
+                                              "empty", 0),
+                    (at(0, 6), "occupied", 1), (at(6, 40), "empty", 0),
+                    (at(10, 0), "occupied", 4), (at(18, 0), "empty", 0)])
+    s = ds.story(ds.spells(shift, DAY, END), DAY)
+    check("a night shift seen at 12:06 is carried over, not first in",
+          s["carried"], s)
+
     # Time nobody was watching is neither busy nor empty.
     beats = [at(9) + timedelta(minutes=m) for m in range(0, 9 * 60, 2)]
     day = ds.spells(events([(at(-3), "empty", 0), (at(10, 0), "occupied", 2),
