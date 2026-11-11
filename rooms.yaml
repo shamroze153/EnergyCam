@@ -375,6 +375,11 @@ rooms:
     # where a wall unit is a few pixels across. docs/camera_survey.md.
     ac: hidden
     empty_after_minutes: 45
+    # 12 Nov 00:15 night check: two empty chairs in the dark read as people
+    # at 0.28 and 0.29, and the room flickered occupied/empty all night
+    # (the "first in 2:43 night" of 11 Nov). Chairs are seats, so no zone:
+    # a stricter bar at night only. People here at night score 0.7+.
+    conf_after_hours: 0.40
 
   - name: HR Room
     zone: Offices
@@ -870,6 +875,12 @@ rooms:
     ac: hidden
     ac_channel: 13
     empty_after_minutes: 45
+    # 12 Nov 00:15 night check, ch13 in infrared, nobody in the room: a
+    # plant over a monitor at 0.48, desk clutter at 0.30-0.31, a monitor
+    # at 0.28 -- occupied/empty flicker all night. An open office, so no
+    # zones over the desks: a stricter bar at night only. Real people at
+    # night elsewhere on these recorders score 0.74-0.91.
+    conf_after_hours: 0.55
 
   - name: H First Floor Lobby
     # 7 Nov: this recorder's sub stream is 640x360, too small to read
@@ -1578,6 +1589,10 @@ rooms:
     channels: [1, 4]
     ac: visible
     empty_after_minutes: 30
+    # 12 Nov 00:15 night check: the empty table and chairs read as a
+    # person at 0.34 on ch4, occupied/empty flicker from 23:12. Chairs are
+    # seats: a stricter bar at night only.
+    conf_after_hours: 0.40
 
   - name: 141 Learning Center
     dept: Learning Center
@@ -1651,6 +1666,11 @@ rooms:
     channels: [7]
     ac: none
     empty_after_minutes: null
+    # 12 Nov 00:15 night check: the running figure on the "Challenge
+    # yourself" wall poster read as a person at 0.34. A poster on a wall.
+    ignore:
+      7:
+        - [286, 42, 330, 96]   # poster figure, 0.34
 
   - name: 141-C Genset
     dept: Facilities

@@ -71,3 +71,11 @@ Two or three lines a round; picture file names, never pictures.
   (14.8 -> 5.1) but the camera is in infrared now, and calibrate_room
   refuses colour-on against infrared-off, rightly. Room 32 needs an off
   frame with the lights on (or an on frame in infrared): for the day.
+* 00:15 round 4: 0 MISSED, 3 GHOST (141 MR 01, IT Head Room, 141-D
+  Genset). Night check, every detection looked at: real people still in
+  Admin Room (0.91, 0.74), Wellows (0.81), Prompt Cafe (0.81). Ghosts
+  that kept rooms flickering occupied all night, fixed for night only:
+  DL Department chairs 0.28-0.29 -> conf_after_hours 0.40 (also the
+  "2:43am first in"); Room 18 plant/monitor 0.48, clutter 0.28-0.31 ->
+  0.55; 141 Assembly Meeting Room chairs 0.34 -> 0.40. 141 Gym poster
+  0.34 -> ignore box. Loop restarted.
