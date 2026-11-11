@@ -47,6 +47,7 @@ from streamlit_autorefresh import st_autorefresh
 
 from schedule import (AFTER_HOURS, WEEKEND, WORKING, describe,
                       split_by_period, wait_before_reporting)
+import overview  # noqa: E402  (the front pages: welcome and campus overview)
 
 PKT = timezone(timedelta(hours=5))
 
@@ -80,50 +81,54 @@ DETAIL_SLOTS = 288                    # five minutes each, again
 # is for daylight, a projector, and anyone printing it.
 
 THEMES = {
+    # The neutrals and the blue of the front pages (overview.TOKENS), so a
+    # view opened from the overview does not change colour under the reader.
+    # Blue is people; green is fine; red and amber are the two grades of
+    # "go and check", always with words beside them.
     "dark": {
-        "page": "#0B0F12", "surface": "#151C22", "sunken": "#1B2228",
-        "line": "#263139", "text": "#E6EAED", "muted": "#8A949A",
-        "faint": "#5E6A70",
-        "band": "#0F1418", "band_line": "#1E262C", "band_text": "#F2F4F5",
-        "room_fill": "#1A222A", "ac_on": "#84CC16", "ac_off": "#6B7780",
-        "slot_occupied": "#84CC16", "slot_empty": "#2B343B",
-        "slot_unknown": "#49555D", "slot_none": "#1B2228",
-        "rank_bar": "#C05B45", "good_bg": "#141E14", "good_line": "#2A3A22",
-        "good_fg": "#A4D463",
+        "page": "#0d0d0d", "surface": "#171716", "sunken": "#1f1f1d",
+        "line": "#2b2b29", "text": "#f0efec", "muted": "#9a998f",
+        "faint": "#6b6a64",
+        "band": "#121211", "band_line": "#232321", "band_text": "#f0efec",
+        "room_fill": "#1b1b1a", "ac_on": "#0ca30c", "ac_off": "#6b6a64",
+        "slot_occupied": "#3987e5", "slot_empty": "#2a2a28",
+        "slot_unknown": "#4a4a46", "slot_none": "#1f1f1d",
+        "rank_bar": "#d03b3b", "good_bg": "#132013", "good_line": "#1f3a1f",
+        "good_fg": "#7fd67f",
         "ink": {
-            "Red":   {"bg": "#1E1316", "fg": "#F0918F", "edge": "#3B2328",
-                      "bar": "#E05252"},
-            "Amber": {"bg": "#1D1810", "fg": "#E8B562", "edge": "#3A2E1A",
-                      "bar": "#D89221"},
-            "Green": {"bg": "#141A14", "fg": "#A4D463", "edge": "#253220",
-                      "bar": "#84CC16"},
-            "Cool":  {"bg": "#101A21", "fg": "#74B9E0", "edge": "#1F3341",
-                      "bar": "#4A90C2"},
-            "Fault": {"bg": "#161B1F", "fg": "#9AA4AA", "edge": "#28323A",
-                      "bar": "#6B7780"},
+            "Red":   {"bg": "#241414", "fg": "#f0918f", "edge": "#4a2222",
+                      "bar": "#d03b3b"},
+            "Amber": {"bg": "#241d10", "fg": "#f2c46a", "edge": "#4a3a1a",
+                      "bar": "#fab219"},
+            "Green": {"bg": "#132013", "fg": "#7fd67f", "edge": "#1f3a1f",
+                      "bar": "#0ca30c"},
+            "Cool":  {"bg": "#101a24", "fg": "#86b6ef", "edge": "#1c3350",
+                      "bar": "#3987e5"},
+            "Fault": {"bg": "#1a1a19", "fg": "#a3a29a", "edge": "#2b2b29",
+                      "bar": "#6b6a64"},
         },
     },
     "light": {
-        "page": "#FFFFFF", "surface": "#FAFAFA", "sunken": "#F0F1F2",
-        "line": "#E4E6E8", "text": "#14181B", "muted": "#6B7378",
-        "faint": "#9AA3A8",
-        "band": "#14181B", "band_line": "#14181B", "band_text": "#F2F4F5",
-        "room_fill": "#FFFFFF", "ac_on": "#2E7D32", "ac_off": "#8E8E8E",
-        "slot_occupied": "#7BAE48", "slot_empty": "#E0E0E0",
-        "slot_unknown": "#BDBDBD", "slot_none": "#F3F3F3",
-        "rank_bar": "#B9543F", "good_bg": "#F1F7EA", "good_line": "#CDE0B6",
-        "good_fg": "#3D6E15",
+        "page": "#f4f4f1", "surface": "#fcfcfb", "sunken": "#f0efec",
+        "line": "#e1e0d9", "text": "#0b0b0b", "muted": "#6b6a64",
+        "faint": "#9a998f",
+        "band": "#0b0b0b", "band_line": "#0b0b0b", "band_text": "#f0efec",
+        "room_fill": "#ffffff", "ac_on": "#0ca30c", "ac_off": "#9a998f",
+        "slot_occupied": "#2a78d6", "slot_empty": "#e1e0d9",
+        "slot_unknown": "#c3c2b7", "slot_none": "#f0efec",
+        "rank_bar": "#d03b3b", "good_bg": "#eef7ee", "good_line": "#c9e6c9",
+        "good_fg": "#006300",
         "ink": {
-            "Red":   {"bg": "#FDF0F0", "fg": "#9B2C2C", "edge": "#E8B9B9",
-                      "bar": "#D04A4A"},
-            "Amber": {"bg": "#FDF5E7", "fg": "#8A5209", "edge": "#EBD3A6",
-                      "bar": "#D89221"},
-            "Green": {"bg": "#F1F7EA", "fg": "#3D6E15", "edge": "#CDE0B6",
-                      "bar": "#7BAE48"},
-            "Cool":  {"bg": "#EDF3FA", "fg": "#1F5B8F", "edge": "#BCD3E8",
-                      "bar": "#4A90C2"},
-            "Fault": {"bg": "#F1F1F1", "fg": "#5A5A5A", "edge": "#D4D4D4",
-                      "bar": "#9AA3A8"},
+            "Red":   {"bg": "#fdf0f0", "fg": "#9b2c2c", "edge": "#efc4c4",
+                      "bar": "#d03b3b"},
+            "Amber": {"bg": "#fdf6e7", "fg": "#8a5209", "edge": "#ecd6a6",
+                      "bar": "#eda100"},
+            "Green": {"bg": "#eef7ee", "fg": "#006300", "edge": "#c9e6c9",
+                      "bar": "#0ca30c"},
+            "Cool":  {"bg": "#edf3fa", "fg": "#184f95", "edge": "#bcd3e8",
+                      "bar": "#2a78d6"},
+            "Fault": {"bg": "#f0efec", "fg": "#52514e", "edge": "#d9d8d1",
+                      "bar": "#9a998f"},
         },
     },
 }
@@ -137,6 +142,10 @@ BAND = BAND_LINE = BAND_TEXT = ROOM_FILL = AC_ON = AC_OFF = ""
 RANK_BAR = GOOD_BG = GOOD_LINE = GOOD_FG = NO_DATA = ""
 SLOT_INK = {}
 INK = {}
+
+# The campus and theme every internal link carries. Filled in by the page
+# once it has read the address; empty while only the helpers are loaded.
+LINK_BASE = {}
 
 
 def use_theme(mode):
@@ -776,8 +785,11 @@ def linked(html, room):
     # The anchor matters as much as the query string. Without it the page
     # reloads with the room selected and the reader sees nothing happen,
     # because the panel that changed is further down than they are looking.
-    return ('<a href="?room=%s#roomdetail" style="text-decoration:none;'
-            'display:contents;">%s</a>' % (quote(room), html))
+    # And the campus and theme: since the front page came in, a link that
+    # carried only the room landed on the welcome page, in the dark theme.
+    return ('<a href="%s#roomdetail" style="text-decoration:none;'
+            'display:contents;">%s</a>'
+            % (overview.link(LINK_BASE, room=room), html))
 
 
 def room_card(row, recent, now):
@@ -1744,6 +1756,95 @@ def show_meters(df, recent, now):
                           "its" if unsaid == 1 else "their"))
 
 
+@st.cache_data(ttl=30)
+def load_beats_since(hours):
+    """Every heartbeat in the last so many hours.
+
+    The front pages need yesterday evening as well as today -- when the last
+    person left -- and the beats load_state brings cover twenty-five hours,
+    which at eleven at night no longer reaches back to yesterday's ten.
+    """
+    conn = psycopg2.connect(DATABASE_URL, sslmode=DB_SSLMODE, connect_timeout=10)
+    try:
+        beats = pd.read_sql_query(
+            "SELECT timestamp FROM heartbeat"
+            " WHERE timestamp >= now() - interval '%d hours'"
+            " ORDER BY timestamp" % int(hours), conn)
+    finally:
+        conn.close()
+    return pd.to_datetime(beats["timestamp"], utc=True).tolist()
+
+
+def stretch(widget, *args, **kwargs):
+    """A widget as wide as its column, on old Streamlit and new alike.
+
+    use_container_width is on its way out and width="stretch" is how newer
+    versions say it; the laptop and the cloud do not run the same version,
+    and a TypeError on either takes the whole page down.
+    """
+    try:
+        return widget(*args, width="stretch", **kwargs)
+    except TypeError:
+        return widget(*args, use_container_width=True, **kwargs)
+
+
+def app_chrome(mode):
+    """Streamlit's own surfaces, set to the page's palette.
+
+    config.toml sets them once at start-up and cannot follow a theme switch,
+    so they are set here on every run. The sidebar is gone -- the views are
+    a row along the top now -- and the page is held to a readable width.
+    """
+    t = THEMES[mode]
+    return (
+        "<style>"
+        ".stApp { background: %(page)s; color: %(text)s;"
+        " font-family: system-ui,-apple-system,'Segoe UI',Roboto,sans-serif; }"
+        "header[data-testid='stHeader'], div[data-testid='stToolbar'],"
+        " div[data-testid='stDecoration'] { background: transparent !important; }"
+        "section[data-testid='stSidebar'],"
+        " div[data-testid='stSidebarCollapsedControl'],"
+        " div[data-testid='collapsedControl'] { display: none !important; }"
+        "div[data-testid='stMainBlockContainer'], .block-container"
+        " { max-width: 1260px; padding-top: 1.1rem; padding-bottom: 3rem; }"
+        # Every text colour Streamlit sets, set to the palette's -- except
+        # inside the front pages (.ec), which carry their own greys and lose
+        # them to a rule this broad.
+        ":where(.stApp) :is(div, p, span, label, li, h1, h2, h3)"
+        ":not(.ec, .ec *) { color: %(text)s; }"
+        ".stApp [data-testid='stCaptionContainer'],"
+        " .stApp [data-testid='stCaptionContainer'] * { color: %(muted)s; }"
+        "div[data-testid='stMetricValue'] { color: %(text)s; }"
+        "div[data-testid='stMetricLabel'], div[data-testid='stMetricLabel'] *"
+        " { color: %(muted)s; }"
+        "hr { border-color: %(line)s; }"
+        # Streamlit's own bar -- deploy button and menu -- is for whoever
+        # runs the server, not for the people reading the page.
+        "header[data-testid='stHeader'] { display: none !important; }"
+        # The view switch: a row of pills in one tray, the chosen one lifted,
+        # like the nav on the drawn option.
+        " div[data-testid='stButtonGroup'] [role='radiogroup']"
+        " { background: %(surface)s; border: 1px solid %(line)s;"
+        " border-radius: 12px; padding: 4px; gap: 2px; flex-wrap: wrap; }"
+        " div[data-testid='stButtonGroup'] button { border: none !important;"
+        " background: transparent !important; box-shadow: none !important;"
+        " border-radius: 9px !important; min-height: 34px; }"
+        " div[data-testid='stButtonGroup'] button p { color: %(muted)s"
+        " !important; font-weight: 550; font-size: 13.5px; }"
+        " div[data-testid='stButtonGroup'] button:hover p"
+        " { color: %(text)s !important; }"
+        " div[data-testid='stButtonGroup'] button[aria-checked='true']"
+        " { background: %(sunken)s !important; }"
+        " div[data-testid='stButtonGroup'] button[aria-checked='true'] p"
+        " { color: %(text)s !important; }"
+        " div[data-testid='stPopover'] button { background: %(surface)s"
+        " !important; border: 1px solid %(line)s !important;"
+        " border-radius: 12px !important; min-height: 44px; }"
+        " div[data-baseweb='input'], div[data-baseweb='select'] > div,"
+        " div[data-baseweb='base-input'] { background: %(surface)s; }"
+        "</style>" % t)
+
+
 def load_beats(start, end):
     """Every heartbeat in a window: when the loop was running."""
     conn = psycopg2.connect(DATABASE_URL, sslmode=DB_SSLMODE, connect_timeout=10)
@@ -1891,17 +1992,22 @@ def show_arrivals(df, now):
         if campus_view.place(room["room"], room.get("zone")) == "outside" \
                 and not with_outside:
             continue
-        singles.append(dict(room, members=[room["room"]]))
+        singles.append(dict(room, members=[room["room"]],
+                            work=room.get("zone") in overview.WORK_ZONES))
     room_rows = entity_rows(singles)
 
     if by_dept:
-        # A room nobody has given a department to is grouped by where it
-        # is instead -- its zone, under the zone's own name, rather than
-        # under a department somebody would have had to guess.
+        # A working room nobody has given a department to is its own
+        # department, under its own name (Marketing, HR Room); a lobby or a
+        # cafe is grouped by its zone. Nothing is filed under a department
+        # somebody would have had to guess.
         groups = {}
         for room in singles:
-            groups.setdefault(room.get("dept") or room.get("zone") or "Other",
-                              []).append(room)
+            # The same rule as the overview's department cards, so a
+            # department is the same set of rooms on both pages.
+            name = overview.department_of(room["room"], room.get("zone"),
+                                          room.get("dept")) or room.get("zone")
+            groups.setdefault(name or "Other", []).append(room)
         depts = []
         for name, members in sorted(groups.items()):
             units = sum(int(m.get("ac_count") or 0) for m in members
@@ -1912,6 +2018,7 @@ def show_arrivals(df, now):
                 "members": [m["room"] for m in members],
                 "has_unit": bool(units), "ac_count": units,
                 "alerts": any(m.get("alerts", True) for m in members),
+                "work": any(m["work"] for m in members),
             })
         rows = entity_rows(depts)
     else:
@@ -2073,8 +2180,12 @@ def show_arrivals(df, now):
 
     mode = st.session_state.get("theme", "dark")
     mode = mode if mode in ("light", "dark") else "dark"
+    # Who opened the place is a question about where people work: the
+    # cafe's breakfast and the guard at the gate are not the day starting,
+    # and the overview already says so -- the two pages name the same room.
     stayed = [(room, s) for room, _, _, (_, _, _, s) in rows
-              if s["starts"] is not None and not s["carried"]]
+              if s["starts"] is not None and not s["carried"]
+              and room.get("work", True)]
     totals = []
     for i in range(24):
         hour = [ds.hourly(day, st_)[i] for _, _, _, (st_, _, day, _) in rows]
@@ -2689,7 +2800,8 @@ def show_numbers(df, cooled, recent, now):
                 '<div style="font-weight:680;color:%s;margin-bottom:5px;">'
                 'Worth setting a timer for</div>'
                 '<ul style="margin:0;padding-left:18px;font-size:.82rem;'
-                'color:%s;">%s</ul></div>' % (GOOD_FG, GOOD_FG, lines),
+                'color:%s;">%s</ul></div>'
+                % (GOOD_BG, GOOD_LINE, GOOD_FG, GOOD_FG, lines),
                 unsafe_allow_html=True)
             st.caption("Reliably means used on fewer than one day in five"
                        " after that hour. A room used on two afternoons out of"
@@ -2769,134 +2881,50 @@ now = pd.Timestamp.now(tz="UTC")
 everything = rooms.merge(latest, on="room", how="left")
 everything["status"] = everything["status"].fillna("unknown")
 
-VIEWS = ["Campus", "Rooms", "One room", "Who comes when", "Meters",
-         "Analysis", "Camera health", "Look at the rooms",
-         "Numbers & history"]
+# ---- where we are: the address says which campus and which theme ----------
+#
+# Both live in the query string rather than only in the session, because the
+# welcome page and the room chips are links, and a link that dropped the
+# theme would turn the page white halfway through somebody's evening.
+mode = st.query_params.get("theme", "dark")
+mode = mode if mode in THEMES else "dark"
+use_theme(mode)
+st.markdown(app_chrome(mode), unsafe_allow_html=True)
 
-# A click on a room is a request to see that room, so it carries the name in
-# the query string and lands on the view that shows it. Tracked rather than
-# set every run, or picking another view with a room still in the URL would
-# bounce straight back.
-clicked = st.query_params.get("room")
-if clicked and st.session_state.get("_came_from") != clicked:
-    st.session_state["_came_from"] = clicked
-    st.session_state["view"] = "One room"
+campuses = sorted(everything["campus"].unique())
+campus = st.query_params.get("campus")
+if campus not in campuses:
+    campus = None
+LINK_BASE.clear()
+LINK_BASE.update({"campus": campus, "theme": None if mode == "dark" else mode})
 
-with st.sidebar:
-    # The mark goes first, which means the theme has to be known before the
-    # switch that sets it is drawn. Streamlit keeps a widget's value in
-    # session state and has it there before the rerun that follows a click,
-    # so reading it back is enough -- no second pass, no flicker.
-    mode = st.session_state.get("theme", "dark")
-    use_theme(mode)
-
-    st.markdown(
-        '<div style="margin:2px 0 10px;">%s'
-        '<div style="font-size:.58rem;letter-spacing:.24em;color:%s;'
-        'margin-top:5px;">ENERGYCAM</div></div>' % (wordmark(mode), MUTED),
-        unsafe_allow_html=True)
-
-    mode = st.radio("Appearance", ["dark", "light"], key="theme",
-                    horizontal=True, label_visibility="collapsed")
-    use_theme(mode)
-
-    st.markdown('<div style="height:1px;background:%s;margin:10px 0 12px;">'
-                '</div>' % LINE, unsafe_allow_html=True)
-
-    campuses = sorted(everything["campus"].unique())
-    campus = (st.selectbox("Campus", campuses) if len(campuses) > 1
-              else campuses[0])
-    if len(campuses) == 1:
-        st.markdown(
-            '<div style="font-size:.56rem;letter-spacing:.2em;color:%s;">'
-            'CAMPUS</div>'
-            '<div style="font-size:1.24rem;font-weight:740;color:%s;'
-            'margin:1px 0 12px;">%s</div>' % (MUTED, TEXT, campus),
-            unsafe_allow_html=True)
-
-    view = st.radio("View", VIEWS, key="view", label_visibility="collapsed")
-    hunt = st.text_input("Find a room", placeholder="name or part of one")
-    st.markdown(
-        '<div style="height:1px;background:%s;margin:12px 0 10px;"></div>'
-        '<div style="font-size:.68rem;color:%s;line-height:1.95;">'
-        '<span style="color:%s;">\u25cf</span> long empty<br>'
-        '<span style="color:%s;">\u25cf</span> worth a check<br>'
-        '<span style="color:%s;">\u25cf</span> camera silent<br>'
-        '<span style="color:%s;">\u25cf</span> fine</div>'
-        % (LINE, MUTED, INK["Red"]["bar"], INK["Amber"]["bar"],
-           INK["Fault"]["bar"], INK["Green"]["bar"]),
-        unsafe_allow_html=True)
-
-# Streamlit's own surfaces -- page, header, sidebar, inputs -- are set from
-# config.toml at start-up and cannot be switched at runtime, so they are
-# overridden here. Without this the toggle recolours the cards and leaves
-# everything around them the other colour: the page came out light with a
-# black bar across the top of it, and the campus name was near-invisible
-# because the stored text colour was still the dark theme's.
-st.markdown(
-    "<style>"
-    ".stApp { background: %(page)s; color: %(text)s; }"
-    "header[data-testid='stHeader'], div[data-testid='stToolbar'],"
-    " div[data-testid='stDecoration'] { background: %(page)s !important; }"
-    "section[data-testid='stSidebar'] { background: %(surface)s !important;"
-    " border-right: 1px solid %(line)s; }"
-    "section[data-testid='stSidebar'] * { color: %(text)s; }"
-    ".stApp div, .stApp p, .stApp span, .stApp label, .stApp li,"
-    " .stApp h1, .stApp h2, .stApp h3 { color: %(text)s; }"
-    ".stApp [data-testid='stCaptionContainer'],"
-    " .stApp [data-testid='stCaptionContainer'] * { color: %(muted)s; }"
-    "div[data-testid='stMetricValue'] { color: %(text)s; }"
-    "div[data-testid='stMetricLabel'], div[data-testid='stMetricLabel'] *"
-    " { color: %(muted)s; }"
-    "hr { border-color: %(line)s; }"
-    # The navigation is a radio group, which Streamlit draws as a column of
-    # bullets. Six bullets down the side of an operations page look like a
-    # questionnaire. The dot is hidden and the selected row given a surface,
-    # so it reads as navigation. If a Streamlit upgrade changes the markup
-    # this stops applying and the bullets come back -- which is ugly and not
-    # broken, so it is a safe thing to style.
-    " section[data-testid='stSidebar'] div[role='radiogroup'] { gap: 1px; }"
-    " section[data-testid='stSidebar'] div[role='radiogroup'] > label"
-    " { padding: 3px 9px; border-radius: 7px; margin: 0; }"
-    " section[data-testid='stSidebar'] div[role='radiogroup'] > label:hover"
-    " { background: %(sunken)s; }"
-    " section[data-testid='stSidebar'] div[role='radiogroup'] > label >"
-    " div:first-child { display: none; }"
-    " section[data-testid='stSidebar'] div[role='radiogroup'] >"
-    " label:has(input:checked) { background: %(sunken)s; }"
-    " section[data-testid='stSidebar'] div[role='radiogroup'] >"
-    " label:has(input:checked) p { color: %(accent)s; font-weight: 600; }"
-    "</style>" % {"page": PAGE, "surface": SURFACE, "line": LINE,
-                  "text": TEXT, "muted": MUTED, "sunken": SUNKEN,
-                  "accent": INK["Green"]["bar"]},
-    unsafe_allow_html=True)
-
-df = everything[everything["campus"] == campus].copy()
 hours = load_hours()
-df["occupied_since"] = df["room"].apply(lambda r: run_started(recent, r, now))
-graded = df.apply(lambda r: grade(r, now, hours), axis=1)
-df["level"] = [g[0] for g in graded]
-df["headline"] = [g[1] for g in graded]
-df["sub"] = [g[2] for g in graded]
-df["age"] = df["timestamp"].apply(
+assumptions = load_assumptions()
+beat_age = minutes_since(last_beat, now)
+healthy = beat_age is not None and beat_age <= STALE_AFTER_MINUTES
+live_text = (("live · reported %s ago" % spell(beat_age)) if healthy
+             else ("silent for %s" % spell(beat_age)) if beat_age is not None
+             else "never reported")
+when = "%s · %s" % (now.tz_convert(PKT).strftime("%A %d %B"),
+                         overview.clock(now))
+
+# Every room graded once, on every campus: the welcome page needs both, and
+# grading is the same arithmetic the alerts use, so no page can disagree with
+# them about which rooms want a walk.
+everything["occupied_since"] = everything["room"].apply(
+    lambda r: run_started(recent, r, now))
+graded = everything.apply(lambda r: grade(r, now, hours), axis=1)
+everything["level"] = [g[0] for g in graded]
+everything["headline"] = [g[1] for g in graded]
+everything["sub"] = [g[2] for g in graded]
+everything["age"] = everything["timestamp"].apply(
     lambda t: "never" if minutes_since(t, now) is None
     else "%s ago" % spell(minutes_since(t, now)))
-df["slots"] = df["room"].apply(lambda r: slot_states(recent, r, now))
-df = df.sort_values(by=["level", "room"],
-                    key=lambda c: c.map(RANK) if c.name == "level" else c)
-
-cooled = df[df["has_unit"]]
-# Rooms whose cooling is a choice. The server rooms have units and sit empty
-# nearly always, and their empty hours are what keeps the equipment alive, so
-# counting them here would put money against something nobody should switch
-# off.
-discretionary = cooled[cooled["alerts"]]
-assumptions = load_assumptions()
-
-at_stake = money(
-    wasted_minutes(recent, discretionary["room"],
-                   now - pd.Timedelta(hours=DETAIL_HOURS), now),
-    assumptions)[1]
+everything["slots"] = everything["room"].apply(
+    lambda r: slot_states(recent, r, now))
+everything = everything.sort_values(
+    by=["level", "room"],
+    key=lambda c: c.map(RANK) if c.name == "level" else c)
 
 
 def stake_caveat(rooms_in_figure):
@@ -2919,175 +2947,142 @@ def stake_caveat(rooms_in_figure):
     if not total:
         return "nothing to count"
     if unread:
-        return ("upper bound \u00b7 %d of %d units unread, assumed running"
+        return ("upper bound · %d of %d units unread, assumed running"
                 % (unread, total))
     return "upper bound, not a bill"
 
 
-stake_note = stake_caveat(list(discretionary["room"]))
 try:
     month = load_history()
 except psycopg2.Error:
     month = pd.DataFrame()
-saved, span, enough = against_baseline(month, discretionary["room"], now,
-                                       assumptions)
+try:
+    two_days = load_beats_since(50)
+except psycopg2.Error:
+    two_days = None
+today_start = now.tz_convert(PKT).normalize()
 
-beat_age = minutes_since(last_beat, now)
 
-if view == "Campus":
-    # One page: what wants doing at the top, then every room drawn, the units
-    # and the people side by side, who arrived when, and any room close up.
-    # The layout lives in campus_view.html and the figures are computed here
-    # from the same helpers the rest of this file uses, so the page and the
-    # loop cannot start disagreeing about what a room is.
-    import streamlit.components.v1 as components
+def front_figures(name):
+    """One campus, as the welcome card and the overview tell it."""
+    here = everything[everything["campus"] == name]
+    paid = here[here["has_unit"] & here["alerts"]]
+    events = month if not month.empty else recent
+    stake = money(wasted_minutes(events, paid["room"], today_start, now),
+                  assumptions)[1]
+    return overview.campus_summary(
+        name, here, events, two_days, now, stake=stake,
+        stake_note=stake_caveat(list(paid["room"])), live=healthy)
 
-    import campus_view
 
-    try:
-        rows = campus_view.rows(df, recent, now, grade, spell, minutes_since,
-                                hours, beats=beats)
-    except Exception as e:                                  # noqa: BLE001
-        st.error("The campus page could not be built (%s: %s). Every other"
-                 " view still works \u2014 pick Rooms in the sidebar. Please"
-                 " send this line on." % (type(e).__name__, e))
-        st.stop()
-    healthy = beat_age is not None and beat_age <= STALE_AFTER_MINUTES
-    meta = {
-        "campus": campus,
-        "live": ("live \u00b7 reported %s ago" % spell(beat_age)) if healthy
-                else ("silent for %s" % spell(beat_age)
-                      if beat_age is not None else "never reported"),
-        "healthy": bool(healthy),
-        "stake": "Rs %s" % format(round(at_stake), ","),
-        # "tonight" was wrong as well as unqualified: the window is the last
-        # twenty-four hours, which at three in the afternoon is mostly
-        # yesterday.
-        "stake_label": "at stake, last 24 hours",
-        "stake_note": stake_note,
-        "saved": ("Rs %s" % format(abs(round(saved)), ",")) if enough
-                 else "\u2014",
-        "saved_label": ("switched off, against the first fortnight" if enough
-                        else "not two fortnights of history yet"),
-        "when": "%s \u00b7 %s" % (now.tz_convert(PKT).strftime("%A %H:%M"),
-                                  describe(now, hours)),
-    }
-    inside_curve, outside_curve = campus_view.building_curve(recent, df, now,
-                                                             beats)
-    here = df[df["status"] == "occupied"]
-    outside_zones = campus_view.OUTSIDE_ZONES
-    meta["inside_now"] = int(here[~here["zone"].isin(outside_zones)]["people"]
-                             .fillna(0).sum())
-    meta["outside_now"] = int(here[here["zone"].isin(outside_zones)]["people"]
-                              .fillna(0).sum())
-    # The same three strings the band at the top of every other view uses,
-    # so the headcount cannot be worded one way here and another way there.
-    label, value, note = head_count_parts(df, beat_age)
-    meta["people_now"] = value
-    meta["people_label"] = label.lower()
-    meta["people_note"] = note
-    meta["curve_inside"] = inside_curve
-    meta["curve_outside"] = outside_curve
-    html = campus_view.page(rows, meta)
-    tall = campus_view.height(rows)
-    # components.html warns that it is deprecated, and the warning is noise.
-    # It is also the call that demonstrably works. st.iframe was swapped in
-    # to quieten the console and took the whole page down with a TypeError,
-    # because its signature was assumed rather than checked -- a working
-    # call traded for an unverified one to tidy up a log line. Back to the
-    # one that works; the warning can stay.
-    components.html(html, height=tall, scrolling=True)
+if campus is None:
+    # ---- the front door: both campuses, each a way in --------------------
+    # st.markdown, not st.html: st.html sanitises every SVG away, which
+    # took the charts, the strips and the company mark with it.
+    st.markdown(overview.welcome([front_figures(c) for c in campuses], mode,
+                                 wordmark(mode), live_text, healthy, when,
+                                 dict(LINK_BASE, campus=None)),
+                unsafe_allow_html=True)
     st.stop()
 
-st.markdown(header_band(campus, df, beat_age, describe(now, hours),
-                        money_strip(at_stake, saved, span, enough,
-                                    head_count(df, beat_age),
-                                    stake_note.replace("\u00b7", "&#183;"))),
-            unsafe_allow_html=True)
+df = everything[everything["campus"] == campus].copy()
+st.markdown(overview.campus_head({"name": campus}, campuses, mode,
+                                 wordmark(mode), live_text, healthy, when,
+                                 LINK_BASE), unsafe_allow_html=True)
 
-# ---- always on screen: the job -------------------------------------------
-acting = df[df["level"].isin(["Red", "Amber"])]
-silent_rooms = df[df["level"] == "Fault"]
-in_frame = acting[acting["ac"] == "visible"]
-out_of_frame = acting[acting["ac"] == "hidden"]
+# ---- the views -------------------------------------------------------------
+#
+# Five in a row across the top -- the ones people open -- and the rest behind
+# "More". A click on a room anywhere is a link carrying its name, and lands on
+# One room.
+PRIMARY = ["Overview", "Who comes when", "Rooms", "Meters", "Analysis"]
+SECONDARY = ["One room", "Camera health", "Look at the rooms",
+             "Numbers & history"]
+VIEWS = PRIMARY + SECONDARY
+if st.session_state.get("view") not in VIEWS:
+    st.session_state["view"] = "Overview"
+clicked = st.query_params.get("room")
+if clicked and st.session_state.get("_came_from") != clicked:
+    st.session_state["_came_from"] = clicked
+    st.session_state["view"] = "One room"
 
-if acting.empty:
-    st.markdown(
-        '<div style="background:%s;border:1px solid %s;'
-        'border-left:6px solid %s;border-radius:13px;padding:15px 19px;'
-        'margin-bottom:12px;">'
-        '<div style="font-size:1.1rem;font-weight:740;color:%s;">'
-        'Nothing to do right now</div>'
-        '<div style="font-size:.78rem;color:%s;opacity:.8;margin-top:2px;">'
-        'Every air-conditioned room is either in use or has not been empty long'
-        ' enough to be worth a walk.</div></div>'
-        % (GOOD_BG, GOOD_LINE, GOOD_FG, GOOD_FG, GOOD_FG),
-        unsafe_allow_html=True)
-else:
-    st.markdown(
-        '<div style="display:flex;align-items:baseline;gap:10px;'
-        'margin:2px 0 8px;">'
-        '<span style="font-size:1.3rem;font-weight:780;color:#9B2C2C;">'
-        'Go and check %d room%s</span>'
-        '<span style="font-size:.73rem;color:#8A949A;">empty past its own'
-        ' threshold, with a unit in it</span></div>'
-        % (len(acting), "" if len(acting) == 1 else "s"),
-        unsafe_allow_html=True)
-    for group, title, note in (
-            (in_frame, "Unit is in frame",
-             "the camera can see this one; once it is calibrated these will"
-             " say whether it was actually running"),
-            (out_of_frame, "Unit is out of frame",
-             "the camera cannot see it, so somebody has to walk past and"
-             " look")):
-        if group.empty:
-            continue
-        st.markdown(
-            '<div style="font-size:.66rem;letter-spacing:.13em;color:#8A949A;'
-            'margin:9px 0 5px;">%s &middot; <span style="letter-spacing:0;'
-            'text-transform:none;">%s</span></div>'
-            '<div style="display:flex;flex-wrap:wrap;gap:12px;">%s</div>'
-            % (title.upper(), note,
-               "".join(linked(room_card(row, recent, now), row["room"])
-                       for _, row in group.iterrows())),
-            unsafe_allow_html=True)
 
-if not silent_rooms.empty:
-    # A different job for a different person. A room nobody could see is not a
-    # room to go and stand in, so it stays off the walking list.
-    st.markdown(
-        '<div style="background:#171E24;border:1px solid #2B343B;'
-        'border-radius:10px;padding:9px 13px;margin:9px 0 4px;font-size:.78rem;'
-        'color:#9AA4AA;"><b>%d camera%s not answering</b> &mdash; %s. Reported'
-        ' as unknown rather than empty, because nobody looked.</div>'
-        % (len(silent_rooms), "" if len(silent_rooms) == 1 else "s",
-           ", ".join(silent_rooms["room"])), unsafe_allow_html=True)
+def _picked_primary():
+    picked = st.session_state.get("nav_primary")
+    if picked:
+        st.session_state["view"] = picked
 
-st.divider()
 
-# ---- the chosen view ------------------------------------------------------
+def _go(target):
+    st.session_state["view"] = target
 
-if hunt:
-    found = df[df["room"].str.contains(hunt, case=False, na=False)]
-    if found.empty:
-        st.info("No room here matches %r." % hunt)
+
+current = st.session_state["view"]
+st.session_state["nav_primary"] = current if current in PRIMARY else None
+nav_col, more_col = st.columns([6, 1], vertical_alignment="center")
+with nav_col:
+    if hasattr(st, "segmented_control"):
+        st.segmented_control("View", PRIMARY, key="nav_primary",
+                             on_change=_picked_primary,
+                             label_visibility="collapsed")
     else:
-        st.markdown(
-            '<div style="font-size:.8rem;color:#8A949A;margin-bottom:6px;">'
-            '%d room%s matching “%s”</div>%s'
-            % (len(found), "" if len(found) == 1 else "s", hunt,
-               "".join(linked(status_row(row), row["room"])
-                       for _, row in found.iterrows())),
-            unsafe_allow_html=True)
-    st.divider()
+        if st.session_state["nav_primary"] is None:
+            st.session_state["nav_primary"] = PRIMARY[0]
+        st.radio("View", PRIMARY, key="nav_primary", horizontal=True,
+                 on_change=_picked_primary, label_visibility="collapsed")
+with more_col:
+    label = current if current in SECONDARY else "More"
+    with stretch(st.popover, label):
+        for target in SECONDARY:
+            stretch(st.button, target, key="go_" + target, on_click=_go,
+                    args=(target,),
+                    type="primary" if target == current else "secondary")
+view = st.session_state["view"]
+
+if view == "Overview":
+    import analysis_view as av
+
+    st.markdown(overview.campus_body(front_figures(campus), mode, LINK_BASE,
+                                     tariff=av.peak_window(assumptions)),
+                unsafe_allow_html=True)
+    st.stop()
+
+cooled = df[df["has_unit"]]
+# Rooms whose cooling is a choice. The server rooms have units and sit empty
+# nearly always, and their empty hours are what keeps the equipment alive, so
+# counting them here would put money against something nobody should switch
+# off.
+discretionary = cooled[cooled["alerts"]]
+at_stake = money(
+    wasted_minutes(recent, discretionary["room"],
+                   now - pd.Timedelta(hours=DETAIL_HOURS), now),
+    assumptions)[1]
+stake_note = stake_caveat(list(discretionary["room"]))
+saved, span, enough = against_baseline(month, discretionary["room"], now,
+                                       assumptions)
+acting = df[df["level"].isin(["Red", "Amber"])]
 
 if view == "Rooms":
+    hunt = st.text_input("Find a room", placeholder="name or part of one")
+    if hunt:
+        found = df[df["room"].str.contains(hunt, case=False, na=False)]
+        if found.empty:
+            st.info("No room here matches %r." % hunt)
+        else:
+            st.markdown(
+                '<div style="font-size:.8rem;color:%s;margin-bottom:6px;">'
+                '%d room%s matching “%s”</div>%s'
+                % (MUTED, len(found), "" if len(found) == 1 else "s", hunt,
+                   "".join(linked(status_row(row), row["room"])
+                           for _, row in found.iterrows())),
+                unsafe_allow_html=True)
+        st.divider()
     st.markdown(
         '<div style="display:flex;align-items:baseline;gap:10px;'
         'margin:0 0 6px;"><span style="font-size:1.1rem;font-weight:720;">'
-        'Every room</span><span style="font-size:.72rem;color:#8A949A;">'
+        'Every room</span><span style="font-size:.72rem;color:%s;">'
         '%d rooms &middot; who is in it, what its unit is doing, and its last'
-        ' %d hours</span></div>' % (len(df), STRIP_HOURS),
+        ' %d hours</span></div>' % (MUTED, len(df), STRIP_HOURS),
         unsafe_allow_html=True)
     zones = [z for z in ZONE_ORDER if z in set(df["zone"])] + \
         sorted(set(df["zone"]) - set(ZONE_ORDER))
@@ -3109,9 +3104,9 @@ if view == "Rooms":
             note = (' <span style="letter-spacing:0;text-transform:none;">'
                     '&middot; cooled on purpose, never flagged</span>')
         halves[index % 2].markdown(
-            '<div style="font-size:.63rem;letter-spacing:.14em;color:#8A949A;'
+            '<div style="font-size:.63rem;letter-spacing:.14em;color:%s;'
             'margin:11px 0 4px;">%s &middot; %d%s</div>%s'
-            % (zone.upper(), len(here), note,
+            % (MUTED, zone.upper(), len(here), note,
                "".join(linked(status_row(row), row["room"])
                        for _, row in here.iterrows())),
             unsafe_allow_html=True)
@@ -3119,18 +3114,17 @@ if view == "Rooms":
     # been calibrated, which stayed on the page after the first one was --
     # so the page was telling the reader to disregard the very badge it had
     # just started filling in.
-    cooled = df[df["has_unit"]]
     known = int(cooled["ac_state"].notna().sum()) if len(cooled) else 0
     if known == 0:
-        units = ("Every AC badge reads \u201c?\u201d because no unit has been"
-                 " calibrated yet \u2014 that is unknown, not off.")
+        units = ("Every AC badge reads “?” because no unit has been"
+                 " calibrated yet — that is unknown, not off.")
     elif known < len(cooled):
         units = ("%d of %d units are calibrated and read on or off; the rest"
-                 " show \u201c?\u201d, which is unknown, not off."
+                 " show “?”, which is unknown, not off."
                  % (known, len(cooled)))
     else:
         units = "Every unit is calibrated, so each badge is a reading."
-    st.caption("The bar on each row is the last %d hours: green where people"
+    st.caption("The bar on each row is the last %d hours: blue where people"
                " were seen, grey where the room was empty, pale where nothing"
                " was recorded. %s Rooms with no unit show a dash, because"
                " there is nothing in them to be off." % (STRIP_HOURS, units))

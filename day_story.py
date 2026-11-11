@@ -44,11 +44,33 @@ EARLY_GAP = timedelta(minutes=30)
 BEAT_GAP = timedelta(minutes=10)
 
 
+# One page asks the same question of the same heartbeats for every room: a
+# campus of forty-five rooms asked it ninety times, and comparing three
+# thousand timestamps one by one each time was most of the three seconds the
+# front page took to draw. The answer depends only on the beats and the
+# window, so it is worked out once. The beats are kept alongside the answer
+# so the key's id() cannot be handed to a different list after this one is
+# gone.
+_WATCHED = {}
+
+
 def watched(beats, start, end):
     """The stretches of [start, end) the loop was running for."""
     if beats is None:
         return [(start, end)]
-    stamps = sorted(b for b in beats if start - BEAT_GAP <= b <= end + BEAT_GAP)
+    key = (id(beats), len(beats), start, end)
+    hit = _WATCHED.get(key)
+    if hit is not None and hit[0] is beats:
+        return list(hit[1])
+    if len(beats):
+        index = pd.DatetimeIndex(beats)
+        if index.tz is None:
+            index = index.tz_localize("UTC")
+        lo = pd.Timestamp(start - BEAT_GAP)
+        hi = pd.Timestamp(end + BEAT_GAP)
+        stamps = list(index[(index >= lo) & (index <= hi)].sort_values())
+    else:
+        stamps = []
     out = []
     for stamp in stamps:
         a, b = max(start, stamp - BEAT_GAP / 2), min(end, stamp + BEAT_GAP / 2)
@@ -58,6 +80,9 @@ def watched(beats, start, end):
             out[-1] = (out[-1][0], max(out[-1][1], b))
         else:
             out.append((a, b))
+    if len(_WATCHED) > 256:
+        _WATCHED.clear()
+    _WATCHED[key] = (beats, list(out))
     return out
 
 
@@ -74,15 +99,19 @@ def spells(events, start, end, beats=None):
     before = rows[rows["timestamp"] < start].tail(1)
     inside = rows[(rows["timestamp"] >= start) & (rows["timestamp"] < end)]
     rows = pd.concat([before, inside])
+    # Columns as plain lists: reading a row at a time through .iloc was a
+    # tenth of a second a campus, for nothing.
+    stamps = rows["timestamp"].tolist()
+    states = rows["status"].tolist()
+    counts = rows["people"].tolist()
     raw = []
-    for i in range(len(rows)):
-        r = rows.iloc[i]
-        a = max(r["timestamp"], start)
-        b = rows.iloc[i + 1]["timestamp"] if i + 1 < len(rows) else end
+    for i in range(len(stamps)):
+        a = max(stamps[i], start)
+        b = stamps[i + 1] if i + 1 < len(stamps) else end
         b = min(b, end)
         if a < b:
-            people = r["people"] if pd.notna(r["people"]) else 0
-            raw.append([r["status"], int(people), a, b])
+            people = counts[i] if pd.notna(counts[i]) else 0
+            raw.append([states[i], int(people), a, b])
     if not raw or raw[0][2] > start:
         raw.insert(0, ["unknown", 0, start, raw[0][2] if raw else end])
 
