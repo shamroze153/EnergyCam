@@ -316,6 +316,150 @@ def timeline(pieces, start, end):
     return '<div class="ev-line">%s</div>' % "".join(bars)
 
 
+def week(events, rooms, days, hours, now, beats, which=WORKING):
+    """Each room's empty minutes, day by day, over several days.
+
+    Returns rows sorted like ledger's -- rooms somebody could act on first,
+    emptiest first -- each with `cells`: per day (empty, watched) minutes,
+    or None for a day with nothing to count (a Sunday's working hours).
+    """
+    by_room = {}
+    for day in days:
+        spans = windows_for(day, hours, now, which)
+        if not spans:
+            for _, r in rooms.iterrows():
+                by_room.setdefault(r["room"], []).append(None)
+            continue
+        alive = watched(beats, spans[0][0], spans[-1][1])
+        for r in ledger(events, rooms, spans, alive):
+            by_room.setdefault(r["room"], []).append((r["empty"], r["seen"]))
+    out = []
+    for _, r in rooms.iterrows():
+        cells = by_room.get(r["room"], [])
+        out.append({
+            "room": r["room"], "zone": r.get("zone"),
+            "alerts": bool(r.get("alerts", True)),
+            "has_unit": bool(r.get("has_unit")),
+            "cells": cells,
+            "empty": sum(c[0] for c in cells if c),
+            "seen": sum(c[1] for c in cells if c),
+        })
+    out.sort(key=lambda x: (not x["alerts"], -x["empty"], x["room"]))
+    return out
+
+
+WEEK_CSS = """<style>
+.ew{display:grid;grid-template-columns:minmax(130px,200px) repeat(%(n)d,1fr) 86px;
+gap:4px;align-items:center}
+.ew .hd{font-size:11px;color:var(--t3);text-align:center;padding-bottom:4px}
+.ew .hd.l{text-align:left}.ew .hd.r{text-align:right}
+.ew .nm{display:block;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;
+text-overflow:ellipsis}
+.ew .cl{height:30px;border-radius:7px;display:flex;align-items:center;
+justify-content:center;font-size:11px;font-variant-numeric:tabular-nums}
+.ew .cl.x{color:var(--t3)}
+.ew .tt{text-align:right;font-weight:700;font-size:13px;
+font-variant-numeric:tabular-nums}
+.ew .tt span{display:block;font-size:10.5px;color:var(--t3);font-weight:400}
+@media (max-width:760px){.ew{grid-template-columns:96px repeat(%(n)d,1fr) 54px;
+gap:3px}.ew .cl{font-size:9.5px;height:26px}.ew .nm{font-size:11.5px}}
+</style>"""
+
+
+def now_block(now_rows, base):
+    """The chips: rooms with a unit, empty right now, longest first."""
+    h = ['<div class="ec-h" style="margin-top:6px"><span class="t">Empty '
+         'right now</span><span class="c">rooms with a unit somebody could'
+         ' switch off, longest first</span></div>']
+    if not now_rows:
+        h.append('<div class="ec-card ec-calm">No room with a unit is empty '
+                 'right now.</div>')
+        return "".join(h)
+    chips = []
+    for r in now_rows[:12]:
+        unit = {"on": "unit read ON", "off": "unit read off"}.get(
+            r["ac_state"], "unit not read")
+        chips.append(
+            '<a class="ev-chip" target="_self" href="%s#roomdetail">'
+            '<b>%s</b><span class="d">%s</span><span class="s">since %s'
+            ' &middot; %s</span></a>'
+            % (esc(ov.link(base, room=r["room"])), esc(ov.short(r["room"])),
+               span(r["minutes"]), esc(ov.clock(r["since"])), unit))
+    more = len(now_rows) - 12
+    h.append('<div class="ev-chips">%s</div>%s' % (
+        "".join(chips), '<div class="en-note">and %d more.</div>' % more
+        if more > 0 else ""))
+    return "".join(h)
+
+
+def week_page(theme, rows, days, now_rows, window_text, base):
+    """Several days side by side: one row a room, one cell a day."""
+    c = colours(theme)
+    n = len(days)
+    h = [ev.css(theme), EXTRA % c, WEEK_CSS % {"n": n}, '<div class="ec">',
+         now_block(now_rows, base)]
+    acting = [r for r in rows if r["alerts"] and r["seen"] > 0]
+    h.append('<div class="ec-h"><span class="t">The last %d days</span>'
+             '<span class="c">%s &middot; time each room sat empty while '
+             'watched</span></div>' % (n, esc(window_text)))
+    if acting:
+        total = sum(r["empty"] for r in acting)
+        worst = max(acting, key=lambda r: r["empty"])
+        per_day = [sum(r["cells"][i][0] for r in acting if r["cells"][i])
+                   for i in range(n)]
+        busiest = max(range(n), key=lambda i: per_day[i])
+        h.append('<div class="en-tiles">')
+        h.append(ev.tile("Empty, all these rooms", span(total),
+                         "over %d days; two rooms for an hour is two hours"
+                         % n))
+        h.append(ev.tile("Emptiest over the week",
+                         esc(ov.short(worst["room"])),
+                         "%s empty of %s watched" % (span(worst["empty"]),
+                                                    span(worst["seen"]))))
+        h.append(ev.tile("Most empty time in a day",
+                         esc(pd.Timestamp(days[busiest]).strftime("%A")),
+                         "%s across these rooms" % span(per_day[busiest])))
+        h.append('</div>')
+    grid = ['<div class="ew"><div class="hd l">room</div>']
+    for d in days:
+        grid.append('<div class="hd">%s</div>'
+                    % esc(pd.Timestamp(d).strftime("%a %d")))
+    grid.append('<div class="hd r">empty</div>')
+    for r in rows:
+        grid.append('<a class="nm" target="_self" href="%s#roomdetail" '
+                    'title="%s">%s</a>'
+                    % (esc(ov.link(base, room=r["room"])), esc(r["room"]),
+                       esc(ov.short(r["room"]))))
+        for d, cell in zip(days, r["cells"]):
+            if cell is None:
+                grid.append('<div class="cl x" title="closed">&ndash;</div>')
+                continue
+            empty, seen = cell
+            if seen <= 0:
+                grid.append('<div class="cl x" title="not watched">&middot;'
+                            '</div>')
+                continue
+            share = empty / seen
+            alpha = 0.10 + 0.80 * share
+            ink = "#1a1300" if share > 0.55 else "var(--t1)"
+            grid.append(
+                '<div class="cl" style="background:rgba(232,162,26,%.2f);'
+                'color:%s" title="%s: %s empty of %s watched">%s</div>'
+                % (alpha, ink, esc(pd.Timestamp(d).strftime("%A %d %B")),
+                   span(empty), span(seen), span(empty) if empty >= 1
+                   else "0"))
+        grid.append('<div class="tt">%s<span>of %s</span></div>'
+                    % (span(r["empty"]), span(r["seen"])))
+    grid.append('</div>')
+    h.append('<div class="ec-card" style="margin-top:14px;padding:16px 18px">'
+             '%s</div>' % "".join(grid))
+    h.append('<div class="en-note">The deeper the colour, the more of the '
+             'watched time the room was empty. A dash is a day with no '
+             'working hours; a dot is a day the cameras were not read. Hover '
+             'a cell for its numbers.</div></div>')
+    return "".join(h)
+
+
 def page(theme, rows, now_rows, start, end, day_text, window_text, base,
          coverage=None):
     """The whole view: right now, then the day, room by room."""

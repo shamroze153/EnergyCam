@@ -54,3 +54,6 @@ Two or three lines a round; picture file names, never pictures.
   frame); they need a box drawn by hand on a frame with the unit on.
   Cameras turn infrared when rooms go dark, and a colour calibration is
   refused there by design, so OFF frames must be taken while lights are on.
+* 21:30 Empty time gets "Last 7 days": one row a room, one cell a day,
+  coloured by the share of watched time it sat empty. Checked on real data
+  (Old Finance Room 9h 34m of 15h watched is 140-H's emptiest this week).

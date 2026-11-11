@@ -113,6 +113,22 @@ def main():
     check("and is never called the emptiest room",
           "Emptiest</div><div class=\"v\">Board" in page2, True)
 
+    # The week: Sunday has no working hours; Monday and Tuesday do.
+    wk = events([("Board", pkt(21, day=8), "empty"),
+                 ("Board", pkt(12, day=9), "occupied"),
+                 ("Board", pkt(16, day=9), "empty")])
+    days = [date(2026, 11, 8), date(2026, 11, 9), date(2026, 11, 10)]
+    grid = evw.week(wk, rooms, days, None, pkt(23, day=10), None)
+    cells = grid[0]["cells"]
+    check("a Sunday's working hours are a closed day, not an empty one",
+          cells[0], None)
+    check("Monday: empty 10-12 and 16-20, six hours",
+          round(cells[1][0]), 360)
+    check("Tuesday: empty all ten working hours", round(cells[2][0]), 600)
+    check("and the week adds up", round(grid[0]["empty"]), 960)
+    wp = evw.week_page("light", grid, days, [], "working hours", {})
+    check("the week draws a cell a day", wp.count('class="cl') == 3, True)
+
     html = evw.page("dark", evw.ledger(ev, rooms, spans, alive), now_rows,
                     spans[0][0], spans[0][1], "Today", "working hours",
                     {"campus": "140-H"}, (432, 480))

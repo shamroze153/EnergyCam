@@ -1871,7 +1871,8 @@ def show_empty(df, now):
 
     local_today = now.tz_convert(PKT).date()
     days = [local_today - timedelta(days=k) for k in range(8)]
-    names = ["Today", "Yesterday"] + [d.strftime("%a %d %b") for d in days[2:]]
+    names = ["Today", "Yesterday", "Last 7 days"] + \
+        [d.strftime("%a %d %b") for d in days[2:]]
     c1, c2, c3 = st.columns([2, 3, 2])
     with c1:
         picked = st.selectbox("Day", names, index=0, key="empty_day")
@@ -1885,9 +1886,7 @@ def show_empty(df, now):
         scope = st.radio("Rooms", ["With a unit", "Every room"],
                          horizontal=True, key="empty_scope",
                          label_visibility="collapsed")
-    day = days[names.index(picked)]
     which = windows[which_label]
-    spans = evw.windows_for(day, hours, now, which)
     rooms_here = df if scope == "Every room" else df[df["has_unit"]]
     op = (hours or {}).get("operations", {})
     window_text = {
@@ -1895,6 +1894,25 @@ def show_empty(df, now):
                                                    op.get("end", "20:00")),
         evw.WHOLE: "the whole day, midnight to midnight",
         evw.AFTER: "before and after working hours"}[which]
+    if picked == "Last 7 days":
+        week_days = sorted(days[:7])
+        first = pd.Timestamp(year=week_days[0].year, month=week_days[0].month,
+                             day=week_days[0].day, tz=PKT).tz_convert("UTC")
+        try:
+            events = load_events_between(first, now)
+            beats = load_beats(first - evw.VOUCH, now + evw.VOUCH)
+        except psycopg2.Error as e:
+            st.error("Could not read the week (%s)." % type(e).__name__)
+            return
+        rows = evw.week(events, rooms_here, week_days, hours, now, beats,
+                        which)
+        st.markdown(evw.week_page(LINK_BASE.get("theme") or "dark", rows,
+                                  week_days, evw.empty_now(df, now),
+                                  window_text, LINK_BASE),
+                    unsafe_allow_html=True)
+        return
+    day = days[[n for n in names if n != "Last 7 days"].index(picked)]
+    spans = evw.windows_for(day, hours, now, which)
     if day == local_today:
         window_text += ", so far"
     day_text = "%s, %s" % (picked if picked in ("Today", "Yesterday")
