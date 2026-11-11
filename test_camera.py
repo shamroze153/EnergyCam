@@ -30,6 +30,10 @@ import cv2  # noqa: E402  (must follow the env var above)
 PATHS = {
     "hikvision": lambda ch, main: "/Streaming/Channels/%d%02d" % (
         ch, 1 if main else 2),
+    # The path older Hikvision firmware used, and that many white-label
+    # DVRs speaking "Hikvision" still answer on instead of the one above.
+    "hik-old": lambda ch, main: "/h264/ch%d/%s/av_stream" % (
+        ch, "main" if main else "sub"),
     "dahua": lambda ch, main: "/cam/realmonitor?channel=%d&subtype=%d" % (
         ch, 0 if main else 1),
     "uniview": lambda ch, main: "/unicast/c%d/s%d/live" % (
