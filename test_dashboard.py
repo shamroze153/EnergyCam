@@ -260,6 +260,17 @@ def check_why_unreachable(namespace):
         ("connection refused\n\tIs the server running on that host?",
          "port"),
         ('FATAL:  no pg_hba.conf entry for host "1.2.3.4"', "DB_SSLMODE"),
+        # Seen on the laptop, 11 Nov, with the Wi-Fi off and only the
+        # camera cable in: the page said it recognised nothing.
+        ('connection to server at "aws-0-nowhere.pooler.supabase.com"'
+         ' (1.2.3.4), port 5432 failed: Network is unreachable', "Wi-Fi"),
+        ("could not connect: A socket operation was attempted to an"
+         " unreachable network (0x00002743/10051)", "Wi-Fi"),
+        ("FATAL: (EMAXCONNSESSION) max clients reached in session mode",
+         "extra copies"),
+        ("server closed the connection unexpectedly", "comes back"),
+        ("SSL SYSCALL error: EOF detected", "comes back"),
+        ("FATAL: Tenant or user not found", "role.projectref"),
     ]
     for message, wanted in cases:
         verdict = why(Exception(message))
@@ -270,6 +281,19 @@ def check_why_unreachable(namespace):
                        "aws-0-nowhere"):
             check("  and it does not repeat %s" % secret,
                   secret not in verdict, verdict[:90])
+
+    masked = namespace["masked_text"]
+    url = ("postgresql://energycam_dashboard.abcdefgh:s3cr%40t@"
+           "aws-0-nowhere.pooler.supabase.com:5432/postgres")
+    said = masked(Exception(
+        'connection to server at "aws-0-nowhere.pooler.supabase.com"'
+        ' (13.200.1.7), port 5432 failed: FATAL: password authentication'
+        ' failed for user "energycam_dashboard.abcdefgh" s3cr@t'), url)
+    for secret in ("aws-0-nowhere", "13.200.1.7", "abcdefgh",
+                   "energycam_dashboard", "s3cr@t"):
+        check("the shown message hides %s" % secret, secret not in said, said)
+    check("and keeps what went wrong",
+          "password authentication failed" in said, said)
 
     unknown = why(Exception("something nobody has seen before"))
     check("an unrecognised failure says so rather than guessing",

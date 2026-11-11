@@ -229,9 +229,37 @@ def why_unreachable(e):
         return ("The role or the database named in the connection string"
                 " does not exist. If the roles were never created, that is"
                 " sql/02_roles.sql, then sql/04_rooms.sql for the grants.")
+    if "tenant or user not found" in text:
+        return ("The pooler does not know this user. Through the pooler the"
+                " user name is role.projectref -- the role, a dot, then the"
+                " project's reference -- not the bare role name.")
+    if "circuit breaker" in text:
+        return ("The pooler has stopped accepting this login for a few"
+                " minutes after too many failed attempts. Wait five minutes;"
+                " if it comes back, the password is wrong.")
     if "could not translate host name" in text or "nodename nor" in text:
-        return ("The host name does not resolve, so it is mistyped or it is"
-                " not the address this project uses.")
+        return ("The host name does not resolve: either this machine is not"
+                " on the internet right now, or the address is mistyped."
+                " Check the internet first -- the camera cable carries no"
+                " internet, only the Wi-Fi does.")
+    if ("network is unreachable" in text or "no route to host" in text
+            or "unreachable network" in text or "10051" in text
+            or "10065" in text):
+        return ("This machine cannot reach the internet right now. The camera"
+                " cable carries no internet; check that the Wi-Fi is on and"
+                " connected. The page tries again by itself every thirty"
+                " seconds.")
+    if ("max client" in text or "emaxconn" in text or "too many clients" in text
+            or "remaining connection slots" in text):
+        return ("The database has too many connections open at once. Close"
+                " any extra copies of this page -- each open tab asks for its"
+                " own -- and it clears within a minute.")
+    if ("server closed the connection" in text or "connection reset" in text
+            or "connection abort" in text or "could not receive data" in text
+            or "eof detected" in text or "10053" in text or "10054" in text):
+        return ("The connection dropped part way: the internet blinked, or the"
+                " database restarted. It usually comes back by itself; this"
+                " page tries again every thirty seconds.")
     if "timeout" in text or "timed out" in text:
         return ("Nothing answered in time. From a host, this is usually"
                 " Supabase's direct address, which answers only on IPv6 --"
@@ -245,6 +273,42 @@ def why_unreachable(e):
     return ("The driver gave no cause this page recognises. Running the"
             " same connection string from the office machine will show the"
             " message in full, where it is safe to read.")
+
+
+def masked_text(e, url):
+    """The driver's own words, with everything that identifies the database
+    taken out.
+
+    The verdict above is a guess from the text; this is the text. With the
+    host, the user, the password and any address replaced by stars, what
+    is left -- "Network is unreachable", "max clients reached" -- says what
+    went wrong and nothing about where the database lives, so it can be
+    shown, photographed and pasted into a chat.
+    """
+    import re
+    from urllib.parse import unquote, urlparse
+
+    text = " ".join(str(e).split())
+    secrets = []
+    try:
+        parts = urlparse(url or "")
+        for part in (parts.hostname, parts.username, parts.password,
+                     (parts.path or "").lstrip("/")):
+            if part:
+                secrets += [part, unquote(part)]
+        if parts.username:
+            secrets += unquote(parts.username).split(".")
+    except ValueError:
+        pass
+    keep = {"postgres"}          # the default database: it names nothing
+    for secret in sorted({x for x in secrets if x and len(x) >= 3
+                          and x not in keep}, key=len, reverse=True):
+        text = text.replace(secret, "***")
+    text = re.sub(r"\b\d{1,3}(?:\.\d{1,3}){3}\b", "*.*.*.*", text)
+    text = re.sub(r"\b(?:[0-9a-fA-F]{1,4}:){3,7}[0-9a-fA-F]{0,4}\b", "*:*",
+                  text)
+    text = re.sub(r"[\w.-]+\.supabase\.(?:co|com)", "***", text)
+    return text[:400]
 
 
 def connection_hint(url):
@@ -2871,11 +2935,11 @@ except psycopg2.Error as e:
             " sql/02_roles.sql to .env as `DASHBOARD_DATABASE_URL`. Do not"
             " widen the camera machine's grants to make this page work.")
     else:
-        st.error("Database unreachable (%s). The driver's own message is"
-                 " withheld because it carries the host, the user and the"
-                 " database name.\n\n%s%s"
+        st.error("Database unreachable (%s).\n\n%s%s\n\nWhat the database"
+                 " said, with its address and the user hidden:\n\n`%s`"
                  % (type(e).__name__, why_unreachable(e),
-                    connection_hint(DATABASE_URL)))
+                    connection_hint(DATABASE_URL),
+                    masked_text(e, DATABASE_URL).replace("`", "'")))
     st.stop()
 
 now = pd.Timestamp.now(tz="UTC")
