@@ -144,6 +144,7 @@ def story(day, start):
     result["peak"], result["peak_at"] = most[2], most[3]
 
     first = found[0]
+    rest = found
     if (len(found) > 1 and not result["carried"]
             and first[1] - first[0] <= EARLY_MAX
             and found[1][0] - first[1] >= EARLY_GAP):
@@ -151,9 +152,20 @@ def story(day, start):
                            "people": first[2],
                            "empty_after_min":
                                (found[1][0] - first[1]).total_seconds() / 60}
-        result["starts"] = found[1][0]
-    else:
+        rest = found[1:]
+    # The day starts with the first visit somebody stayed for. A room that
+    # only saw the office boy twice has not started a day at all: the
+    # first version called his second cup of tea at 11:00 the start of
+    # HR's day, with a "busy stretch" round it.
+    brief, _ = kinds(rest)
+    stays = [v for v in rest if v not in brief]
+    if result["carried"]:
         result["starts"] = first[0]
+    elif stays:
+        result["starts"] = stays[0][0]
+    else:
+        result["starts"] = None
+        result["early"] = None
     return result
 
 
@@ -178,22 +190,35 @@ def hourly(day, start):
 LOCAL = "Asia/Karachi"
 
 
-def clock(ts):
-    """9:05 AM -- twelve-hour, no leading zero, which is how it is said.
+# Parts of the day, as they are said. AM and PM were asked to go: "9:05
+# AM" against "9:05 PM" is one letter apart and was being misread, where
+# "9:05 morning" and "9:05 night" are not.
+PARTS = [("night", 0, 5), ("morning", 5, 12), ("afternoon", 12, 17),
+         ("evening", 17, 21), ("night", 21, 24)]
 
-    In Karachi time whatever the timestamp arrives in. The database hands
-    back UTC, and the first render of this page put the cleaner at 2:08 AM
-    instead of 7:08 -- five hours out, on every time on the page. The
-    checks had built their timestamps in Karachi time already, so they
-    could not see it; they now also feed it UTC.
+
+def part_of(hour):
+    for name, a, b in PARTS:
+        if a <= hour < b:
+            return name
+    return "night"
+
+
+def clock(ts):
+    """9:05 morning, 7:40 evening, 2:30 night -- the way a time is said.
+
+    Twelve-hour, in Karachi time whatever the timestamp arrives in. The
+    database hands back UTC, and the first render of this page put the
+    cleaner at 2:08 instead of 7:08 -- five hours out, on every time on the
+    page. The checks build their timestamps both ways now.
     """
     if ts is None:
-        return "—"
+        return "\u2014"
     ts = pd.Timestamp(ts)
     if ts.tzinfo is not None:
         ts = ts.tz_convert(LOCAL)
     h, m = ts.hour, ts.minute
-    return "%d:%02d %s" % (h % 12 or 12, m, "AM" if h < 12 else "PM")
+    return "%d:%02d %s" % (h % 12 or 12, m, part_of(h))
 
 
 def spell(minutes):
@@ -202,3 +227,90 @@ def spell(minutes):
         return "%dm" % minutes
     h, m = divmod(minutes, 60)
     return "%dh" % h if not m else "%dh %02dm" % (h, m)
+
+
+# A visit this short, by one or two people, is somebody passing through --
+# an office boy with tea, the cleaner, a guard on a round -- rather than
+# somebody working there. A visit shorter than one pass of the loop (two
+# or three minutes) is usually not seen at all, so these are a floor.
+BRIEF = timedelta(minutes=15)
+BRIEF_PEOPLE = 2
+BREAK_MIN = 5          # an empty stretch shorter than this is not a break
+
+
+def by_minute(day, start):
+    """1440 values: people in the room each minute, None where unwatched."""
+    out = [None] * 1440
+    for status, people, a, b in day:
+        if status == "unknown":
+            continue
+        i = max(0, int((a - start).total_seconds() // 60))
+        j = min(1440, int(-(-(b - start).total_seconds() // 60)))
+        for k in range(i, j):
+            out[k] = people if status == "occupied" else 0
+    return out
+
+
+def runs(values, test):
+    """(first, last+1) for every run of minutes where test(value) holds."""
+    found, begin = [], None
+    for i, v in enumerate(values + [None]):
+        if v is not None and test(v):
+            begin = i if begin is None else begin
+        elif begin is not None:
+            found.append((begin, i))
+            begin = None
+    return found
+
+
+def peak_stretch(mins):
+    """The busy part of the day, and how people came and went inside it.
+
+    The stretch runs from the first minute the room reached half its peak
+    to the last minute it still held that many -- for a one-person room,
+    simply from first in to last out. Inside it: how often the room
+    emptied completely for at least BREAK_MIN minutes, for how long in
+    total, the longest such break, and the longest unbroken stay. Its end
+    is when people started leaving for good.
+    """
+    seen = [v for v in mins if v]
+    if not seen:
+        return None
+    peak = max(seen)
+    half = max(1, -(-peak // 2))
+    hits = [i for i, v in enumerate(mins) if v is not None and v >= half]
+    a, b = hits[0], hits[-1] + 1
+    inside = mins[a:b]
+    gaps = [r for r in runs(inside, lambda v: v == 0) if r[1] - r[0] >= BREAK_MIN]
+    stays = runs(inside, lambda v: v > 0)
+    return {"from": a, "to": b, "half": half,
+            "breaks": len(gaps),
+            "away_min": sum(g[1] - g[0] for g in gaps),
+            "longest_break": max([g[1] - g[0] for g in gaps] or [0]),
+            "longest_stay": max([s_[1] - s_[0] for s_ in stays] or [0])}
+
+
+def kinds(found):
+    """Split visits into brief ones and stays."""
+    brief = [v for v in found if v[1] - v[0] <= BRIEF and v[2] <= BRIEF_PEOPLE]
+    return brief, [v for v in found if v not in brief]
+
+
+def parts(day, start):
+    """Per part of the day: busy share, brief visits, stays, most people."""
+    mins = by_minute(day, start)
+    found = visits(day)
+    out = []
+    for name, a, b in PARTS:
+        span = mins[a * 60:b * 60]
+        watched = sum(1 for v in span if v is not None)
+        busy = sum(1 for v in span if v)
+        lo, hi = start + timedelta(hours=a), start + timedelta(hours=b)
+        here = [v for v in found if lo <= v[0] < hi]
+        brief, stays = kinds(here)
+        out.append({"part": name, "from": a, "to": b,
+                    "watched": watched,
+                    "busy_pct": (100.0 * busy / watched) if watched else None,
+                    "brief": len(brief), "stays": len(stays),
+                    "most": max([v for v in span if v] or [0])})
+    return out

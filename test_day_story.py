@@ -56,10 +56,10 @@ def main():
     busy = (18 + 10 * 60 + 10) / (24 * 60) * 100
     check("busy share of the whole watched day",
           abs(s["busy_pct"] - busy) < 0.1, s["busy_pct"])
-    check("in twelve-hour time", ds.clock(s["starts"]) == "9:05 AM",
+    check("in twelve-hour time", ds.clock(s["starts"]) == "9:05 morning",
           ds.clock(s["starts"]))
-    check("and in the evening", ds.clock(s["last_out"]) == "7:15 PM")
-    check("midnight reads 12, not 0", ds.clock(at(0, 5)) == "12:05 AM")
+    check("and in the evening", ds.clock(s["last_out"]) == "7:15 evening")
+    check("midnight reads 12, not 0", ds.clock(at(0, 5)) == "12:05 night")
 
     # The database hands back UTC. The page first showed the cleaner at
     # 2:08 AM instead of 7:08 because the clock read UTC hours.
@@ -67,10 +67,77 @@ def main():
     s_utc = ds.story(ds.spells(utc, DAY, END), DAY)
     check("UTC rows give the same story",
           s_utc["starts"] == at(9, 5) and s_utc["early"] is not None)
-    check("and the clock still says 9:05 AM, not 4:05 AM",
-          ds.clock(s_utc["starts"]) == "9:05 AM", ds.clock(s_utc["starts"]))
-    check("the cleaner reads 7:10 AM", ds.clock(s_utc["first_in"]) == "7:10 AM",
+    check("and the clock still says 9:05 AM, not 4:05 morning",
+          ds.clock(s_utc["starts"]) == "9:05 morning", ds.clock(s_utc["starts"]))
+    check("the cleaner reads 7:10 AM", ds.clock(s_utc["first_in"]) == "7:10 morning",
           ds.clock(s_utc["first_in"]))
+
+    check("noon is the afternoon", ds.clock(at(12, 30)) == "12:30 afternoon")
+    check("half past nine at night is night",
+          ds.clock(at(21, 30)) == "9:30 night")
+
+    # Peak stretch: from reaching half the peak to the last minute at it.
+    # The room hit 6 at 11:30 and held at least 3 until it dropped to
+    # empty at 19:15, so people started leaving for good at 19:15.
+    mins = ds.by_minute(ds.spells(room, DAY, END), DAY)
+    p = ds.peak_stretch(mins)
+    check("the peak stretch starts when the room first held three",
+          p["from"] == 10 * 60, p["from"])
+    check("and ends when it emptied for the evening",
+          p["to"] == 19 * 60 + 15, p["to"])
+    check("nobody went out mid-stretch, so no breaks", p["breaks"] == 0, p)
+
+    # Breaks inside the stretch: lunch, and a short dip that is not one.
+    lunch = events([(at(-3), "empty", 0), (at(9, 0), "occupied", 2),
+                    (at(13, 0), "empty", 0), (at(13, 40), "occupied", 2),
+                    (at(15, 0), "empty", 0), (at(15, 3), "occupied", 2),
+                    (at(18, 0), "empty", 0)])
+    p = ds.peak_stretch(ds.by_minute(ds.spells(lunch, DAY, END), DAY))
+    check("a forty-minute lunch is one break", p["breaks"] == 1, p)
+    check("of forty minutes", p["away_min"] == 40, p["away_min"])
+    check("a three-minute dip is not a break", p["longest_break"] == 40, p)
+    check("the longest unbroken stay is the morning, four hours",
+          p["longest_stay"] == 240, p["longest_stay"])
+
+    # Office boys: one person in and out in minutes, several times a day.
+    tea = events([(at(-3), "empty", 0), (at(8, 0), "occupied", 1),
+                  (at(8, 6), "empty", 0), (at(11, 0), "occupied", 1),
+                  (at(11, 4), "empty", 0), (at(16, 0), "occupied", 1),
+                  (at(16, 5), "empty", 0)])
+    day = ds.spells(tea, DAY, END)
+    brief, stays = ds.kinds(ds.visits(day))
+    check("three short single-person visits are brief", len(brief) == 3,
+          len(brief))
+    check("and none of them is a stay", len(stays) == 0, len(stays))
+    by_part = {(x["part"], x["from"]): x for x in ds.parts(day, DAY)}
+    check("two in the morning", by_part[("morning", 5)]["brief"] == 2,
+          by_part[("morning", 5)])
+    check("one in the afternoon", by_part[("afternoon", 12)]["brief"] == 1)
+    s_tea = ds.story(day, DAY)
+    check("a room with only brief visits has no day start",
+          s_tea["starts"] is None, s_tea["starts"])
+    check("and no early visit either -- there was no day to be early for",
+          s_tea["early"] is None, s_tea["early"])
+    check("but still records who came first", s_tea["first_in"] == at(8, 0))
+
+    # The office boy before the staff is skipped over, not taken as the start.
+    before = events([(at(-3), "empty", 0), (at(8, 50), "occupied", 1),
+                     (at(8, 54), "empty", 0), (at(9, 5), "occupied", 3),
+                     (at(17, 0), "empty", 0)])
+    s_b = ds.story(ds.spells(before, DAY, END), DAY)
+    check("tea at 8:50 then staff at 9:05: the day starts at 9:05",
+          s_b["starts"] == at(9, 5), s_b["starts"])
+
+    desk = events([(at(-3), "empty", 0), (at(9, 0), "occupied", 1),
+                   (at(17, 0), "empty", 0)])
+    brief, stays = ds.kinds(ds.visits(ds.spells(desk, DAY, END)))
+    check("one person all day is a stay, not an office boy",
+          len(stays) == 1 and len(brief) == 0)
+    crowd = events([(at(-3), "empty", 0), (at(12, 0), "occupied", 6),
+                    (at(12, 10), "empty", 0)])
+    brief, stays = ds.kinds(ds.visits(ds.spells(crowd, DAY, END)))
+    check("six people for ten minutes is a meeting, not an office boy",
+          len(brief) == 0)
 
     # A first visit long enough to be work is not "early".
     long_first = events([(at(-3), "empty", 0), (at(8, 0), "occupied", 2),
