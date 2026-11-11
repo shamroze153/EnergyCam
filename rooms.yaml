@@ -981,6 +981,12 @@ rooms:
     # 12 Nov 02:15 night check: a round cushion on the glass ledge read as
     # a person at 0.32. A sitting area, so a night-only bar, not a zone.
     conf_after_hours: 0.40
+    # 04:15: the same cushion at 0.61 (a MISSED in verify_live). It sits on
+    # top of a glass display ledge, not on the floor where people sit, so
+    # it gets a zone after all; somebody in front of it is a bigger box.
+    ignore:
+      15:
+        - [170, 155, 340, 370]   # cushion on the glass ledge, 0.32-0.61
 
   - name: H Stairs
     zone: H common
@@ -1641,9 +1647,14 @@ rooms:
     # 11 Nov, field_audit 17:14: ch 10 looks through the glass wall at the
     # reception desk, and the receptionist was counted (0.73) as somebody in
     # this meeting room. Real person, wrong room -- the desk is zoned.
+    # 12 Nov 04:15: that zone was written on the 1920x1080 picture, but the
+    # loop reads ch10 at 640x360, where [330,150,620,520] lands on this
+    # room's own table and chairs (lower right) and hid anybody sitting
+    # there, while the desk beyond the glass (upper left) was still counted:
+    # a chair there read 0.43 at night. The same zone, a third the size.
     ignore:
       10:
-        - [330, 150, 620, 520]
+        - [108, 44, 212, 178]      # reception desk beyond the glass
     ac: hidden
     empty_after_minutes: 30
 

@@ -92,3 +92,12 @@ Two or three lines a round; picture file names, never pictures.
   0.32 -> 0.40. Creative Room chair at 0.42 is over its 0.40 night bar,
   but its real people under the purple light score below 0.40, so left
   for Shamroze (frames/Creative_Room_dvr2_ch04_boxes.jpg). Loop restarted.
+* 04:15 round 6: 2 MISSED, both objects, not people: Room 18 a jacket on
+  a chair at 0.58 (the loop rightly read empty; no change), H First Floor
+  Sitting Area the cushion on the glass ledge at 0.61 -> zone. A real bug:
+  141 Reception Meeting Room's zone [330,150,620,520] was drawn on 1920x1080
+  but ch10 is read at 640x360, so it covered the room's own table and hid
+  people sitting there, while the desk beyond the glass was still counted.
+  Now [108,44,212,178] (checked: desk dropped, table kept). Every other
+  zone checked against its real frame size: all inside. Outdoor ghosts
+  (Solar Array, parkings) left. Loop restarted.
