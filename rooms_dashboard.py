@@ -968,33 +968,28 @@ def head_count_parts(df, beat_age):
     """
     import campus_view
 
-    # Three headcounts, not two. "Inside" used to mean anywhere that is not
-    # outside, so the lobbies, the reception, the stairs and the cafe were
-    # all added to the figure people read as "in the offices" -- 35 at
-    # night, of whom 10 or 12 were actually at a desk. The figure that
-    # matters for the cooling is the offices one, so that is the headline.
+    # Two headcounts: the office, which is everything indoors, and the
+    # perimeter. The street, the car parks and the smoking area used to be
+    # added into the one figure, which read 35 at night with a dozen people
+    # actually inside.
     where = [campus_view.place(r, z) for r, z in zip(df["room"], df["zone"])]
     df = df.assign(_place=where)
     busy = df[df["status"] == "occupied"]
-
-    def heads(kind):
-        return int(busy[busy["_place"] == kind]["people"].fillna(0).sum())
-
-    office, common, outside = heads("office"), heads("common"), heads("outside")
+    office = int(busy[busy["_place"] == "office"]["people"].fillna(0).sum())
+    outside = int(busy[busy["_place"] == "outside"]["people"].fillna(0).sum())
     rooms_busy = int((busy["_place"] == "office").sum())
-    offices = df[df["_place"] == "office"]
-    quiet = int((offices["status"].isna()
-                 | (offices["status"] == "unknown")).sum())
+    indoors = df[df["_place"] == "office"]
+    quiet = int((indoors["status"].isna()
+                 | (indoors["status"] == "unknown")).sum())
 
     live = (beat_age is not None and beat_age <= STALE_AFTER_MINUTES)
-    label = "IN OFFICES RIGHT NOW" if live else "IN OFFICES WHEN LAST SEEN"
+    label = "IN OFFICE RIGHT NOW" if live else "IN OFFICE WHEN LAST SEEN"
     value = ("at least %d" % office) if quiet else str(office)
 
-    bits = ["%d office%s busy" % (rooms_busy, "" if rooms_busy == 1 else "s"),
-            "%d in lobbies & cafe" % common,
-            "%d outside" % outside]
+    bits = ["%d room%s busy" % (rooms_busy, "" if rooms_busy == 1 else "s"),
+            "%d outside, not counted" % outside]
     if quiet:
-        bits.append("%d office%s did not answer"
+        bits.append("%d room%s did not answer"
                     % (quiet, "" if quiet == 1 else "s"))
     return label, value, " \u00b7 ".join(bits)
 

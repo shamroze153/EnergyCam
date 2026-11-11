@@ -493,9 +493,10 @@ def check_head_count(namespace):
     parts = namespace["head_count_parts"]
     stale = namespace["STALE_AFTER_MINUTES"] + 1
 
-    # Last night, roughly: the campus total said 35 and a dozen were at a
-    # desk. The rest were the street, the car park and the lobby. The
-    # headline is the offices, and the other two sit beside it.
+    # Last night, roughly: the campus total said 35 and a dozen were inside.
+    # The perimeter -- street, car parks, smoking area, plant -- is counted
+    # apart and left out of the headline. Everything indoors is the office,
+    # lobbies and cafe included, which is how the campus is run.
     df = pd.DataFrame([
         {"room": "Marketing", "zone": "Offices", "status": "occupied",
          "people": 4},
@@ -507,44 +508,42 @@ def check_head_count(namespace):
          "people": 5},
         {"room": "HR Room", "zone": "Offices", "status": "empty",
          "people": 0},
-        {"room": "P2 Parking", "zone": "Outside & plant",
+        {"room": "Solar Array", "zone": "Outside & plant",
          "status": "occupied", "people": 9},
         {"room": "H Street", "zone": "H perimeter", "status": "occupied",
          "people": 12},
     ])
     label, value, note = parts(df, 1.0)
-    check("the headline counts people in offices only", value == "7", value)
-    check("and says so", label == "IN OFFICES RIGHT NOW", label)
-    check("a lobby filed under Offices is not an office",
-          "7 in lobbies & cafe" in note, note)
-    check("outside is counted apart", "21 outside" in note, note)
-    check("and the busy offices are named", "2 offices busy" in note, note)
+    check("the headline counts everyone indoors", value == "14", value)
+    check("and says office", label == "IN OFFICE RIGHT NOW", label)
+    check("the lobby and the cafe are in it",
+          "4 rooms busy" in note, note)
+    check("the perimeter and the plant are counted apart",
+          "21 outside, not counted" in note, note)
 
-    # An office nobody looked at contributes nobody, so the sum is a floor.
     quiet = pd.concat([df, pd.DataFrame([
         {"room": "Admin Room", "zone": "Offices", "status": "unknown",
          "people": None}])], ignore_index=True)
     label, value, note = parts(quiet, 1.0)
-    check("an office that did not answer makes the count a floor",
-          value == "at least 7", value)
+    check("an indoor room that did not answer makes the count a floor",
+          value == "at least 14", value)
     check("and the page says how many did not answer",
-          "1 office did not answer" in note, note)
-    # A silent street camera says nothing about the offices.
+          "1 room did not answer" in note, note)
     street = pd.concat([df, pd.DataFrame([
         {"room": "Genset Area", "zone": "H perimeter", "status": "unknown",
          "people": None}])], ignore_index=True)
-    check("a silent outdoor camera does not make the office count a floor",
-          parts(street, 1.0)[1] == "7", parts(street, 1.0)[1])
+    check("a silent perimeter camera says nothing about the office",
+          parts(street, 1.0)[1] == "14", parts(street, 1.0)[1])
 
     nan = quiet.copy()
     nan.loc[nan["room"] == "Admin Room", "status"] = float("nan")
     check("a missing status counts as not answered",
-          parts(nan, 1.0)[1] == "at least 7", parts(nan, 1.0)[1])
+          parts(nan, 1.0)[1] == "at least 14", parts(nan, 1.0)[1])
 
     check("a silent loop stops the figure claiming the present",
-          parts(df, stale)[0] == "IN OFFICES WHEN LAST SEEN")
+          parts(df, stale)[0] == "IN OFFICE WHEN LAST SEEN")
     check("and never having reported counts as silent",
-          parts(df, None)[0] == "IN OFFICES WHEN LAST SEEN")
+          parts(df, None)[0] == "IN OFFICE WHEN LAST SEEN")
 
     none = df.copy()
     none["status"] = "empty"
@@ -553,7 +552,7 @@ def check_head_count(namespace):
     # The band renders the same three strings, so the two cannot drift.
     html = namespace["head_count"](quiet, 1.0)
     check("the band prints the headcount it was given",
-          "at least 7" in html and "IN OFFICES RIGHT NOW" in html
+          "at least 14" in html and "IN OFFICE RIGHT NOW" in html
           and "did not answer" in html)
     check("and the word people is on the page",
           ">people<" in html.replace("</span>", "<"))
