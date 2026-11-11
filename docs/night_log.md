@@ -46,3 +46,11 @@ Two or three lines a round; picture file names, never pictures.
 * 20:55 AC calibrated: 141 Finance Room ch30, box 1088,99-1103,112 (digits
   only, the CLAUDE.md box held the logo too): on 34.6, off 8.7, gap 25.8.
   Room 32 and Learning Center still on at 20:46; Admin Room reads on.
+* 21:05 the loop (restarted 20:58) wrote 141 Finance Room "AC off" at
+  21:02: the calibration works end to end. Admin Room: empty since 20:50
+  with its unit read ON, a real case for the alert. Room 32 and Learning
+  Center still on at 21:02. Auto-finding display boxes for the other
+  visible units fails (18:30 daylight vs 21:00 lamps changes the whole
+  frame); they need a box drawn by hand on a frame with the unit on.
+  Cameras turn infrared when rooms go dark, and a colour calibration is
+  refused there by design, so OFF frames must be taken while lights are on.
