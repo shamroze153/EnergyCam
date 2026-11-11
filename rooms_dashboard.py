@@ -1740,15 +1740,34 @@ def show_meters(df, recent, now):
                           "its" if unsaid == 1 else "their"))
 
 
-def show_arrivals(df, now):
-    """When each room fills and empties, on a usual day.
+def load_beats(start, end):
+    """Every heartbeat in a window: when the loop was running."""
+    conn = psycopg2.connect(DATABASE_URL, sslmode=DB_SSLMODE, connect_timeout=10)
+    try:
+        beats = pd.read_sql_query(
+            "SELECT timestamp FROM heartbeat WHERE timestamp >= %s"
+            " AND timestamp < %s ORDER BY timestamp", conn,
+            params=(start.to_pydatetime(), end.to_pydatetime()))
+    finally:
+        conn.close()
+    return list(pd.to_datetime(beats["timestamp"], utc=True))
 
-    Asked for as "which department comes when". It is the same arithmetic as
-    one room's weekly habit, run across all of them and sorted, and it is the
-    thing that makes a switch-off time arguable rather than asserted: a room
-    whose last person leaves at 18:40 four days out of five does not need a
-    debate about when to set the timer.
+
+def show_arrivals(df, now):
+    """Each room's day, in the order it happened.
+
+    The first version drew one bar per room from first person to last,
+    averaged over every day on record -- which smears the cleaner at seven
+    and the staff at nine into one meaningless ten-past-eight. Now one day
+    at a time, and for each room: who came first, whether that was an early
+    visit followed by an empty stretch, when the day proper started, the
+    peak and when it came, how much of the watched day somebody was there,
+    and when the last person left. The arithmetic is in day_story.py, where
+    it is tested; this only lays it out.
     """
+    import campus_view
+    import day_story as ds
+
     try:
         month = load_history()
     except psycopg2.Error as e:
@@ -1758,80 +1777,144 @@ def show_arrivals(df, now):
         st.info("No history yet.")
         return
 
-    per_day = daily_spans(month, set(df["room"]), now)
-    if per_day.empty:
-        st.info("Nobody has been seen in any room yet.")
-        return
-    usual = per_day.groupby("room").agg(
-        days=("day", "nunique"),
-        first=("arrives", "mean"), earliest=("arrives", "min"),
-        last=("leaves", "mean"), latest=("leaves", "max"),
-        busiest=("busiest", "max")).reset_index()
-    usual = usual.merge(df[["room", "zone", "has_unit", "level"]], on="room")
-    usual = usual.sort_values("first")
+    local_now = now.tz_convert(PKT)
+    days = sorted({t.date() for t in to_local(month["timestamp"])},
+                  reverse=True)
+    left, mid, right = st.columns([1.3, 1.3, 2.4])
+    chosen = left.selectbox(
+        "Day", days,
+        format_func=lambda d: ("Today" if d == local_now.date() else
+                               "Yesterday" if d == (local_now - pd.Timedelta(days=1)).date()
+                               else d.strftime("%a %d %b")))
+    with_outside = mid.checkbox(
+        "Include outside", value=False,
+        help="The street, the car parks, the smoking area and the plant.")
+    start = pd.Timestamp(chosen).tz_localize(PKT)
+    end = min(start + pd.Timedelta(days=1), local_now)
+    try:
+        beats = load_beats(start - pd.Timedelta(minutes=15),
+                           end + pd.Timedelta(minutes=15))
+    except psycopg2.Error:
+        beats = None
 
-    clock = lambda m: "%02d:%02d" % divmod(int(round(m)), 60)
+    rows = []
+    for _, room in df.iterrows():
+        where = campus_view.place(room["room"], room.get("zone"))
+        if where == "outside" and not with_outside:
+            continue
+        mine = month[month["room"] == room["room"]]
+        day = ds.spells(mine, start, end, beats)
+        rows.append((room["room"], room.get("zone"), ds.story(day, start),
+                     ds.hourly(day, start)))
+    rows.sort(key=lambda r: (r[2]["starts"] is None,
+                             r[2]["starts"] or start, r[0]))
+
+    # The building as a whole, from the same hourly figures.
+    totals = [sum(h[i] for *_, h in rows if h[i] is not None)
+              if any(h[i] is not None for *_, h in rows) else None
+              for i in range(24)]
+    used = [r for r in rows if r[2]["first_in"] is not None]
+    # A room busy since last night did not have anybody arrive in it today.
+    arrived = [r for r in used if not r[2]["carried"]] or used
+    if used:
+        first = min(arrived, key=lambda r: r[2]["first_in"])
+        starts = [r[2]["starts"] for r in used if r[2]["starts"] is not None
+                  and not r[2]["carried"]]
+        peak_hour = max(range(24), key=lambda i: totals[i] or 0)
+        early = [r for r in used if r[2]["early"]]
+        right.markdown(
+            '<div style="font-size:.8rem;color:%s;line-height:1.55;">'
+            '<b style="color:%s">%s</b> first person, in %s<br>'
+            '<b style="color:%s">%s</b> median start of the day<br>'
+            '<b style="color:%s">~%d people</b> at the busiest hour, %s<br>'
+            '%d room%s had an early visit before the day began'
+            '</div>' % (
+                MUTED, TEXT, ds.clock(first[2]["first_in"]), first[0],
+                TEXT, ds.clock(sorted(starts)[len(starts) // 2]) if starts
+                else "\u2014",
+                TEXT, round(totals[peak_hour] or 0),
+                ds.clock(start + pd.Timedelta(hours=peak_hour)),
+                len(early), "" if len(early) == 1 else "s"),
+            unsafe_allow_html=True)
+
     st.markdown(
-        '<div style="font-size:1.1rem;font-weight:720;margin-bottom:2px;">'
+        '<div style="font-size:1.1rem;font-weight:720;margin:6px 0 2px;">'
         'Who comes when</div>'
-        '<div style="font-size:.74rem;color:#8A949A;margin-bottom:10px;">'
-        'averaged over the days each room has been watched, earliest first'
-        '</div>', unsafe_allow_html=True)
+        '<div style="font-size:.74rem;color:%s;margin-bottom:10px;">'
+        'one day, earliest start first. An <b>early visit</b> is a short'
+        ' first spell followed by at least half an hour empty -- usually'
+        ' housekeeping -- and the day is taken to start after it. The strip'
+        ' is the 24 hours; darker is more people, blank is nobody watching.'
+        '</div>' % MUTED, unsafe_allow_html=True)
 
-    # Each room as a bar from its usual arrival to its usual departure, so the
-    # shape of the building's day is visible before any of the times are read.
-    rows_html = ""
-    for _, r in usual.iterrows():
-        left = 100.0 * r["first"] / 1440.0
-        width = max(1.2, 100.0 * (r["last"] - r["first"]) / 1440.0)
-        rows_html += (
-            '<div style="display:flex;align-items:center;gap:9px;'
-            'margin-bottom:4px;">'
-            '<span style="flex:0 0 146px;font-size:.76rem;color:%s;'
-            'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">%s'
-            '</span>'
-            '<span style="flex:0 0 46px;font-size:.72rem;color:#8A949A;'
-            'text-align:right;">%s</span>'
-            '<span style="flex:1 1 auto;height:14px;background:#1B2228;'
-            'border-radius:3px;position:relative;">'
-            '<span style="position:absolute;left:%.2f%%;width:%.2f%%;top:0;'
-            'height:14px;background:%s;border-radius:3px;"></span></span>'
-            '<span style="flex:0 0 46px;font-size:.72rem;color:#8A949A;">%s'
-            '</span>'
-            '<span style="flex:0 0 74px;font-size:.68rem;color:#7E888E;'
-            'text-align:right;">%d day%s</span></div>'
-            % (INK[r["level"]]["fg"], r["room"], clock(r["first"]),
-               left, width, AC_ON if r["has_unit"] else FAINT,
-               clock(r["last"]), r["days"], "" if r["days"] == 1 else "s"))
-    ticks = "".join('<span style="flex:1 1 0;text-align:center;">%s</span>'
-                    % (("%02d" % h) if h % 3 == 0 else "") for h in range(24))
-    st.markdown(
-        rows_html +
-        '<div style="display:flex;align-items:center;gap:9px;margin-top:2px;">'
-        '<span style="flex:0 0 146px;"></span><span style="flex:0 0 46px;">'
-        '</span><span style="flex:1 1 auto;display:flex;font-size:.6rem;'
-        'color:#7E888E;">%s</span><span style="flex:0 0 46px;"></span>'
-        '<span style="flex:0 0 74px;"></span></div>' % ticks,
-        unsafe_allow_html=True)
-    st.caption("Green bars are rooms with an air conditioner. Grey ones have"
-               " none, so their hours are worth knowing and cost nothing.")
-
-    st.markdown(
-        '<div style="font-size:.84rem;font-weight:650;margin:18px 0 6px;">'
-        'The same thing as numbers</div>', unsafe_allow_html=True)
-    table = pd.DataFrame({
-        "Room": usual["room"], "Zone": usual["zone"],
-        "Usually in": usual["first"].map(clock),
-        "Earliest": usual["earliest"].map(clock),
-        "Usually out": usual["last"].map(clock),
-        "Latest": usual["latest"].map(clock),
-        "Most at once": usual["busiest"].astype(int),
-        "Days watched": usual["days"].astype(int)})
-    st.dataframe(table, hide_index=True, use_container_width=True)
-    st.caption("\u201cUsually out\u201d is when the room went empty, taken"
-               " from the reading after the last person was seen. A few days"
-               " of history make these averages worth reading; one day does"
-               " not.")
+    head = ("Room", "First in", "Early visit", "Day starts", "Peak",
+            "Busy", "Last out", "")
+    cell = ('padding:5px 8px;border-bottom:1px solid %s;font-size:.76rem;'
+            'white-space:nowrap;' % LINE)
+    html = ('<div style="overflow-x:auto;"><table style="border-collapse:'
+            'collapse;width:100%%;"><tr>%s</tr>'
+            % "".join('<th style="%stext-align:left;color:%s;font-weight:600;'
+                      'font-size:.7rem;">%s</th>' % (cell, MUTED, h)
+                      for h in head))
+    ink = SLOT_INK["occupied"]
+    for name, zone, s, hours in rows:
+        if s["first_in"] is None:
+            first_in = ('<span style="color:%s">%s</span>'
+                        % (FAINT, "nobody" if s["busy_pct"] is not None
+                           else "not watched"))
+        elif s["carried"]:
+            first_in = '<span style="color:%s">from last night</span>' % MUTED
+        else:
+            first_in = ds.clock(s["first_in"])
+        if s["early"]:
+            e = s["early"]
+            early = ('%s\u2013%s <span style="color:%s">then empty %s</span>'
+                     % (ds.clock(e["from"]), ds.clock(e["to"]), MUTED,
+                        ds.spell(e["empty_after_min"])))
+        else:
+            early = '<span style="color:%s">\u2014</span>' % FAINT
+        peak = ("%d <span style=\"color:%s\">at %s</span>"
+                % (s["peak"], MUTED, ds.clock(s["peak_at"]))
+                if s["peak_at"] is not None else "\u2014")
+        busy = ("%d%%" % round(s["busy_pct"])
+                if s["busy_pct"] is not None else "\u2014")
+        top = max([v for v in hours if v] or [1])
+        strip = "".join(
+            '<span title="%s: %s" style="display:inline-block;width:4.1%%;'
+            'height:12px;margin-right:.07%%;border-radius:1px;background:%s;'
+            'opacity:%.2f;"></span>'
+            % (ds.clock(start + pd.Timedelta(hours=i)),
+               "not watched" if v is None else "%.1f people" % v,
+               SUNKEN if v is None or v == 0 else ink,
+               0.35 if v is None else 1.0 if v == 0 else
+               0.25 + 0.75 * min(1.0, v / top))
+            for i, v in enumerate(hours))
+        html += ('<tr><td style="%s">%s</td><td style="%s">%s</td>'
+                 '<td style="%s">%s</td><td style="%s"><b>%s</b></td>'
+                 '<td style="%s">%s</td><td style="%stext-align:right;">%s</td>'
+                 '<td style="%s">%s</td><td style="%smin-width:240px;">%s</td>'
+                 '</tr>' % (cell, name, cell, first_in, cell, early, cell,
+                            ('<span style="color:%s;font-weight:400">from last'
+                             ' night</span>' % MUTED) if s["carried"]
+                            else ds.clock(s["starts"]) if s["starts"]
+                            else "\u2014",
+                            cell, peak, cell, busy, cell,
+                            # Still occupied when the day so far ends: nobody
+                            # has left, and printing the current time as a
+                            # departure would say they had.
+                            ('<span style="color:%s">still in</span>' % MUTED)
+                            if s["last_out"] is not None
+                            and s["last_out"] >= end - pd.Timedelta(minutes=1)
+                            and end < start + pd.Timedelta(days=1)
+                            else ds.clock(s["last_out"]) if s["last_out"]
+                            else "\u2014",
+                            cell, strip))
+    axis = "".join('<span style="display:inline-block;width:12.5%%;">%s</span>'
+                   % lab for lab in ("12a", "3a", "6a", "9a", "12p", "3p",
+                                     "6p", "9p"))
+    html += ('<tr><td colspan="7"></td><td style="font-size:.64rem;color:%s;'
+             'padding:2px 8px;">%s</td></tr></table></div>' % (FAINT, axis))
+    st.markdown(html, unsafe_allow_html=True)
 
 
 def split_by_day(start, end):

@@ -66,7 +66,7 @@ with its daytime frame; those rooms need one technician walk-through with
 ## 4. Before every push
 
 ```
-for %t in (test_ac_detect test_room_loop test_dashboard test_integration test_alerts test_verify test_audit test_analysis test_meters) do python %t.py
+for %t in (test_ac_detect test_room_loop test_dashboard test_day_story test_integration test_alerts test_verify test_audit test_analysis test_meters) do python %t.py
 ```
 
 All must say `all checks passed`. Commit with a message that says what was
