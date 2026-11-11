@@ -42,3 +42,11 @@ frames/verify/
 
 # pack_evidence.py output -- unblurred pictures, for a reviewer only
 evidence_pack_*.zip
+
+# ac_survey.py and field_audit.py output -- full-size, unblurred frames of
+# rooms with people in them. They go to a reviewer, never into git.
+ac_survey/
+ac_survey_*.zip
+field_audit_*/
+field_audit_*.zip
+frames/*.zip

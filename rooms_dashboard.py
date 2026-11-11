@@ -575,7 +575,8 @@ def load_history(days=28):
     conn = psycopg2.connect(DATABASE_URL, sslmode=DB_SSLMODE, connect_timeout=10)
     try:
         df = pd.read_sql_query(
-            "SELECT timestamp, room, status, people FROM room_events"
+            "SELECT timestamp, room, status, people, ac_state"
+            " FROM room_events"
             " WHERE timestamp >= now() - interval '%d days'"
             " ORDER BY room, timestamp" % days, conn)
     finally:
@@ -1516,34 +1517,54 @@ def write_solar(taken, kwh, note):
         conn.close()
 
 
-def reading_form(now):
+def reading_form(now, meters, readings, solar):
     """Three numbers, once a day, by whoever is in the building.
 
-    It used to take a command line on one machine, which meant the day that
-    person was away was a day with no reading -- and a gap in a daily series
-    costs more than the number missing from it, because every comparison
-    that crosses the gap is spoilt.
+    Each box says what to type and shows the last number typed into it, so
+    a slip of a digit is caught by the person typing rather than by a chart
+    a week later.
     """
+    last = {}
+    for code in meters["code"]:
+        mine = readings[readings["meter"] == code].sort_values("taken")
+        if len(mine):
+            row = mine.iloc[-1]
+            last[code] = "last: %s, %s" % (
+                format(int(float(row["reading"])), ",")
+                if pd.notna(row["reading"]) else "\u2014",
+                row["taken"].tz_convert(PKT).strftime("%d %b %H:%M"))
+    if len(solar):
+        row = solar.sort_values("taken").iloc[-1]
+        last["solar"] = "last: %s, %s" % (
+            format(int(float(row["kwh"])), ","),
+            pd.Timestamp(row["taken"]).tz_convert(PKT).strftime(
+                "%d %b %H:%M"))
     st.markdown(
-        '<div style="font-size:1rem;font-weight:700;margin:4px 0 2px;">'
-        'Today&#8217;s readings</div>'
-        '<div style="font-size:.78rem;color:%s;margin-bottom:10px;">'
-        'The number on the face of each meter, and what the solar array has'
-        ' generated. Anybody can fill this in; it does not need the person'
-        ' who set the system up.</div>' % MUTED, unsafe_allow_html=True)
+        '<div style="font-size:1.05rem;font-weight:700;margin:6px 0 2px;">'
+        'Today\u2019s readings</div>'
+        '<div style="font-size:.8rem;color:%s;margin-bottom:10px;">'
+        'Once a day, at about the same hour. Anybody can fill this in.</div>'
+        % MUTED, unsafe_allow_html=True)
+    labels = {"gf_basement": "Ground floor + basement meter (TY75237)",
+              "first_cafe": "First floor + cafe meter (TU09825)"}
     with st.form("readings"):
-        a, b, c, d = st.columns(4)
-        gf = a.number_input("Ground floor + basement (TY75237)",
-                            min_value=0.0, step=1.0, format="%.0f",
-                            key="gf_reading")
-        first = b.number_input("First floor + cafe (TU09825)",
-                               min_value=0.0, step=1.0, format="%.0f",
-                               key="first_reading")
-        solar = c.number_input("Solar generated, units", min_value=0.0,
-                               step=1.0, format="%.0f", key="solar_units")
-        temp = d.number_input("Today&#8217;s high, \u00b0C", min_value=0.0,
-                              max_value=60.0, step=1.0, format="%.0f",
-                              key="max_temp")
+        cols = st.columns(len(meters) + 2)
+        typed = {}
+        for i, code in enumerate(meters["code"]):
+            typed[code] = cols[i].number_input(
+                labels.get(code, code), min_value=0.0, step=1.0,
+                format="%.0f", key="reading_" + code,
+                help="The number on the face of the meter, all of it.")
+            cols[i].caption(last.get(code, "no reading yet"))
+        solar_kwh = cols[-2].number_input(
+            "Solar made yesterday, kWh", min_value=0.0, step=1.0,
+            format="%.0f", key="solar_units",
+            help="The inverter's figure for yesterday -- a full day. Not"
+                 " today's so far, and not its lifetime total.")
+        cols[-2].caption(last.get("solar", "no solar figure yet"))
+        temp = cols[-1].number_input("Today\u2019s high, \u00b0C",
+                                     min_value=0.0, max_value=60.0, step=1.0,
+                                     format="%.0f", key="max_temp")
         note = st.text_input("Anything worth noting (optional)", key="r_note")
         sent = st.form_submit_button("Save today\u2019s readings")
     if not sent:
@@ -1551,16 +1572,13 @@ def reading_form(now):
     taken = now.tz_convert(PKT)
     wrote = []
     try:
-        if gf:
-            write_reading("gf_basement", taken, gf, None,
-                          temp or None, note or None)
-            wrote.append("ground floor + basement")
-        if first:
-            write_reading("first_cafe", taken, first, None,
-                          temp or None, note or None)
-            wrote.append("first floor + cafe")
-        if solar:
-            write_solar(taken, solar, note or None)
+        for code, value in typed.items():
+            if value:
+                write_reading(code, taken, value, None, temp or None,
+                              note or None)
+                wrote.append(labels.get(code, code))
+        if solar_kwh:
+            write_solar(taken, solar_kwh, note or None)
             wrote.append("solar")
     except psycopg2.Error as e:
         if getattr(e, "pgcode", None) == "42501":
@@ -1572,253 +1590,146 @@ def reading_form(now):
         return
     if wrote:
         load_meters.clear()
+        load_solar.clear()
         st.success("Saved: %s." % ", ".join(wrote))
     else:
         st.info("Nothing entered, so nothing was saved.")
 
 
 def show_analysis(df, recent, now):
-    """Everything the bills, the meters and the cameras say, kept apart.
+    """Where the empty, cooled hours are, and what they would cost.
 
-    The three are not equal and the page says so. The bills are settled. The
-    meter readings are ours and measured. What the cameras give becomes money
-    only through an assumption that has not been replaced yet, and the whole
-    value of this project rests on that third one never quietly wearing the
-    authority of the first.
+    The three sources are not equal and the page says so. The bills are
+    settled; the meter readings are ours and measured; what the cameras give
+    becomes money only through an assumption that has not been replaced
+    yet. This page is the third, kept honest, and ends with the rooms to
+    fix first -- which is what it is for.
     """
     import analysis_view as av
+    import energy_view as ev
 
     assumptions = load_assumptions()
     window = av.peak_window(assumptions)
+    try:
+        meters, readings, bills = load_meters()
+    except psycopg2.Error:
+        meters = bills = pd.DataFrame()
+    try:
+        history = load_history()
+    except psycopg2.Error:
+        history = recent
+    # Seven days of events, not the last day's: this said "last 7 days"
+    # over twenty-five hours of history.
+    since = now - pd.Timedelta(days=7)
+    rows = ev.top_rooms(history, df, since, now, window, assumptions)
+    peak_h = sum(r["peak_hours"] for r in rows)
+    off_h = sum(r["hours"] for r in rows) - peak_h
+    rupees = sum(r["rupees"] for r in rows)
+    cooled = df[df["has_unit"] & df["alerts"]]
+    known = int(cooled["ac_state"].notna().sum()) if len(cooled) else 0
+    bill_rate, months = (av.tariff_from_bills(bills, True, meters)
+                         if len(bills) and len(meters) else (None, 0))
+    rates = (float(assumptions.get("tariff_rs_per_kwh", 67)),
+             float(assumptions.get("peak_rs_per_kwh", 81)),
+             "%s\u2013%s" % (assumptions.get("peak_start", "?"),
+                             assumptions.get("peak_end", "?")))
+    st.markdown(ev.analysis_page(
+        LINK_BASE.get("theme") or "dark", rows, off_h, peak_h, rupees,
+        float(assumptions.get("unit_kw", 1.2)), known, len(cooled), rates,
+        bill_rate, months), unsafe_allow_html=True)
 
-    reading_form(now)
-    st.divider()
+    if "gf_basement" in set(df.get("meter", pd.Series(dtype=object))
+                            .dropna()):
+        st.warning(
+            "October's ground-floor bill charged fixed charges on a **maximum"
+            " demand of 38 kW** against a **sanctioned 19**: Rs 47,500 where"
+            " 19 kW would cost Rs 23,750. **Rs 285,000 a year.**\n\nA"
+            " different lever from everything above: not fewer units, but"
+            " fewer things drawing at the same instant. Starting the units"
+            " floor by floor instead of all at ten would cut it with nothing"
+            " used less.", icon="\u26a1")
+
+
+def show_meters(df, recent, now):
+    """The readings, day by day, and the bills, month by month.
+
+    The form is at the top because it is the daily job. Under it, what the
+    building used each day and where it came from -- the grid on each meter
+    and the panels -- then the hours rooms on those meters sat empty with a
+    unit, over the same days, then the bills. Only this campus's meters.
+    """
+    import analysis_view as av
+    import energy_view as ev
 
     try:
         meters, readings, bills = load_meters()
     except psycopg2.Error:
         st.info("The meter tables are not there yet. An administrator runs"
-                " `sql/06_meters.sql` and `sql/07_bills_and_solar.sql` once.")
-        meters = bills = pd.DataFrame()
-
-    # ---- what a unit costs ------------------------------------------------
-    st.markdown(
-        '<div style="font-size:1rem;font-weight:700;margin:10px 0 2px;">'
-        'What a unit costs</div>', unsafe_allow_html=True)
-    cols = st.columns(3)
-    cols[0].markdown(figure_row("Off-peak",
-                                "Rs %.0f" % assumptions.get(
-                                    "tariff_rs_per_kwh", 67),
-                                "one more unit, all in"),
-                     unsafe_allow_html=True)
-    cols[1].markdown(figure_row("Peak %s\u2013%s" % (
-        assumptions.get("peak_start", "?"), assumptions.get("peak_end", "?")),
-        "Rs %.0f" % assumptions.get("peak_rs_per_kwh", 81),
-        "%d%% more than off-peak" % round(
-            100 * (assumptions.get("peak_rs_per_kwh", 81)
-                   / max(1, assumptions.get("tariff_rs_per_kwh", 67)) - 1))),
-        unsafe_allow_html=True)
-    if not bills.empty and not meters.empty:
-        rate, months = av.tariff_from_bills(bills, True, meters)
-        cols[2].markdown(figure_row(
-            "On the bills", "Rs %.0f" % (rate or 0),
-            "average across %d months" % months), unsafe_allow_html=True)
-    st.caption("Marginal, not average. Fixed charges do not change when a"
-               " room's unit goes off, so what a switch actually saves is"
-               " the cost of one more unit, which is lower than the average"
-               " on a bill. Both figures come from the October detailed bill"
-               " \u2014 see docs/what_the_bills_say.md.")
-
-    # ---- what the cameras add --------------------------------------------
-    st.divider()
-    cooled = df[df["has_unit"] & df["alerts"]]
-    since = now - pd.Timedelta(days=7)
-    off_min, peak_min = av.cooled_while_empty(
-        recent, list(cooled["room"]), since, now, window)
-    off_kwh, peak_kwh, rupees = av.money(off_min, peak_min, assumptions)
-    st.markdown(
-        '<div style="font-size:1rem;font-weight:700;margin:4px 0 2px;">'
-        'Empty and still cooled, last 7 days</div>', unsafe_allow_html=True)
-    cols = st.columns(3)
-    cols[0].markdown(figure_row("Off-peak hours", "%.0f" % (off_min / 60),
-                                "across %d rooms" % len(cooled)),
-                     unsafe_allow_html=True)
-    cols[1].markdown(figure_row("Peak hours", "%.0f" % (peak_min / 60),
-                                "the expensive ones", "warn"),
-                     unsafe_allow_html=True)
-    cols[2].markdown(figure_row("At stake", "Rs %s"
-                                % format(round(rupees), ","),
-                                "if those units were running", "act"),
-                     unsafe_allow_html=True)
-    known = int(cooled["ac_state"].notna().sum()) if len(cooled) else 0
-    st.caption(
-        "The hours are measured from the cameras. The rupees are not: they"
-        " assume every unit draws %.1f kW, which is the one figure here"
-        " still taken on trust. %d of %d units are calibrated, so for the"
-        " rest \u201cstill cooled\u201d means nobody knows it was off"
-        " rather than that anybody saw it on."
-        % (assumptions.get("unit_kw", 1.2), known, len(cooled)))
-
-    # ---- the bills --------------------------------------------------------
-    if bills.empty:
+                " `sql/06_meters.sql` and `sql/07_bills_and_solar.sql` once"
+                " in the Supabase SQL editor.")
         return
-    st.divider()
-    st.markdown(
-        '<div style="font-size:1rem;font-weight:700;margin:4px 0 8px;">'
-        'What the building actually spent</div>', unsafe_allow_html=True)
-    wide = bills.pivot_table(index="month", columns="meter", values="units",
-                             aggfunc="sum")
-    wide = wide.reindex(bills.drop_duplicates("month")
-                        .set_index("month").index)
-    st.bar_chart(wide, height=260)
-    bad = av.impossible_months(bills, meters)
-    for _, b in bad.iterrows():
-        days = (pd.to_datetime(b["period_end"])
-                - pd.to_datetime(b["period_start"])).days + 1
-        kw = dict(zip(meters["code"], meters["sanctioned_kw"]))[b["meter"]]
-        st.error(
-            "**%s, %s: %s units for Rs %s.** That is %.0f%% of what a %.0f kW"
-            " connection can deliver in %d days. It cannot be a month that"
-            " building used \u2014 worth asking K-Electric about."
-            % (b["month"], b["meter"], format(int(b["units"]), ","),
-               format(round(float(b["amount_rs"])), ","),
-               100 * float(b["units"]) / (float(kw) * 24 * days),
-               float(kw), days), icon="\u26a0\ufe0f")
+    solar = load_solar()
+    codes = set(df["meter"].dropna()) if "meter" in df.columns else set()
+    mine = meters[meters["code"].isin(codes)] if len(meters) else meters
+    mode = LINK_BASE.get("theme") or "dark"
+    if not len(mine):
+        st.markdown(ev.meters_page(mode, None, "daily", mine, bills, None, 0,
+                                   [], False, LINK_BASE.get("campus") or ""),
+                    unsafe_allow_html=True)
+        return
 
-    # ---- the demand charge ------------------------------------------------
-    st.divider()
-    st.markdown(
-        '<div style="font-size:1rem;font-weight:700;margin:4px 0 2px;">'
-        'The one that is not about units at all</div>',
+    reading_form(now, mine, readings, solar)
+    readings = readings[readings["meter"].isin(codes)]
+    table, kind = ev.daily_table(readings, mine, solar)
+    cooled_hours = None
+    if len(table):
+        assumptions = load_assumptions()
+        try:
+            history = load_history()
+        except psycopg2.Error:
+            history = recent
+        on_meters = list(df[df["has_unit"] & df["alerts"]
+                            & df["meter"].isin(codes)]["room"])
+        windows = [(pd.Timestamp(d), min(pd.Timestamp(d) + pd.Timedelta(days=1),
+                                         now)) for d in table["day"]]
+        cooled_hours = ev.cooled_in_windows(history, on_meters, windows,
+                                            av.peak_window(assumptions))
+    rate = float(load_assumptions().get("tariff_rs_per_kwh", 67))
+    st.markdown(ev.meters_page(
+        mode, table, kind, mine, bills[bills["meter"].isin(codes)]
+        if len(bills) else bills, cooled_hours, rate,
+        ev.suspicious(readings, mine), True, LINK_BASE.get("campus") or ""),
         unsafe_allow_html=True)
-    st.warning(
-        "October's ground-floor bill charged fixed charges on a **maximum"
-        " demand of 38 kW** against a **sanctioned 19**: Rs 47,500 where 19"
-        " kW would cost Rs 23,750. **Rs 285,000 a year.**\n\nThis is a"
-        " different lever from everything else here. It is not about using"
-        " fewer units \u2014 it is about how many things are drawing at the"
-        " same instant. Spreading the same work across the day would cut it"
-        " with nothing used less.", icon="\u26a1")
-    st.caption("This system cannot see demand; a meter can. It is here"
-               " because it is the largest single number the bills"
-               " contained, and it would be strange to find it and not say"
-               " so.")
+    with st.expander("Every reading, as entered"):
+        if len(readings):
+            shown = readings.copy()
+            shown["taken"] = shown["taken"].dt.tz_convert(PKT).dt.strftime(
+                "%d %b %H:%M")
+            st.dataframe(shown, hide_index=True)
+        if len(solar):
+            sun = solar.copy()
+            sun["taken"] = pd.to_datetime(sun["taken"], utc=True) \
+                .dt.tz_convert(PKT).dt.strftime("%d %b %H:%M")
+            st.dataframe(sun, hide_index=True)
 
 
-def show_meters(df, recent, now):
-    """What the building actually drew, beside what this says was wasted.
-
-    The comparison is the whole point and it is also the easiest thing on
-    this page to overstate, so the two columns sit side by side and the page
-    does not draw a line between them. One is metered; the other is counted
-    from cameras under an assumption about kilowatts. Putting them next to
-    each other is what eventually replaces that assumption.
-    """
-    import meters_view
-
+@st.cache_data(ttl=120)
+def load_solar(days=120):
+    """What the panels made, as typed into the form; empty if no table."""
     try:
-        meters, readings, bills = load_meters()
+        conn = psycopg2.connect(DATABASE_URL, sslmode=DB_SSLMODE,
+                                connect_timeout=10)
     except psycopg2.Error:
-        st.info(
-            "The meter tables are not there yet. An administrator runs"
-            " `sql/06_meters.sql` once in the Supabase SQL editor, then"
-            " readings go in with `python log_meter.py gf 48231`.")
-        return
-
-    if readings.empty:
-        st.info(
-            "No readings yet. Two numbers a day, at roughly the same hour:"
-            "\n\n`python log_meter.py gf 48231 --temp 34`"
-            "\n\n`python log_meter.py first 20114 --temp 34`"
-            "\n\nUntil these exist every rupee on this dashboard rests on"
-            " two guesses \u2014 1.2 kW per unit and Rs %s per kWh. These"
-            " readings are what replace the first; the monthly bills replace"
-            " the second."
-            % load_assumptions().get("tariff_rs_per_kwh", "?"))
-        return
-
-    periods = meters_view.daily_units(readings)
-    by_meter = {m["code"]: m for _, m in meters.iterrows()}
-    on_meter = {code: list(df[df.get("meter") == code]["room"])
-                for code in by_meter}
-    unsaid = int(df["meter"].isna().sum()) if "meter" in df.columns else len(df)
-
-    for code, meter in by_meter.items():
-        mine = periods[periods["meter"] == code].sort_values("to",
-                                                             ascending=False)
-        st.markdown(
-            '<div style="font-size:1rem;font-weight:700;margin:14px 0 2px;">'
-            '%s</div><div style="font-size:.76rem;color:%s;margin-bottom:8px;">'
-            '%s &middot; %d room%s on this meter</div>'
-            % (meter["label"], MUTED, meter["covers"], len(on_meter[code]),
-               "" if len(on_meter[code]) == 1 else "s"),
-            unsafe_allow_html=True)
-        if meter["behind_solar"]:
-            st.warning(
-                "The solar array is behind this meter, so these units are"
-                " what came from the grid **after** the panels. A bright day"
-                " reads low for reasons that have nothing to do with anybody"
-                " switching anything off, and this meter on its own cannot"
-                " show a saving.", icon="\u2600\ufe0f")
-        if mine.empty:
-            st.caption("One reading so far. The next one gives the first"
-                       " day's units.")
-            continue
-
-        rows, hours = [], []
-        for _, p in mine.iterrows():
-            spent = meters_view.wasted_hours_between(
-                recent, on_meter[code], p["from"], p["to"], status_minutes)
-            hours.append(spent)
-            rows.append({
-                "Read at": p["to"].tz_convert(PKT).strftime("%d %b %H:%M"),
-                "Hours": round(p["hours"], 1),
-                "Units": round(p["units"], 1),
-                "Max \u00b0C": p["max_temp"],
-                "Empty & cooled, hours": round(spent, 1),
-            })
-        st.dataframe(pd.DataFrame(rows), hide_index=True,
-                     use_container_width=True)
-
-        figure, days, why = meters_view.per_hour(list(mine["units"]), hours)
-        if figure is None:
-            st.caption(why + ".")
-        else:
-            st.success(
-                "Across %d days this meter drew **%.2f units for every hour**"
-                " a room on it sat empty with its cooling on. rooms.yaml"
-                " assumes %.2f kW per unit. This figure is measured; that one"
-                " is not."
-                % (days, figure,
-                   load_assumptions().get("unit_kw", 0)))
-
-    rate, count = meters_view.tariff_from_bills(bills)
-    if rate:
-        assumed = load_assumptions().get("tariff_rs_per_kwh", 0)
-        st.markdown(
-            '<div style="font-size:1rem;font-weight:700;margin:20px 0 6px;">'
-            'Bills</div>', unsafe_allow_html=True)
-        st.dataframe(bills, hide_index=True, use_container_width=True)
-        st.caption("The last %d bill%s work out at **Rs %.2f per unit**."
-                   " rooms.yaml assumes Rs %s. %s"
-                   % (count, "" if count == 1 else "s", rate, assumed,
-                      "Close enough to leave alone."
-                      if abs(rate - float(assumed or 0)) < 5
-                      else "Worth changing the assumption to match."))
-    else:
-        st.caption("No bills recorded yet, so Rs per unit is still the"
-                   " assumption in rooms.yaml rather than a figure off a"
-                   " bill. `python log_meter.py --bill gf 4120 238000"
-                   " --from 2026-10-01 --to 2026-10-31`")
-
-    if unsaid:
-        st.info(
-            "%d room%s not yet assigned to a meter, so %s hours are missing"
-            " from the comparison above. Add `meter: gf_basement` or"
-            " `meter: first_cafe` under each in rooms.yaml \u2014 the ones"
-            " already set are the rooms whose own names say which floor they"
-            " are on." % (unsaid, "" if unsaid == 1 else "s",
-                          "its" if unsaid == 1 else "their"))
+        return pd.DataFrame(columns=["taken", "kwh", "note"])
+    try:
+        return pd.read_sql_query(
+            "SELECT taken, kwh, note FROM solar_daily"
+            " WHERE taken >= now() - interval '%d days' ORDER BY taken"
+            % days, conn)
+    except Exception:                                       # noqa: BLE001
+        return pd.DataFrame(columns=["taken", "kwh", "note"])
+    finally:
+        conn.close()
 
 
 @st.cache_data(ttl=30)
