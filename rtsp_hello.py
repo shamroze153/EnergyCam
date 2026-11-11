@@ -75,6 +75,50 @@ def ask(host, timeout=4.0):
     return answers
 
 
+# Which doors are open says what is behind the address, again without a login.
+# 8200 and 8201 are what 141-C/D's XVR2 shows on its own network screen as
+# its HTTP and media ports; a device that does not have them open is not that
+# recorder, whatever its address.
+PORTS = [(80, "web page"), (443, "web page, https"), (554, "video (RTSP)"),
+         (8000, "Hikvision's own"), (37777, "Dahua's own"),
+         (34567, "XMeye's own"), (8200, "not standard: set by hand"),
+         (8201, "not standard: set by hand"), (8899, "ONVIF")]
+
+
+def open_ports(host, timeout=1.0):
+    name, _ = split_host(host)
+    found = []
+    for port, label in PORTS:
+        try:
+            with socket.create_connection((name, port), timeout):
+                found.append((port, label))
+        except OSError:
+            pass
+    return found
+
+
+def hardware_address(host):
+    """The network card's address, from this machine's own table.
+
+    Two devices on one address answer turn about, and each has its own
+    hardware address, which is printed on the recorder's info screen. So
+    this, set against that, says whether the thing answering is the thing
+    on the screen.
+    """
+    import subprocess
+    name, _ = split_host(host)
+    for cmd in (["arp", "-a", name], ["ip", "neigh", "show", name]):
+        try:
+            out = subprocess.run(cmd, capture_output=True, text=True,
+                                 timeout=5).stdout
+        except (OSError, subprocess.SubprocessError):
+            continue
+        match = re.search(r"([0-9a-fA-F]{2}[-:]){5}[0-9a-fA-F]{2}", out)
+        if match:
+            return match.group(0).lower().replace("-", ":")
+    return None
+
+
 def guess(answers):
     text = " ".join(" ".join(v for vs in h.values() for v in vs)
                     for _, _, h in answers).lower()
@@ -92,6 +136,12 @@ def report(host, tried=()):
     """
     answers = ask(host)
     print(">> asked %s what it is (no login sent):" % host)
+    ports = open_ports(host)
+    print("   open ports: %s" % (", ".join("%d (%s)" % p for p in ports)
+                                 or "none of the usual ones"))
+    mac = hardware_address(host)
+    if mac:
+        print("   hardware address: %s" % mac)
     spoke_rtsp = False
     for method, status, headers in answers:
         print("   %-8s -> %s" % (method, status))
