@@ -1504,12 +1504,10 @@ rooms:
     ac: none
     empty_after_minutes: null
 
-  # Fifteen cameras labelled only "outside". Every camera costs the loop a
-  # detection each cycle, and these add nothing to the energy question and
-  # are never counted, so they are kept here but not visited. Name them and
-  # set watch: true if the history is wanted.
+  # Fifteen cameras labelled only "outside". Left unvisited at first, to
+  # save the loop fifteen detections a cycle; Shamroze wants every camera
+  # in, 11 Nov, so they are watched. Never counted as people inside.
   - name: 141 Outside (NVR 4)
-    watch: false
     dept: Security
     zone: Outside & plant
     recorder: cd_nvr4
@@ -1518,7 +1516,6 @@ rooms:
     empty_after_minutes: null
 
   - name: 141 Outside (NVR 3)
-    watch: false
     dept: Security
     zone: Outside & plant
     recorder: cd_nvr3
