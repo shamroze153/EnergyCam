@@ -40,7 +40,49 @@ PATHS = {
     # placeholders are filled in by build_url. stream 0 is main, 1 is sub.
     "xmeye": lambda ch, main: ("/user={user}&password={password}"
                                "&channel=%d&stream=%d.sdp?" % (ch, 0 if main else 1)),
+    # Newer XMeye firmware turned the & into _ and stopped taking the
+    # password as typed: it wants the recorder's own 8-letter scramble of it
+    # (sofia_hash below). 141-C/D's XVR2 refused the older form on every
+    # channel, which is what this one is here for.
+    "xmeye-hash": lambda ch, main: ("/user={user}_password={xmhash}"
+                                    "_channel=%d_stream=%d.sdp?real_stream"
+                                    % (ch, 0 if main else 1)),
 }
+
+# A make whose recorders come in more than one firmware. Asking for the make
+# by name tries each in turn on the first channel, then keeps the one that
+# answered.
+FAMILIES = {"xmeye": ["xmeye", "xmeye-hash"]}
+
+
+def sofia_hash(password):
+    """The scramble XMeye recorders keep instead of the password.
+
+    MD5 of the password, then each pair of bytes added together and mapped
+    onto 0-9A-Za-z. The empty password comes out as tlJwpbo6, which is the
+    value printed in every XMeye manual, so that is the test of this.
+    """
+    import hashlib
+    digest = hashlib.md5(password.encode("utf-8")).digest()
+    out = []
+    for i in range(8):
+        n = (digest[2 * i] + digest[2 * i + 1]) % 62
+        if n < 10:
+            out.append(chr(ord("0") + n))
+        elif n < 36:
+            out.append(chr(ord("A") + n - 10))
+        else:
+            out.append(chr(ord("a") + n - 36))
+    return "".join(out)
+
+
+def split_host(host, default=554):
+    """192.168.67.59 or 192.168.67.59:5540 -- a recorder whose RTSP was moved
+    off 554 is written with its port, in rooms.yaml and on the command line."""
+    if ":" in host:
+        name, port = host.rsplit(":", 1)
+        return name, int(port)
+    return host, default
 
 
 def build_url(host, channel, user, password, main=False, brand="hikvision"):
@@ -50,11 +92,12 @@ def build_url(host, channel, user, password, main=False, brand="hikvision"):
         raise ValueError("unknown make %r; known: %s"
                          % (brand, ", ".join(sorted(PATHS))))
     path = PATHS[brand](int(channel), main)
-    if "{password}" in path:
-        path = path.replace("{user}", quote(user, safe="")) \
-                   .replace("{password}", quote(password, safe=""))
-    return "rtsp://%s:%s@%s:554%s" % (
-        quote(user, safe=""), quote(password, safe=""), host, path)
+    path = path.replace("{user}", quote(user, safe="")) \
+               .replace("{password}", quote(password, safe="")) \
+               .replace("{xmhash}", sofia_hash(password))
+    name, port = split_host(host)
+    return "rtsp://%s:%s@%s:%d%s" % (
+        quote(user, safe=""), quote(password, safe=""), name, port, path)
 
 
 def mask(url):
@@ -67,14 +110,22 @@ def mask(url):
     import re
     if "@" in url:
         url = url[:url.index("://") + 3] + "***@" + url.split("@", 1)[1]
-    return re.sub(r"(user|password)=[^&]*", r"\1=***", url)
+    # Up to the next & for the older XMeye form, up to the next _field= for
+    # the newer one, whose fields are joined by _ -- a character a password
+    # or a user name can also contain, so it is not enough on its own.
+    return re.sub(r"(user|password)=.*?(?=&|_password=|_channel=|$)",
+                  r"\1=***", url)
 
 
 def probe(host, channel, user, password, main=False, brand=None,
           verbose=False):
     """Try each make's path until one gives a picture. Returns the make too."""
     status = "no stream"
-    for name in ([brand] if brand else list(PATHS)):
+    if isinstance(brand, (list, tuple)):
+        names = list(brand)
+    else:
+        names = FAMILIES.get(brand, [brand]) if brand else list(PATHS)
+    for name in names:
         url = build_url(host, channel, user, password, main, name)
         if verbose:
             print(">> trying %s: %s" % (name, mask(url)))

@@ -26,14 +26,20 @@ A channel with no camera on it can take several seconds to give up, so a full
 import glob
 import os
 import re
+import socket
 import sys
 
 os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = (
     "rtsp_transport;tcp|stimeout;6000000")
+if __name__ == "__main__":
+    # On Windows the decoder only listens to settings it was born with.
+    import quiet_start
+    quiet_start.relaunch()
+
 import cv2  # noqa: E402  (must follow the env var above)
 import numpy as np  # noqa: E402
 
-from test_camera import PATHS, build_url, grab, probe
+from test_camera import FAMILIES, PATHS, build_url, grab, probe, split_host
 from room_loop import muffled  # noqa: E402
 
 # The decoder writes "PPS id out of range" straight to file descriptor 2,
@@ -50,6 +56,46 @@ TILE_W, TILE_H, COLS = 320, 180, 4
 # a wrong password to whoever picks this up next.
 STOP_AFTER_DEAD = 4
 BRAND_FILE = "recorder.txt"
+
+# Until one channel has answered, a dead channel is far more likely to be a
+# wrong path or a wrong login than a missing camera, and every one of those is
+# a failed login on the recorder's books. XMeye locks the account after a
+# handful. So give up sooner while the make is still unknown.
+STOP_WHILE_GUESSING = 2
+
+# Asked before any login, so a closed port costs nothing on the recorder's
+# lockout counter. The others are only there to say what the box is.
+RTSP_PORT = 554
+OTHER_PORTS = [(80, "web page"), (8000, "Hikvision"), (37777, "Dahua"),
+               (34567, "XMeye"), (8899, "ONVIF")]
+
+
+def port_open(host, port, timeout=2.0):
+    try:
+        with socket.create_connection((host, port), timeout):
+            return True
+    except OSError:
+        return False
+
+
+def check_rtsp(host):
+    """Say plainly when video cannot work at all, before a password is tried."""
+    name, port = split_host(host, RTSP_PORT)
+    if port_open(name, port):
+        return True
+    print(">> %s answers ping, but nothing listens on port %d -- the video"
+          " (RTSP) port." % (name, port))
+    found = [label for p, label in OTHER_PORTS if port_open(name, p)]
+    if found:
+        print(">> it does answer on: %s" % ", ".join(
+            "%d (%s)" % (p, label) for p, label in OTHER_PORTS
+            if label in found))
+    print(">> So RTSP is switched off, or moved to another port. On the")
+    print("   recorder: Network -> NetService (or Advanced) -> RTSP -> Enable,")
+    print("   port 554. If it shows another port, run this again with")
+    print("   %s:<that port> in place of %s." % (name, name))
+    print(">> No login was tried, so nothing counted against the account.")
+    return False
 
 
 def remembered_brand(outdir):
@@ -179,15 +225,26 @@ def main():
     channels = parse_channels(spec)
     if not channels:
         sys.exit("no channels to scan in %r" % spec)
-    outdir = outdir or "scan_%s" % host.replace(".", "_")
-    os.makedirs(outdir, exist_ok=True)
+    # A colon is not allowed in a Windows folder name, and a host can now
+    # carry its port.
+    outdir = outdir or "scan_%s" % re.sub(r"[.:]", "_", host)
 
     which = "main" if want_main else "sub"
-    brand = brand or remembered_brand(outdir)
     print(">> %s, channels %s, %s stream -> %s/"
           % (host, spec, which, outdir))
-    if brand:
-        print(">> %s, from an earlier pass" % brand)
+    if not brand:
+        brand = remembered_brand(outdir)
+        if brand:
+            print(">> %s, from an earlier pass" % brand)
+    if not check_rtsp(host):
+        sys.exit(1)
+    os.makedirs(outdir, exist_ok=True)
+
+    # A make with more than one firmware (XMeye) is still a guess until a
+    # channel answers; a single path is settled from the start.
+    guesses = FAMILIES.get(brand) if brand else list(PATHS)
+    if guesses:
+        brand = None
 
     tiles, live, scanned, dead_run = [], [], [], 0
     for ch in channels:
@@ -198,11 +255,12 @@ def main():
                     build_url(host, ch, user, password, want_main, brand))
         else:
             # Work out the make once, on the first channel that answers, then
-            # stop guessing: trying three paths on every dead channel would
-            # treble the time a scan spends on the ones with no camera.
+            # stop guessing: trying every path on every dead channel would
+            # multiply the time a scan spends on the ones with no camera.
             with muffled():
                 frame, status, found = probe(host, ch, user, password,
-                                             want_main, verbose=True)
+                                             want_main, brand=guesses,
+                                             verbose=True)
             if found:
                 brand = found
                 remember_brand(outdir, brand)
@@ -221,6 +279,16 @@ def main():
             print("   ch %-3d %s" % (ch, status))
             dead_run += 1
         tiles.append((ch, frame, status))
+        if not brand and dead_run >= STOP_WHILE_GUESSING:
+            print(">> no path gave a picture on the first %d channels."
+                  % dead_run)
+            print("   The port is open, so this is the login or the path:")
+            print("   check the user and password in .env (the one that")
+            print("   logs in to the recorder's own screen), and that this")
+            print("   account is allowed to view live video.")
+            print("   Stopping here: every try is a failed login to the"
+                  " recorder, and enough of those lock the account.")
+            break
         if stop_after and dead_run >= stop_after:
             print(">> %d dead channels in a row -- this is the end of the"
                   " recorder." % dead_run)

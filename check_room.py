@@ -41,6 +41,11 @@ import zipfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 
+if __name__ == "__main__":
+    # On Windows the decoder only listens to settings it was born with.
+    import quiet_start
+    quiet_start.relaunch()
+
 import cv2
 from dotenv import load_dotenv
 

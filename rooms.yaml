@@ -179,14 +179,14 @@ recorders:
   cd_nvr1:
     campus: 141-C/D
     host: 192.168.67.70
-    brand: hikvision     # from its menu screen; the scan confirms or corrects
+    brand: hikvision     # scan 11 Nov: 32 of 32 live, sub 720x576 / 704x576 / 640x360
     user_env: CD_NVR1_USER
     pass_env: CD_NVR1_PASS
     stream: sub
   cd_nvr2:
     campus: 141-C/D
     host: 192.168.67.168
-    brand: hikvision   # same menu layout as NVR3; the scan confirms
+    brand: hikvision   # scan 11 Nov: 16 of 16 live, sub 640x360, some H.265
     user_env: CD_NVR2_USER
     pass_env: CD_NVR2_PASS
     stream: sub
@@ -196,6 +196,9 @@ recorders:
     brand: hikvision   # its screen says HVR and Hik-Connect
     user_env: CD_NVR3_USER
     pass_env: CD_NVR3_PASS
+    # scan 11 Nov: 16 of 16 live, but the sub stream is only 352x288 --
+    # too small to find a seated person across a room. Scan --main next;
+    # this likely becomes stream: main.
     stream: sub
   cd_nvr4:
     campus: 141-C/D
@@ -203,11 +206,16 @@ recorders:
     brand: hikvision   # DHCP is ON: the address can change on a reboot -- ask IT to fix it
     user_env: CD_NVR4_USER
     pass_env: CD_NVR4_PASS
+    # scan 11 Nov: 10 live in 1-11 (ch 8 empty), 12-15 empty, 16 unchecked
     stream: sub
   cd_xvr2:
     campus: 141-C/D
     host: 192.168.67.59
     brand: xmeye       # white-label XMeye/Xiongmai: Net Card, Media Port 8201, HS Download
+    # scan 11 Nov: the older path gave nothing on ch 1-4. The scanner now
+    # checks the RTSP port first and tries the newer firmware's path too;
+    # once one answers, write that exact one here (xmeye or xmeye-hash):
+    # the loop does not guess.
     user_env: CD_XVR2_USER
     pass_env: CD_XVR2_PASS
     stream: sub

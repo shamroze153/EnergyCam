@@ -284,6 +284,25 @@ def check_xmeye(check):
     check("the other makes are masked as before",
           hik, "rtsp://***@192.168.67.70:554/Streaming/Channels/101")
 
+    # The newer XMeye firmware: fields joined by _, and the password sent as
+    # the recorder's scramble of it rather than as typed.
+    check("the scramble of the empty password is the one in the manuals",
+          tc.sofia_hash(""), "tlJwpbo6")
+    new = tc.build_url("192.168.67.59", 2, "ad_min", "pa_ss", True,
+                       "xmeye-hash")
+    check("the newer path carries the scramble, not the password",
+          "password=%s_channel=2_stream=0.sdp" % tc.sofia_hash("pa_ss")
+          in new, True)
+    masked = tc.mask(new)
+    check("and the mask hides both, underscores and all",
+          "ad_min" in masked.split("@", 1)[1]
+          or tc.sofia_hash("pa_ss") in masked, False)
+    check("asking for xmeye tries both firmwares",
+          tc.FAMILIES["xmeye"], ["xmeye", "xmeye-hash"])
+    moved = tc.build_url("192.168.67.59:5540", 1, "a", "b", False, "xmeye")
+    check("a recorder whose RTSP was moved keeps its port",
+          "@192.168.67.59:5540/" in moved, True)
+
 
 def check_stays_up():
     """The loop must survive the night, not just start it.

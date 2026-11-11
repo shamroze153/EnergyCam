@@ -42,6 +42,11 @@ import sys
 import time
 from datetime import datetime
 
+if __name__ == "__main__":
+    # On Windows the decoder only listens to settings it was born with.
+    import quiet_start
+    quiet_start.relaunch()
+
 import cv2
 import psycopg2
 from dotenv import load_dotenv

@@ -40,7 +40,12 @@ import sys
 import time
 from datetime import datetime
 
-os.environ.setdefault("OPENCV_FFMPEG_LOGLEVEL", "-8")
+os.environ.setdefault("OPENCV_FFMPEG_LOGLEVEL", "0")  # -8 is refused by one build
+
+if __name__ == "__main__":
+    # On Windows the decoder only listens to settings it was born with.
+    import quiet_start
+    quiet_start.relaunch()
 
 import cv2  # noqa: E402
 from dotenv import load_dotenv  # noqa: E402

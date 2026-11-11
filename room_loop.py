@@ -53,6 +53,11 @@ from datetime import datetime, timedelta, timezone
 # muffled() below, which closes the door the messages actually come out of.
 os.environ.setdefault("OPENCV_FFMPEG_LOGLEVEL", "0")
 
+if __name__ == "__main__":
+    # On Windows the decoder only listens to settings it was born with.
+    import quiet_start
+    quiet_start.relaunch()
+
 import cv2  # noqa: E402  (must follow the env var above)
 import psycopg2
 import yaml
