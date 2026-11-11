@@ -1834,6 +1834,99 @@ def load_beats(start, end):
     return list(pd.to_datetime(beats["timestamp"], utc=True))
 
 
+@st.cache_data(ttl=60)
+def load_events_between(start, end):
+    """Every change in a window, plus each room's state as it opened.
+
+    Only changes are written, so a room empty since last night has no row
+    in today at all; the one row before the window says what it was doing
+    when the window opened, and the morning reads empty rather than blank.
+    """
+    conn = psycopg2.connect(DATABASE_URL, sslmode=DB_SSLMODE,
+                            connect_timeout=10)
+    try:
+        events = pd.read_sql_query(
+            "(SELECT timestamp, room, status, people, ac_state"
+            "   FROM room_events WHERE timestamp >= %s AND timestamp < %s)"
+            " UNION ALL "
+            "(SELECT DISTINCT ON (room) timestamp, room, status, people,"
+            "        ac_state"
+            "   FROM room_events WHERE timestamp < %s"
+            "  ORDER BY room, timestamp DESC)"
+            " ORDER BY room, timestamp", conn,
+            params=(start.to_pydatetime(), end.to_pydatetime(),
+                    start.to_pydatetime()))
+    finally:
+        conn.close()
+    events["timestamp"] = pd.to_datetime(events["timestamp"], utc=True)
+    return events
+
+
+def show_empty(df, now):
+    """Which rooms sat empty, and for how long -- one day, room by room."""
+    import empty_view as evw
+
+    local_today = now.tz_convert(PKT).date()
+    days = [local_today - timedelta(days=k) for k in range(8)]
+    names = ["Today", "Yesterday"] + [d.strftime("%a %d %b") for d in days[2:]]
+    c1, c2, c3 = st.columns([2, 3, 2])
+    with c1:
+        picked = st.selectbox("Day", names, index=0, key="empty_day")
+    with c2:
+        windows = {"Working hours": evw.WORKING, "Whole day": evw.WHOLE,
+                   "After hours": evw.AFTER}
+        which_label = st.radio("Hours", list(windows), horizontal=True,
+                               key="empty_which",
+                               label_visibility="collapsed")
+    with c3:
+        scope = st.radio("Rooms", ["With a unit", "Every room"],
+                         horizontal=True, key="empty_scope",
+                         label_visibility="collapsed")
+    day = days[names.index(picked)]
+    which = windows[which_label]
+    spans = evw.windows_for(day, hours, now, which)
+    rooms_here = df if scope == "Every room" else df[df["has_unit"]]
+    op = (hours or {}).get("operations", {})
+    window_text = {
+        evw.WORKING: "working hours, %s to %s" % (op.get("start", "10:00"),
+                                                   op.get("end", "20:00")),
+        evw.WHOLE: "the whole day, midnight to midnight",
+        evw.AFTER: "before and after working hours"}[which]
+    if day == local_today:
+        window_text += ", so far"
+    day_text = "%s, %s" % (picked if picked in ("Today", "Yesterday")
+                           else day.strftime("%A"),
+                           day.strftime("%d %B").lstrip("0"))
+    if spans:
+        start, end = spans[0][0], spans[-1][1]
+        if which == evw.AFTER:
+            midnight = pd.Timestamp(year=day.year, month=day.month,
+                                    day=day.day, tz=PKT)
+            start = midnight.tz_convert("UTC")
+            end = min(midnight + pd.Timedelta(days=1), now)
+            end = pd.Timestamp(end).tz_convert("UTC")
+        try:
+            events = load_events_between(start, end)
+            beats = load_beats(start - evw.VOUCH, end + evw.VOUCH)
+        except psycopg2.Error as e:
+            st.error("Could not read the day (%s)." % type(e).__name__)
+            return
+        alive = evw.watched(beats, start, end)
+        rows = evw.ledger(events, rooms_here, spans, alive)
+        window_m = sum(evw.minutes(a, b) for a, b in spans)
+        watched_m = sum(evw.minutes(max(a, x), min(b, y))
+                        for a, b in spans for x, y in alive
+                        if min(b, y) > max(a, x))
+        coverage = (watched_m, window_m)
+    else:
+        start = end = None
+        rows, coverage = [], None
+    st.markdown(evw.page(LINK_BASE.get("theme") or "dark", rows,
+                         evw.empty_now(df, now), start, end, day_text,
+                         window_text, LINK_BASE, coverage),
+                unsafe_allow_html=True)
+
+
 def show_arrivals(df, now):
     """Each room's day, in the order it happened -- one day, or many averaged.
 
@@ -2971,7 +3064,8 @@ st.markdown(overview.campus_head({"name": campus}, campuses, mode,
 # Five in a row across the top -- the ones people open -- and the rest behind
 # "More". A click on a room anywhere is a link carrying its name, and lands on
 # One room.
-PRIMARY = ["Overview", "Who comes when", "Rooms", "Meters", "Analysis"]
+PRIMARY = ["Overview", "Who comes when", "Rooms", "Empty time", "Meters",
+           "Analysis"]
 SECONDARY = ["One room", "Camera health", "Look at the rooms",
              "Numbers & history"]
 VIEWS = PRIMARY + SECONDARY
@@ -3116,6 +3210,9 @@ elif view == "One room":
 
 elif view == "Who comes when":
     show_arrivals(df, now)
+
+elif view == "Empty time":
+    show_empty(df, now)
 
 elif view == "Meters":
     show_meters(df, recent, now)
