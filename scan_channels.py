@@ -288,6 +288,11 @@ def main():
             print("   account is allowed to view live video.")
             print("   Stopping here: every try is a failed login to the"
                   " recorder, and enough of those lock the account.")
+            # What the recorder says about itself costs no login, and tells
+            # a wrong path from a wrong password where the scan cannot.
+            from rtsp_hello import report
+            print()
+            report(host, tried=guesses or [])
             break
         if stop_after and dead_run >= stop_after:
             print(">> %d dead channels in a row -- this is the end of the"
