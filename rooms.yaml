@@ -1265,6 +1265,14 @@ rooms:
     stream: main
     ac: hidden
     empty_after_minutes: 45
+    # 11 Nov night audit: an object on the far right end of the desk, at
+    # the frame's edge by the window, read as a person at 0.27-0.36 in all
+    # five evidence frames 21:05-22:10 with the room empty -- a ghost in
+    # verify_live at 22:15 and FAINT at 18:25 and 20:45. Nobody sits on the
+    # desk top; a person beside it is a bigger box and is still counted.
+    ignore:
+      4:
+        - [1795, 520, 1885, 635]   # object on the desk edge, 0.27-0.36
 
   - name: 141-D Squat Wolf Room 1
     dept: Squat Wolf

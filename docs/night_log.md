@@ -61,3 +61,9 @@ Two or three lines a round; picture file names, never pictures.
   box (196,136-222,174) still shows a dark "25" on a pale face, only dimmer
   with the room light: it looks like a sticker or an always-on display, so
   it cannot tell on from off. For Shamroze: is that "25" a label?
+* 22:15 round 3: 0 MISSED, 5 GHOST. Squat Wolf Room 0 (has a unit): an
+  object on the desk edge by the window scored 0.27-0.36 in all five
+  evidence frames 21:05-22:10, room empty -> ignore box [1795,520,1885,
+  635] on cd_nvr3 ch4 (checked: drops it, keeps a person beside it).
+  Reception Roof, Cafe Shoe Rack, H Basement Parking, P1 Parking: on/off
+  all evening like people passing, no units -- left alone. Loop restarted.
