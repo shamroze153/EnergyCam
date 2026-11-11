@@ -169,23 +169,37 @@ def cooled_in_windows(history, rooms, windows, peak):
     return out
 
 
-def top_rooms(history, df, since, until, peak, assumptions):
+def top_rooms(history, df, since, until, peak, assumptions, hours=None):
     """Rooms ranked by what their empty, cooled hours would cost.
 
     Only rooms with a unit somebody could switch off. The rupees are an
     upper bound -- a unit nobody has calibrated is assumed to be running --
     and the page says so beside them.
+
+    With `hours` (rooms.yaml's working day), the rupees and the ranking are
+    the working day's only, and the nights and weekends are carried beside
+    them as a separate "if it was left on" figure. Without the split, every
+    room empty overnight was charged as if its unit ran till morning, and a
+    mosque nobody prays in at 2am came fourth on the list.
     """
     import overview
     rows = []
     paid = df[df["has_unit"] & df["alerts"]]
     for _, r in paid.iterrows():
-        off, on_peak = av.cooled_while_empty(history, [r["room"]], since,
-                                             until, peak)
-        if off + on_peak <= 0:
-            continue
         units = int(r.get("ac_count") or 1)
+        if hours is None:
+            off, on_peak = av.cooled_while_empty(history, [r["room"]], since,
+                                                 until, peak)
+            a_off = a_peak = 0.0
+        else:
+            off, on_peak = av.cooled_while_empty(
+                history, [r["room"]], since, until, peak, hours, "working")
+            a_off, a_peak = av.cooled_while_empty(
+                history, [r["room"]], since, until, peak, hours, "after")
+        if off + on_peak + a_off + a_peak <= 0:
+            continue
         _, _, rupees = av.money(off * units, on_peak * units, assumptions)
+        _, _, after_rs = av.money(a_off * units, a_peak * units, assumptions)
         rows.append({
             "room": r["room"],
             "dept": overview.department_of(r["room"], r.get("zone"),
@@ -193,8 +207,9 @@ def top_rooms(history, df, since, until, peak, assumptions):
             "zone": r.get("zone"),
             "hours": (off + on_peak) / 60.0, "peak_hours": on_peak / 60.0,
             "units": units, "rupees": rupees,
+            "after_hours": (a_off + a_peak) / 60.0, "after_rupees": after_rs,
         })
-    rows.sort(key=lambda x: -x["rupees"])
+    rows.sort(key=lambda x: (-x["rupees"], -x["after_rupees"]))
     return rows
 
 
@@ -589,8 +604,13 @@ def meters_page(theme, table, kind, meters, bills, cooled_hours, rate,
 
 
 def analysis_page(theme, rooms_rows, off_h, peak_h, rupees, unit_kw, known,
-                  cooled, rates, bill_rate, months_used, days=7):
-    """Where the empty, cooled hours are, and what they would cost."""
+                  cooled, rates, bill_rate, months_used, days=7, after=None):
+    """Where the empty, cooled hours are, and what they would cost.
+
+    after: (hours, rupees) empty outside the working day, when the hours
+    above are the working day's only. Shown apart, and plainly as the
+    figure nobody can vouch for until the units are calibrated.
+    """
     t = TOKENS[theme]
     h = [css(theme), '<div class="ec">']
     h.append('<div class="ec-h" style="margin-top:6px"><span class="t">What a '
@@ -606,16 +626,36 @@ def analysis_page(theme, rooms_rows, off_h, peak_h, rupees, unit_kw, known,
                       % months_used))
     h.append("</div>")
 
-    h.append('<div class="ec-h"><span class="t">Empty and still cooled, last '
-             '%d days</span><span class="c">rooms with a unit somebody could '
-             'switch off</span></div><div class="en-tiles">' % days)
-    h.append(tile("Off-peak room-hours", "%s" % format(int(round(off_h)), ","),
-                  "across %d rooms; two rooms for an hour is two" % cooled))
-    h.append(tile("Peak-tariff room-hours",
-                  "%s" % format(int(round(peak_h)), ","),
-                  "6:30–10:30 evening, the expensive ones"))
-    h.append(tile("At stake", "Rs %s" % format(int(round(rupees)), ","),
-                  "if those units were running", "crit"))
+    if after is None:
+        h.append('<div class="ec-h"><span class="t">Empty and still cooled, '
+                 'last %d days</span><span class="c">rooms with a unit somebody'
+                 ' could switch off</span></div><div class="en-tiles">' % days)
+        h.append(tile("Off-peak room-hours",
+                      "%s" % format(int(round(off_h)), ","),
+                      "across %d rooms; two rooms for an hour is two" % cooled))
+        h.append(tile("Peak-tariff room-hours",
+                      "%s" % format(int(round(peak_h)), ","),
+                      "6:30–10:30 evening, the expensive ones"))
+        h.append(tile("At stake", "Rs %s" % format(int(round(rupees)), ","),
+                      "if those units were running", "crit"))
+    else:
+        h.append('<div class="ec-h"><span class="t">Empty in working hours, '
+                 'last %d days</span><span class="c">rooms with a unit somebody'
+                 ' could switch off &middot; 10 to 8 on weekdays, when the units'
+                 ' are most likely on</span></div><div class="en-tiles">'
+                 % days)
+        h.append(tile("Room-hours empty",
+                      "%s" % format(int(round(off_h + peak_h)), ","),
+                      "across %d rooms; %s of them in the 6:30 peak"
+                      % (cooled, format(int(round(peak_h)), ","))))
+        h.append(tile("At stake", "Rs %s" % format(int(round(rupees)), ","),
+                      "if those units were running while nobody was in",
+                      "crit"))
+        h.append(tile("Nights and weekends",
+                      "%s h" % format(int(round(after[0])), ","),
+                      "empty outside working hours: Rs %s only if units were"
+                      " left on, which nobody can see until they are "
+                      "calibrated" % format(int(round(after[1])), ",")))
     h.append('</div><div class="en-note">The hours are measured by the '
              'cameras. The rupees are not: they assume every unit draws %.1f kW'
              ' and was on. %d of %d units are calibrated, so for the rest '
@@ -625,9 +665,13 @@ def analysis_page(theme, rooms_rows, off_h, peak_h, rupees, unit_kw, known,
     if rooms_rows:
         total = sum(r["rupees"] for r in rooms_rows) or 1
         for r in rooms_rows:
-            r["sub"] = "%.0f h%s" % (r["hours"], (", %.0f at peak"
-                                                  % r["peak_hours"])
-                                     if r["peak_hours"] >= 0.5 else "")
+            r["sub"] = "%.0f h%s%s" % (
+                r["hours"], (", %.0f at peak" % r["peak_hours"])
+                if r["peak_hours"] >= 0.5 else "",
+                (" · +%.0f h nights" % r["after_hours"])
+                if after is not None and r.get("after_hours", 0) >= 0.5
+                else "")
+        rooms_rows = [r for r in rooms_rows if r["rupees"] > 0] or rooms_rows
         top = rooms_rows[:10]
         share = 100.0 * sum(r["rupees"] for r in top) / total
         h.append('<div class="ec-h"><span class="t">Where to start</span>'

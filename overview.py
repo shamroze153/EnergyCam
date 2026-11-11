@@ -26,6 +26,8 @@ import day_story as ds
 from campus_view import OUTSIDE_ZONES
 
 LOCAL = "Asia/Karachi"
+# A campus "opens" no earlier than this hour; anything before is the night.
+DAY_OPENS_AT = 5
 
 # Where people work, as opposed to where they pass through. A room in one of
 # these with no department written against it is its own department: at
@@ -235,8 +237,14 @@ def campus_summary(name, rooms, history, beats, now, stake=0.0,
     # first camera to see anybody -- the cleaner at seven and the guard at
     # the gate are not the day starting. Somebody in since last night is not
     # an arrival either.
+    # Nor is somebody at a desk at 2:43 in the morning: 140-H's front page
+    # said Disrupt Labs opened the campus then, on 11 Nov. Whether that is a
+    # night shift or a coat the detector took for one, it is not the day
+    # starting; the night audit's pictures say which.
     opened = [d for d in depts if d["work"] and d["starts"] is not None
-              and not d["carried"]]
+              and not d["carried"]
+              and pd.Timestamp(d["starts"]).tz_convert(LOCAL).hour
+              >= DAY_OPENS_AT]
     first = min(opened, key=lambda d: d["starts"]) if opened else None
 
     # When yesterday ended: the last working room to empty. Somebody still

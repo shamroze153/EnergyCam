@@ -13,6 +13,8 @@ from datetime import time
 
 import pandas as pd
 
+from schedule import PKT, in_operations
+
 # A reading is only ever as good as the hours a loop was running, so every
 # figure here that comes from cameras is reported with the hours behind it.
 MINUTES = 60.0
@@ -40,6 +42,11 @@ def split_peak(start, end, window):
     low, high = window
     if end <= start:
         return 0.0, 0.0
+    # The window is Karachi's clock. The events arrive in UTC, and a UTC
+    # midnight plus 18.5 hours is 23:30 here: until 11 Nov the "peak"
+    # hours counted were half past eleven at night to half past three.
+    if getattr(start, "tzinfo", None) is not None:
+        start, end = start.tz_convert(PKT), end.tz_convert(PKT)
     peak = 0.0
     day = start.normalize()
     while day < end:
@@ -53,13 +60,38 @@ def split_peak(start, end, window):
     return max(0.0, total - peak), min(peak, total)
 
 
-def cooled_while_empty(recent, rooms, since, until, window):
+def by_hours(start, end, hours):
+    """[start, end) cut where the working day begins and ends.
+
+    Returns (from, to, working) pieces. Walked in half hours, which is as
+    fine as any operating window here turns over.
+    """
+    out = []
+    cursor = start
+    while cursor < end:
+        nxt = min(end, cursor.floor("30min") + pd.Timedelta(minutes=30))
+        working = in_operations(cursor, hours)
+        if out and out[-1][2] == working and out[-1][1] == cursor:
+            out[-1] = (out[-1][0], nxt, working)
+        else:
+            out.append((cursor, nxt, working))
+        cursor = nxt
+    return out
+
+
+def cooled_while_empty(recent, rooms, since, until, window, hours=None,
+                       part=None):
     """Minutes rooms sat empty, split by whether the hour was peak.
 
     Only rooms with a unit that can be switched off, because a corridor's
     empty hours are not money. Where a unit has been calibrated and read as
     off, those minutes are left out: the room was empty and already dealt
     with, and counting it would invent waste that did not happen.
+
+    part: None for every hour; "working" or "after" for only the hours
+    inside or outside the working day. The two are not alike. An empty
+    room at three in the afternoon very likely has its unit running; at
+    three in the morning, with no calibration to say, nobody knows.
     """
     off_total = peak_total = 0.0
     wanted = set(rooms)
@@ -77,9 +109,16 @@ def cooled_while_empty(recent, rooms, since, until, window):
             began, ended = max(stamps[i], since), min(stamps[i + 1], until)
             if ended <= began:
                 continue
-            off, peak = split_peak(began, ended, window)
-            off_total += off
-            peak_total += peak
+            if part is None:
+                pieces = [(began, ended)]
+            else:
+                want = part == "working"
+                pieces = [(a, b) for a, b, w in by_hours(began, ended, hours)
+                          if w == want]
+            for a, b in pieces:
+                off, peak = split_peak(a, b, window)
+                off_total += off
+                peak_total += peak
     return off_total, peak_total
 
 

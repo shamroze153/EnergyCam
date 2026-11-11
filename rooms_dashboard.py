@@ -1621,10 +1621,13 @@ def show_analysis(df, recent, now):
     # Seven days of events, not the last day's: this said "last 7 days"
     # over twenty-five hours of history.
     since = now - pd.Timedelta(days=7)
-    rows = ev.top_rooms(history, df, since, now, window, assumptions)
+    rows = ev.top_rooms(history, df, since, now, window, assumptions,
+                        hours=load_hours())
     peak_h = sum(r["peak_hours"] for r in rows)
     off_h = sum(r["hours"] for r in rows) - peak_h
     rupees = sum(r["rupees"] for r in rows)
+    after = (sum(r["after_hours"] for r in rows),
+             sum(r["after_rupees"] for r in rows))
     cooled = df[df["has_unit"] & df["alerts"]]
     known = int(cooled["ac_state"].notna().sum()) if len(cooled) else 0
     bill_rate, months = (av.tariff_from_bills(bills, True, meters)
@@ -1636,7 +1639,7 @@ def show_analysis(df, recent, now):
     st.markdown(ev.analysis_page(
         LINK_BASE.get("theme") or "dark", rows, off_h, peak_h, rupees,
         float(assumptions.get("unit_kw", 1.2)), known, len(cooled), rates,
-        bill_rate, months), unsafe_allow_html=True)
+        bill_rate, months, after=after), unsafe_allow_html=True)
 
     if "gf_basement" in set(df.get("meter", pd.Series(dtype=object))
                             .dropna()):
@@ -3016,9 +3019,9 @@ def stake_caveat(rooms_in_figure):
     if not total:
         return "nothing to count"
     if unread:
-        return ("upper bound · %d of %d units unread, assumed running"
-                % (unread, total))
-    return "upper bound, not a bill"
+        return ("working hours · upper bound · %d of %d units unread,"
+                " assumed running" % (unread, total))
+    return "working hours · upper bound, not a bill"
 
 
 try:
@@ -3037,8 +3040,19 @@ def front_figures(name):
     here = everything[everything["campus"] == name]
     paid = here[here["has_unit"] & here["alerts"]]
     events = month if not month.empty else recent
-    stake = money(wasted_minutes(events, paid["room"], today_start, now),
-                  assumptions)[1]
+    # Working hours only, each room's own units, the 6:30 peak at its own
+    # rate, and minutes a calibrated unit was read off left out -- the same
+    # arithmetic as Analysis. Counted from midnight it charged every room
+    # empty since last night ten hours of a unit nobody knows was on.
+    import analysis_view as av
+    window = av.peak_window(assumptions)
+    off = peak = 0.0
+    for _, r in paid.iterrows():
+        units = int(r.get("ac_count") or 1)
+        o, p = av.cooled_while_empty(events, [r["room"]], today_start, now,
+                                     window, hours, "working")
+        off, peak = off + o * units, peak + p * units
+    stake = av.money(off, peak, assumptions)[2]
     return overview.campus_summary(
         name, here, events, two_days, now, stake=stake,
         stake_note=stake_caveat(list(paid["room"])), live=healthy)

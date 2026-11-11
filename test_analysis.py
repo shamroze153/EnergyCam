@@ -27,7 +27,10 @@ def check(label, got, want):
 
 
 def T(s):
-    return pd.Timestamp(s, tz="UTC")
+    # Karachi's clock: the peak window is K-Electric's 18:30-22:30 here.
+    # These used to be UTC, which is how the tests agreed with a page that
+    # counted 23:30-03:30 as the peak.
+    return pd.Timestamp(s, tz="Asia/Karachi")
 
 
 
@@ -111,6 +114,10 @@ def main():
         total = (T(b) - T(a)).total_seconds() / 60
         check("the two halves add back to the whole (%s)" % a[-5:],
               round(off + peak), round(total))
+    utc = pd.Timestamp("2026-11-10 14:00", tz="UTC")       # 19:00 here
+    check("a UTC timestamp is read on Karachi's clock",
+          tuple(round(v) for v in av.split_peak(
+              utc, utc + pd.Timedelta(hours=1), WINDOW)), (0, 60))
     check("an interval that ends before it starts is nothing",
           av.split_peak(T("2026-11-10 12:00"), T("2026-11-10 09:00"), WINDOW),
           (0.0, 0.0))
@@ -146,6 +153,20 @@ def main():
           (0, 0))
     none = av.cooled_while_empty(recent, [], ago(24), now, WINDOW)
     check("no rooms, no minutes", tuple(round(v) for v in none), (0, 0))
+
+    # Empty 17:00-23:00 on a Tuesday; the working day ends at 20:00.
+    hours = {"operations": {"days": ["mon", "tue", "wed", "thu", "fri"],
+                            "start": "10:00", "end": "20:00"}}
+    work = av.cooled_while_empty(recent, ["Marketing"], ago(24), now, WINDOW,
+                                 hours, "working")
+    after = av.cooled_while_empty(recent, ["Marketing"], ago(24), now, WINDOW,
+                                  hours, "after")
+    check("working hours: 17:00 to 20:00, 90 min of it in the peak",
+          tuple(round(v) for v in work), (90, 90))
+    check("after hours: 20:00 to 23:00, 150 min of it in the peak",
+          tuple(round(v) for v in after), (30, 150))
+    check("and the two add back to the whole",
+          round(sum(work) + sum(after)), 360)
 
     print("\n-- turning hours into money")
     off_kwh, peak_kwh, rupees = av.money(120, 240, ASSUME)
