@@ -231,3 +231,7 @@ Two or three lines a round; picture file names, never pictures.
   6, 12): three zones, re-checked to 0. Hazy lenses worth a wipe: XVR 1
   ch 1 (Room 22), ch 12 (corridor), ch 14 (Learning Center). Loop
   restarted 16:45.
+* 16:51 round: covered by the 16:27 audit and the 16:40-16:50 camera
+  check, so no second audit on top of them. Loop healthy: 123 rooms, 252 s
+  a pass, the one unknown is the gym in its private hours; no gym picture
+  since 15:00 anywhere on the laptop.
