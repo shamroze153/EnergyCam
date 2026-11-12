@@ -65,6 +65,10 @@ for name, module in (
     sys.modules.setdefault(name, module)
 
 import room_loop  # noqa: E402
+import tempfile as _seat_tmp  # noqa: E402
+
+# The stand-in people these tests count must not land in the real seat notes.
+room_loop.SEATS_DIR = _seat_tmp.mkdtemp()
 from ac_detect import load_units  # noqa: E402
 
 room_loop.grab = fake_grab

@@ -894,11 +894,58 @@ def examine(room, frames, model, imgsz, iou, ac_units=None,
                 wide, room.name, ac_units)
         boxes = people_boxes(wide, model, conf=room.conf_for(after_hours),
                              imgsz=imgsz, iou=iou)
-        here = sum(1 for b in boxes if not ignored(b, room.ignore.get(key)))
+        counted = [b for b in boxes if not ignored(b, room.ignore.get(key))]
+        here = len(counted)
+        note_seats(room.name, key, counted, getattr(wide, "shape", (0, 0)))
         if keep is None or here > people:
             keep = wide
         people = max(people, here)
     return people, answered, keep, ac_state, ac_detail
+
+
+SEATS_DIR = "seats"
+SEATS_DAYS = 14
+
+
+def note_seats(room, key, boxes, shape, folder=None, now=None):
+    """Where in the picture each counted person was: numbers, no picture.
+
+    12 Nov, Shamroze: "see where people sit, so we know they sit here and
+    here". A day of these is a map of each camera's seats -- where a zone
+    must never go, and where a room is really used. One line a person,
+    seats/<date>.csv on this machine only (git-ignored), kept SEATS_DAYS.
+    Never written for a room in its private hours: no frame reaches here.
+    """
+    if not boxes:
+        return
+    # Read at call time, so a test can point it somewhere harmless.
+    folder = folder or SEATS_DIR
+    now = now or datetime.now(PKT)
+    try:
+        os.makedirs(folder, exist_ok=True)
+        path = os.path.join(folder, now.strftime("%Y-%m-%d") + ".csv")
+        new = not os.path.exists(path)
+        with open(path, "a", encoding="utf-8") as fh:
+            if new:
+                fh.write("time,room,recorder,channel,cx,cy,w,h,score,"
+                         "frame_w,frame_h\n")
+            for b in boxes:
+                x1, y1, x2, y2 = (float(v) for v in b[:4])
+                fh.write("%s,\"%s\",%s,%d,%.0f,%.0f,%.0f,%.0f,%.2f,%d,%d\n"
+                         % (now.strftime("%H:%M:%S"), room.replace('"', "'"),
+                            key[0], int(key[1]), (x1 + x2) / 2, (y1 + y2) / 2,
+                            x2 - x1, y2 - y1,
+                            float(b[4]) if len(b) > 4 else 0.0,
+                            shape[1], shape[0]))
+        if new:
+            # A new day's file: let the old ones go.
+            cutoff = time.time() - SEATS_DAYS * 86400
+            for name in os.listdir(folder):
+                p = os.path.join(folder, name)
+                if name.endswith(".csv") and os.path.getmtime(p) < cutoff:
+                    os.remove(p)
+    except (OSError, ValueError, IndexError):
+        pass        # a seat note that cannot be written must not stop a pass
 
 
 def prune_evidence(folder, keep=EVIDENCE_KEEP, days=EVIDENCE_DAYS):

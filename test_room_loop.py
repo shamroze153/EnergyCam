@@ -38,6 +38,10 @@ for name, module in (
 
 import room_loop  # noqa: E402
 from room_loop import PKT, Room  # noqa: E402
+import tempfile as _seat_tmp  # noqa: E402
+
+# The stand-in people these tests count must not land in the real seat notes.
+room_loop.SEATS_DIR = _seat_tmp.mkdtemp()
 
 T0 = datetime.datetime(2026, 11, 5, 18, 0, tzinfo=PKT)
 FAILURES = []
@@ -877,6 +881,26 @@ def main():
         text = open(tool, encoding="utf-8").read()
         check("%s keeps private cameras closed" % tool,
               "private_cameras" in text or "is_private" in text, True)
+
+    # 12 Nov: where people sit, as numbers, for a seat map.
+    import os as _os3
+    import tempfile as _tf3
+    seat_dir = _tf3.mkdtemp()
+    at_noon = datetime.datetime(2026, 11, 12, 12, 0, tzinfo=PKT)
+    room_loop.note_seats("Marketing", ("dvr2", 3),
+                         [(100, 200, 160, 360, 0.81)], (1080, 1920, 3),
+                         folder=seat_dir, now=at_noon)
+    room_loop.note_seats("Marketing", ("dvr2", 3), [], (1080, 1920, 3),
+                         folder=seat_dir, now=at_noon)
+    with open(_os3.path.join(seat_dir, "2026-11-12.csv"),
+              encoding="utf-8") as fh:
+        seat_lines = fh.read().splitlines()
+    check("a counted person is noted as numbers: centre, size, score, frame",
+          seat_lines[1], '12:00:00,"Marketing",dvr2,3,130,280,60,160,0.81,'
+                         '1920,1080')
+    check("and nobody seen notes nothing", len(seat_lines), 2)
+    check("the seat notes stay off git",
+          "seats/" in open(".gitignore", encoding="utf-8").read(), True)
 
     # cycles.csv gained two columns; a file with the old header is set
     # aside rather than mixed into one table with rows of two shapes.

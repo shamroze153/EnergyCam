@@ -57,6 +57,9 @@ pack_*/
 pack_*.zip
 cycles.csv
 cycles_before_*.csv
+# Where people were seen in each picture (room_loop.note_seats): numbers,
+# but numbers about people at their desks -- this machine only.
+seats/
 
 # CLAUDE.md promises these are ignored; evidence.zip (84 MB of unblurred
 # frames) and frames/report.txt were sitting untracked, one "git add -A"

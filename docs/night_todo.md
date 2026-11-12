@@ -25,6 +25,19 @@ it here. Shamroze reads the morning summary in Roman Urdu.
       day -- and show units per person-hour, so a busy day and a wasteful
       day can be told apart. Days are already on a 24-hour footing.
 
+## Added 22:45 (Shamroze: audit all night, catch ghosts, calibrate what you
+## can, see where people sit)
+
+- [ ] Every 2-hour round at night: look at the night_check pictures for
+      ghosts in rooms with a unit; a clear object gets a zone (never a
+      seat), as tonight's Assembly Meeting Room table.
+- [ ] Seat notes: the loop now writes seats/<date>.csv (where each counted
+      person was, numbers only, this machine only). After a working day,
+      draw a seat map per camera locally (dots on an empty-room frame) and
+      list in the report which rooms' seats are used; never commit them.
+- [ ] 09:12 morning report job; 11:12 morning AC calibration from the
+      08:00-11:00 watch (both scheduled).
+
 Rules that hold all night: the 141 gym's camera is never opened 15:00-20:00;
 no picture into git; no recorder settings; no retried logins (XVR 2 and 4
 are IP conflicts, the DVR is on another network -- leave them).
