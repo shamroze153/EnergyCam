@@ -290,7 +290,11 @@ recorders:
     user_env: CD_XVR3_USER
     pass_env: CD_XVR3_PASS
     stream: main
-  # Still to come: XVR4 (Dahua; address unknown), and the DVR, which is on its
+  # Still to come: XVR4 (Dahua) -- its own screen says 192.168.67.51, static,
+  # MAC fc:b6:9d:59:99:af; but at .51 a different device answers (MAC
+  # 40-ac-bf-78-62-64, Hikvision ports 80/554/8000, Dahua's 37777 shut):
+  # an IP CONFLICT, as with XVR 2. No login tried. Login in .env
+  # (CD_XVR4_*). IT to move it to .91 (free on 12 Nov 17:20). And the DVR, which is on its
   # Hikvision factory address 192.168.1.64 with DHCP on and no lease:
   # a different network from everything else here, so unreachable until
   # IT gives it a fixed 192.168.67.x address.
