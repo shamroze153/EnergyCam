@@ -270,3 +270,8 @@ Two or three lines a round; picture file names, never pictures.
   Rs 3,144. The gym watched again from 20:00 (0 unknown).
 * 20:55 front page: under each campus card, "N rooms worth a look ->"
   straight to that campus's list (7 at 140-H, 9 at 141 this evening).
+* 20:47 round: 91 MATCH, 10 GHOST, 1 MISSED -- the end of the day, people
+  leaving: nine were right on the 20:56 or 21:01 pass. 141 Assembly
+  Meeting Room flickered every pass: a bag on the table read 0.56 on ch 4
+  in the dark (frames/141_Assembly_Meeting_Room_cd_nvr2_ch04_boxes.jpg)
+  -> a zone on the table top. Loop restarted 21:08.
