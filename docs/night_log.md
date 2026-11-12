@@ -197,3 +197,13 @@ Two or three lines a round; picture file names, never pictures.
   started 15:07; first pass 209 s, 0 unknown: 112 s waiting (was 151),
   98 s counting (was 60) -- the laptop's CPU now decodes and counts at
   once, so ~210 s is its pace. A gap in the record from ~14:48 to 15:07.
+* 15:30-16:00 XVR 1 (Shamroze's login): 192.168.67.77, 16 channels. Its
+  2nd-floor rooms are in: Rooms 22 (CS), 24-29, pantry, lobby, corridor;
+  ch 14 is a second angle on Learning Center. Learning Center's ch 2 had
+  counted a man in the next office through the glass and missed the one
+  in the room (feet on the table); ch 14 sees him, and a zone over the
+  doors drops the other (frames/141_Learning_Center_*_boxes.jpg). Fixed
+  check_room for rooms on two recorders. Loop restarted 15:55: 115 rooms,
+  230 s a pass, 0 unknown. Still to come: XVR 2 (login), .78 (XVR 3 or
+  4, login), the last XVR's address, the DVR (192.168.1.64, needs an IP
+  on 192.168.67.x), and the units in the new offices.
