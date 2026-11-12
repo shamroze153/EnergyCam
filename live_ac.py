@@ -146,8 +146,16 @@ def dots(r):
 
 def status_text(r):
     if r["state"] == "on":
-        if r["running"] is not None:
+        if r["running"] is not None and r["seen"] == r["count"]:
             what = "<b>%d of %d running</b>" % (r["running"], r["count"])
+        elif r["running"] is not None:
+            # Never "1 of 3 running" where two of the three are out of
+            # every camera's view: that reads as two seen off.
+            bits = ["<b>%d running</b>" % r["running"]]
+            if r["seen"] - r["running"]:
+                bits.append("%d off" % (r["seen"] - r["running"]))
+            bits.append("%d not visible" % (r["count"] - r["seen"]))
+            what = " &middot; ".join(bits)
         else:
             what = "<b>running</b> &middot; how many not recorded yet"
     elif r["state"] == "off":

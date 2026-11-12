@@ -59,6 +59,12 @@ def main():
     check("a room read on with no count is one unit, not three",
           r32["counted"], 1)
     check("  and says so", r32["exact"], False)
+    check("units out of view are not reported as off",
+          live_ac.status_text(cafe)[0],
+          "<b>5 running</b> &middot; 1 not visible")
+    lc = next(r for r in items if r["room"] == "141 Learning Center")
+    check("  nor counted into 'of N running'",
+          "of 3" in live_ac.status_text(lc)[0], False)
     off = next(r for r in items if r["room"] == "141 Finance Room")
     check("a unit read off draws nothing", off["kw"], 0.0)
 
