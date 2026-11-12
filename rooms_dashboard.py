@@ -45,7 +45,51 @@ import streamlit as st
 import yaml
 from streamlit_autorefresh import st_autorefresh
 
-from schedule import (AFTER_HOURS, WEEKEND, WORKING, describe,
+
+def _fresh_modules():
+    """Load this project's own modules as they are on disk now.
+
+    Streamlit reruns this script on every visit, but a module it imported
+    on an earlier run stays in memory. On 12 Nov the cloud app pulled a
+    rooms_dashboard.py that called analysis_view.cooled_while_empty with
+    seven arguments while still holding yesterday's analysis_view, which
+    took five -- every page showed a TypeError until the app was rebooted.
+
+    So each run compares each file's time with the one it was loaded at
+    and reloads what changed, and everything that depends on it after it,
+    in dependency order. They are plain pandas code with no Streamlit in
+    them, so reloading them costs milliseconds and holds no state.
+    """
+    import importlib
+    import sys
+    order = ("schedule", "campus_view", "day_story", "day_timeline",
+             "overview", "analysis_view", "meters_view", "energy_view",
+             "empty_view")
+    # The tests run this half of the file through exec, with no __file__.
+    here = os.path.dirname(os.path.abspath(
+        globals().get("__file__") or "rooms_dashboard.py"))
+    stamps = getattr(sys, "_energycam_stamps", None)
+    if stamps is None:
+        stamps = {}
+        sys._energycam_stamps = stamps
+    changed = False
+    for name in order:
+        try:
+            stamp = os.path.getmtime(os.path.join(here, name + ".py"))
+        except OSError:
+            continue
+        mod = sys.modules.get(name)
+        if mod is None:
+            importlib.import_module(name)
+        elif changed or stamps.get(name) != stamp:
+            importlib.reload(mod)
+            changed = True
+        stamps[name] = stamp
+
+
+_fresh_modules()
+
+from schedule import (AFTER_HOURS, WEEKEND, WORKING, describe,  # noqa: E402
                       split_by_period, wait_before_reporting)
 import overview  # noqa: E402  (the front pages: welcome and campus overview)
 
