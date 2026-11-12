@@ -1528,6 +1528,96 @@ rooms:
     ac: hidden
     empty_after_minutes: 45
 
+  # ---- XVR 1 (192.168.67.77): 141, second floor ---------------------------
+  # Channels named by Shamroze, 12 Nov, from the contact sheet. Main stream
+  # (the recorder's setting): its sub stream is 352x288. Units not counted
+  # yet, so each office is ac: hidden with the one-unit default until they
+  # are -- then ac_count / ac_tons, as for 140-H. ch 14 is Learning Center,
+  # a second angle on that room (below, with its cd_nvr2 camera).
+  - name: 141 Room 22 (2nd floor)
+    dept: CS
+    zone: Offices
+    recorder: cd_xvr1
+    channels: [1]
+    ac: hidden
+    empty_after_minutes: 45
+
+  - name: 141 Room 24 (2nd floor)
+    dept: Room 24
+    zone: Offices
+    recorder: cd_xvr1
+    channels: [11]
+    ac: hidden
+    empty_after_minutes: 45
+
+  - name: 141 Room 25 (2nd floor)
+    dept: Room 25
+    zone: Offices
+    recorder: cd_xvr1
+    channels: [8]
+    ac: hidden
+    empty_after_minutes: 45
+
+  - name: 141 Room 26 (2nd floor)
+    dept: Room 26
+    zone: Offices
+    recorder: cd_xvr1
+    # Two angles on one room (Shamroze): ch 10 shows a floor-standing unit
+    # on the right-hand wall.
+    channels: [10, 15]
+    ac: hidden
+    empty_after_minutes: 45
+
+  - name: 141 Room 27 (2nd floor)
+    dept: Room 27
+    zone: Offices
+    recorder: cd_xvr1
+    channels: [7]
+    ac: hidden
+    empty_after_minutes: 45
+
+  - name: 141 Room 28 (2nd floor)
+    dept: Room 28
+    zone: Offices
+    recorder: cd_xvr1
+    channels: [2]
+    ac: hidden
+    empty_after_minutes: 45
+
+  - name: 141 Room 29 (2nd floor)
+    dept: Room 29
+    zone: Offices
+    recorder: cd_xvr1
+    channels: [13]
+    ac: hidden
+    empty_after_minutes: 45
+
+  - name: 141 Pantry (2nd floor)
+    dept: Shared
+    zone: Cafe & common
+    recorder: cd_xvr1
+    channels: [4]
+    ac: none
+    empty_after_minutes: null
+
+  - name: 141 Lobby (2nd floor)
+    dept: Shared
+    zone: Cafe & common
+    recorder: cd_xvr1
+    # ch 9 looks at a corner of wall: kept because it is this lobby's, but
+    # it sees almost nothing until it is turned.
+    channels: [3, 9]
+    ac: none
+    empty_after_minutes: null
+
+  - name: 141 Corridor (2nd floor)
+    dept: Shared
+    zone: Cafe & common
+    recorder: cd_xvr1
+    channels: [5, 6, 12, 16]
+    ac: none
+    empty_after_minutes: null
+
   - name: 141 IT Sub Store
     dept: IT
     zone: Offices
@@ -1758,11 +1848,23 @@ rooms:
   - name: 141 Learning Center
     dept: Learning Center
     zone: Offices
-    recorder: cd_nvr2
-    channels: [2]
+    # cd_nvr2 ch 2 first: its AC calibration (ac_units.yaml) names it. XVR 1
+    # ch 14 added 12 Nov (Shamroze): a second angle on the same room.
+    cameras:
+      - {recorder: cd_nvr2, channel: 2}
+      - {recorder: cd_xvr1, channel: 14}
     # Main stream: ch 2 shows the unit's display reading 25, top left. At
     # the sub stream's 640x360 it is a smudge.
     stream: main
+    # 12 Nov 15:51 check_room: a man in the office beyond the glass doors
+    # (top of ch 2) at 0.61 was counted as in this room, while the one in
+    # the room, leaning right back with his feet on the table, was missed.
+    # The zone covers the doors and the office past them, above the chair
+    # at the head of the table: somebody at the door or in that chair
+    # reaches below it and is still counted (80% of a box must be inside).
+    ignore:
+      "cd_nvr2:2":
+        - [370, 0, 750, 190]     # the next office, through the glass doors
     ac: visible
     # Three units, counted on site by Shamroze, 12 Nov.
     ac_count: 3

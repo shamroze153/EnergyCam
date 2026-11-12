@@ -229,7 +229,12 @@ def main():
     recorders, rooms = load_rooms(args.config,
                                   None if args.all else args.recorder,
                                   None if args.all else args.room)
-    for key in {r.recorder for r in rooms}:
+    # Every recorder any of the rooms' cameras is on, not only each room's
+    # first: 12 Nov, Learning Center gained a second recorder's camera and
+    # came back with no frames at all -- the second recorder had no login,
+    # and its camera stopped the room's fetch, taking the first one's
+    # picture with it. room_loop logs in the same way.
+    for key in {rec for r in rooms for rec, _ in r.cameras}:
         user, password = recorder_login(key, recorders[key])
         recorders[key]["user"], recorders[key]["password"] = user, password
     set_gates(recorders, args.per_recorder)

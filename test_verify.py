@@ -202,6 +202,15 @@ def main():
     check("and the night check prints the warning",
           any("reaches past this 640x360 frame" in s for s in said), True)
 
+    # 12 Nov: Learning Center, on two recorders, came back with no frames
+    # from check_room -- it logged in to each room's first recorder only.
+    # Every tool that opens cameras logs in to every recorder they are on.
+    for tool in ("check_room.py", "room_loop.py"):
+        text = open(tool, encoding="utf-8").read()
+        check("%s logs in to every recorder a room's cameras are on" % tool,
+              "for rec, _ in r.cameras}" in text
+              and "{r.recorder for r in rooms}" not in text, True)
+
     print()
     if FAILURES:
         print("%d FAILURE(S):" % len(FAILURES))
