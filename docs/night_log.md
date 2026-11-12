@@ -293,3 +293,16 @@ Two or three lines a round; picture file names, never pictures.
   first pass. A morning AC watch waits for 08:00-11:00 (people switching
   units on) with the calibration at 11:12; the report at 09:12. Loop
   restarted 22:46.
+
+## 13 November 2026
+
+* 00:20 round (the 22:47 one was lost to the usage limit): 108 MATCH,
+  0 MISSED, 2 GHOST -- 141's open-air first-floor lobby and P1 Parking,
+  no units, left. The seat notes found "people" at the same spot all
+  night: Squat Wolf Room 2's empty chair (0.31, 17 passes) and HR Room's
+  monitor and chair back (0.29, 16) -> night bars 0.45 and 0.40 (seats,
+  so no zones). Left for Shamroze: Marketing ch13, a small shape behind a
+  chair at 0.34 that may be a head (evidence/Marketing_dvr2_ch13_
+  20261113_000515.jpg); 141-C Cafe ch2, a thin figure by the far pillar
+  at 0.55, maybe the guard (frames/141-C_Cafe_cd_nvr1_ch02_boxes.jpg).
+  Wellows' 0.78 and 0.66 are real people working late. Loop restarted.
