@@ -38,6 +38,9 @@ conditioners run, on two Disrupt campuses in Karachi. Owner: Shamroze.
    login (XMeye-type recorders lock the account).
 5. Work on `main` (that is what `pull.bat` pulls). Run the tests before a
    push; push only green.
+6. The 141 gym is ladies-only 15:00–20:00: its camera is never opened then
+   (`private_hours` in rooms.yaml; `room_loop.fetch` and every tool honour
+   it). Never work around it, and never keep a gym picture from those hours.
 
 Tests: `python test_room_loop.py`, `test_overview.py`, `test_energy.py`,
 `test_dashboard.py`, `test_day_story.py`, `test_verify.py`,
