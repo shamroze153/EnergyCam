@@ -131,8 +131,21 @@ def main():
     readings = room_loop.sweep(rooms, recorders, None, 1280, 0.7, 1.0,
                                load_units(), workers=8)
     check("every room got a reading", len(readings), len(rooms))
-    says("every room's cameras were asked for",
-         len(_asked) >= sum(len(r.cameras) for r in rooms))
+    # Except a room in its private hours (the 141 gym, 15:00-20:00), whose
+    # camera must not be asked for at all.
+    private = [r for r in rooms if room_loop.is_private(r.private)]
+    says("every room's cameras were asked for, bar private hours",
+         len(_asked) >= sum(len(r.cameras) for r in rooms
+                            if r not in private))
+    for room in private:
+        for rec_name, channel in room.cameras:
+            rec = recorders[rec_name]
+            url = sys.modules["test_camera"].build_url(
+                rec["host"], channel, rec["user"], rec["password"],
+                room_loop.wants_main(room, rec),
+                rec.get("brand", "hikvision"))
+            says("%s's camera was not asked for, in its private hours"
+                 % room.name, url not in _asked)
 
     print()
     print("-- the stream each room asked for is the stream it got")

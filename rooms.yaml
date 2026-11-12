@@ -2032,6 +2032,11 @@ rooms:
     channels: [7]
     ac: none
     empty_after_minutes: null
+    # Ladies' hours, 3 to 8 in the afternoon (Shamroze, 12 Nov: "take no
+    # data from there then; mind their privacy"). The camera is not opened
+    # at all in these hours -- by the loop or by any checking tool -- so no
+    # frame, count or picture exists; the room reads unknown.
+    private_hours: ["15:00", "20:00"]
     # 12 Nov 00:15 night check: the running figure on the "Challenge
     # yourself" wall poster read as a person at 0.34. A poster on a wall.
     ignore:

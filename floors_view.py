@@ -61,6 +61,16 @@ def floor_of(row):
     return level or "Not placed on a floor yet"
 
 
+def on_floor(name):
+    """A room's name under its floor's heading: "(2nd floor)" is said there.
+
+    "Room 6 (ground floor)" sat right under "Main building · Ground floor".
+    """
+    short = re.sub(r"\s*\((?:ground|\d(?:st|nd|rd|th)) floor\)", "",
+                   ov.short(str(name)), flags=re.I).strip()
+    return short or ov.short(str(name))
+
+
 def floor_rank(label):
     for i, word in enumerate(ORDER):
         if label == word:
@@ -207,7 +217,11 @@ def tiles(df, usual, now):
             "floor": label, "rooms": rooms, "spaces": spaces,
             "people": sum(i["people"] for i in items),
             "units": sum(i["units"] for i in items),
-            "tons": sum(i["tons"] or 0 for i in items),
+            # A floor's total only where every unit on it has its size: 141's
+            # main building said "10 AC · 1 ton total" on 12 Nov, the one
+            # unit whose size was known.
+            "tons": (sum(i["tons"] for i in items if i["units"])
+                     if all(i["tons"] for i in items if i["units"]) else None),
             "running": sum((i["units_on"] if i["units_on"] is not None
                             else 1) for i in items if i["ac_state"] == "on"),
             "waste": sum(1 for i in items if i["waste"]),
@@ -384,7 +398,7 @@ def page(theme, floors, base, days_used):
                     '<div class="us">%s</div><div class="us">%s</div></a>'
                     % (" waste" if item["waste"] else "",
                        esc(ov.link(base, room=item["room"])),
-                       esc(ov.short(item["room"])),
+                       esc(on_floor(item["room"])),
                        esc(item["dept"] if item["dept"] != item["room"]
                            else ""),
                        drawing(item, c), status_line(item), esc(ac_line(item)),
@@ -393,7 +407,7 @@ def page(theme, floors, base, days_used):
         if f["spaces"]:
             h.append('<div class="fv-spaces">%s</div>' % "".join(
                 '<a target="_self" href="%s#roomdetail">%s<b>%s</b></a>'
-                % (esc(ov.link(base, room=s["room"])), esc(ov.short(s["room"])),
+                % (esc(ov.link(base, room=s["room"])), esc(on_floor(s["room"])),
                    s["people"] if s["people"] else "&middot;")
                 for s in f["spaces"]))
         h.append("</div>")

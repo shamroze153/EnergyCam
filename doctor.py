@@ -237,11 +237,16 @@ def check_cameras(cfg):
     section("Recorders")
     from dotenv import load_dotenv
     load_dotenv()
-    from room_loop import load_rooms, recorder_login, wants_main, widen
+    from room_loop import (is_private, load_rooms, recorder_login, wants_main,
+                           widen)
     from test_camera import build_url, grab
     recorders, rooms = load_rooms("rooms.yaml")
     seen = {}
     for room in rooms:
+        # A room in its private hours (the 141 gym, 15:00-20:00) is never the
+        # camera a recorder is tested on.
+        if is_private(room.private):
+            continue
         for rec_name, channel in room.cameras:
             seen.setdefault(rec_name, (room, channel))
     for key, (room, channel) in sorted(seen.items()):

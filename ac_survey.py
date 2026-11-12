@@ -104,10 +104,17 @@ def main():
         except SystemExit as e:
             print(">> %s: %s" % (key, e))
 
+    from room_loop import private_cameras
+    private = private_cameras()
+
     def walk(key):
         rec = cfg["recorders"][key]
         rows = []
         for room, where, _, ch in by_rec[key]:
+            if (key, ch) in private:
+                # Private hours (the 141 gym, 15:00-20:00): not opened.
+                rows.append((room, where, key, ch, None, "private hours"))
+                continue
             if key not in logins:
                 rows.append((room, where, key, ch, None, "no login in .env"))
                 continue

@@ -247,7 +247,17 @@ def main():
         brand = None
 
     tiles, live, scanned, dead_run = [], [], [], 0
+    # A camera in a room's private hours (the 141 gym, 15:00-20:00) is not
+    # opened, even by a scan of the whole recorder.
+    try:
+        from room_loop import private_cameras
+        private = private_cameras(by_host=True)
+    except Exception:                                       # noqa: BLE001
+        private = set()
     for ch in channels:
+        if (split_host(host)[0], ch) in private:
+            print("   ch %-3d private hours -- not opened" % ch)
+            continue
         scanned.append(ch)
         if brand:
             with muffled():

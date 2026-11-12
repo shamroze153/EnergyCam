@@ -50,7 +50,8 @@ if __name__ == "__main__":
 import cv2  # noqa: E402
 from dotenv import load_dotenv  # noqa: E402
 
-from room_loop import (PKT, load_rooms, recorder_login, wants_main,  # noqa: E402
+from room_loop import (PKT, is_private, load_rooms, recorder_login,  # noqa: E402
+                       wants_main,
                        widen)
 from test_camera import build_url, grab  # noqa: E402
 
@@ -76,6 +77,9 @@ def capture(args):
     for round_no in range(1, args.rounds + 1):
         print(">> round %d of %d" % (round_no, args.rounds))
         for room in rooms:
+            if is_private(room.private):
+                print("   %-26s private hours -- not opened" % room.name)
+                continue
             # room.cameras, not room.recorder + room.channels: a room watched
             # across two recorders used to have its second camera fetched
             # from the first recorder -- "H First Floor Lobby ch16" came

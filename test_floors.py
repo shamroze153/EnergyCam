@@ -39,6 +39,12 @@ def main():
     check("a 141 room on the ground floor says so",
           fv.floor_of({"room": "141 Room 7 (ground floor)"}),
           "Main building · Ground floor")
+    check("under its floor's heading a room drops the floor from its name",
+          fv.on_floor("141 Room 7 (ground floor)"), "Room 7")
+    check("  and so does a numbered floor",
+          fv.on_floor("141-D MR01 (2nd floor)"), "141-D MR01")
+    check("  a name with no floor is left alone",
+          fv.on_floor("141 Learning Center"), "Learning Center")
     check("a 141 room with no floor in its name is its block",
           fv.floor_of({"room": "141 Admin Room"}), "Main building")
     check("an unplaced 140-H room is not guessed onto a floor",
@@ -122,6 +128,12 @@ def main():
     check("links carry the entry ticket", "k=t" in html, True)
     check("eleven people: seven figures and +4",
           html.count("<circle") >= 7 and "+4" in html, True)
+    check("every unit's size known: the floor's total", g["tons"], 6.0)
+    unknown = df.copy()
+    unknown.loc[unknown["room"] == "Marketing", "tons_total"] = None
+    g2 = fv.tiles(unknown, {}, pd.Timestamp("2026-11-12 09:00", tz="UTC"))[0]
+    check("one size unknown: no total, rather than a wrong one",
+          g2["tons"], None)
 
     print("\n%s" % ("all checks passed" if not FAILURES
                     else "%d FAILED" % len(FAILURES)))

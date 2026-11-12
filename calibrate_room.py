@@ -354,12 +354,16 @@ def take_both(args):
     """
     from dotenv import load_dotenv
 
-    from room_loop import (load_rooms, recorder_login, wants_main, widen)
+    from room_loop import (is_private, load_rooms, recorder_login, wants_main,
+                           widen)
     from test_camera import build_url, grab
 
     load_dotenv()
     recorders, rooms = load_rooms(args.rooms, None, [args.room])
     room = rooms[0]
+    if is_private(room.private):
+        sys.exit("%s is in its private hours: its cameras are not opened."
+                 % room.name)
     pair = [c for c in room.cameras if c[1] == args.channel]
     if not pair:
         sys.exit("%s is watched on %s, not channel %d"

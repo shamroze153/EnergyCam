@@ -811,6 +811,58 @@ def main():
     finally:
         room_loop.grab = real_grab
 
+    # 12 Nov, Shamroze: the 141 gym is ladies-only 3 to 8 in the afternoon;
+    # take no data from there then. The camera is not opened at all.
+    gym = room(name="141 Gym", recorder="cd_nvr2", channels=[7],
+               private_hours=["15:00", "20:00"])
+    pk = lambda h, m=0: datetime.datetime(2026, 11, 12, h, m, tzinfo=PKT)  # noqa: E731
+    check("private at 3 in the afternoon", room_loop.is_private(gym.private,
+                                                                pk(15)), True)
+    check("private at 7:59", room_loop.is_private(gym.private, pk(19, 59)),
+          True)
+    check("not at 8 in the evening", room_loop.is_private(gym.private,
+                                                          pk(20)), False)
+    check("not at 2:59", room_loop.is_private(gym.private, pk(14, 59)),
+          False)
+    check("a window over midnight works too",
+          room_loop.is_private(room_loop.parse_private(["22:00", "06:00"]),
+                               pk(2)), True)
+    check("a room with no private hours never is",
+          room_loop.is_private(room().private, pk(16)), False)
+    opened = []
+    real_grab, real_private = room_loop.grab, room_loop.is_private
+    room_loop.grab = lambda url, **k: opened.append(url) or (None, "x")
+    try:
+        room_loop.is_private = lambda w, now=None: bool(w)
+        got = room_loop.fetch(gym, {"cd_nvr2": {"host": "h", "user": "u",
+                                                "password": "p"}}, 1.0)
+    finally:
+        room_loop.grab, room_loop.is_private = real_grab, real_private
+    check("in its private hours no stream is opened, nothing comes back",
+          (opened, got), ([], {}))
+    import os as _os2
+    import tempfile as _tf2
+    cfg = _os2.path.join(_tf2.mkdtemp(), "rooms.yaml")
+    with open(cfg, "w", encoding="utf-8") as fh:
+        fh.write("recorders:\n  cd_nvr2: {host: '192.168.67.168'}\n"
+                 "rooms:\n  - {name: 141 Gym, recorder: cd_nvr2,"
+                 " channels: [7], ac: none,"
+                 " private_hours: ['15:00', '20:00']}\n"
+                 "  - {name: Lobby, recorder: cd_nvr2, channels: [8],"
+                 " ac: none}\n")
+    check("the tools that open a channel directly get the gym's camera",
+          room_loop.private_cameras(cfg, pk(16)), {("cd_nvr2", 7)})
+    check("  by address, for scan_channels",
+          room_loop.private_cameras(cfg, pk(16), by_host=True),
+          {("192.168.67.168", 7)})
+    check("  and nothing outside the hours",
+          room_loop.private_cameras(cfg, pk(21)), set())
+    for tool in ("scan_channels.py", "doctor.py", "ac_survey.py",
+                 "calibrate_room.py", "tune_detect.py"):
+        text = open(tool, encoding="utf-8").read()
+        check("%s keeps private cameras closed" % tool,
+              "private_cameras" in text or "is_private" in text, True)
+
     # cycles.csv gained two columns; a file with the old header is set
     # aside rather than mixed into one table with rows of two shapes.
     import os as _os

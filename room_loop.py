@@ -424,6 +424,63 @@ def prune_old_rows():
         return False
 
 
+def parse_private(spec, name="room"):
+    """rooms.yaml's private_hours, ["15:00", "20:00"] or a list of such
+    pairs, as [(start minute, end minute)] of the Karachi day."""
+    if not spec:
+        return []
+    pairs = spec if isinstance(spec[0], (list, tuple)) else [spec]
+    out = []
+    for pair in pairs:
+        if len(pair) != 2:
+            raise ValueError("%s: private_hours wants [\"15:00\", \"20:00\"]"
+                             % name)
+        a, b = (int(str(t).split(":")[0]) * 60 + int(str(t).split(":")[1])
+                for t in pair)
+        out.append((a, b))
+    return out
+
+
+def is_private(windows, now=None):
+    """Whether a Karachi-clock moment falls in any of the windows."""
+    if not windows:
+        return False
+    now = now or datetime.now(PKT)
+    minute = now.astimezone(PKT).hour * 60 + now.astimezone(PKT).minute
+    for a, b in windows:
+        if (a <= minute < b) if a <= b else (minute >= a or minute < b):
+            return True
+    return False
+
+
+def private_cameras(path="rooms.yaml", now=None, by_host=False):
+    """Every (recorder, channel) that must not be opened right now.
+
+    For the tools that open a channel without a room -- scan_channels,
+    doctor, ac_survey, calibrate_room, tune_detect -- so the gym's camera
+    stays closed in its private hours whichever tool is asking. by_host
+    gives (host, channel) instead, for scan_channels, which knows only the
+    recorder's address.
+    """
+    cfg = yaml.safe_load(open(path, encoding="utf-8"))
+    if by_host:
+        hosts = {k: str(v.get("host", "")).split(":")[0]
+                 for k, v in (cfg.get("recorders") or {}).items()}
+        return {(hosts.get(rec, rec), ch)
+                for rec, ch in private_cameras(path, now)}
+    out = set()
+    for spec in cfg.get("rooms") or []:
+        windows = parse_private(spec.get("private_hours"), spec.get("name"))
+        if not is_private(windows, now):
+            continue
+        if spec.get("cameras"):
+            out |= {(c["recorder"], int(c["channel"]))
+                    for c in spec["cameras"]}
+        else:
+            out |= {(spec["recorder"], int(ch)) for ch in spec["channels"]}
+    return out
+
+
 class Room:
     """One room, and what the last pass over its cameras established."""
 
@@ -489,6 +546,11 @@ class Room:
                        [[int(v) for v in box] for box in boxes]
                        for ch, boxes in (cfg.get("ignore") or {}).items()}
         self.empty_after = cfg.get("empty_after_minutes")
+        # Hours in which this room's cameras are never opened: no frame, no
+        # count, no picture. 141's gym is ladies-only 15:00-20:00 (Shamroze,
+        # 12 Nov: "take no data from there then"). The room reads unknown
+        # for those hours, the honest answer to a question not asked.
+        self.private = parse_private(cfg.get("private_hours"), self.name)
         self.status = "unknown"         # occupied / empty / unknown
         self.people = None
         self.empty_since = None
@@ -772,6 +834,11 @@ def fetch(room, recorders, timeout):
     the same time.
     """
     frames = {}
+    # A room in its private hours is not looked at: no stream is opened,
+    # so nothing is seen, counted or kept. Every tool that reads a room
+    # comes through here -- the loop, check_room, verify_live, collect_pack.
+    if is_private(getattr(room, "private", None)):
+        return frames
     for key in room.cameras:
         name, channel = key
         rec = recorders[name]
