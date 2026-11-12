@@ -239,3 +239,6 @@ Two or three lines a round; picture file names, never pictures.
   loop's role is refused (rightly: it cannot read or delete a room's
   rows), so sql/10_gym_ladies_hours.sql is for an administrator to run in
   Supabase; earlier days' 15:00-20:00 gym rows are a commented block.
+* 17:15 Shamroze ran sql/10 (all days, at his word): checked read-only,
+  the gym has no count left in 15:00-20:00 on any day -- only "unknown"
+  at 15:00 on 11 and 12 Nov and the loop's own at 16:49.
