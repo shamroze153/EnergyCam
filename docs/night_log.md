@@ -119,3 +119,16 @@ Two or three lines a round; picture file names, never pictures.
   was empty all night (no flicker); the ghost is a morning arrival at
   08:08 gone before the check. 141 Outside (NVR 3) is outdoors. Nothing
   changed.
+
+## 12 November 2026, the day
+
+* Morning: the cloud page died on a stale analysis_view (fixed: modules
+  reload when their files change). Who comes when: one-click days/hours,
+  readable in light theme. 141-C Room 3 store: night bar 0.50.
+* 10:48 round 9: 0 MISSED, 0 GHOST, 84 MATCH.
+* AC on site with Shamroze switching units: Learning Center (3 units, the
+  floor one by its louvres), Room 32 (3 units, the one above the TV by its
+  flap), 141-C Cafe (6 x 2-ton towers, five by their louvres on ch14).
+  Assembly Meeting Room's one unit is in no camera -> ac: hidden. Rooms
+  with units no camera sees read "on" when any seen unit runs, and
+  unknown, not "off", when the seen ones are off.

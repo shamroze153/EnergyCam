@@ -1493,6 +1493,9 @@ rooms:
     recorder: cd_nvr1
     channels: [2, 14]
     ac: visible
+    # Six tower units, 2 ton each -- 12 ton in all -- counted on site by
+    # Shamroze, 12 Nov. The biggest cooling load on this campus.
+    ac_count: 6
     empty_after_minutes: 60
 
   - name: 141 Main Entrance
@@ -1617,9 +1620,12 @@ rooms:
     dept: Assembly
     zone: Offices
     recorder: cd_nvr2
-    # ch 1 has the unit in frame; ch 4 sees the room from the other side.
+    # ch 1 and ch 4 see the room from either end. 12 Nov, on site with
+    # Shamroze, the one unit (1 ton) switched on: neither camera has it in
+    # frame, main stream or sub -- it is behind or above them. Was
+    # "visible", which promised a reading no camera can give.
     channels: [1, 4]
-    ac: visible
+    ac: hidden
     empty_after_minutes: 30
     # 12 Nov 00:15 night check: the empty table and chairs read as a
     # person at 0.34 on ch4, occupied/empty flicker from 23:12. Chairs are
