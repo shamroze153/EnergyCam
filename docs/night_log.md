@@ -314,3 +314,7 @@ Two or three lines a round; picture file names, never pictures.
   141-C Cafe's 1-8 people at night are real (scores to 0.82, counts
   moving), Wellows has a desk held 93% of the night. The working-day map
   comes after today.
+* 01:30 phone check again, dark, front page and every tab at both
+  campuses: nothing past the screen but one line in Energy's "Where to
+  start" list at 141 (a room's long figure), now wrapping. The list is
+  done; the rest of the night is the 2-hour rounds and the morning jobs.

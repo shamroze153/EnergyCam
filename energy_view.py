@@ -407,7 +407,8 @@ border-radius:99px;margin-top:10px;border:1px solid var(--line)}
 .en-sun-share .bar{height:12px;border-radius:99px;background:var(--meter);
 overflow:hidden;margin:0 0 7px;display:flex}
 .en-sun-share .bar i{display:block;height:100%%}
-@media (max-width:760px){.en-ranked .row{grid-template-columns:1fr 90px}
+@media (max-width:760px){.en-ranked .row{grid-template-columns:minmax(0,1fr) 96px}
+.en-ranked .row>*{min-width:0}.en-ranked .v span{overflow-wrap:anywhere}
 .en-ranked .tr{grid-column:1/-1;order:3}.en-sun{grid-template-columns:1fr}}
 </style>""".replace("\n", "")
 
