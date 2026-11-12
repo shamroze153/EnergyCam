@@ -42,8 +42,12 @@ NUMBER = {1: "First floor", 2: "Second floor", 3: "Third floor"}
 
 def floor_of(row):
     """Which floor heading a room goes under."""
-    if row.get("floor"):
-        return str(row["floor"])
+    # A room with no floor written down comes out of the page's table with
+    # NaN there, which is truthy: on 12 Nov the campus page had a floor
+    # called "NAN" holding Commons and the lobbies.
+    floor = row.get("floor")
+    if isinstance(floor, str) and floor.strip():
+        return floor.strip()
     name = str(row["room"])
     m = re.search(r"\((\d)(?:st|nd|rd|th) floor\)", name)
     level = NUMBER.get(int(m.group(1))) if m else None
@@ -178,6 +182,8 @@ def tiles(df, usual, now):
             "empty_for": empty_for, "has_unit": has_unit,
             "units": int(r.get("ac_count") or 0) if has_unit else 0,
             "tons": tons, "ac_state": ac_state,
+            "sizes": r.get("ac_sizes") if isinstance(r.get("ac_sizes"), str)
+            else "",
             "units_on": _num(r.get("ac_units_on")),
             "alerts": bool(r.get("alerts", True)),
             "usual": usual.get(r["room"]),
@@ -337,8 +343,7 @@ def status_line(item):
 def ac_line(item):
     if not item["has_unit"]:
         return "no AC"
-    size = (" · %g t" % item["tons"]) if item["tons"] else ""
-    units = "%d AC%s" % (item["units"], size)
+    units = ov.ac_size(item["units"], item.get("sizes"), item["tons"])
     if item["ac_state"] == "on":
         run = item["units_on"]
         return "%s · %s running" % (units, run if run else "on,")
@@ -356,8 +361,8 @@ def page(theme, floors, base, days_used):
     for f in floors:
         bits = ["<b>%d</b> in" % f["people"]]
         if f["units"]:
-            bits.append("<b>%d</b> AC%s" % (f["units"], (" · %g t" %
-                                                          f["tons"])
+            bits.append("<b>%d</b> AC%s" % (f["units"], (" · %g ton total"
+                                                          % f["tons"])
                                              if f["tons"] else ""))
         if f["running"]:
             bits.append("<b>%d</b> seen running" % f["running"])

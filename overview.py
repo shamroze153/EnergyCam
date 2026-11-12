@@ -313,6 +313,43 @@ def rupees(n):
     return "Rs %s" % format(int(round(n or 0)), ",")
 
 
+def ac_size(units, sizes=None, total=None):
+    """How much cooling a room has, said in full.
+
+    12 Nov, Shamroze on the floor cards: "5 AC · 5 t -- why 5T? Write the
+    total: how many tons of AC are in this room." So it is spelled out:
+    "5 AC · 1 ton each · 5 ton total", "4 AC · 1.5 + 1.5 + 1 + 1 = 5 ton
+    total", "1 AC · 2 ton". `sizes` is each unit's tons as rooms.yaml has
+    them, written "1.5+1.5+1+1".
+    """
+    units = int(units or 0)
+    if units <= 0:
+        return "no AC"
+    head = "%d AC" % units
+    each = []
+    for part in str(sizes or "").split("+"):
+        try:
+            each.append(float(part))
+        except ValueError:
+            pass
+    if len(each) == units:
+        whole = sum(each)
+        if units == 1:
+            return "%s · %g ton" % (head, whole)
+        if len(set(each)) == 1:
+            return "%s · %g ton each · %g ton total" % (head, each[0], whole)
+        return "%s · %s = %g ton total" % (
+            head, " + ".join("%g" % t for t in sorted(each, reverse=True)),
+            whole)
+    try:
+        whole = float(total) if total is not None else None
+    except (TypeError, ValueError):
+        whole = None
+    if whole and whole == whole:            # not NaN
+        return "%s · %g ton total" % (head, whole)
+    return head
+
+
 def short(name):
     """Room names without the campus they are already inside."""
     for prefix in ("141 ", "140-H "):

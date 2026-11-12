@@ -152,6 +152,16 @@ assumptions:
   # usual figure for a split or tower unit; an older fixed-speed one draws
   # more (1.2-1.3). Replace with the nameplate when somebody reads it.
   kw_per_ton: 1.0
+  # A unit that is "on" does not draw its rated kW every minute: the
+  # compressor cycles, more so on a November night. The room-by-room AC
+  # ledger (Energy tab, Who comes when) multiplies by this. Checked 12 Nov
+  # against the meters: at full rated power the 140-H ledger came to 1,073
+  # kWh for 11 Nov -- more than the whole building's 763 on both meters
+  # with the solar, lights and computers included. At half, ~540 kWh, about
+  # 70% of the building, a usual share for an air-conditioned office. The
+  # Energy tab shows that check against the latest readings every day;
+  # refit this when a week or two of readings is in.
+  ac_duty: 0.5
   # What one more unit actually costs, worked out from the October 2026
   # detailed bill for account 0400006377759 rather than assumed.
   #
@@ -194,6 +204,11 @@ unwatched_units:
   - campus: 140-H
     place: Room 16, guest room (first floor)
     ac_tons: [1]                 # Kenwood
+  - campus: 140-H
+    place: Director room, ground floor (the survey's 1 t inverter)
+    # Placed in IT Head Room until 12 Nov, when Shamroze counted one unit
+    # there, not two. Keeps the survey's 57 units, 74.5 t whole.
+    ac_tons: [1]
 
 recorders:
   # ------------------------------------------------------------ 141-C/D
@@ -538,7 +553,12 @@ rooms:
     # mounted. It was labelled visible from the survey contact sheet,
     # where a wall unit is a few pixels across. docs/camera_survey.md.
     ac: hidden
-    ac_tons: [2, 1]   # survey 12 Nov: Room 11; placed as the survey's ground-floor director room, Green Air 2 t + 1 t inverter -- the survey lists no Room 11 of its own (check)
+    # 12 Nov afternoon, Shamroze from the room: ONE unit, "1.5 ton I guess,
+    # or maybe 2". The survey's 1.5 t units are all placed (Room 17 has two,
+    # the DR rooms one), so it is taken as the survey's ground-floor
+    # director room's 2 t Green Air; that room's 1 t inverter is a director
+    # room no camera sees, under unwatched_units. Confirm from the nameplate.
+    ac_tons: [2]
     empty_after_minutes: 30
     note: >
       A single-occupant office empties completely and predictably, so thirty

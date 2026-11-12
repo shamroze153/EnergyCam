@@ -40,6 +40,22 @@ def main():
           fv.floor_of({"room": "141 Admin Room"}), "Main building")
     check("an unplaced 140-H room is not guessed onto a floor",
           fv.floor_of({"room": "Lobby"}), "Not placed on a floor yet")
+    # 12 Nov, Shamroze: "5 AC · 5 t -- why 5T? write the total tons".
+    import overview as ov
+    check("same-size units: each and the total",
+          ov.ac_size(5, "1+1+1+1+1", 5.0), "5 AC · 1 ton each · 5 ton total")
+    check("mixed sizes: added up in front of you",
+          ov.ac_size(4, "1+1.5+1+1.5", 5.0),
+          "4 AC · 1.5 + 1.5 + 1 + 1 = 5 ton total")
+    check("one unit: its size", ov.ac_size(1, "2", 2.0), "1 AC · 2 ton")
+    check("sizes unknown: the total where there is one",
+          ov.ac_size(3, "", 6.0), "3 AC · 6 ton total")
+    check("nothing known: the count", ov.ac_size(2, None, float("nan")),
+          "2 AC")
+    check("no unit", ov.ac_size(0), "no AC")
+    check("a blank floor from the table (NaN) is no floor, not 'nan'",
+          fv.floor_of({"room": "Commons", "floor": float("nan")}),
+          "Not placed on a floor yet")
 
     # A room that opens at 9:30 and empties at 7 on three watched weekdays,
     # with the cleaner's 7:10 round first: the round is not the opening.

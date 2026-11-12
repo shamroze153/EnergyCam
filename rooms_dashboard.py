@@ -64,7 +64,7 @@ def _fresh_modules():
     import sys
     order = ("schedule", "campus_view", "day_story", "day_timeline",
              "overview", "analysis_view", "meters_view", "energy_view",
-             "empty_view", "live_ac", "floors_view")
+             "empty_view", "live_ac", "floors_view", "energy_rooms")
     # The tests run this half of the file through exec, with no __file__.
     here = os.path.dirname(os.path.abspath(
         globals().get("__file__") or "rooms_dashboard.py"))
@@ -496,6 +496,16 @@ def unit_count(room):
     return int(room.get("ac_count", 1) or 1)
 
 
+def sizes_text(room):
+    """Each unit's tons as "2+1", where rooms.yaml has them; else ""."""
+    tons = room.get("ac_tons")
+    if isinstance(tons, (list, tuple)) and tons:
+        return "+".join("%g" % float(t) for t in tons)
+    if tons:
+        return "+".join(["%g" % float(tons)] * unit_count(room))
+    return ""
+
+
 def tons_of(room):
     """A room's cooling in tons, where its units' sizes are written down."""
     tons = room.get("ac_tons")
@@ -602,6 +612,9 @@ def load_rooms_config(path="rooms.yaml"):
             "ac_tons": (None if isinstance(room.get("ac_tons"), list)
                         else room.get("ac_tons")),
             "tons_total": tons_of(room) if has_unit else None,
+            # Each unit's tons, "1.5+1.5+1+1", for overview.ac_size to say
+            # in full. Text, not a list: a list in a cell breaks hashing.
+            "ac_sizes": sizes_text(room) if has_unit else "",
             "unit_kw": unit_kw,
             "ac_load": load,
             "meter": room.get("meter"),
@@ -760,10 +773,10 @@ def load_history(days=28):
     conn = psycopg2.connect(DATABASE_URL, sslmode=DB_SSLMODE, connect_timeout=10)
     try:
         df = pd.read_sql_query(
-            "SELECT timestamp, room, status, people, ac_state"
+            "SELECT timestamp, room, status, people, ac_state, %s"
             " FROM room_events"
             " WHERE timestamp >= now() - interval '%d days'"
-            " ORDER BY room, timestamp" % days, conn)
+            " ORDER BY room, timestamp" % (units_column(conn), days), conn)
     finally:
         conn.close()
     df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
@@ -2076,12 +2089,13 @@ def load_events_between(start, end):
     conn = psycopg2.connect(DATABASE_URL, sslmode=DB_SSLMODE,
                             connect_timeout=10)
     try:
+        units = units_column(conn).replace("%", "%%")
         events = pd.read_sql_query(
-            "(SELECT timestamp, room, status, people, ac_state"
+            "(SELECT timestamp, room, status, people, ac_state, " + units +
             "   FROM room_events WHERE timestamp >= %s AND timestamp < %s)"
             " UNION ALL "
             "(SELECT DISTINCT ON (room) timestamp, room, status, people,"
-            "        ac_state"
+            "        ac_state, " + units +
             "   FROM room_events WHERE timestamp < %s"
             "  ORDER BY room, timestamp DESC)"
             " ORDER BY room, timestamp", conn,
@@ -2174,6 +2188,123 @@ def show_empty(df, now):
                          evw.empty_now(df, now), start, end, day_text,
                          window_text, LINK_BASE, coverage),
                 unsafe_allow_html=True)
+
+
+def floor_level(row):
+    """The floor inside its building, for pages that name the building."""
+    import floors_view
+    fl = floors_view.floor_of(row)
+    if fl in ("Main building", "141-C", "141-D", "Not placed on a floor yet"):
+        return ""
+    return fl.partition(" · ")[2] if " · " in fl else fl
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def cached_ledger(start_iso, end_iso, campus=None):
+    """energy_rooms.ledger over [start, end) for one campus, or all (None).
+
+    Cached five minutes and keyed by text: it walks every room with a unit
+    through its day, about two seconds a day for both campuses, and Who
+    comes when's week asks for seven of them.
+    """
+    import analysis_view as av
+    import campus_view
+    import energy_rooms as er
+
+    start, end = pd.Timestamp(start_iso), pd.Timestamp(end_iso)
+    rooms = load_rooms_config()
+    rooms = rooms[rooms["has_unit"].astype(bool)]
+    if campus:
+        rooms = rooms[rooms["campus"] == campus]
+    rooms = rooms.copy()
+    rooms["floor"] = [floor_level(r) for _, r in rooms.iterrows()]
+    events = load_events_between(start, end)
+    beats = load_beats(start - pd.Timedelta(minutes=10),
+                       end + pd.Timedelta(minutes=10))
+    a = load_assumptions()
+    rates = (float(a.get("tariff_rs_per_kwh", 67) or 67),
+             float(a.get("peak_rs_per_kwh", 81) or 81))
+    return er.ledger(events, rooms, start, end, beats,
+                     campus_view.calibrated_counts(), rates,
+                     av.peak_window(a), float(a.get("ac_duty", 1.0) or 1.0))
+
+
+def _to_5min(t):
+    """Now, to the five minutes before: so a cache can hold for a while."""
+    return pd.Timestamp(t).floor("5min")
+
+
+def show_room_energy(df, now):
+    """Room by room, what the ACs ran, used and cost; against the day before.
+
+    Asked for on 12 Nov so that a better day can be shown as a better day:
+    "today we used this much, it cost this, this much of it with nobody in".
+    """
+    import energy_rooms as er
+
+    campus_here = LINK_BASE.get("campus")
+    local = now.tz_convert(PKT)
+    midnight = local.normalize()
+    day = pd.Timedelta(days=1)
+    names = ["Today so far", "Yesterday"]
+    if hasattr(st, "segmented_control"):
+        pick = st.segmented_control("Day", names, default=names[0],
+                                    key="energy_day",
+                                    label_visibility="collapsed")
+        pick = pick if pick in names else names[0]
+    else:
+        pick = st.radio("Day", names, horizontal=True, key="energy_day",
+                        label_visibility="collapsed")
+    if pick == "Today so far":
+        upto = _to_5min(local)
+        start, end = midnight, upto
+        c_start, c_end = midnight - day, upto - day
+        title = "AC electricity today, room by room"
+        label = "yesterday by this time"
+    else:
+        start, end = midnight - day, midnight
+        c_start, c_end = midnight - 2 * day, midnight - day
+        title = "AC electricity yesterday, room by room"
+        label = "the day before"
+
+    def iso(t):
+        return pd.Timestamp(t).tz_convert("UTC").isoformat()
+
+    try:
+        rows = cached_ledger(iso(start), iso(end), campus_here)
+        before = cached_ledger(iso(c_start), iso(c_end), campus_here)
+    except psycopg2.Error as e:
+        st.error("Could not read the rooms (%s)." % type(e).__name__)
+        return
+    duty = float(load_assumptions().get("ac_duty", 1.0) or 1.0)
+    unseen, _ = load_unwatched().get(campus_here, (0, 0.0))
+    # The estimate held up against the meters: the latest stretch between
+    # two readings, the ledger over the same hours, side by side.
+    check = None
+    try:
+        meters, readings, _ = load_meters()
+        codes = set(df["meter"].dropna()) if "meter" in df.columns else set()
+        mine = meters[meters["code"].isin(codes)] if len(meters) else meters
+        check = er.meter_window(readings, list(mine["code"]) if len(mine)
+                                else [], load_solar())
+        if check:
+            check["ac_kwh"] = er.totals(cached_ledger(
+                iso(check["from"]), iso(check["to"]), campus_here))["kwh"]
+    except psycopg2.Error:
+        check = None
+    st.markdown(er.page(LINK_BASE.get("theme") or "dark", title, rows,
+                        LINK_BASE, er.totals(before), label, unseen, check,
+                        duty), unsafe_allow_html=True)
+
+
+def show_energy(df, recent, now):
+    """Meters and Analysis as one tab: the readings form first, as the daily
+    job; the day-by-day meters; the AC electricity room by room; then the
+    analysis of where the empty, cooled hours are (12 Nov: two tabs for one
+    question was one too many)."""
+    show_meters(df, recent, now)
+    show_room_energy(df, now)
+    show_analysis(df, recent, now)
 
 
 def show_arrivals(df, now):
@@ -2483,6 +2614,43 @@ def show_arrivals(df, now):
         ["left", "right", "right", "right", "right", "right", "left",
          "right"]), unsafe_allow_html=True))
 
+    # ---- empty, with the AC on: every building, not just this campus ------
+    # 12 Nov: until the cameras are re-aimed most units cannot be read, so
+    # the question meanwhile is how long each room sat empty while its AC
+    # ran or would have -- across 140-H and 141's three buildings at once,
+    # inside the hours picked above, so "Peak tariff" means the peak.
+    def empty_with_ac():
+        import energy_rooms as er
+
+        rates = (float(assumptions.get("tariff_rs_per_kwh", 67) or 67),
+                 float(assumptions.get("peak_rs_per_kwh", 81) or 81))
+        duty = float(assumptions.get("ac_duty", 1.0) or 1.0)
+        upto = _to_5min(local_now)
+        days = []
+        for start in day_starts:
+            a = start + pd.Timedelta(hours=w_a)
+            b = min(start + pd.Timedelta(hours=w_b), upto)
+            if b > a:
+                try:
+                    days.append(cached_ledger(
+                        a.tz_convert("UTC").isoformat(),
+                        b.tz_convert("UTC").isoformat(), None))
+                except psycopg2.Error:
+                    return
+        if not days:
+            return
+        rows_e = days[0] if len(days) == 1 else er.average(days)
+        when = span_text + ("" if hour_pick == "Whole day"
+                            else " · " + hour_pick.lower())
+        if len(days) > 1:
+            when += " · a day, on average"
+        st.markdown(er.empty_page(mode, rows_e, LINK_BASE, when,
+                                  rates=rates, duty=duty),
+                    unsafe_allow_html=True)
+
+    mode = LINK_BASE.get("theme") or "dark"
+    mode = mode if mode in ("light", "dark") else "dark"
+
     # ---- who comes when ----------------------------------------------------
     st.markdown(
         '<div style="font-size:1.1rem;font-weight:720;margin:22px 0 2px;">'
@@ -2526,6 +2694,7 @@ def show_arrivals(df, now):
             [b[1] for b in body],
             ["left", "right", "left", "left", "left", "left", "right",
              "right", "left"]), unsafe_allow_html=True)
+        empty_with_ac()
         for show in later:
             show()
         return
@@ -2584,6 +2753,8 @@ def show_arrivals(df, now):
             '<div style="font-size:.7rem;color:%s;margin-top:2px;">%s</div>'
             '</div>' % (LINE, SURFACE, MUTED, k, TEXT, v, MUTED, n)
             for k, v, n in tiles) + "</div>", unsafe_allow_html=True)
+
+    empty_with_ac()
 
     ordered = sorted(rows, key=lambda r: (
         r[3][3]["first_in"] is None, r[3][3]["starts"] is None,
@@ -3371,11 +3542,14 @@ st.markdown(overview.campus_head({"name": campus}, campuses, mode,
 # Five in a row across the top -- the ones people open -- and the rest behind
 # "More". A click on a room anywhere is a link carrying its name, and lands on
 # One room.
-PRIMARY = ["Overview", "Who comes when", "Rooms", "Empty time", "Meters",
-           "Analysis"]
+PRIMARY = ["Overview", "Who comes when", "Rooms", "Empty time", "Energy"]
 SECONDARY = ["One room", "Camera health", "Look at the rooms",
              "Numbers & history"]
 VIEWS = PRIMARY + SECONDARY
+# Meters and Analysis became one tab on 12 Nov; a session still on either
+# opens on it rather than falling back to the front page.
+if st.session_state.get("view") in ("Meters", "Analysis"):
+    st.session_state["view"] = "Energy"
 if st.session_state.get("view") not in VIEWS:
     st.session_state["view"] = "Overview"
 clicked = st.query_params.get("room")
@@ -3545,11 +3719,8 @@ elif view == "Who comes when":
 elif view == "Empty time":
     show_empty(df, now)
 
-elif view == "Meters":
-    show_meters(df, recent, now)
-
-elif view == "Analysis":
-    show_analysis(df, recent, now)
+elif view == "Energy":
+    show_energy(df, recent, now)
 
 elif view == "Camera health":
     show_cameras(df, now)

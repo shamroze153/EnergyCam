@@ -120,6 +120,8 @@ def rows(df, seen_units):
             "running": running, "counted": counted, "exact": exact,
             "kw": counted * kw_each, "kw_each": kw_each,
             "tons": tons, "tons_total": total_t,
+            "sizes": r.get("ac_sizes") if isinstance(r.get("ac_sizes"), str)
+            else "",
             "status": status, "people": people,
             "alerts": bool(r.get("alerts", True)),
             "waste": (state == "on" and status == "empty"
@@ -223,24 +225,19 @@ def page(theme, items, rate, peak, total_units, base, typical_kw=1.2):
     h.append('<div class="la-list">')
     for r in items:
         what, who = status_text(r)
-        if r["tons"]:
-            size = "%g ton each" % r["tons"]
-        elif r["tons_total"] and r["count"] == 1:
-            size = "%g ton" % r["tons_total"]
-        elif r["tons_total"]:
-            size = "%g tons in all" % r["tons_total"]
-        else:
-            size = "%.1f kW each" % r["kw_each"]
+        size = ov.ac_size(r["count"], r.get("sizes"), r["tons_total"])
+        if not (r["tons_total"] or r.get("sizes")):
+            size += " · %.1f kW each" % r["kw_each"]
         h.append(
             '<div class="la-row%s"><a class="nm" target="_self" '
-            'href="%s#roomdetail"><b>%s%s</b><span>%d unit%s &middot; %s'
+            'href="%s#roomdetail"><b>%s%s</b><span>%s'
             '</span></a><div class="la-dots dt">%s</div>'
             '<div class="st">%s%s</div><div class="kw">%s<span>%s</span>'
             '</div></div>'
             % (" waste" if r["waste"] else "",
                esc(ov.link(base, room=r["room"])), esc(ov.short(r["room"])),
                '<span class="la-tag">SWITCH OFF</span>' if r["waste"] else "",
-               r["count"], "" if r["count"] == 1 else "s", size, dots(r),
+               size, dots(r),
                what, (" &middot; " + who) if who else "",
                ("%s%.1f kW" % ("&ge;" if not r["exact"] else "", r["kw"]))
                if r["state"] == "on" else "&mdash;",
