@@ -1669,6 +1669,11 @@ rooms:
     channels: [13]
     ac: hidden
     empty_after_minutes: 45
+    # 12 Nov: read occupied for 8 of the 9 night hours. The 02:23 night
+    # check shows a store room stacked with boxes, nobody in it: a chair
+    # and something on the desk in the corner at 0.38 and 0.46. A seat, so
+    # a night-only bar, not a zone.
+    conf_after_hours: 0.50
 
   - name: 141-D MR01 (2nd floor)
     dept: Meeting rooms
