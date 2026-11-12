@@ -652,8 +652,10 @@ def main():
         check("unit_rating is defined", False)
 
     # 140-H's AC survey (Shamroze, 12 Nov): 57 units, 74.5 tons, by size
-    # 39 x 1, 3 x 1.5, 13 x 2, 2 x 2.5. Every room with a unit carries its
-    # sizes, and with the units no camera watches they add up to the survey.
+    # 39 x 1, 3 x 1.5, 13 x 2, 2 x 2.5 -- plus IT Head Room's one 1.5 t
+    # unit, which the survey list left out (Shamroze, from the room, the
+    # same afternoon): 58 units, 76 tons. Every room with a unit carries its
+    # sizes, and with the units no camera watches they add up to that.
     import collections
     import yaml
     cfg = yaml.safe_load(open("rooms.yaml", encoding="utf-8"))
@@ -674,10 +676,10 @@ def main():
             sizes.update(float(t) for t in item["ac_tons"])
     check("every 140-H room with a unit lists its units' sizes", not bare,
           bare)
-    check("140-H adds up to the survey: 57 units, 74.5 tons",
+    check("140-H adds up to the survey and IT Head Room: 58 units, 76 tons",
           (sum(sizes.values()), sum(k * v for k, v in sizes.items())),
-          (57, 74.5))
-    check("  and by size", dict(sizes), {1.0: 39, 1.5: 3, 2.0: 13, 2.5: 2})
+          (58, 76.0))
+    check("  and by size", dict(sizes), {1.0: 39, 1.5: 4, 2.0: 13, 2.5: 2})
 
     wanted = ["figure_row", "money", "wasted_minutes", "against_baseline",
               "hour_pattern", "pattern_row", "settles_at", "daily_spans",

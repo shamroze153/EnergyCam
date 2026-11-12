@@ -170,3 +170,6 @@ Two or three lines a round; picture file names, never pictures.
   inverter moved to an unwatched director room. Sizes read "5 AC · 1 ton
   each · 5 ton total". Meter readings: only 10 and 11 Nov are in the
   database; none since. Loop restarted 14:03.
+* 14:20 Shamroze: IT Head Room's one unit is 1.5 t. So it is not the
+  survey's director room (2 t + 1 t, now an unwatched director room), and
+  the survey list missed it: 140-H is 58 units, 76 t (test updated).

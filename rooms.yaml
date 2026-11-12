@@ -205,10 +205,10 @@ unwatched_units:
     place: Room 16, guest room (first floor)
     ac_tons: [1]                 # Kenwood
   - campus: 140-H
-    place: Director room, ground floor (the survey's 1 t inverter)
-    # Placed in IT Head Room until 12 Nov, when Shamroze counted one unit
-    # there, not two. Keeps the survey's 57 units, 74.5 t whole.
-    ac_tons: [1]
+    place: Director room, ground floor (survey, Green Air 2 t + 1 t inverter)
+    # Placed in IT Head Room until 12 Nov, when Shamroze found one 1.5 t
+    # unit there: this is another room, and no camera sees it.
+    ac_tons: [2, 1]
 
 recorders:
   # ------------------------------------------------------------ 141-C/D
@@ -553,12 +553,12 @@ rooms:
     # mounted. It was labelled visible from the survey contact sheet,
     # where a wall unit is a few pixels across. docs/camera_survey.md.
     ac: hidden
-    # 12 Nov afternoon, Shamroze from the room: ONE unit, "1.5 ton I guess,
-    # or maybe 2". The survey's 1.5 t units are all placed (Room 17 has two,
-    # the DR rooms one), so it is taken as the survey's ground-floor
-    # director room's 2 t Green Air; that room's 1 t inverter is a director
-    # room no camera sees, under unwatched_units. Confirm from the nameplate.
-    ac_tons: [2]
+    # 12 Nov afternoon, Shamroze from the room: ONE unit, 1.5 ton. So it is
+    # not the survey's ground-floor director room (2 t + 1 t inverter, now
+    # under unwatched_units), and the survey list, which has no Room 11,
+    # left this unit out: 140-H is the survey's 57 units and 74.5 t plus
+    # this one, 58 and 76.
+    ac_tons: [1.5]
     empty_after_minutes: 30
     note: >
       A single-occupant office empties completely and predictably, so thirty
