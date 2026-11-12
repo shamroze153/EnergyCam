@@ -8,11 +8,11 @@ it here. Shamroze reads the morning summary in Roman Urdu.
       with a clear on/off gap gets a box in ac_units.yaml (Rooms 26, 27 and
       8 at 141 are new candidates). Restart the loop after. In the morning
       report: which units were calibrated, on which camera, and how sure.
-- [ ] Mobile (375 px), light and dark: every tab -- Overview with the
+- [x] Mobile (375 px), light and dark: every tab -- Overview with the
       "worth a look" button and list, Who comes when (day-parts lane, waste
       line), Rooms, Empty time (Rs / day column), Energy, One room (the
       headcount strip). Fix anything cut off, overlapping or unreadable.
-- [ ] Dark theme: the new pieces (walk list, day parts, headcount strip,
+- [x] Dark theme: the new pieces (walk list, day parts, headcount strip,
       week grid, Energy tiles) read well on dark.
 - [ ] Who comes when, "last 7 working days": the waste per room in the
       averaged table too, as the one-day lines have it.

@@ -1070,7 +1070,8 @@ def people_strip(people, since, mode, height=26):
     key = "".join(
         '<span style="display:inline-flex;align-items:center;gap:5px">'
         '<i style="width:12px;height:10px;border-radius:2px;background:%s;'
-        'display:inline-block"></i>%s</span>' % (c, label)
+        'display:inline-block;box-shadow:inset 0 0 0 1px %s"></i>%s</span>'
+        % (c, t["line"], label)
         for c, label in [(headcount_colour(1, mode), "1 person"),
                          (headcount_colour(2, mode), "2–3"),
                          (headcount_colour(4, mode), "4–6"),
@@ -1374,11 +1375,11 @@ def status_row(row):
             border-radius:7px;background:%s;margin-bottom:4px;">
   <span style="flex:0 0 7px;height:7px;border-radius:50%%;background:%s;
                display:inline-block;"></span>
-  <span style="flex:0 0 150px;font-size:.78rem;color:%s;white-space:nowrap;
-               overflow:hidden;text-overflow:ellipsis;">%s</span>
+  <span style="flex:0 1 150px;min-width:0;font-size:.78rem;color:%s;
+               white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">%s</span>
   <span style="flex:0 0 78px;display:flex;align-items:center;">%s</span>
   <span style="flex:0 0 58px;">%s</span>
-  <span style="flex:1 1 auto;min-width:60px;">%s</span>
+  <span style="flex:1 1 40px;min-width:30px;">%s</span>
 </div>""" % (ink["bg"],
              ink["bar"], ink["fg"], row["room"], who, ac_pill(row),
              strip_svg(row["slots"], height=9, radius=2))
@@ -1739,12 +1740,19 @@ def show_room_day(df, recent, chosen, now):
         chart = px.bar(peaks, x="hour", y="people",
                        labels={"hour": "", "people": "people"})
         chart.update_traces(marker_color=list(peaks["c"]))
-        chart.update_layout(height=215, margin=dict(l=0, r=0, t=16, b=0),
+        chart.update_layout(height=230, margin=dict(l=34, r=4, t=16, b=34),
                             plot_bgcolor="rgba(0,0,0,0)",
                             paper_bgcolor="rgba(0,0,0,0)",
                             font=dict(color=MUTED), showlegend=False,
-                            yaxis=dict(gridcolor=LINE))
-        st.plotly_chart(chart, use_container_width=True)
+                            xaxis=dict(tickfont=dict(color=MUTED),
+                                       tickangle=0, nticks=8,
+                                       automargin=True),
+                            yaxis=dict(gridcolor=LINE, automargin=True,
+                                       tickfont=dict(color=MUTED)))
+        # theme=None: Streamlit's own chart theme painted the hours near
+        # white on the light page; and no toolbar over the bars on a phone.
+        st.plotly_chart(chart, use_container_width=True, theme=None,
+                        config={"displayModeBar": False})
         st.caption("The most people seen at once in each hour. Readings are a"
                    " couple of minutes apart, so a visit shorter than that can"
                    " fall between two and leave no mark.")

@@ -256,3 +256,9 @@ Two or three lines a round; picture file names, never pictures.
   any of its three frames and no object to blame: no unit there, left;
   look again next round (frames/verify/ghost_Pantry_ch1*_nvr4_1847.jpg).
   Heartbeats now every ~70 s. Nothing changed, no restart.
+* 19:30 phone check (375 px), light and dark, every tab: no sideways
+  scroll anywhere. Fixed: Rooms rows ran 30 px past the screen (fixed
+  column widths; the name now shrinks); One room's hourly chart had its
+  hours near-white on the light page and Plotly's toolbar over the bars
+  (own colours, no toolbar, margins for the axes); the key's "not
+  watched" and "not yet" swatches were invisible (outlined).
