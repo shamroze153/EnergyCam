@@ -16,7 +16,7 @@ it here. Shamroze reads the morning summary in Roman Urdu.
       week grid, Energy tiles) read well on dark.
 - [x] Who comes when, "last 7 working days": the waste per room in the
       averaged table too, as the one-day lines have it.
-- [ ] Energy at 141: tiles per building (main, 141-C, 141-D), as Who comes
+- [x] Energy at 141: tiles per building (main, 141-C, 141-D), as Who comes
       when's "Empty, with the AC on" has.
 - [ ] Front page: the campus cards' "N rooms worth a walk" opens the
       worth-a-look list (only=walk) rather than the whole campus.

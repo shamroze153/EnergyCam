@@ -262,6 +262,15 @@ def main():
           "141-C Cafe" in html and "HR" in html, True)
     check("a room's link goes to its own campus",
           "campus=141&amp;room=141-C+Cafe" in html, True)
+    # The Energy tab at 141 splits its rupees by building too.
+    split = er.page("light", "AC today", rows, {"campus": "141"})
+    check("the Energy page has a card a building when there are several",
+          'class="er-bld"' in split and "141-C" in split and "140-H" in split,
+          True)
+    alone = er.page("light", "AC today", [r for r in rows
+                                          if r["building"] == "140-H"], {})
+    check("and none for a single building", 'class="er-bld"' in alone,
+          False)
     check("nothing empty, said plainly",
           "No room with a unit sat empty" in er.empty_page(
               "light", [dict(r, empty_on_h=0.0) for r in rows], {}, "x"),

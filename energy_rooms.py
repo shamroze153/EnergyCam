@@ -576,6 +576,21 @@ def page(theme, title, rows, base, compare=None, compare_label="",
                 esc(_when(check["from"])), esc(_when(check["to"]))),
             "crit" if share > 100 else ""))
     h.append("</div>")
+    # 141 is three buildings (main, 141-C, 141-D): which one used what,
+    # as Who comes when's "Empty, with the AC on" already splits it.
+    blds = by_building(rows)
+    if len(blds) > 1:
+        h.append('<div class="er-bld">')
+        for b, s in blds.items():
+            h.append('<div class="ec-card"><div class="k">%s</div>'
+                     '<div class="v">%s</div><div class="s">%s kWh · %d '
+                     'rooms with a unit%s</div></div>'
+                     % (esc(b), _rs(s["rs"]),
+                        format(int(round(s["kwh"])), ","), s["rooms"],
+                        (' · <b style="color:var(--crit)">%s with nobody '
+                         'in</b>' % _rs(s["waste_rs"]))
+                        if s["waste_rs"] >= 1 else ""))
+        h.append("</div>")
     h.append('<div class="ec-card" style="margin-top:14px;padding:8px 16px">'
              '<div class="er-row h"><span>room</span><span class="bd">how'
              '</span><span class="br">AC on &middot; '

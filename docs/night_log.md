@@ -265,3 +265,6 @@ Two or three lines a round; picture file names, never pictures.
 * 19:55 Who comes when, last 7 working days: a "Wasted / day" column,
   averaged only over days the loop watched for 12 hours or more (so far
   one: Wed 11; the header says how many). Disrupt Labs Rs 516 that day.
+* 20:25 Energy at 141: a card a building under the tiles -- today so far
+  141 main Rs 8,603 (Rs 909 with nobody in), 141-C Rs 3,160, 141-D
+  Rs 3,144. The gym watched again from 20:00 (0 unknown).
