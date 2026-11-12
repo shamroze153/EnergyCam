@@ -279,8 +279,18 @@ recorders:
     user_env: CD_XVR1_USER
     pass_env: CD_XVR1_PASS
     stream: main
-  # Still to come: XVR3 and XVR4 (Dahua; 192.168.67.78 is a Dahua recorder
-  # in no list, likely one of them), and the DVR, which is on its
+  cd_xvr3:
+    campus: 141-C/D
+    # 12 Nov: its login (from Shamroze) opened 192.168.67.78 at the first
+    # try -- the second Dahua recorder in no list; same network-card make
+    # as XVR 1. 15 of 16 channels live (ch 12 black), main 960x1080. No
+    # rooms until the channels are named: scan_192_168_67_78/.
+    host: 192.168.67.78
+    brand: dahua
+    user_env: CD_XVR3_USER
+    pass_env: CD_XVR3_PASS
+    stream: main
+  # Still to come: XVR4 (Dahua; address unknown), and the DVR, which is on its
   # Hikvision factory address 192.168.1.64 with DHCP on and no lease:
   # a different network from everything else here, so unreachable until
   # IT gives it a fixed 192.168.67.x address.
