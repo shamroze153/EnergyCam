@@ -16,7 +16,9 @@ conditioners run, on two Disrupt campuses in Karachi. Owner: Shamroze.
   Front pages: `overview.py`; meters/analysis: `energy_view.py`;
   "Who comes when": `day_story.py`, `day_timeline.py`.
 * **Campuses** — 140-H (recorders nvr1, nvr4, dvr2, xvr3) and 141-C/D
-  (cd_nvr1–4; cd_xvr2 refuses its login; XVR1/3/4 and the DVR not added).
+  (cd_nvr1–4, cd_xvr1 at .77 = 2nd floor rooms 22–29; cd_xvr2 shares
+  .59 with another device — an IP conflict, not a bad login: wait for IT
+  to move it; .78 is XVR 3 or 4; the DVR is on 192.168.1.64).
   All on 192.168.67.x through the camera cable; the internet is the Wi-Fi.
 * **Database** — Supabase. `DATABASE_URL` (energycam_app) writes;
   `DASHBOARD_DATABASE_URL` (energycam_dashboard) reads room history.

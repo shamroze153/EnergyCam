@@ -256,6 +256,14 @@ recorders:
     # checks the RTSP port first and tries the newer firmware's path too;
     # once one answers, write that exact one here (xmeye or xmeye-hash):
     # the loop does not guess.
+    # 12 Nov, the reason: an IP CONFLICT. XVR 2's own screen says
+    # 192.168.67.59, web on 8200, media on 8201 -- but at .59 those ports
+    # are shut, and what answers has 80, 554 and 8000 open (a Hikvision
+    # pattern) behind its own network card (MAC 50-e5-38-cd-b9-4d). This
+    # laptop reaches that other device, never the XVR, so every login
+    # "failed". With Shamroze's login (admin, in .env) both path forms gave
+    # nothing, one try each; no more until IT moves the XVR to a free
+    # address (none answered at .63, .81, .87-.99 on 12 Nov 16:15).
     user_env: CD_XVR2_USER
     pass_env: CD_XVR2_PASS
     stream: sub
