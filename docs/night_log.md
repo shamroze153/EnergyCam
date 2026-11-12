@@ -309,3 +309,8 @@ Two or three lines a round; picture file names, never pictures.
 * 00:47 round: covered by the 00:20 audit. The two night bars hold: no
   "person" in Squat Wolf Room 2 or HR Room in the seat notes since 00:40.
   Loop healthy, 0 unknown.
+* 01:05 seat_map.py: a day of seat notes -> seats per room (seats.txt) and
+  a picture per camera (frames/seats/, local). Tried on 23:00-24:00: the
+  141-C Cafe's 1-8 people at night are real (scores to 0.82, counts
+  moving), Wellows has a desk held 93% of the night. The working-day map
+  comes after today.
