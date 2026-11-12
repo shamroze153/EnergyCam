@@ -151,3 +151,4 @@ Two or three lines a round; picture file names, never pictures.
   HR = Room 7 2 t, Marketing = Room 8 5 x 1 t. rooms.yaml now adds up to
   the survey exactly: 57 units, 74.5 t (39 x 1, 3 x 1.5, 13 x 2, 2 x 2.5),
   a test holds it there.
+* 12:47 round 10: 0 MISSED, 0 GHOST, 81 MATCH. Loop restarted after it.
