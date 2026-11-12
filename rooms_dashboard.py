@@ -2091,12 +2091,31 @@ def show_meters(df, recent, now):
                                          now)) for d in table["day"]]
         cooled_hours = ev.cooled_in_windows(history, on_meters, windows,
                                             av.peak_window(assumptions))
+        # Everybody in the rooms on these meters, a day at a time, only
+        # while the loop was watching.
+        import empty_view as evw
+        try:
+            beats = load_beats(windows[0][0] - pd.Timedelta(minutes=10),
+                               windows[-1][1] + pd.Timedelta(minutes=10))
+            alive = [evw.watched(beats, a, b) for a, b in windows]
+        except psycopg2.Error:
+            alive = None
+        usage = ev.person_hours_in_windows(
+            history, list(df[df["meter"].isin(codes)]["room"]), windows,
+            alive)
+        if alive is not None:
+            # A day the cameras saw only part of has too few person-hours
+            # for its units: no ratio for it rather than a wrong one.
+            usage = [u if sum((y - x).total_seconds() for x, y in al) / 3600
+                     >= 20 else None for u, al in zip(usage, alive)]
+    else:
+        usage = None
     rate = float(load_assumptions().get("tariff_rs_per_kwh", 67))
     st.markdown(ev.meters_page(
         mode, table, kind, mine, bills[bills["meter"].isin(codes)]
         if len(bills) else bills, cooled_hours, rate,
-        ev.suspicious(readings, mine), True, LINK_BASE.get("campus") or ""),
-        unsafe_allow_html=True)
+        ev.suspicious(readings, mine), True, LINK_BASE.get("campus") or "",
+        usage), unsafe_allow_html=True)
     with st.expander("Every reading, as entered"):
         if len(readings):
             shown = readings.copy()

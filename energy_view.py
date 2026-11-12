@@ -179,6 +179,37 @@ def cooled_in_windows(history, rooms, windows, peak):
     return out
 
 
+def person_hours_in_windows(history, rooms, windows, alive=None):
+    """People times hours in the rooms over each window, from the events.
+
+    The usage a day's units were for (Shamroze, 12 Nov: "a chart of the
+    units, depending on the usage too"): ten people for an hour is ten.
+    alive: per window, the stretches the loop was running; a state is not
+    carried across hours nobody was watching.
+    """
+    mine = history[history["room"].isin(set(rooms))].sort_values(
+        ["room", "timestamp"])
+    out = []
+    for k, (start, end) in enumerate(windows):
+        spans = alive[k] if alive is not None else [(start, end)]
+        total = 0.0
+        for _, rows in mine.groupby("room"):
+            stamps = list(rows["timestamp"])
+            status, people = list(rows["status"]), list(rows["people"])
+            for i, a in enumerate(stamps):
+                if status[i] != "occupied":
+                    continue
+                b = stamps[i + 1] if i + 1 < len(stamps) else end
+                n = people[i] if people[i] == people[i] else 1
+                for s0, s1 in spans:
+                    x, y = max(a, start, s0), min(b, end, s1)
+                    if y > x:
+                        total += max(1, int(n or 1)) \
+                            * (y - x).total_seconds() / 3600.0
+        out.append(total)
+    return out
+
+
 def top_rooms(history, df, since, until, peak, assumptions, hours=None):
     """Rooms ranked by what their empty, cooled hours would cost.
 
@@ -463,7 +494,7 @@ def solar_block(table, gf, rate, sun_colour, grid_colour):
 # ===================================================================== pages
 
 def meters_page(theme, table, kind, meters, bills, cooled_hours, rate,
-                problems, campus_has_meters, campus):
+                problems, campus_has_meters, campus, usage=None):
     """The Meters view below the form: days, then months."""
     t = TOKENS[theme]
     c = SERIES[theme]
@@ -581,6 +612,40 @@ def meters_page(theme, table, kind, meters, bills, cooled_hours, rate,
                      '</div></div>'
                      % columns(labels, [[v] for v in cooled_hours],
                                [t["accent"]], tips, height=150))
+        if usage is not None and any(usage):
+            # Units against the use they were for: a busy day uses more, a
+            # wasteful one uses more for fewer people.
+            per, tips = [], []
+            for (_, r), ph in zip(table.iterrows(), usage):
+                units = sum(float(r.get(k)) for k in (gf, ff, "solar")
+                            if k and r.get(k) is not None
+                            and pd.notna(r.get(k)))
+                whole = all(k and r.get(k) is not None and pd.notna(r.get(k))
+                            for k in (gf, ff) if k)
+                day = pd.Timestamp(r["day"]).strftime("%A %d %B")
+                if ph is None:
+                    per.append([None])
+                    tips.append("%s · the cameras watched only part of it"
+                                % day)
+                    continue
+                v = units / ph if ph >= 1 and whole else None
+                per.append([v])
+                tips.append("%s · %s units for %s person-hours%s"
+                            % (day, format(int(round(units)), ","),
+                               format(int(round(ph)), ","),
+                               (" · %.2f a person-hour" % v) if v else
+                               " · a meter not read that day"))
+            if any(p[0] for p in per):
+                h.append('<div class="ec-h"><span class="t">Units for the use '
+                         'they were for</span><span class="c">grid and solar '
+                         'units per person-hour in the building · lower is '
+                         'better</span></div><div class="ec-card" style="'
+                         'padding:16px 18px 26px">%s<div class="en-note">A '
+                         'person-hour is one person in for an hour, from the '
+                         'cameras: a busy day is allowed more units, an empty '
+                         'day with the same units shows up tall. Days the '
+                         'cameras watched only part of read high.</div></div>'
+                         % columns(labels, per, [c["ff"]], tips, height=150))
     for p in problems:
         h.append('<div class="en-warn">%s %s</div>' % (ov.WARN, esc(p)))
 

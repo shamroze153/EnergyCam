@@ -282,3 +282,8 @@ Two or three lines a round; picture file names, never pictures.
   floor)_ch07_box.jpg). Room 26's floor unit and Room 8's split never
   changed all evening; Marketing ch3 and Room 17 ch5 were people and a
   light, not units. Loop restarted.
+* 22:30 Energy, meters: "Units for the use they were for" -- each meter
+  day's grid and solar units per person-hour (people x hours in the rooms
+  on those meters, from the cameras, only while the loop was watching).
+  Wed 11: 699 units for 868 person-hours, 0.81 each; days watched under
+  20 hours get no ratio, and say so. Tonight's list is done.

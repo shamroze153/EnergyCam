@@ -86,6 +86,23 @@ def main():
           abs(p["units"] - 213 * 24 / p["hours"]) < 1e-6
           and abs(p["hours"] - (25 + 42 / 60.0)) < 0.01 and p["raw"] == 213,
           p.to_dict())
+    # The usage beside the units: ten people for an hour is ten.
+    hist = pd.DataFrame([
+        {"timestamp": at(1, 9), "room": "A", "status": "occupied",
+         "people": 10},
+        {"timestamp": at(1, 10), "room": "A", "status": "empty", "people": 0},
+        {"timestamp": at(1, 12), "room": "B", "status": "occupied",
+         "people": 2},
+        {"timestamp": at(1, 15), "room": "B", "status": "empty", "people": 0},
+        {"timestamp": at(1, 9), "room": "C", "status": "occupied",
+         "people": 50}])
+    ph = ev.person_hours_in_windows(hist, ["A", "B"],
+                                    [(at(1, 0), at(0, 0))])
+    check("person-hours: ten for an hour and two for three, other rooms not",
+          ph == [16.0], ph)
+    ph = ev.person_hours_in_windows(hist, ["A", "B"], [(at(1, 0), at(0, 0))],
+                                    [[(at(1, 12), at(1, 13))]])
+    check("only while the loop was watching", ph == [2.0], ph)
     table, _ = ev.daily_table(readings, METERS,
                               pd.DataFrame({"taken": [at(1)], "kwh": [90.0]}))
     check("solar typed in today sits on yesterday, beside its reading",
