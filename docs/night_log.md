@@ -160,3 +160,13 @@ Two or three lines a round; picture file names, never pictures.
   again: the door writes an entry ticket into the address and every link
   carries it. Prompt Cafe, Commons and Mosque are their own lines now, not
   "Cafe & common" added up (Shamroze saw 15 for a cafe holding 10-12).
+* 14:05 Meters and Analysis are one tab, Energy, with each room's AC
+  electricity today against yesterday by this time (kWh, Rs, the part with
+  nobody in). At full rated power 140-H's ACs came to 1,073 kWh on 11 Nov,
+  more than the whole building's 763 on the meters: ac_duty 0.5 in
+  rooms.yaml, and the tab shows the ACs' share of the latest meter stretch
+  (66%). Who comes when: "Empty, with the AC on" for 140-H, 141 main,
+  141-C and 141-D. IT Head Room is 1 unit (Shamroze), the survey's 1 t
+  inverter moved to an unwatched director room. Sizes read "5 AC · 1 ton
+  each · 5 ton total". Meter readings: only 10 and 11 Nov are in the
+  database; none since. Loop restarted 14:03.
