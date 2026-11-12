@@ -173,3 +173,21 @@ Two or three lines a round; picture file names, never pictures.
 * 14:20 Shamroze: IT Head Room's one unit is 1.5 t. So it is not the
   survey's director room (2 t + 1 t, now an unwatched director room), and
   the survey list missed it: 140-H is 58 units, 76 t (test updated).
+* 14:35 field audit: 79 MATCH, 4 GHOST, 1 MISSED. All five were real
+  people the page showed a pass late (UPS Room, 141-C Room 3 store, 141
+  Finance Lobby, Genset Area, Cafe Shoe Rack): each went empty/full at the
+  next pass, no object. No zones. Passes took 4-7 min: the loop now
+  fetches the next batch's cameras while it counts (14:47 pass: 211 s, of
+  which 151 s waiting on cameras, 60 s counting; cycles.csv now says so).
+* 141-C/D recorders: NVR 1-4 connected; XVR 2 (.59) reachable, login
+  refused; DVR on 192.168.1.64 (another network); XVR 1/3/4 have no
+  address on file. 192.168.67.77 and .78 answer as Dahua recorders not in
+  our list: probably two of XVR 1/3/4. For IT.
+* 14:49 every recorder, both campuses, stopped answering RTSP from this
+  laptop (HTTP pages still load, the cable is fine): nothing recorded from
+  about 14:48. Likely the recorders' own protection after an audit, three
+  loop restarts and a port check within fifteen minutes. A change taking
+  rooms in turns between recorders went in at 14:49 and was reverted, as
+  the first suspect; it was not the cause but stays out until tested on a
+  healthy network. Loop stopped 15:04 so it stops retrying; checked again
+  at 15:27 with an RTSP OPTIONS (no login) before restarting.
