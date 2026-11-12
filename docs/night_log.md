@@ -112,3 +112,10 @@ Two or three lines a round; picture file names, never pictures.
   with a jacket 0.61 (over 0.55) as the light changes at dawn -- raising
   the bars further risks real people, so left (frames/Room_17_xvr3_ch03_
   boxes.jpg, frames/Room_18_xvr3_ch13_boxes.jpg).
+* 07:45 Room 32 AC tried again in morning colour light: its box (1626,6-
+  1646,28) gives on 14.8 vs off 11.4, gap 3.4, refused -- the box is not
+  on the lit display well enough. Needs redrawing on site, unit running.
+* 08:15 round 8: 0 MISSED, 2 GHOST, 82 MATCH, no zone warnings. Room 21
+  was empty all night (no flicker); the ghost is a morning arrival at
+  08:08 gone before the check. 141 Outside (NVR 3) is outdoors. Nothing
+  changed.
