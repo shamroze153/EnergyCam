@@ -473,6 +473,10 @@ rooms:
     # written where nobody sits and nobody walks through; chairs and
     # benches were left alone on purpose, because a zone on a chair
     # also hides the person sitting in it.
+    # 13 Nov 00:09 night evidence: a monitor and chair back at the far desk
+    # read as a person at 0.29 (seat notes: that spot 16 night passes,
+    # never over 0.38). A seat, so no zone: a stricter bar at night only.
+    conf_after_hours: 0.40
     ignore:
       2:
         - [1390, 21, 1425, 122]  # door frame beyond the glass, 0.25
@@ -1467,6 +1471,10 @@ rooms:
     stream: main
     ac: hidden
     empty_after_minutes: 45
+    # 13 Nov 00:28 night check: an empty office chair on the right read as
+    # a person at 0.31 (the seat notes: the same spot in 17 night passes,
+    # median 0.31). A seat, so no zone: a stricter bar at night only.
+    conf_after_hours: 0.45
 
   - name: 141-D Squat Wolf Room 3
     dept: Squat Wolf
