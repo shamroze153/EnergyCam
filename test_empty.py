@@ -128,6 +128,19 @@ def main():
     check("and the week adds up", round(grid[0]["empty"]), 960)
     wp = evw.week_page("light", grid, days, [], "working hours", {})
     check("the week draws a cell a day", wp.count('class="cl') == 3, True)
+    # 12 Nov: a room's rupees a day, and the rooms that are usually empty.
+    check("half empty or more on most days is often empty",
+          evw.often_empty({"cells": [(300, 600), (400, 600), (100, 600)]}),
+          True)
+    check("half empty on one day of three is not",
+          evw.often_empty({"cells": [(300, 600), (100, 600), (100, 600)]}),
+          False)
+    check("one watched day is not enough to say",
+          evw.often_empty({"cells": [(600, 600), None, (0, 0)]}), False)
+    wp = evw.week_page("light", grid, days, [], "working hours", {},
+                       {grid[0]["room"]: 340.0})
+    check("the week shows each room's rupees a day",
+          "Rs / day" in wp and "Rs 340" in wp, True)
 
     html = evw.page("dark", evw.ledger(ev, rooms, spans, alive), now_rows,
                     spans[0][0], spans[0][1], "Today", "working hours",

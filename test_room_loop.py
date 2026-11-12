@@ -806,6 +806,21 @@ def main():
         finally:
             room_loop.BATCH = real_batch
         check("every room read", len(out), 8)
+        # 12 Nov: the page said "silent for 3 min" every pass, because the
+        # loop only beat at the end of a four-minute pass. The pass now
+        # calls back after each batch, and the loop beats from there.
+        calls = []
+        room_loop.BATCH = 4
+        try:
+            room_loop.sweep(grouped, two, None, 1280, 0.7, 5.0, None,
+                            workers=4, on_batch=lambda: calls.append(1))
+        finally:
+            room_loop.BATCH = real_batch
+        check("the pass calls back after every batch, for the heartbeat",
+              len(calls), 2)
+        source = open(room_loop.__file__, encoding="utf-8").read()
+        check("and the loop passes its heartbeat in",
+              "on_batch=pulse" in source, True)
         check("a batch uses both recorders at once (%d streams open)"
               % live["most"], live["most"] >= 3, True)
     finally:

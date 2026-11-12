@@ -180,6 +180,26 @@ def main():
               % theme, "<details" in body and "never counted" in body)
         check("%s: the walk card says what to check" % theme,
               "Worth a walk" in body and "SW Room 0" in body)
+        # 12 Nov, Shamroze: one click to only the rooms worth a look.
+        items = ov.walk_items(s, [{"room": "SW Room 1", "waste": True}],
+                              {"SW Room 0": "Ground floor"})
+        check("%s: a unit seen running in an empty room comes first" % theme,
+              [i["name"] for i in items][:1] == ["SW Room 1"])
+        check("%s: each room once, the walk list after it" % theme,
+              len({i["name"] for i in items}) == len(items)
+              and "SW Room 0" in [i["name"] for i in items])
+        button = ov.walk_button(theme, len(items), {"campus": "Test"})
+        check("%s: the button opens only those rooms" % theme,
+              "only=walk" in button and "worth a look" in button)
+        check("%s: no rooms, no button" % theme,
+              ov.walk_button(theme, 0, {"campus": "Test"}) == "")
+        just = ov.walk_page(theme, items, {"campus": "Test"})
+        check("%s: the list has the rooms, their floor and a way back"
+              % theme, "SW Room 0" in just and "Ground floor" in just
+              and "the whole building" in just)
+        anchors_w = re.findall(r"<a [^>]*>", just + button)
+        check("%s: and its links stay in this tab" % theme,
+              all('target="_self"' in a for a in anchors_w))
         # Streamlit opens a markdown link in a new tab unless the anchor
         # names its own target: entering a campus opened a second copy.
         anchors = re.findall(r"<a [^>]*>", page + body)

@@ -196,6 +196,9 @@ def campus_summary(name, rooms, history, beats, now, stake=0.0,
             "sub": r.get("sub") or "",
             "ac": r.get("ac"), "has_unit": bool(r.get("has_unit")),
             "day": day, "minutes": ds.by_minute(day, today),
+            # Not watched on purpose (the 141 gym's ladies' hours): unknown
+            # is the right answer there, not a camera that failed.
+            "private": bool(r.get("private_now")),
         })
 
     inside = [e for e in entries if not e["outside"]]
@@ -226,7 +229,8 @@ def campus_summary(name, rooms, history, beats, now, stake=0.0,
             "work": any(m["work"] for m in members),
             "server": all(m["server"] for m in members),
             "walk": sum(1 for m in members if m["level"] in ("Red", "Amber")),
-            "silent": sum(1 for m in members if m["status"] == "unknown"),
+            "silent": sum(1 for m in members if m["status"] == "unknown"
+                          and not m.get("private")),
             "members": [m["name"] for m in members],
         })
     depts.sort(key=lambda d: (not d["work"], d["server"], -d["people"],
@@ -265,7 +269,8 @@ def campus_summary(name, rooms, history, beats, now, stake=0.0,
     rank = {"Red": 0, "Amber": 1}
     walk = sorted((e for e in inside if e["level"] in rank),
                   key=lambda e: (rank[e["level"]], -(e["since"] or 0)))
-    silent = [e for e in inside if e["status"] == "unknown"]
+    silent = [e for e in inside if e["status"] == "unknown"
+              and not e.get("private")]
     return {
         "name": name, "live": live,
         "inside_now": sum(e["people"] for e in inside),
@@ -633,6 +638,16 @@ margin-right:6px;border-radius:2px}
 .ec-kpi .k{font-size:12px;color:var(--t3)}
 .ec-kpi .v{font-size:26px;font-weight:700;margin-top:6px;letter-spacing:-.01em}
 .ec-kpi .s{font-size:12.5px;color:var(--t3);margin-top:3px}
+.ec-h .t::before{content:"";display:inline-block;width:4px;height:16px;
+border-radius:2px;background:linear-gradient(180deg,#3987e5,#2a9d63);
+margin-right:9px;vertical-align:-2px}
+.en-tiles>.ec-kpi,.ec-kpis>.ec-kpi{border-top:3px solid #3987e5}
+.en-tiles>.ec-kpi:nth-child(4n+2),.ec-kpis>.ec-kpi:nth-child(4n+2){border-top-color:#2a9d63}
+.en-tiles>.ec-kpi:nth-child(4n+3),.ec-kpis>.ec-kpi:nth-child(4n+3){border-top-color:#e8a21a}
+.en-tiles>.ec-kpi:nth-child(4n+4),.ec-kpis>.ec-kpi:nth-child(4n+4){border-top-color:#8b5cf6}
+a.ec-card,a.ec-walkcard,a.ec-walk{transition:transform .15s ease,box-shadow .15s ease}
+a.ec-card:hover,a.ec-walkcard:hover,a.ec-walk:hover{transform:translateY(-2px);
+box-shadow:0 6px 18px rgba(0,0,0,.10)}
 .ec-herocard .k{font-size:13px;color:var(--t2)}
 .ec-herocard .n{font-size:clamp(60px,8vw,88px);font-weight:700;
 letter-spacing:-.035em;line-height:1;margin-top:10px}
@@ -800,6 +815,104 @@ def welcome(summaries, theme, mark, live_text, healthy, when, base):
                                for s in summaries))
     h.append("</div>")
     return "".join(h)
+
+
+def walk_items(summary, live_waste, floors):
+    """The rooms worth a look now, most certain first, each once.
+
+    live_waste: live_ac rows with waste set -- a camera sees the unit
+    running in an empty room. summary["walk"]: empty past the room's own
+    wait, with a unit no camera can read. floors: {room: floor label}.
+    """
+    out, seen = [], set()
+    for r in live_waste:
+        out.append({"name": r["room"], "floor": floors.get(r["room"], ""),
+                    "what": "AC seen running, nobody in", "sure": True,
+                    "how": "switch it off"})
+        seen.add(r["room"])
+    for e in summary.get("walk") or []:
+        if e["name"] in seen:
+            continue
+        out.append({"name": e["name"], "floor": floors.get(e["name"], ""),
+                    "what": e["headline"], "sure": False,
+                    "how": ("check the AC" if e["ac"] == "visible"
+                            else "look in: the unit is out of camera view")})
+        seen.add(e["name"])
+    return out
+
+
+def walk_button(theme, count, base):
+    """At the top of the campus page: one click to just the rooms to see."""
+    if not count:
+        return ""
+    return (css(theme) + WALK_CSS +
+            '<div class="ec"><a target="_self" class="ec-walkbtn" href="%s">'
+            '%s<b>%d room%s worth a look right now</b><span>show only '
+            '%s &rarr;</span></a></div>'
+            % (esc(link(base, only="walk")), WARN, count,
+               "" if count == 1 else "s", "it" if count == 1 else "these"))
+
+
+def walk_page(theme, items, base):
+    """Only the rooms worth a look -- for whoever is walking round.
+
+    12 Nov, Shamroze: clicking "worth a walk" should open just those rooms,
+    not leave somebody hunting through every floor for them.
+    """
+    h = [css(theme), WALK_CSS, '<div class="ec">',
+         '<div class="ec-h"><span class="t">Worth a look right now</span>'
+         '<span class="c">%d room%s · most certain first</span>'
+         '<a target="_self" class="ec-back" href="%s">&larr; the whole '
+         'building</a></div>'
+         % (len(items), "" if len(items) == 1 else "s", esc(link(base)))]
+    if not items:
+        h.append('<div class="ec-card ec-calm">%sNothing to look at: every '
+                 'air-conditioned room is in use or was left only a little '
+                 'while ago.</div></div>' % TICK)
+        return "".join(h)
+    h.append('<div class="ec-walklist">')
+    for i, e in enumerate(items, 1):
+        h.append('<a target="_self" class="ec-walkcard%s" href="%s#roomdetail">'
+                 '<span class="n">%d</span><span class="b"><b>%s</b>'
+                 '<span>%s</span></span><span class="w">%s<br><i>%s</i></span>'
+                 '</a>'
+                 % (" sure" if e["sure"] else "",
+                    esc(link(base, room=e["name"])), i, esc(short(e["name"])),
+                    esc(e["floor"]), esc(e["what"]), esc(e["how"])))
+    h.append('</div><div class="ec-note">"AC seen running" is read by a camera '
+             'from the unit itself. The rest have sat empty longer than their '
+             'own wait with an air conditioner a camera cannot read, so the '
+             'unit may already be off: worth a look, not a certainty.</div>'
+             '</div>')
+    return "".join(h)
+
+
+WALK_CSS = """<style>
+.ec-walkbtn{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+padding:14px 18px;border-radius:14px;border:1.5px solid var(--crit-line);
+background:var(--crit-bg);color:var(--t1)!important;margin:6px 0 4px;
+font-size:15px}
+.ec-walkbtn span{margin-left:auto;color:var(--crit);font-weight:650}
+.ec-back{margin-left:auto;font-size:13px;color:var(--accent)!important}
+.ec-walklist{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+.ec-walkcard{display:flex;align-items:center;gap:14px;padding:14px 16px;
+border-radius:14px;border:1px solid var(--line2);border-left:5px solid #e8a21a;
+background:var(--s1);color:var(--t1)!important}
+.ec-walkcard.sure{border-color:var(--crit-line);border-left-color:var(--crit);
+background:var(--crit-bg)}
+.ec-walkcard .n{flex:0 0 30px;height:30px;border-radius:50%;display:flex;
+align-items:center;justify-content:center;font-weight:700;color:#fff;
+background:#e8a21a}
+.ec-walkcard.sure .n{background:var(--crit)}
+.ec-walkcard .b{flex:1 1 auto;min-width:0}
+.ec-walkcard .b b{display:block;font-size:15px}
+.ec-walkcard .b span{font-size:12.5px;color:var(--t3)}
+.ec-walkcard .w{flex:0 1 46%;text-align:right;font-size:13px}
+.ec-walkcard .w i{font-style:normal;color:var(--t3);font-size:12px}
+.ec-walkcard.sure .w{color:var(--crit);font-weight:650}
+@media (max-width:640px){.ec-walkcard{flex-wrap:wrap}
+.ec-walkcard .w{flex:1 1 100%;text-align:left;padding-left:44px}}
+</style>""".replace("\n", "")
 
 
 def campus_head(summary, names, theme, mark, live_text, healthy, when, base):

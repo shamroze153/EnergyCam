@@ -392,11 +392,34 @@ def now_block(now_rows, base):
     return "".join(h)
 
 
-def week_page(theme, rows, days, now_rows, window_text, base):
-    """Several days side by side: one row a room, one cell a day."""
+def often_empty(row):
+    """Empty half or more of its watched time on most of its watched days.
+
+    12 Nov, Shamroze: "you can work out yourself that this room is usually
+    empty for so long". Two watched days at least, and three in five of
+    them half empty or more.
+    """
+    shares = [e / s for e, s in (c for c in row["cells"] if c) if s > 0]
+    if len(shares) < 2:
+        return False
+    half = sum(1 for sh in shares if sh >= 0.5)
+    return half >= max(2, -(-3 * len(shares) // 5))
+
+
+def week_page(theme, rows, days, now_rows, window_text, base, waste=None):
+    """Several days side by side: one row a room, one cell a day.
+
+    waste: {room: average rupees a day its AC ran with nobody in, over the
+    same days and hours} -- a column at the end (Shamroze, 12 Nov).
+    """
     c = colours(theme)
     n = len(days)
-    h = [ev.css(theme), EXTRA % c, WEEK_CSS % {"n": n}, '<div class="ec">',
+    css = WEEK_CSS % {"n": n}
+    if waste is not None:
+        # One more column, for the rupees.
+        css = css.replace("1fr) 86px", "1fr) 86px 78px").replace(
+            "1fr) 54px", "1fr) 54px 54px")
+    h = [ev.css(theme), EXTRA % c, css, '<div class="ec">',
          now_block(now_rows, base)]
     acting = [r for r in rows if r["alerts"] and r["seen"] > 0]
     h.append('<div class="ec-h"><span class="t">The last %d days</span>'
@@ -419,17 +442,37 @@ def week_page(theme, rows, days, now_rows, window_text, base):
         h.append(ev.tile("Most empty time in a day",
                          esc(pd.Timestamp(days[busiest]).strftime("%A")),
                          "%s across these rooms" % span(per_day[busiest])))
+        often = [r for r in acting if r["has_unit"] and often_empty(r)]
+        if often:
+            h.append(ev.tile(
+                "Usually empty", "%d room%s" % (len(often),
+                                                "" if len(often) == 1
+                                                else "s"),
+                esc(", ".join(ov.short(r["room"]) for r in often[:4])
+                    + (" and %d more" % (len(often) - 4)
+                       if len(often) > 4 else "")
+                    + " -- half the time or more, most days")))
+        if waste:
+            a_day = sum(waste.get(r["room"], 0.0) for r in acting)
+            h.append(ev.tile("Wasted a day, on average",
+                             "Rs %s" % format(int(round(a_day)), ","),
+                             "AC on with nobody in, in these hours", "crit"))
         h.append('</div>')
     grid = ['<div class="ew"><div class="hd l">room</div>']
     for d in days:
         grid.append('<div class="hd">%s</div>'
                     % esc(pd.Timestamp(d).strftime("%a %d")))
     grid.append('<div class="hd r">empty</div>')
+    if waste is not None:
+        grid.append('<div class="hd r">Rs / day</div>')
     for r in rows:
+        tag = ('<span style="display:block;font-size:10px;font-weight:700;'
+               'color:#d18a00;letter-spacing:.03em">OFTEN EMPTY</span>'
+               if r["has_unit"] and r["alerts"] and often_empty(r) else "")
         grid.append('<a class="nm" target="_self" href="%s#roomdetail" '
-                    'title="%s">%s</a>'
+                    'title="%s">%s%s</a>'
                     % (esc(ov.link(base, room=r["room"])), esc(r["room"]),
-                       esc(ov.short(r["room"]))))
+                       esc(ov.short(r["room"])), tag))
         for d, cell in zip(days, r["cells"]):
             if cell is None:
                 grid.append('<div class="cl x" title="closed">&ndash;</div>')
@@ -450,6 +493,13 @@ def week_page(theme, rows, days, now_rows, window_text, base):
                    else "0"))
         grid.append('<div class="tt">%s<span>of %s</span></div>'
                     % (span(r["empty"]), span(r["seen"])))
+        if waste is not None:
+            rs = waste.get(r["room"])
+            grid.append('<div class="tt" style="color:%s">%s</div>'
+                        % ("var(--crit)" if rs and rs >= 1 else "var(--t3)",
+                           ("Rs %s" % format(int(round(rs)), ","))
+                           if rs and rs >= 1 else
+                           ("&ndash;" if not r["has_unit"] else "0")))
     grid.append('</div>')
     h.append('<div class="ec-card" style="margin-top:14px;padding:16px 18px">'
              '%s</div>' % "".join(grid))

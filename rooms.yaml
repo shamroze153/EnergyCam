@@ -1587,7 +1587,8 @@ rooms:
     # Two angles on one room (Shamroze): ch 10 shows a floor-standing unit
     # on the right-hand wall.
     channels: [10, 15]
-    ac: hidden
+    # visible: the floor unit on ch 10, for the evening calibration frames.
+    ac: visible
     empty_after_minutes: 45
 
   - name: 141 Room 27 (2nd floor)
@@ -1595,7 +1596,8 @@ rooms:
     zone: Offices
     recorder: cd_xvr1
     channels: [7]
-    ac: hidden
+    # visible: a split unit high on the wall, top left of ch 7.
+    ac: visible
     empty_after_minutes: 45
 
   - name: 141 Room 28 (2nd floor)
@@ -1701,7 +1703,8 @@ rooms:
     zone: Offices
     recorder: cd_xvr3
     channels: [4, 13]
-    ac: hidden
+    # visible: a split unit at the top right of ch 13.
+    ac: visible
     empty_after_minutes: 30
 
   - name: 141 Room 11 (ground floor)

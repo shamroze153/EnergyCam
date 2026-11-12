@@ -1019,13 +1019,17 @@ def interleaved(rooms):
     return out
 
 
+# When the last heartbeat was written, for pulse() in main().
+BEAT_AT = [0.0]
+
 # Where the last pass's time went: seconds spent waiting on cameras that the
 # counting could not hide, and seconds counting. Written to cycles.csv.
 PASS_TIMES = {"waiting": 0.0, "counting": 0.0}
 
 
 def sweep(rooms, recorders, model, imgsz, iou, timeout, ac_units=None,
-          workers=WORKERS, on_frame=None, evidence=None, hours=None):
+          workers=WORKERS, on_frame=None, evidence=None, hours=None,
+          on_batch=None):
     """One pass over every room, waiting on many cameras at once.
 
     This is the difference between a dashboard that is live and one that is
@@ -1101,6 +1105,13 @@ def sweep(rooms, recorders, model, imgsz, iou, timeout, ac_units=None,
                 out[room.name] = (people, answered, ac, why)
             PASS_TIMES["counting"] += time.time() - began
             frames.clear()
+            if on_batch is not None:
+                try:
+                    on_batch()
+                except Exception as e:                  # noqa: BLE001
+                    # A heartbeat that fails is reported at the pass's end;
+                    # it must never take the pass down.
+                    print(">> heartbeat during the pass failed: %s" % e)
     return out
 
 
@@ -1400,7 +1411,16 @@ def main():
     cycle = 0
     # Sweep on the first pass rather than a day in: a machine restarted daily
     # would otherwise never reach the interval and never delete anything.
-    last_beat, last_sweep = 0.0, 0.0
+    last_sweep = 0.0
+
+    def pulse():
+        # The heartbeat, at most once a HEARTBEAT_SECONDS, from inside the
+        # pass as well as after it. A pass takes about four minutes, and a
+        # beat only at its end had the page saying "silent for 3 min" every
+        # cycle while the loop was hard at work (12 Nov).
+        if not args.no_db and time.time() - BEAT_AT[0] >= HEARTBEAT_SECONDS \
+                and beat():
+            BEAT_AT[0] = time.time()
     # A cycle that throws used to end the process, and with it the night. A
     # recorder rebooting, a switch dropping a packet, the database refusing a
     # connection for ten seconds -- any of them was the whole building
@@ -1415,7 +1435,7 @@ def main():
             started = time.time()
             readings = sweep(rooms, recorders, model, args.imgsz, args.iou,
                              args.timeout, ac_units, args.workers, keeper,
-                             args.evidence, hours)
+                             args.evidence, hours, on_batch=pulse)
             now = datetime.now(PKT)
             for room in rooms:
                 people, answered, ac, why = readings[room.name]
@@ -1438,8 +1458,7 @@ def main():
                         room.recorded = room.state()
                     if changed:
                         print(">> recorded %d change(s)" % len(changed))
-                if time.time() - last_beat >= HEARTBEAT_SECONDS and beat():
-                    last_beat = time.time()
+                pulse()
                 if (time.time() - last_sweep >= RETENTION_SECONDS
                         and prune_old_rows()):
                     last_sweep = time.time()

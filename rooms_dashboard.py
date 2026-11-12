@@ -496,6 +496,36 @@ def unit_count(room):
     return int(room.get("ac_count", 1) or 1)
 
 
+def work_hours():
+    """The office day from rooms.yaml's hours, as (10.0, 20.0)."""
+    op = (load_hours() or {}).get("operations", {}) or {}
+
+    def h(t, default):
+        try:
+            a, b = str(t).split(":")[:2]
+            return int(a) + int(b) / 60.0
+        except (ValueError, AttributeError):
+            return default
+    return h(op.get("start", "10:00"), 10.0), h(op.get("end", "20:00"), 20.0)
+
+
+def private_now(spec, now):
+    """Whether "15:00,20:00" (a room's private hours) covers now, Karachi.
+
+    The loop's own rule, room_loop.is_private, without importing the loop
+    (and OpenCV with it) into the page.
+    """
+    if not isinstance(spec, str) or "," not in spec:
+        return False
+    try:
+        a, b = (int(t.split(":")[0]) * 60 + int(t.split(":")[1])
+                for t in spec.split(",")[:2])
+    except ValueError:
+        return False
+    m = now.hour * 60 + now.minute
+    return (a <= m < b) if a <= b else (m >= a or m < b)
+
+
 def sizes_text(room):
     """Each unit's tons as "2+1", where rooms.yaml has them; else ""."""
     tons = room.get("ac_tons")
@@ -514,7 +544,7 @@ def tons_of(room):
     return float(tons) * unit_count(room) if tons else None
 
 
-@st.cache_data(ttl=900)
+@st.cache_data(ttl=900, show_spinner=False)
 def load_usual(rooms_key, today_iso, workdays=5):
     """Each room's usual day over the last few working days, for the floors.
 
@@ -548,7 +578,7 @@ def load_usual(rooms_key, today_iso, workdays=5):
     return fv.usual_days(history, list(rooms_key), days, beats), len(days)
 
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=60, show_spinner=False)
 def load_unwatched(path="rooms.yaml"):
     """Units no camera watches, per campus: (units, tons).
 
@@ -566,7 +596,7 @@ def load_unwatched(path="rooms.yaml"):
     return out
 
 
-@st.cache_data(ttl=20)
+@st.cache_data(ttl=20, show_spinner=False)
 def load_rooms_config(path="rooms.yaml"):
     cfg = yaml.safe_load(open(path))
     recorders = cfg["recorders"]
@@ -623,16 +653,19 @@ def load_rooms_config(path="rooms.yaml"):
             "has_unit": has_unit,
             "unit_note": unit_note if alerts else "cooled on purpose",
             "empty_after": room.get("empty_after_minutes"),
+            # Hours its cameras are not opened on purpose (the 141 gym,
+            # ladies' hours): "private_now" is worked out per page view.
+            "private_hours": ",".join(room.get("private_hours") or []),
         })
     return pd.DataFrame(rows)
 
 
-@st.cache_data(ttl=20)
+@st.cache_data(ttl=20, show_spinner=False)
 def load_assumptions(path="rooms.yaml"):
     return yaml.safe_load(open(path)).get("assumptions", {})
 
 
-@st.cache_data(ttl=20)
+@st.cache_data(ttl=20, show_spinner=False)
 def load_hours(path="rooms.yaml"):
     return yaml.safe_load(open(path)).get("hours")
 
@@ -655,7 +688,7 @@ def units_column(conn):
     return "ac_units_on" if found else "NULL::smallint AS ac_units_on"
 
 
-@st.cache_data(ttl=20)
+@st.cache_data(ttl=20, show_spinner=False)
 def load_state():
     conn = psycopg2.connect(DATABASE_URL, sslmode=DB_SSLMODE, connect_timeout=10)
     try:
@@ -705,7 +738,7 @@ def load_state():
             beats["timestamp"].tolist())
 
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=60, show_spinner=False)
 def load_coverage(days=7):
     """How much of the last week anything was actually watching.
 
@@ -742,7 +775,7 @@ def load_coverage(days=7):
     return windows * 10.0 / 60.0, days * 24.0
 
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=60, show_spinner=False)
 def load_daily_coverage(days=28):
     """Hours watched on each day, from the heartbeat.
 
@@ -768,7 +801,7 @@ def load_daily_coverage(days=28):
     return (frame.drop_duplicates().groupby("day").size() / 6.0).to_dict()
 
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=60, show_spinner=False)
 def load_history(days=28):
     conn = psycopg2.connect(DATABASE_URL, sslmode=DB_SSLMODE, connect_timeout=10)
     try:
@@ -1539,9 +1572,17 @@ def show_room_day(df, recent, chosen, now):
             figure_row("Unaccounted", spell(day.get("unknown", 0.0)),
                        "camera did not answer")), unsafe_allow_html=True)
 
+    # Night, arriving, working hours, going home, after hours, and the peak
+    # tariff, over the same stretch as the strip (Shamroze, 12 Nov): when
+    # the room sat empty reads at a glance.
+    import analysis_view as av
+    import day_timeline as dtl
     st.markdown(
-        strip_svg(slot_states(recent, chosen, now, slots=int(hours_today * 12),
-                              since=midnight), height=26, radius=5)
+        dtl.phase_lane(LINK_BASE.get("theme") or "dark",
+                       int(hours_today * 12) / 12.0, work_hours(),
+                       av.peak_window(load_assumptions()))
+        + strip_svg(slot_states(recent, chosen, now, slots=int(hours_today * 12),
+                                since=midnight), height=26, radius=5)
         + day_axis(now, midnight), unsafe_allow_html=True)
 
     if not busy.empty:
@@ -1670,7 +1711,7 @@ def wordmark(mode):
             '</span></span>' % (TEXT or "#E6EAED"))
 
 
-@st.cache_data(ttl=120)
+@st.cache_data(ttl=120, show_spinner=False)
 def load_meters(days=120):
     conn = psycopg2.connect(DATABASE_URL, sslmode=DB_SSLMODE,
                             connect_timeout=10)
@@ -1914,7 +1955,7 @@ def show_meters(df, recent, now):
             st.dataframe(sun, hide_index=True)
 
 
-@st.cache_data(ttl=120)
+@st.cache_data(ttl=120, show_spinner=False)
 def load_solar(days=120):
     """What the panels made, as typed into the form; empty if no table."""
     try:
@@ -1933,7 +1974,7 @@ def load_solar(days=120):
         conn.close()
 
 
-@st.cache_data(ttl=30)
+@st.cache_data(ttl=30, show_spinner=False)
 def load_beats_since(hours):
     """Every heartbeat in the last so many hours.
 
@@ -1963,6 +2004,28 @@ def stretch(widget, *args, **kwargs):
         return widget(*args, width="stretch", **kwargs)
     except TypeError:
         return widget(*args, use_container_width=True, **kwargs)
+
+
+def loading_line(mode):
+    """A small branded line while the rooms are read, in the page's colours.
+
+    Instead of a blank page and Streamlit's "Running load_state()".
+    """
+    t = THEMES[mode]
+    return (
+        "<style>@keyframes ecslide{0%%{transform:translateX(-100%%)}"
+        "100%%{transform:translateX(250%%)}}</style>"
+        "<div style='max-width:420px;margin:12vh auto 0;text-align:center;"
+        "color:%(muted)s;font-family:system-ui,sans-serif'>"
+        "<div style='font-size:.72rem;letter-spacing:.32em;font-weight:700;"
+        "color:%(text)s'>ENERGYCAM</div>"
+        "<div style='font-size:.9rem;margin:10px 0 14px'>reading the cameras"
+        " and the rooms&hellip;</div>"
+        "<div style='height:4px;border-radius:4px;overflow:hidden;"
+        "background:%(line)s'><div style='width:40%%;height:100%%;"
+        "border-radius:4px;background:linear-gradient(90deg,#3987e5,#2a9d63,"
+        "#e8a21a);animation:ecslide 1.1s ease-in-out infinite'></div></div>"
+        "</div>" % t)
 
 
 def app_chrome(mode):
@@ -1995,6 +2058,10 @@ def app_chrome(mode):
         "div[data-testid='stMetricLabel'], div[data-testid='stMetricLabel'] *"
         " { color: %(muted)s; }"
         "hr { border-color: %(line)s; }"
+        # While a click is worked out, Streamlit dims the whole page to a
+        # third: a flash of grey on every press. A light dim says the same.
+        "[data-stale='true'], .stale-element { opacity: .82 !important;"
+        " transition: opacity .2s ease !important; }"
         # Streamlit's own bar -- deploy button and menu -- is for whoever
         # runs the server, not for the people reading the page.
         "header[data-testid='stHeader'] { display: none !important; }"
@@ -2078,7 +2145,7 @@ def load_beats(start, end):
     return list(pd.to_datetime(beats["timestamp"], utc=True))
 
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=60, show_spinner=False)
 def load_events_between(start, end):
     """Every change in a window, plus each room's state as it opened.
 
@@ -2148,9 +2215,33 @@ def show_empty(df, now):
             return
         rows = evw.week(events, rooms_here, week_days, hours, now, beats,
                         which)
+        # What each room's AC wasted, a day on average, over the same days
+        # and hours (Shamroze, 12 Nov): the ledger, span by span.
+        waste, counted_days = {}, 0
+        upto = _to_5min(now)
+        try:
+            for d in week_days:
+                spans = evw.windows_for(d, hours, now, which)
+                if not spans:
+                    continue
+                counted_days += 1
+                for a, b in spans:
+                    b = min(b, upto)
+                    if b <= a:
+                        continue
+                    fn = cached_ledger_past if b < upto else cached_ledger
+                    for r in fn(pd.Timestamp(a).tz_convert("UTC").isoformat(),
+                                pd.Timestamp(b).tz_convert("UTC").isoformat(),
+                                campus):
+                        waste[r["room"]] = waste.get(r["room"], 0.0) \
+                            + r["waste_rs"]
+        except psycopg2.Error:
+            waste = {}
+        if counted_days:
+            waste = {k: v / counted_days for k, v in waste.items()}
         st.markdown(evw.week_page(LINK_BASE.get("theme") or "dark", rows,
                                   week_days, evw.empty_now(df, now),
-                                  window_text, LINK_BASE),
+                                  window_text, LINK_BASE, waste),
                     unsafe_allow_html=True)
         return
     day = days[[n for n in names if n != "Last 7 days"].index(picked)]
@@ -2789,9 +2880,40 @@ def show_arrivals(df, now):
     ordered = sorted(rows, key=lambda r: (
         r[3][3]["first_in"] is None, r[3][3]["starts"] is None,
         r[3][3]["starts"] or r[3][3]["first_in"] or r[3][0], r[0]["room"]))
+    # On each room's own line, beside its 24 hours: how long it sat empty
+    # and what its AC wasted (Shamroze, 12 Nov) -- the whole day, whatever
+    # hours are picked above, from the same ledger as the Energy tab.
+    led = {}
+    try:
+        d0 = day_starts[0]
+        d1 = min(d0 + pd.Timedelta(days=1), _to_5min(local_now))
+        fn = (cached_ledger_past if d0 + pd.Timedelta(days=1) <= local_now
+              else cached_ledger)
+        if d1 > d0:
+            led = {r["room"]: r for r in fn(
+                d0.tz_convert("UTC").isoformat(),
+                d1.tz_convert("UTC").isoformat(), None)}
+    except psycopg2.Error:
+        led = {}
+    extra = {}
+    for r in ordered:
+        s = r[3][3]
+        if s["busy_pct"] is None:
+            continue
+        empty_min = s["watched_min"] * (1 - s["busy_pct"] / 100.0)
+        mine = [led[m] for m in r[0]["members"] if m in led]
+        waste = sum(x["waste_rs"] for x in mine)
+        text = "empty %s" % ds.spell(empty_min) if empty_min >= 1 \
+            else "never empty"
+        if waste >= 1:
+            text += " · Rs %s wasted" % format(int(round(waste)), ",")
+        elif mine:
+            text += " · no AC wasted"
+        extra[r[0]["room"]] = (text, waste >= 1)
     st.markdown(dt.render(
         [(r[0]["room"], r[3][2], r[3][3], r[3][3]["left"]) for r in ordered],
-        day_starts[0], local_now, (pk_a, pk_b), mode), unsafe_allow_html=True)
+        day_starts[0], local_now, (pk_a, pk_b), mode, extra, work_hours()),
+        unsafe_allow_html=True)
 
     for show in later:
         show()
@@ -3418,6 +3540,23 @@ def show_numbers(df, cooled, recent, now):
 # views you pick. Nothing that matters is ever more than one screen away, and
 # adding a campus adds an entry to a dropdown rather than another page length.
 
+# ---- where we are: the address says which campus and which theme ----------
+#
+# Both live in the query string rather than only in the session, because the
+# welcome page and the room chips are links, and a link that dropped the
+# theme would turn the page white halfway through somebody's evening.
+#
+# Painted before anything is read: on 12 Nov a light-theme page sat black
+# and empty for the seconds the data took ("ajeeb sa loading"), because the
+# palette only arrived with the page. Now the palette and a small loading
+# line come first, and the line goes once the rooms are in.
+mode = st.query_params.get("theme", "dark")
+mode = mode if mode in THEMES else "dark"
+use_theme(mode)
+st.markdown(app_chrome(mode), unsafe_allow_html=True)
+_loading = st.empty()
+_loading.markdown(loading_line(mode), unsafe_allow_html=True)
+
 try:
     rooms = load_rooms_config()
     latest, recent, last_beat, beats = load_state()
@@ -3444,16 +3583,11 @@ except psycopg2.Error as e:
 now = pd.Timestamp.now(tz="UTC")
 everything = rooms.merge(latest, on="room", how="left")
 everything["status"] = everything["status"].fillna("unknown")
-
-# ---- where we are: the address says which campus and which theme ----------
-#
-# Both live in the query string rather than only in the session, because the
-# welcome page and the room chips are links, and a link that dropped the
-# theme would turn the page white halfway through somebody's evening.
-mode = st.query_params.get("theme", "dark")
-mode = mode if mode in THEMES else "dark"
-use_theme(mode)
-st.markdown(app_chrome(mode), unsafe_allow_html=True)
+everything["private_now"] = [
+    private_now(spec, pd.Timestamp.now(tz=PKT))
+    for spec in everything.get("private_hours",
+                               pd.Series([""] * len(everything)))]
+_loading.empty()
 
 campuses = sorted(everything["campus"].unique())
 campus = st.query_params.get("campus")
@@ -3588,14 +3722,25 @@ if clicked and st.session_state.get("_came_from") != clicked:
     st.session_state["view"] = "One room"
 
 
+def _leave_walk_list():
+    # A tab clicked from "worth a look" opens that tab, not the list again.
+    try:
+        if "only" in st.query_params:
+            del st.query_params["only"]
+    except Exception:                                       # noqa: BLE001
+        pass
+
+
 def _picked_primary():
     picked = st.session_state.get("nav_primary")
     if picked:
         st.session_state["view"] = picked
+    _leave_walk_list()
 
 
 def _go(target):
     st.session_state["view"] = target
+    _leave_walk_list()
 
 
 current = st.session_state["view"]
@@ -3634,21 +3779,33 @@ if view == "Overview":
     rate_now = float(assumptions.get(
         "peak_rs_per_kwh" if at_peak else "tariff_rs_per_kwh", 67) or 67)
     unseen_units, _ = load_unwatched().get(campus, (0, 0.0))
+    import floors_view
+    live_items = live_ac.rows(df, campus_view.calibrated_counts())
+    figures = front_figures(campus)
+    walk = overview.walk_items(
+        figures, [r for r in live_items if r["waste"]],
+        {r["room"]: floors_view.floor_of(r) for _, r in df.iterrows()})
+    # 12 Nov, Shamroze: one click to only the rooms worth a look, not a
+    # hunt through every floor for them.
+    if st.query_params.get("only") == "walk":
+        st.markdown(overview.walk_page(mode, walk, LINK_BASE),
+                    unsafe_allow_html=True)
+        st.stop()
+    st.markdown(overview.walk_button(mode, len(walk), LINK_BASE),
+                unsafe_allow_html=True)
     st.markdown(live_ac.page(
-        mode, live_ac.rows(df, campus_view.calibrated_counts()), rate_now,
+        mode, live_items, rate_now,
         at_peak, int(df.loc[df["has_unit"], "ac_count"].sum()) + unseen_units,
         LINK_BASE, float(assumptions.get("unit_kw", 1.2) or 1.2)),
         unsafe_allow_html=True)
     # Then the building itself: every floor, every room drawn with its
     # people and its AC, and the hours it usually keeps.
-    import floors_view
     usual, days_used = load_usual(tuple(sorted(df["room"])),
                                   local.normalize().strftime("%Y-%m-%d"))
     st.markdown(floors_view.page(mode, floors_view.tiles(df, usual, now),
                                  LINK_BASE, days_used),
                 unsafe_allow_html=True)
-    st.markdown(overview.campus_body(front_figures(campus), mode, LINK_BASE,
-                                     tariff=win),
+    st.markdown(overview.campus_body(figures, mode, LINK_BASE, tariff=win),
                 unsafe_allow_html=True)
     st.stop()
 

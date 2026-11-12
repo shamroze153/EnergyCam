@@ -281,6 +281,26 @@ def main():
                      DAY, at(21, 30), (18.5, 22.5), "light")
     check("time nobody watched is drawn as such", "nobody watching" in html)
 
+    # 12 Nov, Shamroze: say on the strip which hours are night, working,
+    # going home and the peak.
+    parts = dt.phases((10.0, 20.0))
+    check("the day is night, arriving, working, going home, after hours",
+          [p[2] for p in parts] == ["night", "arrive", "work", "leave",
+                                    "after"])
+    check("the parts cover the day end to end, no gaps",
+          parts[0][0] == 0 and parts[-1][1] == 24
+          and all(parts[i][1] == parts[i + 1][0] for i in range(4)))
+    check("going home is the last two working hours",
+          parts[3][:2] == (18.0, 20.0))
+    lane = dt.phase_lane("light", 24.0, (10.0, 20.0), (18.5, 22.5))
+    check("the lane names the parts with their hours",
+          "Working hours 10am–6pm" in lane and "peak tariff 6:30pm–10:30pm"
+          in lane)
+    morning = dt.phase_lane("dark", 9.0, (10.0, 20.0), (18.5, 22.5))
+    check("a strip that stops at 9am shows no working hours or peak yet",
+          "Working hours" not in morning and "peak tariff" not in morning)
+    check("the timeline carries the lane", "parts of the day" in html)
+
     # ---- a department: several rooms read as one --------------------------
     # Squat Wolf: Room 0 opens at 9:30 with two, Room 3 at 10:00 with three,
     # Room 0 empties at 18:00, Room 3 at 19:15. Room 4 nobody watched.

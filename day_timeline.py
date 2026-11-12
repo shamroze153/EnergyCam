@@ -96,9 +96,106 @@ def summary(story, left):
     return " · ".join(bits)
 
 
-def render(rows, start, now, peak, mode="light"):
-    """rows: [(name, day, story, left)] already sorted. Returns HTML."""
+PHASE_INK = {
+    "light": {"night": ("#e2e6f6", "#2d3a7a"), "arrive": ("#fcefd2", "#7a5000"),
+              "work": ("#dcf2e4", "#1d6640"), "leave": ("#fde2d0", "#8f4310"),
+              "after": ("#ebe3f6", "#55388a"), "peak": ("#e5484d", "#ffffff")},
+    "dark": {"night": ("#1f2650", "#c3cbf4"), "arrive": ("#3b2f10", "#f3c96f"),
+             "work": ("#113a25", "#93deb4"), "leave": ("#40240f", "#f7ad79"),
+             "after": ("#2b1f40", "#cdb8f2"), "peak": ("#e5484d", "#ffffff")},
+}
+
+
+def _h12(h):
+    """10.0 -> "10am", 18.5 -> "6:30pm", 24 -> "12am"."""
+    h = h % 24
+    hour, minute = int(h), int(round((h - int(h)) * 60))
+    suffix = "am" if hour < 12 else "pm"
+    hour = hour % 12 or 12
+    return ("%d:%02d%s" % (hour, minute, suffix)) if minute else \
+        ("%d%s" % (hour, suffix))
+
+
+def phases(work=(10.0, 20.0), leave_hours=2.0, night_ends=6.0):
+    """The parts of a day, in order: (from, to, kind, label), in hours.
+
+    12 Nov, Shamroze, on the day's strip: say which hours are night, which
+    are working hours, which is the peak, which is going-home time -- so
+    when a room sat empty means something at a glance.
+    """
+    a, b = float(work[0]), float(work[1])
+    leave = max(a, b - leave_hours)
+    return [(0.0, night_ends, "night", "Night"),
+            (night_ends, a, "arrive", "Arriving"),
+            (a, leave, "work", "Working hours"),
+            (leave, b, "leave", "Going home"),
+            (b, 24.0, "after", "After hours")]
+
+
+def phase_lane(mode, upto=24.0, work=(10.0, 20.0), peak=(18.5, 22.5)):
+    """Two thin lanes over 0..upto hours: the day's parts, then the peak.
+
+    upto: how much of the day the strip below covers (One room's strip
+    stops at now), so the lanes line up with it.
+    """
+    ink = PHASE_INK["dark" if mode == "dark" else "light"]
+    span = max(upto, 0.25)
+    short = {"night": "Night", "arrive": "Arriving", "work": "Working",
+             "leave": "Home", "after": "After"}
+    parts = []
+    for a, b, kind, label in phases(work):
+        a2, b2 = max(a, 0.0), min(b, span)
+        if b2 <= a2:
+            continue
+        bg, fg = ink[kind]
+        wide = (b2 - a2) / span
+        # The long label where the lane is wide (One room's full-width
+        # strip), the short one where it is not (beside a list of rooms):
+        # the lane's own width decides, by container query.
+        text = ('<span class="pl-l">%s %s–%s</span><span class="pl-s">%s'
+                '</span>' % (label, _h12(a), _h12(b), short[kind])
+                if wide > 0.06 else "")
+        parts.append(
+            '<span title="%s, %s to %s" style="position:absolute;left:%.3f%%;'
+            'width:%.3f%%;top:0;bottom:0;background:%s;color:%s;'
+            'font-size:.62rem;font-weight:650;display:flex;align-items:center;'
+            'justify-content:center;overflow:hidden;white-space:nowrap;'
+            'border-right:1px solid rgba(255,255,255,.55)">%s</span>'
+            % (label, _h12(a), _h12(b), a2 / span * 100, (b2 - a2) / span * 100,
+               bg, fg, text))
+    pa, pb = max(peak[0], 0.0), min(peak[1], span)
+    peak_html = ""
+    if pb > pa:
+        bg, fg = ink["peak"]
+        peak_html = (
+            '<div style="position:relative;height:13px;margin-top:2px;">'
+            '<span title="peak tariff, %s to %s" style="position:absolute;'
+            'left:%.3f%%;width:%.3f%%;top:0;bottom:0;background:%s;color:%s;'
+            'border-radius:3px;font-size:.58rem;font-weight:700;display:flex;'
+            'align-items:center;justify-content:center;overflow:hidden;'
+            'white-space:nowrap"><span class="pl-l">peak tariff %s–%s</span>'
+            '<span class="pl-s">peak</span></span></div>'
+            % (_h12(peak[0]), _h12(peak[1]), pa / span * 100,
+               (pb - pa) / span * 100, bg, fg, _h12(peak[0]), _h12(peak[1])))
+    return ('<style>.pl{container-type:inline-size}.pl .pl-s{display:none}'
+            '@container (max-width:720px){.pl .pl-l{display:none}'
+            '.pl .pl-s{display:inline}}</style>'
+            '<div class="pl" style="margin:2px 0 4px"><div style="position:'
+            'relative;height:18px;border-radius:5px;overflow:hidden;">%s</div>'
+            '%s</div>' % ("".join(parts), peak_html))
+
+
+def render(rows, start, now, peak, mode="light", extra=None,
+           work=(10.0, 20.0)):
+    """rows: [(name, day, story, left)] already sorted. Returns HTML.
+
+    extra: {name: (text, hot)} -- a second line under a row's summary:
+    how long it sat empty and what its AC wasted, on the same line as its
+    24 hours (Shamroze, 12 Nov). hot draws it in amber.
+    """
     ink = INK[mode]
+    extra = extra or {}
+    amber = "#d18a00" if mode == "light" else "#e8a21a"
     end = start + pd.Timedelta(days=1)
     grid = "".join(
         '<span style="position:absolute;left:%.3f%%;top:0;bottom:0;'
@@ -133,6 +230,10 @@ def render(rows, start, now, peak, mode="light"):
             '</div>' % (band_label, axis))
     body = ""
     for name, day, story, left in rows:
+        text, hot = extra.get(name, ("", False))
+        second = ('<div style="color:%s;%s">%s</div>'
+                  % (amber if hot else ink["faint"],
+                     "font-weight:650;" if hot else "", text)) if text else ""
         body += (
             '<div style="display:flex;gap:12px;align-items:center;'
             'margin:0 0 6px;">'
@@ -141,10 +242,10 @@ def render(rows, start, now, peak, mode="light"):
             '<div style="flex:1 1 auto;position:relative;height:22px;'
             'min-width:360px;background:%s;border-radius:4px;">%s%s%s%s</div>'
             '<div style="flex:0 0 280px;font-size:.74rem;color:%s;'
-            'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">%s</div>'
-            '</div>' % (ink["text"], name, ink["track"], band, grid,
-                        track(day, story, start, mode), now_line,
-                        ink["muted"], summary(story, left)))
+            'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">%s%s'
+            '</div></div>' % (ink["text"], name, ink["track"], band, grid,
+                              track(day, story, start, mode), now_line,
+                              ink["muted"], summary(story, left), second))
     swatch = lambda style: ('<span style="display:inline-block;width:14px;'
                             'height:10px;border-radius:2px;vertical-align:-1px;'
                             'margin-right:5px;%s"></span>' % style)
@@ -163,5 +264,11 @@ def render(rows, start, now, peak, mode="light"):
     legend += "<span>%speak tariff</span>" % swatch(
         "background:%s;box-shadow:inset 0 0 0 1px %s;" % (ink["band"], ink["grid"]))
     legend += "</div>"
-    return ('<div style="overflow-x:auto;">%s%s%s</div>'
-            % (legend, head, body))
+    lane = ('<div style="display:flex;gap:12px;margin-bottom:2px;">'
+            '<div style="flex:0 0 170px;font-size:.66rem;color:%s;'
+            'align-self:center;">parts of the day</div><div style="flex:1 1 '
+            'auto;min-width:360px;">%s</div><div style="flex:0 0 280px;">'
+            '</div></div>' % (ink["faint"], phase_lane(mode, 24.0, work,
+                                                       peak)))
+    return ('<div style="overflow-x:auto;">%s%s%s%s</div>'
+            % (legend, lane, head, body))
