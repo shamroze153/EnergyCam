@@ -1635,6 +1635,22 @@ rooms:
     channels: [5, 6, 12, 16]
     ac: none
     empty_after_minutes: null
+    # 12 Nov 16:50 check_room: on ch 6 a chair in the room beyond the glass
+    # wall (right) read as a person at 0.26. The zone covers the glass
+    # above the corridor floor: the chair's box is 83% inside it, somebody
+    # walking past the glass about 70%, so they are still counted.
+    # ch 5 at 16:40: four people and chairs counted (0.30-0.48), every one
+    # in the office beyond the glass wall on the left; the corridor itself
+    # was empty. The zone stops short of the glass line (x 560-620), so
+    # somebody walking the corridor is still counted.
+    ignore:
+      5:
+        - [0, 150, 560, 1080]      # the office through the left glass wall
+      6:
+        - [1540, 400, 1920, 900]   # the next room, through the glass
+      # ch 12 is 1280x720: a chair beyond its left glass wall at 0.33.
+      12:
+        - [0, 0, 320, 470]         # the office through the left glass wall
 
   # ---- XVR 3 (192.168.67.78): 141, ground floor ---------------------------
   # Channels named by Shamroze, 12 Nov. ch 12 is black and left out. Rooms 5
