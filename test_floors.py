@@ -36,6 +36,9 @@ def main():
     check("a 141 room's floor comes from its name, under its block",
           fv.floor_of({"room": "141-D MR01 (2nd floor)"}),
           "141-D · Second floor")
+    check("a 141 room on the ground floor says so",
+          fv.floor_of({"room": "141 Room 7 (ground floor)"}),
+          "Main building · Ground floor")
     check("a 141 room with no floor in its name is its block",
           fv.floor_of({"room": "141 Admin Room"}), "Main building")
     check("an unplaced 140-H room is not guessed onto a floor",

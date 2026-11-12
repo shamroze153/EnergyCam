@@ -207,3 +207,11 @@ Two or three lines a round; picture file names, never pictures.
   230 s a pass, 0 unknown. Still to come: XVR 2 (login), .78 (XVR 3 or
   4, login), the last XVR's address, the DVR (192.168.1.64, needs an IP
   on 192.168.67.x), and the units in the new offices.
+* 16:10 XVR 2: not a bad login but an IP conflict -- another device
+  (80/554/8000, its own MAC) answers at .59, where the XVR's own ports
+  (8200/8201) are shut. IT to move it (.63, .81, .87-.99 free). XVR 3
+  (Shamroze's login) is 192.168.67.78: ground-floor Rooms 3 (IT), 5 and 8
+  (vacant), 6 (three angles), 7, 11 (IVC), the ground- and first-floor
+  lobbies; ch 12 black. Checked live: Room 6's people found (one far
+  person boxed twice on ch 6 -- a count drift, not a fault), vacant Room 8
+  empty. "(ground floor)" in a 141 name now files under Ground floor.

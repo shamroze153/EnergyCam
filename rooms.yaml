@@ -1636,6 +1636,79 @@ rooms:
     ac: none
     empty_after_minutes: null
 
+  # ---- XVR 3 (192.168.67.78): 141, ground floor ---------------------------
+  # Channels named by Shamroze, 12 Nov. ch 12 is black and left out. Rooms 5
+  # and 8 were named without a floor; the rest of this recorder's rooms are
+  # ground floor, so they are taken as ground floor too (check). Rooms 5
+  # and 8 are vacant -- assigned to nobody -- so any AC running in them is
+  # cooling no one. Units not counted yet: ac: hidden, one each, until they
+  # are.
+  - name: 141 Room 3 (ground floor)
+    dept: IT
+    zone: Offices
+    recorder: cd_xvr3
+    channels: [3]
+    ac: hidden
+    empty_after_minutes: 45
+
+  - name: 141 Room 5 (ground floor)
+    dept: Vacant
+    zone: Offices
+    recorder: cd_xvr3
+    channels: [5, 11]
+    ac: hidden
+    empty_after_minutes: 30
+
+  - name: 141 Room 6 (ground floor)
+    dept: Room 6
+    zone: Offices
+    recorder: cd_xvr3
+    # Three angles on one room (Shamroze).
+    channels: [2, 6, 7]
+    ac: hidden
+    empty_after_minutes: 45
+
+  - name: 141 Room 7 (ground floor)
+    dept: Room 7
+    zone: Offices
+    recorder: cd_xvr3
+    channels: [1, 8]
+    ac: hidden
+    empty_after_minutes: 45
+
+  - name: 141 Room 8 (ground floor)
+    dept: Vacant
+    zone: Offices
+    recorder: cd_xvr3
+    channels: [4, 13]
+    ac: hidden
+    empty_after_minutes: 30
+
+  - name: 141 Room 11 (ground floor)
+    dept: IVC
+    zone: Offices
+    recorder: cd_xvr3
+    channels: [9]
+    ac: hidden
+    empty_after_minutes: 45
+
+  - name: 141 Lobby (ground floor)
+    dept: Shared
+    zone: Cafe & common
+    recorder: cd_xvr3
+    channels: [10, 14]
+    ac: none
+    empty_after_minutes: null
+
+  - name: 141 Lobby (1st floor)
+    dept: Shared
+    zone: Cafe & common
+    recorder: cd_xvr3
+    # Open to the outside: planters, turf and daylight on both cameras.
+    channels: [15, 16]
+    ac: none
+    empty_after_minutes: null
+
   - name: 141 IT Sub Store
     dept: IT
     zone: Offices

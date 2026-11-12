@@ -51,6 +51,9 @@ def floor_of(row):
     name = str(row["room"])
     m = re.search(r"\((\d)(?:st|nd|rd|th) floor\)", name)
     level = NUMBER.get(int(m.group(1))) if m else None
+    # 141's XVR 3 rooms (12 Nov) are named "(ground floor)".
+    if level is None and re.search(r"\(ground floor\)", name, re.I):
+        level = "Ground floor"
     if name.startswith("141"):
         block = ("141-C" if name.startswith("141-C") else
                  "141-D" if name.startswith("141-D") else "Main building")
