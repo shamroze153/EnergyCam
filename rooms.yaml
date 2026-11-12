@@ -570,6 +570,12 @@ rooms:
     ignore:
       10:
         - [255, 885, 447, 1080]  # a coil of cable on a box, 0.26-0.33
+    # 13 Nov 02:58 night evidence: a tall dark office chair on the right of
+    # ch 10 read as a person, 0.44 median and up to 0.67 (seat notes: 12
+    # night passes from 00:18) -- likely 12 Nov's "first in at 2:38
+    # night" too. A seat, so no zone: a stricter bar at night only; people
+    # here at night have scored 0.8 and more.
+    conf_after_hours: 0.70
     # 7 Nov: no unit in any of this room's frames, read at full width
     # across the upper part of the picture, where a split unit is
     # mounted. It was labelled visible from the survey contact sheet,
@@ -1512,6 +1518,10 @@ rooms:
     ignore:
       27:
         - [100, 290, 250, 495]
+    # 13 Nov 02:55 night evidence: an empty office chair on ch 27 at 0.30-
+    # 0.49 (seat notes: 5 passes from 02:25); the cleaner at 00:40 scored
+    # 0.92-0.94. A seat, so no zone: a stricter bar at night only.
+    conf_after_hours: 0.55
     ac: visible
     empty_after_minutes: 45
 
