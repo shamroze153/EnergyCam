@@ -356,6 +356,7 @@ def check_guard(namespace):
             self.session_state, self.typed = {}, typed
             self.stopped = self.reran = False
             self.errors = []
+            self.query_params = {}
 
         def markdown(self, *a, **k): pass
         def caption(self, *a, **k): pass
@@ -364,10 +365,12 @@ def check_guard(namespace):
         def rerun(self): self.reran = True; raise FakeStop()
         def stop(self): self.stopped = True; raise FakeStop()
 
-    def run(password, typed=None, already=False):
+    def run(password, typed=None, already=False, ticket=None):
         fake = Fake(typed)
         if already:
             fake.session_state["let_in"] = True
+        if ticket:
+            fake.query_params["k"] = ticket
         saved_st, saved_setting = namespace["st"], namespace["_setting"]
         namespace["st"] = fake
         namespace["_setting"] = lambda n: (password
@@ -406,6 +409,18 @@ def check_guard(namespace):
     back = run("hunter2", already=True)
     check("and it is not asked for again in the same session",
           not back.stopped)
+
+    check("the right word writes the entry ticket into the address",
+          right.query_params.get("k")
+          == namespace["entry_ticket"]("hunter2"))
+    carried = run("hunter2", ticket=namespace["entry_ticket"]("hunter2"))
+    check("a new page carrying the ticket is let in without asking",
+          not carried.stopped and carried.session_state.get("let_in"))
+    forged = run("hunter2", ticket="0123456789abcdef0123")
+    check("a made-up ticket is not", forged.stopped)
+    stale = run("newword", ticket=namespace["entry_ticket"]("hunter2"))
+    check("and a ticket from the old word stops working when it changes",
+          stale.stopped)
 
     # Comparing with == leaks how much of the word was right in the time it
     # takes, which is the whole of a guessing attack.
@@ -600,6 +615,20 @@ def main():
     late = defined_before_use(source)
     check("nothing is called above where it is defined", not late,
           "; ".join(late))
+
+    # The entry ticket: what lets a link through the door without asking
+    # for the password again (12 Nov, "Enter campus" asked every time).
+    if "entry_ticket" in namespace:
+        t = namespace["entry_ticket"]
+        check("a ticket is the same for the same word",
+              t("word") == t("word") and len(t("word")) == 20, True)
+        check("and changes with the word, so a new word voids old links",
+              t("word") != t("other"), True)
+        check("and does not contain the word", "word" not in t("word"), True)
+    else:
+        check("entry_ticket is defined", False)
+    check("every link carries the ticket", '"k": current_ticket()' in source,
+          True)
 
     # Each unit's size, from the 140-H survey of 12 Nov.
     if "unit_rating" in namespace:

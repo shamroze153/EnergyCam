@@ -64,7 +64,7 @@ def _fresh_modules():
     import sys
     order = ("schedule", "campus_view", "day_story", "day_timeline",
              "overview", "analysis_view", "meters_view", "energy_view",
-             "empty_view", "live_ac")
+             "empty_view", "live_ac", "floors_view")
     # The tests run this half of the file through exec, with no __file__.
     here = os.path.dirname(os.path.abspath(
         globals().get("__file__") or "rooms_dashboard.py"))
@@ -422,6 +422,15 @@ def guard():
         return
     if st.session_state.get("let_in"):
         return
+    # Every link on these pages loads a fresh page, and a fresh page is a
+    # fresh session that has never seen the password: "Enter campus" asked
+    # for it again, every time (12 Nov). So the door, once opened, writes a
+    # ticket into the address -- derived from the word, so changing the word
+    # voids every ticket -- and every link on the page carries it on.
+    ticket = st.query_params.get("k")
+    if ticket and hmac.compare_digest(str(ticket), entry_ticket(wanted)):
+        st.session_state["let_in"] = True
+        return
 
     st.markdown("### EnergyCam")
     st.caption("140-H · Disrupt")
@@ -433,9 +442,23 @@ def guard():
         # the word is right, which is the whole of a guessing attack.
         if hmac.compare_digest(str(typed), str(wanted)):
             st.session_state["let_in"] = True
+            st.query_params["k"] = entry_ticket(wanted)
             st.rerun()
         st.error("Not that.")
     st.stop()
+
+
+def entry_ticket(word):
+    """What the address carries once the password has been given."""
+    import hashlib
+    return hmac.new(str(word).encode("utf-8"), b"energycam entry",
+                    hashlib.sha256).hexdigest()[:20]
+
+
+def current_ticket():
+    """The ticket to put on every link, or None where there is no door."""
+    wanted = _setting("DASHBOARD_PASSWORD")
+    return entry_ticket(wanted) if wanted else None
 
 
 guard()
@@ -479,6 +502,40 @@ def tons_of(room):
     if isinstance(tons, (list, tuple)) and tons:
         return sum(float(t) for t in tons)
     return float(tons) * unit_count(room) if tons else None
+
+
+@st.cache_data(ttl=900)
+def load_usual(rooms_key, today_iso, workdays=5):
+    """Each room's usual day over the last few working days, for the floors.
+
+    Cached a quarter of an hour: it walks every room through five days of
+    history, and the answer moves by the day, not by the minute.
+    """
+    import floors_view as fv
+    op_days = [d.strip().lower()[:3] for d in
+               (load_hours() or {}).get("operations", {}).get(
+                   "days", ["mon", "tue", "wed", "thu", "fri"])]
+    today = pd.Timestamp(today_iso).tz_localize(PKT)
+    days = []
+    for back in range(1, 15):
+        d = today - pd.Timedelta(days=back)
+        if DAY_NAMES[d.weekday()] in op_days:
+            days.append(d)
+        if len(days) == workdays:
+            break
+    days.sort()
+    if not days:
+        return {}, 0
+    try:
+        history = load_history()
+        beats = load_beats(days[0] - pd.Timedelta(minutes=15),
+                           days[-1] + pd.Timedelta(days=1, minutes=15))
+    except psycopg2.Error:
+        return {}, 0
+    first = history["timestamp"].min() if len(history) else None
+    days = [d for d in days if first is None or d >= first.normalize()
+            .tz_convert(PKT) - pd.Timedelta(days=1)]
+    return fv.usual_days(history, list(rooms_key), days, beats), len(days)
 
 
 @st.cache_data(ttl=60)
@@ -532,6 +589,7 @@ def load_rooms_config(path="rooms.yaml"):
             "recorder": recorder,
             "campus": recorders[recorder].get("campus", "unknown"),
             "zone": room.get("zone", "Other"),
+            "floor": room.get("floor"),
             # Whose space it is. Empty when nobody has said; a blank rather
             # than None so that "dept or something" reads the same on every
             # row, and never NaN, which is true.
@@ -3201,7 +3259,9 @@ campus = st.query_params.get("campus")
 if campus not in campuses:
     campus = None
 LINK_BASE.clear()
-LINK_BASE.update({"campus": campus, "theme": None if mode == "dark" else mode})
+LINK_BASE.update({"campus": campus, "theme": None if mode == "dark" else mode,
+                  # the entry ticket rides on every link (see guard)
+                  "k": current_ticket()})
 
 hours = load_hours()
 assumptions = load_assumptions()
@@ -3375,6 +3435,14 @@ if view == "Overview":
         at_peak, int(df.loc[df["has_unit"], "ac_count"].sum()) + unseen_units,
         LINK_BASE, float(assumptions.get("unit_kw", 1.2) or 1.2)),
         unsafe_allow_html=True)
+    # Then the building itself: every floor, every room drawn with its
+    # people and its AC, and the hours it usually keeps.
+    import floors_view
+    usual, days_used = load_usual(tuple(sorted(df["room"])),
+                                  local.normalize().strftime("%Y-%m-%d"))
+    st.markdown(floors_view.page(mode, floors_view.tiles(df, usual, now),
+                                 LINK_BASE, days_used),
+                unsafe_allow_html=True)
     st.markdown(overview.campus_body(front_figures(campus), mode, LINK_BASE,
                                      tariff=win),
                 unsafe_allow_html=True)

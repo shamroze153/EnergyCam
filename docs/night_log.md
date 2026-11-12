@@ -152,3 +152,11 @@ Two or three lines a round; picture file names, never pictures.
   the survey exactly: 57 units, 74.5 t (39 x 1, 3 x 1.5, 13 x 2, 2 x 2.5),
   a test holds it there.
 * 12:47 round 10: 0 MISSED, 0 GHOST, 81 MATCH. Loop restarted after it.
+* 13:40 campus page: "The building, floor by floor" -- every room drawn
+  with its people and its AC (running / off / not visible), SWITCH OFF on
+  empty rooms with a unit running, and its usual day once two watched days
+  agree (cleaners' early rounds left out, nights counted as nights). 140-H
+  floors in rooms.yaml. "Enter campus" no longer asks for the password
+  again: the door writes an entry ticket into the address and every link
+  carries it. Prompt Cafe, Commons and Mosque are their own lines now, not
+  "Cafe & common" added up (Shamroze saw 15 for a cafe holding 10-12).

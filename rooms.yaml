@@ -357,6 +357,7 @@ rooms:
   # in the data centre at 3am is worth knowing about -- and they never alert.
 
   - name: UPS Room
+    floor: Ground floor
     zone: Server rooms
     recorder: dvr2
     channels: [5]
@@ -379,6 +380,7 @@ rooms:
       discretionary.
 
   - name: Data Centre Operations
+    floor: First floor
     zone: Server rooms
     recorder: dvr2
     channels: [6]
@@ -390,6 +392,7 @@ rooms:
   # ---- offices: unit in frame -----------------------------------------------
 
   - name: DL Department
+    floor: Basement
     dept: Disrupt Labs
     # Basement, disrupt labs. Told by Shamroze, 10 November.
     meter: gf_basement
@@ -412,6 +415,7 @@ rooms:
     conf_after_hours: 0.55
 
   - name: HR Room
+    floor: Ground floor
     zone: Offices
     recorder: dvr2
     channels: [2]
@@ -432,6 +436,7 @@ rooms:
     empty_after_minutes: 45
 
   - name: Marketing
+    floor: Ground floor
     zone: Offices
     recorder: dvr2
     channels: [3, 13]
@@ -455,6 +460,7 @@ rooms:
       being wrong is not symmetric.
 
   - name: Creative Room
+    floor: Ground floor
     # Ground floor. Told by Shamroze, 10 November.
     meter: gf_basement
     zone: Offices
@@ -488,6 +494,7 @@ rooms:
         - [1425, 100, 1690, 790]   # corridor beyond the glass door
 
   - name: Admin Room
+    floor: Ground floor
     # Ground floor. Told by Shamroze, 10 November.
     meter: gf_basement
     zone: Offices
@@ -498,6 +505,7 @@ rooms:
     empty_after_minutes: 45
 
   - name: AutoOS
+    floor: Ground floor
     # Ground floor. Told by Shamroze, 10 November.
     meter: gf_basement
     zone: Offices
@@ -519,6 +527,7 @@ rooms:
     note: Two cameras assumed to be one room, as with Marketing.
 
   - name: IT Head Room
+    floor: Ground floor
     # Ground floor. Told by Shamroze, 10 November.
     meter: gf_basement
     zone: Offices
@@ -536,6 +545,7 @@ rooms:
       minutes rather than forty-five.
 
   - name: Wellows
+    floor: Ground floor
     zone: Offices
     recorder: dvr2
     channels: [15, 16]
@@ -549,6 +559,7 @@ rooms:
   # ---- lobbies: no unit -----------------------------------------------------
 
   - name: First Floor Lobby
+    floor: First floor
     # First floor. Told by Shamroze, 10 November.
     meter: first_cafe
     zone: Cafe & common   # a lobby, not a department -- moved 11 Nov
@@ -581,6 +592,7 @@ rooms:
   # ===========================================================================
 
   - name: 140-H Reception
+    floor: Ground floor
     # 7 Nov: this recorder's sub stream is 640x360, too small to read
     # a unit's display. Main stream for this room only.
     stream: main
@@ -604,6 +616,7 @@ rooms:
       either can be calibrated and the other checks it.
 
   - name: 140-H Board Room
+    floor: Ground floor
     # 7 Nov: this recorder's sub stream is 640x360, too small to read
     # a unit's display. Main stream for this room only.
     stream: main
@@ -643,6 +656,7 @@ rooms:
   # ---- entrance ------------------------------------------------------------
 
   - name: 140-H Entry Area
+    floor: Ground floor
     # Named for its floor, so this one is certain. The GF+basement meter
     # has the solar array behind it: its units are what came from the
     # grid after the panels, so a sunny day reads low for reasons that
@@ -655,6 +669,7 @@ rooms:
     empty_after_minutes: null
 
   - name: Entry H
+    floor: Ground floor
     # Named for its floor, so this one is certain. The GF+basement meter
     # has the solar array behind it: its units are what came from the
     # grid after the panels, so a sunny day reads low for reasons that
@@ -667,6 +682,7 @@ rooms:
     empty_after_minutes: null
 
   - name: 140-H After Entrance
+    floor: Ground floor
     # Named for its floor, so this one is certain. The GF+basement meter
     # has the solar array behind it: its units are what came from the
     # grid after the panels, so a sunny day reads low for reasons that
@@ -679,6 +695,7 @@ rooms:
     empty_after_minutes: null
 
   - name: Attendance Machine H
+    floor: Ground floor
     # Named for its floor, so this one is certain. The GF+basement meter
     # has the solar array behind it: its units are what came from the
     # grid after the panels, so a sunny day reads low for reasons that
@@ -699,12 +716,16 @@ rooms:
 
   - name: 140-H Commons
     zone: H common   # a shared space, not a department -- moved 11 Nov
+    # Its own line on Who comes when: a separate cafe from Prompt Cafe, and
+    # grouped with it by zone the two read as one place (Shamroze, 12 Nov).
+    dept: Commons
     recorder: nvr1
     channels: [18, 21]
     ac: none
     empty_after_minutes: null
 
   - name: DR Rooms Lobby
+    floor: First floor
     # First floor. Told by Shamroze, 10 November.
     meter: first_cafe
     zone: H common   # a lobby, not a department -- moved 11 Nov
@@ -872,6 +893,7 @@ rooms:
   # ---- offices: unit in frame -----------------------------------------------
 
   - name: Cyber Security Room
+    floor: Ground floor
     # First floor. Told by Shamroze, 10 November.
     meter: first_cafe
     zone: H offices
@@ -884,6 +906,7 @@ rooms:
     empty_after_minutes: 45
 
   - name: Room 17
+    floor: First floor
     # First floor. Told by Shamroze, 10 November.
     meter: first_cafe
     zone: H offices
@@ -906,6 +929,7 @@ rooms:
       somebody.
 
   - name: Room 18
+    floor: First floor
     # First floor. Told by Shamroze, 10 November.
     meter: first_cafe
     zone: H offices
@@ -927,6 +951,7 @@ rooms:
     conf_after_hours: 0.55
 
   - name: H First Floor Lobby
+    floor: First floor
     # 7 Nov: this recorder's sub stream is 640x360, too small to read
     # a unit's display. Main stream for this room only.
     stream: main
@@ -968,6 +993,7 @@ rooms:
   # ---- offices: unit out of frame -------------------------------------------
 
   - name: Old Finance Room
+    floor: Ground floor
     # First floor. Told by Shamroze, 10 November.
     meter: first_cafe
     zone: H offices
@@ -998,6 +1024,7 @@ rooms:
     empty_after_minutes: null
 
   - name: H Ground Floor Lobby
+    floor: Ground floor
     # Named for its floor, so this one is certain. The GF+basement meter
     # has the solar array behind it: its units are what came from the
     # grid after the panels, so a sunny day reads low for reasons that
@@ -1010,6 +1037,7 @@ rooms:
     empty_after_minutes: null
 
   - name: H First Floor Sitting Area
+    floor: First floor
     # Named for its floor, so this one is certain. No solar behind this
     # meter, which makes it the one to trust when asking whether a
     # change in behaviour changed consumption.
@@ -1064,6 +1092,8 @@ rooms:
   # ---- rooms with a unit in frame -------------------------------------------
 
   - name: Mosque
+    floor: Cafe
+    dept: Mosque
     # 7 Nov: this recorder's sub stream is 640x360, too small to read
     # a unit's display. Main stream for this room only.
     stream: main
@@ -1086,6 +1116,11 @@ rooms:
       room is reliably empty between prayers.
 
   - name: Prompt Cafe
+    floor: Cafe
+    # 12 Nov: sitting in it, Shamroze saw "Cafe & common" -- twelve rooms
+    # added up, lobbies and pantry included -- where Prompt Cafe alone was
+    # wanted. A name of its own keeps it one place.
+    dept: Prompt Cafe
     # 7 Nov: this recorder's sub stream is 640x360, too small to read
     # a unit's display. Main stream for this room only.
     stream: main
@@ -1109,6 +1144,7 @@ rooms:
   # ---- rooms with a unit the camera cannot see ------------------------------
 
   - name: Basement
+    floor: Basement
     dept: Disrupt Labs
     # 7 Nov: this recorder's sub stream is 640x360, too small to read
     # a unit's display. Main stream for this room only.
@@ -1126,6 +1162,7 @@ rooms:
     empty_after_minutes: 45
 
   - name: Basement Meeting Room
+    floor: Basement
     # 7 Nov: this recorder's sub stream is 640x360, too small to read
     # a unit's display. Main stream for this room only.
     stream: main
@@ -1148,6 +1185,7 @@ rooms:
   # ---- no unit to switch off; watched for occupancy only --------------------
 
   - name: Gaming Area
+    floor: Cafe
     # Named for its floor, so this one is certain. No solar behind this
     # meter, which makes it the one to trust when asking whether a
     # change in behaviour changed consumption.
@@ -1170,6 +1208,7 @@ rooms:
       because the survey's original ac=no could have meant either thing.
 
   - name: Pantry
+    floor: Cafe
     # Named for its floor, so this one is certain. No solar behind this
     # meter, which makes it the one to trust when asking whether a
     # change in behaviour changed consumption.
@@ -1193,6 +1232,7 @@ rooms:
       No unit here either, confirmed the same way.
 
   - name: Cafe Stairs
+    floor: Cafe
     # Named for its floor, so this one is certain. No solar behind this
     # meter, which makes it the one to trust when asking whether a
     # change in behaviour changed consumption.
@@ -1204,6 +1244,7 @@ rooms:
     empty_after_minutes: null
 
   - name: Cafe Hand Washing
+    floor: Cafe
     # Named for its floor, so this one is certain. No solar behind this
     # meter, which makes it the one to trust when asking whether a
     # change in behaviour changed consumption.
@@ -1215,6 +1256,7 @@ rooms:
     empty_after_minutes: null
 
   - name: Ablution Area
+    floor: Cafe
     # Named for its floor, so this one is certain. No solar behind this
     # meter, which makes it the one to trust when asking whether a
     # change in behaviour changed consumption.
@@ -1226,6 +1268,7 @@ rooms:
     empty_after_minutes: null
 
   - name: Cafe Shoe Rack
+    floor: Cafe
     # Named for its floor, so this one is certain. No solar behind this
     # meter, which makes it the one to trust when asking whether a
     # change in behaviour changed consumption.
@@ -1275,6 +1318,7 @@ rooms:
     empty_after_minutes: null
 
   - name: Prompt Cafe Gate
+    floor: Cafe
     # Named for its floor, so this one is certain. No solar behind this
     # meter, which makes it the one to trust when asking whether a
     # change in behaviour changed consumption.
