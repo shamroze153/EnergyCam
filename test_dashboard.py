@@ -630,6 +630,42 @@ def main():
     check("every link carries the ticket", '"k": current_ticket()' in source,
           True)
 
+    # 12 Nov, Shamroze, One room's strip: one person red, more greener, the
+    # count each hour above it, a 12-hour clock every hour below.
+    if "people_strip" in namespace:
+        hc = namespace["headcount_colour"]
+        check("one person is red, seven are dark green, all different",
+              len({hc(1, "light"), hc(3, "light"), hc(5, "light"),
+                   hc(9, "light")}) == 4 and hc(1, "light") == "#e5484d",
+              True)
+        mid = pd.Timestamp("2026-11-12", tz="Asia/Karachi").tz_convert("UTC")
+        ev = pd.DataFrame([
+            {"timestamp": mid + pd.Timedelta(hours=9), "room": "R",
+             "status": "occupied", "people": 1},
+            {"timestamp": mid + pd.Timedelta(hours=10), "room": "R",
+             "status": "occupied", "people": 5},
+            {"timestamp": mid + pd.Timedelta(hours=11), "room": "R",
+             "status": "empty", "people": 0}])
+        slots = namespace["slot_people"](ev, "R", mid + pd.Timedelta(hours=12),
+                                         144, mid)
+        check("before anybody was written: not watched",
+              slots[0] is None, True)
+        check("9 to 10 one person, 10 to 11 five, then empty",
+              (slots[9 * 12], slots[10 * 12], slots[11 * 12]) == (1, 5, 0),
+              True)
+        namespace["use_theme"]("light")
+        html = namespace["people_strip"](slots, mid, "light")
+        check("each hour's most people is written above the strip",
+              ">1</span>" in html and ">5</span>" in html, True)
+        check("the clock is 12-hour, every hour",
+              ">12am<" in html and ">9<" in html and ">11<" in html, True)
+        check("and a key says what the colours mean",
+              "1 person" in html and "7+" in html and "not watched" in html,
+              True)
+        namespace["use_theme"]("dark")
+    else:
+        check("people_strip is defined", False)
+
     # Each unit's size, from the 140-H survey of 12 Nov.
     if "unit_rating" in namespace:
         rate = namespace["unit_rating"]

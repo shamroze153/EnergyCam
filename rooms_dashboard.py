@@ -953,6 +953,123 @@ def slot_states(recent, room, now, hours=STRIP_HOURS, slots=STRIP_SLOTS,
     return [None if i < 0 else states[i] for i in where]
 
 
+def slot_people(recent, room, now, slots, since):
+    """People in each five-minute slot: the count written, 0 when empty,
+    None when nobody was watching. The same stepping as slot_states."""
+    mine = recent[recent["room"] == room]
+    if mine.empty:
+        return [None] * slots
+    stamps = (mine["timestamp"] - since).dt.total_seconds().to_numpy()
+    span = (now - since).total_seconds()
+    marks = np.linspace(0, span, slots, endpoint=False)
+    where = np.searchsorted(stamps, marks, side="right") - 1
+    status, people = mine["status"].tolist(), mine["people"].tolist()
+    out = []
+    for i in where:
+        if i < 0:
+            out.append(None)
+        elif status[i] == "occupied":
+            p = people[i]
+            out.append(int(p) if p is not None and p == p and p > 0 else 1)
+        elif status[i] == "empty":
+            out.append(0)
+        else:
+            out.append(None)
+    return out
+
+
+# Shamroze, 12 Nov, on One room's strip: few people red -- little movement --
+# more people another colour, and the count on it.
+HEADCOUNT = {"light": [(1, "#e5484d"), (2, "#f59e0b"), (4, "#5cc27a"),
+                       (7, "#1f8a4c")],
+             "dark": [(1, "#f0666b"), (2, "#f5a524"), (4, "#4fb873"),
+                      (7, "#2fa862")]}
+
+
+def headcount_colour(n, mode):
+    """1 red, 2-3 amber, 4-6 light green, 7+ dark green."""
+    colour = None
+    for least, c in HEADCOUNT.get(mode, HEADCOUNT["dark"]):
+        if n >= least:
+            colour = c
+    return colour
+
+
+def _h12(h):
+    h = int(h) % 24
+    return "12am" if h == 0 else "12pm" if h == 12 else str(h % 12)
+
+
+def people_strip(people, since, mode, height=26):
+    """One room's day: the strip in headcount colours, each hour's most
+    people written above it, an hour-by-hour 12-hour clock below, and a key.
+    """
+    n = len(people)
+    if not n:
+        return ""
+    t = THEMES[mode]
+    start = since.tz_convert("Asia/Karachi")
+    rects = []
+    for i, p in enumerate(people):
+        at = start + pd.Timedelta(minutes=5 * i)
+        if p is None:
+            fill, what = NO_DATA, "not watched"
+        elif p == 0:
+            fill, what = SLOT_INK.get("empty", NO_DATA), "empty"
+        else:
+            fill = headcount_colour(p, mode)
+            what = "%d %s" % (p, "person" if p == 1 else "people")
+        rects.append('<rect x="%d" y="0" width="1.02" height="6" fill="%s">'
+                     '<title>%s · %s</title></rect>'
+                     % (i, fill, at.strftime("%I:%M %p").lstrip("0"), what))
+    strip = ('<svg viewBox="0 0 %d 6" preserveAspectRatio="none" style="width:'
+             '100%%;height:%dpx;border-radius:5px;display:block;">%s</svg>'
+             % (n, height, "".join(rects)))
+    hours = -(-n // 12)
+    cells, axis = [], []
+    for h in range(hours):
+        chunk = [p for p in people[h * 12:(h + 1) * 12] if p is not None]
+        most = max(chunk) if chunk else None
+        width = min(12, n - h * 12) / n * 100
+        if most is None:
+            text, colour = "", t["faint"]
+        elif most == 0:
+            text, colour = "&middot;", t["faint"]
+        else:
+            text, colour = str(most), headcount_colour(most, mode)
+        cells.append('<span style="width:%.4f%%;text-align:center;font-size:'
+                     '.72rem;font-weight:750;color:%s" title="most people, '
+                     '%s to %s">%s</span>'
+                     % (width, colour, _h12(start.hour + h),
+                        _h12(start.hour + h + 1), text))
+        axis.append('<span class="%s" style="position:absolute;left:%.4f%%;'
+                    'transform:translateX(%s)">%s</span>'
+                    % ("" if (start.hour + h) % 3 == 0 else "ax-minor",
+                       h * 12 / n * 100, "0" if h == 0 else "-50%",
+                       _h12(start.hour + h)))
+    key = "".join(
+        '<span style="display:inline-flex;align-items:center;gap:5px">'
+        '<i style="width:12px;height:10px;border-radius:2px;background:%s;'
+        'display:inline-block"></i>%s</span>' % (c, label)
+        for c, label in [(headcount_colour(1, mode), "1 person"),
+                         (headcount_colour(2, mode), "2–3"),
+                         (headcount_colour(4, mode), "4–6"),
+                         (headcount_colour(7, mode), "7+"),
+                         (SLOT_INK.get("empty", NO_DATA), "empty"),
+                         (NO_DATA, "not watched")])
+    return (
+        '<style>.ps{container-type:inline-size}@container (max-width:720px)'
+        '{.ps .ax-minor{display:none}}</style><div class="ps">'
+        '<div style="display:flex;margin:4px 0 2px">%s</div>%s'
+        '<div style="position:relative;height:16px;font-size:.66rem;'
+        'color:%s;margin-top:3px">%s</div>'
+        '<div style="display:flex;flex-wrap:wrap;gap:14px;font-size:.7rem;'
+        'color:%s;margin-top:6px">%s<span>· numbers above: the most people '
+        'in that hour</span></div></div>'
+        % ("".join(cells), strip, t["muted"], "".join(axis), t["muted"],
+           key))
+
+
 def strip_svg(slots, height=7, radius=3):
     rects = "".join(
         '<rect x="%d" y="0" width="1" height="6" fill="%s"/>'
@@ -1577,21 +1694,28 @@ def show_room_day(df, recent, chosen, now):
     # the room sat empty reads at a glance.
     import analysis_view as av
     import day_timeline as dtl
+    # Coloured by how many were in (one person red, more people greener),
+    # each hour's most people above it, an hourly 12-hour clock below.
+    theme_now = LINK_BASE.get("theme") or "dark"
     st.markdown(
-        dtl.phase_lane(LINK_BASE.get("theme") or "dark",
-                       int(hours_today * 12) / 12.0, work_hours(),
+        dtl.phase_lane(theme_now, int(hours_today * 12) / 12.0, work_hours(),
                        av.peak_window(load_assumptions()))
-        + strip_svg(slot_states(recent, chosen, now, slots=int(hours_today * 12),
-                                since=midnight), height=26, radius=5)
-        + day_axis(now, midnight), unsafe_allow_html=True)
+        + people_strip(slot_people(recent, chosen, now,
+                                   int(hours_today * 12), midnight),
+                       midnight, theme_now), unsafe_allow_html=True)
 
     if not busy.empty:
         by_hour = busy.copy()
-        by_hour["hour"] = to_local(by_hour["timestamp"]).dt.strftime("%H:00")
-        peaks = by_hour.groupby("hour")["people"].max().reset_index()
+        by_hour["h"] = to_local(by_hour["timestamp"]).dt.hour
+        peaks = by_hour.groupby("h")["people"].max().reset_index()
+        # The same 12-hour clock and headcount colours as the strip above.
+        peaks["hour"] = ["%d%s" % (h % 12 or 12, "am" if h < 12 else "pm")
+                         for h in peaks["h"]]
+        peaks["c"] = [headcount_colour(int(p), theme_now) or AC_ON
+                      for p in peaks["people"]]
         chart = px.bar(peaks, x="hour", y="people",
-                       labels={"hour": "", "people": "people"},
-                       color_discrete_sequence=[AC_ON])
+                       labels={"hour": "", "people": "people"})
+        chart.update_traces(marker_color=list(peaks["c"]))
         chart.update_layout(height=215, margin=dict(l=0, r=0, t=16, b=0),
                             plot_bgcolor="rgba(0,0,0,0)",
                             paper_bgcolor="rgba(0,0,0,0)",
