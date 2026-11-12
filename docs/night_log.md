@@ -215,3 +215,19 @@ Two or three lines a round; picture file names, never pictures.
   lobbies; ch 12 black. Checked live: Room 6's people found (one far
   person boxed twice on ch 6 -- a count drift, not a fault), vacant Room 8
   empty. "(ground floor)" in a 141 name now files under Ground floor.
+* 16:27 field audit, 123 rooms: 89 MATCH, 5 GHOST, 2 MISSED -- all people
+  moving (a man from vacant Room 5 to vacant Room 8; Board Room's meeting
+  ending; Gaming Area, Mosque), each right on the next pass; the gym's
+  was a real person at the back; P2 Parking outdoors, no unit, left.
+* 16:40 Shamroze: the 141 gym is ladies-only 15:00-20:00 -- take no data
+  then. private_hours on 141 Gym: the camera is not opened in those
+  hours by the loop or any tool; the room reads unknown (16:49). Gym
+  pictures taken inside those hours were deleted (today's checks; the 11
+  Nov 17:46-18:36 pack, loose and zipped). The counts already written
+  for 15:00-16:45 today are still in the database: Shamroze to say.
+* 16:40-16:50 every XVR 1 / XVR 3 camera checked by eye: people found
+  right in every office; vacant Rooms 5 and 8 right. The 2nd-floor
+  corridor counted people in the offices through its glass walls (ch 5,
+  6, 12): three zones, re-checked to 0. Hazy lenses worth a wipe: XVR 1
+  ch 1 (Room 22), ch 12 (corridor), ch 14 (Learning Center). Loop
+  restarted 16:45.
