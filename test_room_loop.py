@@ -747,8 +747,64 @@ def main():
         check("and each reads as nobody having answered",
               {people for people, answered, _, _ in out.values()}
               | {answered for _, answered, _, _ in out.values()}, {0})
+
+        # 12 Nov: passes of four to seven minutes, each batch's cameras
+        # waited on and only then counted. The next batch is now fetched
+        # while this one is counted. Three batches, 0.3s of waiting and
+        # 0.3s of counting each: one after the other is 1.8s; overlapped,
+        # 0.3s of waiting shows and the rest hides behind the counting.
+        def steady_grab(url, **kw):
+            time.sleep(0.3)
+            return stub_frame, "ok"
+
+        real_examine, real_batch = room_loop.examine, room_loop.BATCH
+
+        def slow_examine(room, frames, *a, **k):
+            time.sleep(0.075)
+            return 0, len(frames), None, None, ""
+
+        room_loop.grab, room_loop.examine = steady_grab, slow_examine
+        room_loop.BATCH = 4
+        try:
+            started = time.time()
+            out = room_loop.sweep(many, recs, None, 1280, 0.7, 5.0, None,
+                                  workers=8)
+            took = time.time() - started
+        finally:
+            room_loop.examine, room_loop.BATCH = real_examine, real_batch
+        check("every room still read with the fetching overlapped",
+              len(out), 12)
+        check("the next batch is fetched while this one is counted"
+              " (%.2fs, one after the other would be 1.8s)" % took,
+              took < 1.55, True)
+        check("and the pass says where its time went",
+              room_loop.PASS_TIMES["counting"] > 0.8
+              and room_loop.PASS_TIMES["waiting"] < 0.7, True)
     finally:
         room_loop.grab = real_grab
+
+    # cycles.csv gained two columns; a file with the old header is set
+    # aside rather than mixed into one table with rows of two shapes.
+    import os as _os
+    import tempfile as _tf
+    folder = _tf.mkdtemp()
+    log = _os.path.join(folder, "cycles.csv")
+    with open(log, "w", encoding="utf-8") as fh:
+        fh.write("time,cycle,seconds,rooms,occupied,empty,unknown\n"
+                 "2026-11-12 14:00:00,1,250,105,50,55,0\n")
+    when = datetime.datetime(2026, 11, 12, 15, 0, tzinfo=PKT)
+    room_loop.log_cycle([room()], when, 1, 120.0, path=log)
+    with open(log, encoding="utf-8") as fh:
+        lines = fh.read().splitlines()
+    check("cycles.csv starts afresh with the new columns",
+          lines[0], room_loop.CYCLE_HEADER)
+    check("one row, as wide as its header",
+          (len(lines), len(lines[1].split(","))),
+          (2, len(room_loop.CYCLE_HEADER.split(","))))
+    check("the old one is kept beside it",
+          _os.path.exists(_os.path.join(folder,
+                                        "cycles_before_20261112_1500.csv")),
+          True)
 
     # The evidence catcher. Its whole point is that it stays quiet while
     # people are in the building and only speaks outside working hours, so

@@ -931,6 +931,11 @@ def keep_evidence(room, frames, model, imgsz, iou, folder, now):
     return written
 
 
+# Where the last pass's time went: seconds spent waiting on cameras that the
+# counting could not hide, and seconds counting. Written to cycles.csv.
+PASS_TIMES = {"waiting": 0.0, "counting": 0.0}
+
+
 def sweep(rooms, recorders, model, imgsz, iou, timeout, ac_units=None,
           workers=WORKERS, on_frame=None, evidence=None, hours=None):
     """One pass over every room, waiting on many cameras at once.
@@ -946,19 +951,32 @@ def sweep(rooms, recorders, model, imgsz, iou, timeout, ac_units=None,
     and returned: holding one per room is most of a gigabyte for no reason.
     """
     out = {}
-    for i in range(0, len(rooms), BATCH):
-        batch = rooms[i:i + BATCH]
-        frames = {}
-        failures = []
-        # Muffle once, here, around the whole grab -- not inside fetch(),
-        # which runs in several threads and would race itself into leaving
-        # stderr permanently pointed at nowhere. Nothing inside this block
-        # is meant to print; what wants saying is collected and said after
-        # the descriptor is back.
-        with muffled():
-            with ThreadPoolExecutor(max_workers=workers) as pool:
-                jobs = {pool.submit(fetch, r, recorders, timeout): r
-                        for r in batch}
+    batches = [rooms[i:i + BATCH] for i in range(0, len(rooms), BATCH)]
+    PASS_TIMES["waiting"] = PASS_TIMES["counting"] = 0.0
+    # 12 Nov: a pass took four to seven minutes, a batch's cameras waited on
+    # and then its rooms counted, one after the other. The next batch's
+    # cameras are now asked for as soon as this batch's frames are in, so
+    # the waiting happens while the counting does; at most two batches of
+    # frames are held at once.
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        def ask(batch):
+            return {pool.submit(fetch, r, recorders, timeout): r
+                    for r in batch}
+
+        jobs = ask(batches[0]) if batches else {}
+        for n, batch in enumerate(batches):
+            frames = {}
+            failures = []
+            began = time.time()
+            # Muffle once, here, around the waiting -- not inside fetch(),
+            # which runs in several threads and would race itself into
+            # leaving stderr permanently pointed at nowhere; and not around
+            # the counting, where a traceback must be seen. Nothing inside
+            # this block is meant to print; what wants saying is collected
+            # and said after the descriptor is back. (The next batch's grabs
+            # run on during the counting, unmuffled: at worst decoder noise
+            # in the window, never a hidden crash.)
+            with muffled():
                 for job in as_completed(jobs):
                     room = jobs[job]
                     try:
@@ -969,26 +987,31 @@ def sweep(rooms, recorders, model, imgsz, iou, timeout, ac_units=None,
                         # means "unknown", and the rest are still counted.
                         failures.append((room.name, e))
                         frames[room.name] = {}
-        for name, e in failures:
-            print(">> %s: could not be read (%s)" % (name, e))
-        after = not in_operations(datetime.now(PKT), hours)
-        for room in batch:
-            people, answered, keep, ac, why = examine(
-                room, frames.get(room.name, {}), model, imgsz, iou, ac_units,
-                after_hours=after)
-            if on_frame is not None and keep is not None:
-                on_frame(room, keep)
-            now = datetime.now(PKT)
-            if evidence and people and evidence_worthy(now, hours):
-                for name in keep_evidence(room, frames.get(room.name, {}),
-                                          model, imgsz, iou, evidence, now):
-                    print(">> kept %s" % name)
-                gone = prune_evidence(evidence)
-                if gone:
-                    print(">> and removed %d older than %d days"
-                          % (gone, EVIDENCE_DAYS))
-            out[room.name] = (people, answered, ac, why)
-        frames.clear()
+            PASS_TIMES["waiting"] += time.time() - began
+            jobs = ask(batches[n + 1]) if n + 1 < len(batches) else {}
+            for name, e in failures:
+                print(">> %s: could not be read (%s)" % (name, e))
+            began = time.time()
+            after = not in_operations(datetime.now(PKT), hours)
+            for room in batch:
+                people, answered, keep, ac, why = examine(
+                    room, frames.get(room.name, {}), model, imgsz, iou,
+                    ac_units, after_hours=after)
+                if on_frame is not None and keep is not None:
+                    on_frame(room, keep)
+                now = datetime.now(PKT)
+                if evidence and people and evidence_worthy(now, hours):
+                    for name in keep_evidence(room, frames.get(room.name, {}),
+                                              model, imgsz, iou, evidence,
+                                              now):
+                        print(">> kept %s" % name)
+                    gone = prune_evidence(evidence)
+                    if gone:
+                        print(">> and removed %d older than %d days"
+                              % (gone, EVIDENCE_DAYS))
+                out[room.name] = (people, answered, ac, why)
+            PASS_TIMES["counting"] += time.time() - began
+            frames.clear()
     return out
 
 
@@ -1085,6 +1108,8 @@ def load_state(rooms, path, max_gap_minutes):
 
 
 CYCLE_LOG = "cycles.csv"
+CYCLE_HEADER = ("time,cycle,seconds,rooms,occupied,empty,unknown,"
+                "waiting_s,counting_s")
 
 
 def log_cycle(rooms, now, cycle, seconds, path=CYCLE_LOG):
@@ -1096,22 +1121,33 @@ def log_cycle(rooms, now, cycle, seconds, path=CYCLE_LOG):
     sent -- without anybody having watched the window.
     """
     try:
+        if os.path.exists(path):
+            with open(path, encoding="utf-8") as fh:
+                head = fh.readline().strip()
+            if head != CYCLE_HEADER:
+                # Written before the columns changed (12 Nov added where the
+                # time goes): kept beside it, not mixed into one table.
+                os.replace(path, path.replace(".csv", "_before_%s.csv"
+                                              % now.strftime("%Y%m%d_%H%M")))
         new = not os.path.exists(path)
         with open(path, "a", encoding="utf-8") as fh:
             if new:
-                fh.write("time,cycle,seconds,rooms,occupied,empty,unknown\n")
+                fh.write(CYCLE_HEADER + "\n")
             states = [r.status for r in rooms]
-            fh.write("%s,%d,%.0f,%d,%d,%d,%d\n" % (
+            fh.write("%s,%d,%.0f,%d,%d,%d,%d,%.0f,%.0f\n" % (
                 now.strftime("%Y-%m-%d %H:%M:%S"), cycle, seconds, len(rooms),
                 states.count("occupied"), states.count("empty"),
-                states.count("unknown")))
+                states.count("unknown"), PASS_TIMES["waiting"],
+                PASS_TIMES["counting"]))
     except OSError:
         pass        # a log that cannot be written must not stop the loop
 
 
 def report(rooms, now, cycle, seconds, hours=None):
-    print("\n>> cycle %d  %s  (%.0fs)  %s"
-          % (cycle, now.strftime("%H:%M:%S"), seconds, describe(now, hours)))
+    print("\n>> cycle %d  %s  (%.0fs: %.0fs waiting on cameras, %.0fs "
+          "counting)  %s"
+          % (cycle, now.strftime("%H:%M:%S"), seconds, PASS_TIMES["waiting"],
+             PASS_TIMES["counting"], describe(now, hours)))
     for room in sorted(rooms, key=lambda r: (r.status != "unknown", r.name)):
         flag = "  "
         if room.due_for_check(now, hours):

@@ -198,6 +198,42 @@ def main():
           True)
     check("and says what the duty is", "draw 50% of its rated" in html, True)
 
+    # Is it getting better: a column a day, today marked as not whole.
+    def tot(rs, waste, kwh=10.0):
+        return {"rs": rs, "waste_rs": waste, "kwh": kwh}
+
+    week = [(pd.Timestamp(2026, 11, 9).date(), tot(0, 0, 0), False),
+            (pd.Timestamp(2026, 11, 10).date(), tot(9000, 2000), False),
+            (pd.Timestamp(2026, 11, 11).date(), tot(9000, 3000), False),
+            (pd.Timestamp(2026, 11, 12).date(), tot(8000, 1250), False),
+            (pd.Timestamp(2026, 11, 13).date(), tot(3000, 400), True)]
+    html = er.trend("light", week)
+    check("a day nobody watched is left off the week",
+          "Mon 9" in html, False)
+    check("the last whole day against the days before it",
+          "<b>Thursday</b>: Rs 1,250 ran with nobody in" in html
+          and "50% less" in html, True)
+    check("today is labelled as not a whole day", "so far" in html, True)
+    check("the worst whole day is pointed at", "most wasted" in html, True)
+    check("a single day is no trend", er.trend("dark", week[:2]), "")
+    # A day the loop watched only part of is drawn but not compared: the
+    # first cut called a whole Wednesday "764% worse" than three of those.
+    part = [(week[1][0], dict(week[1][1], watched_h=10.4), False),
+            (week[2][0], dict(week[2][1], watched_h=23.5), False),
+            (week[4][0], dict(week[4][1], watched_h=14.0), True)]
+    html = er.trend("light", part)
+    check("a part-watched day says how much was watched",
+          "10h watched" in html, True)
+    check("and is not compared with", "more than" in html
+          or "less than" in html, False)
+    check("which the page says", "once two whole days" in html, True)
+    check("a ledger says how much of it was watched",
+          er.totals(er.ledger(cafe, pd.DataFrame([room("Cafe", 6)]), START,
+                              END, [START + pd.Timedelta(minutes=m)
+                                    for m in range(0, 360, 5)],
+                              {"Cafe": 6}, RATES, WINDOW))["watched_h"] < 7,
+          True)
+
     # Who comes when's "empty, with the AC on", across the buildings.
     check("141-C's rooms are 141-C's", er.building({"room": "141-C Cafe",
                                                     "campus": "141"}),

@@ -211,6 +211,7 @@ def ledger(events, rooms, start, end, beats, read_rooms, rates, window,
     hundred times over.
     """
     alive = evw.watched(beats, start, end)
+    watched_h = sum((b - a).total_seconds() for a, b in alive) / 3600.0
     split = {name: rows.sort_values("timestamp")
              for name, rows in events.groupby("room")}
     none = events.iloc[0:0]
@@ -223,6 +224,7 @@ def ledger(events, rooms, start, end, beats, read_rooms, rates, window,
                      read_rooms.get(row["room"], 0), rates, window, beats,
                      duty)
         if r is not None:
+            r["watched_h"] = watched_h
             out.append(r)
     out.sort(key=lambda r: (-r["rs"], r["room"]))
     return out
@@ -252,7 +254,16 @@ def average(days):
 def totals(rows):
     keys = ("kwh", "rs", "waste_kwh", "waste_rs", "measured_kwh",
             "empty_on_h")
-    return {k: sum(r.get(k, 0.0) for r in rows) for k in keys}
+    out = {k: sum(r.get(k, 0.0) for r in rows) for k in keys}
+    # The same for every row of one ledger: how much of it was watched.
+    out["watched_h"] = max([r.get("watched_h", 0.0) for r in rows] or [0.0])
+    return out
+
+
+# A day counts as a whole day for comparing only when the loop watched
+# nearly all of it: on 12 Nov the first version said Wednesday was "764%
+# worse" than three days the loop had watched a few hours of.
+WHOLE_DAY_H = 20
 
 
 def meter_window(readings, codes, solar, tz="Asia/Karachi"):
@@ -364,6 +375,75 @@ def badge(r):
     if r["basis"] == PART:
         return "read %d of %d" % (r["read"], r["units"])
     return {READ: "read", ASSUMED: "assumed", ALWAYS: "24 h"}[r["basis"]]
+
+
+def trend(theme, days):
+    """Is it getting better: the AC's rupees a day, the part with nobody in
+    on top, for the last week.
+
+    `days` is [(date, totals(ledger), so_far)], oldest first; so_far marks
+    today, which is not a whole day and is labelled so. Asked for on 12 Nov
+    ("so we can show tomorrow is better than today").
+    """
+    days = [d for d in days if d[1].get("kwh")]
+    if len(days) < 2:
+        return ""
+    waste_colour = "#e8a21a" if theme == "dark" else "#d18a00"
+    on_colour = "#2a9d63" if theme == "dark" else "#1f8a55"
+    labels, stacks, tips, marks = [], [], [], []
+
+    def full(d):
+        # Not today, and watched nearly all day. A ledger with no
+        # watched_h (an older caller) is taken as whole.
+        return not d[2] and d[1].get("watched_h", 24) >= WHOLE_DAY_H
+
+    whole_i = [i for i, d in enumerate(days) if full(d)]
+    worst = (max(whole_i, key=lambda i: days[i][1]["waste_rs"])
+             if len(whole_i) > 1 else None)
+    for i, (day, t, so_far) in enumerate(days):
+        labels.append(pd.Timestamp(day).strftime("%a %d").replace(" 0", " "))
+        stacks.append([max(0.0, t["rs"] - t["waste_rs"]), t["waste_rs"]])
+        part = (not so_far and not full(days[i]))
+        tips.append("%s%s · AC %s (%s kWh) · with nobody in %s%s"
+                    % (pd.Timestamp(day).strftime("%a %d %b"),
+                       " so far" if so_far else "", _rs(t["rs"]),
+                       format(int(round(t["kwh"])), ","),
+                       _rs(t["waste_rs"]),
+                       (" · cameras watched %.0f of 24 hours"
+                        % t.get("watched_h", 0)) if part else ""))
+        marks.append("so far" if so_far else
+                     ("%.0fh watched" % t.get("watched_h", 0)) if part else
+                     ("most wasted" if i == worst else None))
+    whole = [days[i] for i in whole_i]
+    said = ("Comparing starts once two whole days have been watched; "
+            "a short column is a day the cameras saw only part of.")
+    if len(whole) >= 2:
+        last = whole[-1][1]["waste_rs"]
+        before = [d[1]["waste_rs"] for d in whole[:-1]]
+        usual = sum(before) / len(before)
+        if usual:
+            change = 100.0 * (last / usual - 1)
+            said = ('<b>%s</b>: %s ran with nobody in, <b style="color:%s">'
+                    '%.0f%% %s</b> than the %d day%s before it on average.'
+                    % (esc(pd.Timestamp(whole[-1][0]).strftime("%A")),
+                       _rs(last), "var(--good)" if change < 0 else
+                       "var(--crit)", abs(change),
+                       "less" if change < 0 else "more", len(before),
+                       "" if len(before) == 1 else "s"))
+    return "".join([
+        ev.css(theme), '<div class="ec">',
+        '<div class="ec-h" style="margin-top:22px"><span class="t">Is it '
+        'getting better?</span><span class="c">the ACs\' rupees each day, '
+        'the part with nobody in on top · hover a day</span></div>',
+        '<div class="ec-card" style="padding:14px 16px">',
+        ev.legend([(on_colour, "with people in"),
+                   (waste_colour, "with nobody in")]),
+        ev.columns(labels, stacks, [on_colour, waste_colour], tips,
+                   height=200, marks=marks),
+        '<div class="en-note" style="margin-top:8px">%s Each day is '
+        'midnight to midnight, the same estimate as the rooms above; a day '
+        'the cameras watched only part of counts only that part.</div>'
+        % said, '</div></div>'])
 
 
 SHOWN = 25          # rows listed before the rest are folded into one line

@@ -2207,6 +2207,16 @@ def cached_ledger(start_iso, end_iso, campus=None):
     through its day, about two seconds a day for both campuses, and Who
     comes when's week asks for seven of them.
     """
+    return _ledger(start_iso, end_iso, campus)
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def cached_ledger_past(start_iso, end_iso, campus=None):
+    """The same, for a stretch that has ended: an hour, it will not move."""
+    return _ledger(start_iso, end_iso, campus)
+
+
+def _ledger(start_iso, end_iso, campus=None):
     import analysis_view as av
     import campus_view
     import energy_rooms as er
@@ -2295,6 +2305,22 @@ def show_room_energy(df, now):
     st.markdown(er.page(LINK_BASE.get("theme") or "dark", title, rows,
                         LINK_BASE, er.totals(before), label, unseen, check,
                         duty), unsafe_allow_html=True)
+
+    # The week, a column a day: is it getting better?
+    week = []
+    try:
+        for back in range(6, -1, -1):
+            d0 = midnight - back * day
+            if back:
+                got = cached_ledger_past(iso(d0), iso(d0 + day), campus_here)
+            else:
+                got = cached_ledger(iso(d0), iso(_to_5min(local)),
+                                    campus_here)
+            week.append((d0.date(), er.totals(got), back == 0))
+    except psycopg2.Error:
+        week = []
+    st.markdown(er.trend(LINK_BASE.get("theme") or "dark", week),
+                unsafe_allow_html=True)
 
 
 def show_energy(df, recent, now):
@@ -2631,8 +2657,12 @@ def show_arrivals(df, now):
             a = start + pd.Timedelta(hours=w_a)
             b = min(start + pd.Timedelta(hours=w_b), upto)
             if b > a:
+                # A finished day is kept an hour; today, five minutes.
+                fn = (cached_ledger_past
+                      if start + pd.Timedelta(days=1) <= upto
+                      else cached_ledger)
                 try:
-                    days.append(cached_ledger(
+                    days.append(fn(
                         a.tz_convert("UTC").isoformat(),
                         b.tz_convert("UTC").isoformat(), None))
                 except psycopg2.Error:
