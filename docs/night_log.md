@@ -235,3 +235,7 @@ Two or three lines a round; picture file names, never pictures.
   check, so no second audit on top of them. Loop healthy: 123 rooms, 252 s
   a pass, the one unknown is the gym in its private hours; no gym picture
   since 15:00 anywhere on the laptop.
+* 17:00 Shamroze: delete the gym counts written 15:10-16:39 today. The
+  loop's role is refused (rightly: it cannot read or delete a room's
+  rows), so sql/10_gym_ladies_hours.sql is for an administrator to run in
+  Supabase; earlier days' 15:00-20:00 gym rows are a commented block.
