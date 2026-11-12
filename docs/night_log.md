@@ -287,3 +287,9 @@ Two or three lines a round; picture file names, never pictures.
   on those meters, from the cameras, only while the loop was watching).
   Wed 11: 699 units for 868 person-hours, 0.81 each; days watched under
   20 hours get no ratio, and say so. Tonight's list is done.
+* 22:50 Shamroze: keep auditing all night, calibrate what you can, see
+  where people sit. The loop now notes each counted person's place in the
+  picture (seats/<date>.csv, numbers only, this machine only): 62 in the
+  first pass. A morning AC watch waits for 08:00-11:00 (people switching
+  units on) with the calibration at 11:12; the report at 09:12. Loop
+  restarted 22:46.
