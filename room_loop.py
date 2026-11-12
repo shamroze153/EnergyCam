@@ -931,6 +931,27 @@ def keep_evidence(room, frames, model, imgsz, iou, folder, now):
     return written
 
 
+def interleaved(rooms):
+    """The rooms taking turns between recorders: one from each, then again.
+
+    rooms.yaml lists rooms recorder by recorder, so a batch of ten was ten
+    rooms on one recorder -- which serves PER_RECORDER streams at a time,
+    leaving the other workers idle. 12 Nov, first pass with the time split
+    written down: 151 seconds waiting on cameras, 60 counting. Taking turns,
+    a batch spreads over every recorder and every worker has a camera.
+    """
+    queues = {}
+    for room in rooms:
+        queues.setdefault(room.recorder, []).append(room)
+    out = []
+    lanes = list(queues.values())
+    while any(lanes):
+        for lane in lanes:
+            if lane:
+                out.append(lane.pop(0))
+    return out
+
+
 # Where the last pass's time went: seconds spent waiting on cameras that the
 # counting could not hide, and seconds counting. Written to cycles.csv.
 PASS_TIMES = {"waiting": 0.0, "counting": 0.0}
@@ -951,7 +972,8 @@ def sweep(rooms, recorders, model, imgsz, iou, timeout, ac_units=None,
     and returned: holding one per room is most of a gigabyte for no reason.
     """
     out = {}
-    batches = [rooms[i:i + BATCH] for i in range(0, len(rooms), BATCH)]
+    order = interleaved(rooms)
+    batches = [order[i:i + BATCH] for i in range(0, len(order), BATCH)]
     PASS_TIMES["waiting"] = PASS_TIMES["counting"] = 0.0
     # 12 Nov: a pass took four to seven minutes, a batch's cameras waited on
     # and then its rooms counted, one after the other. The next batch's
