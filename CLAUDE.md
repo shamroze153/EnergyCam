@@ -39,7 +39,14 @@ conditioners run, on two Disrupt campuses in Karachi. Owner: Shamroze.
 
 Tests: `python test_room_loop.py`, `test_overview.py`, `test_energy.py`,
 `test_dashboard.py`, `test_day_story.py`, `test_verify.py`,
-`test_integration.py`, `test_audit.py`, `test_ac_detect.py`.
+`test_integration.py`, `test_audit.py`, `test_ac_detect.py`,
+`test_meters.py`, `test_analysis.py`, `test_alerts.py`, `test_empty.py`,
+`test_live_ac.py`.
+
+How many units run in a room (for "5 of 6 running" and the live kW on the
+campus page) goes in `room_events.ac_units_on`, which an administrator adds
+once with `sql/09_ac_units.sql`. Until then the loop writes rooms without
+it and says so once; restart the loop after the SQL is run.
 
 ## Checking the counts are right
 

@@ -146,6 +146,12 @@ snapshots:
 
 assumptions:
   unit_kw: 1.2                 # a split unit while it is actually cooling
+  # Where a room's units have their size written down (ac_tons: tons of ONE
+  # unit, in the room's entry), each draws ac_tons x kw_per_ton instead of
+  # unit_kw. About 1 kW per ton of cooling while the compressor runs is the
+  # usual figure for a split or tower unit; an older fixed-speed one draws
+  # more (1.2-1.3). Replace with the nameplate when somebody reads it.
+  kw_per_ton: 1.0
   # What one more unit actually costs, worked out from the October 2026
   # detailed bill for account 0400006377759 rather than assumed.
   #
@@ -1496,6 +1502,7 @@ rooms:
     # Six tower units, 2 ton each -- 12 ton in all -- counted on site by
     # Shamroze, 12 Nov. The biggest cooling load on this campus.
     ac_count: 6
+    ac_tons: 2
     empty_after_minutes: 60
 
   - name: 141 Main Entrance
@@ -1626,6 +1633,7 @@ rooms:
     # "visible", which promised a reading no camera can give.
     channels: [1, 4]
     ac: hidden
+    ac_tons: 1
     empty_after_minutes: 30
     # 12 Nov 00:15 night check: the empty table and chairs read as a
     # person at 0.34 on ch4, occupied/empty flicker from 23:12. Chairs are

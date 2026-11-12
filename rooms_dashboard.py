@@ -64,7 +64,7 @@ def _fresh_modules():
     import sys
     order = ("schedule", "campus_view", "day_story", "day_timeline",
              "overview", "analysis_view", "meters_view", "energy_view",
-             "empty_view")
+             "empty_view", "live_ac")
     # The tests run this half of the file through exec, with no __file__.
     here = os.path.dirname(os.path.abspath(
         globals().get("__file__") or "rooms_dashboard.py"))
@@ -443,10 +443,29 @@ guard()
 
 # ----------------------------------------------------------------- loading
 
+def unit_rating(room, assumptions):
+    """kW one of this room's units draws while it cools, and a room's load.
+
+    A unit with its size written down (`ac_tons` in rooms.yaml, one unit's
+    tons) draws tons x kw_per_ton; any other is the site's typical split
+    unit, unit_kw. The load is the room's units in typical-unit terms --
+    what every money figure multiplies by. Until 12 Nov it was the plain
+    count, and 141-C Cafe's six 2-ton towers cost the same as six small
+    splits.
+    """
+    base = float(assumptions.get("unit_kw", 1.2) or 1.2)
+    tons = room.get("ac_tons")
+    kw = (float(tons) * float(assumptions.get("kw_per_ton", 1.0) or 1.0)
+          if tons else base)
+    count = int(room.get("ac_count", 1) or 1)
+    return kw, count * kw / base
+
+
 @st.cache_data(ttl=20)
 def load_rooms_config(path="rooms.yaml"):
     cfg = yaml.safe_load(open(path))
     recorders = cfg["recorders"]
+    site = cfg.get("assumptions", {}) or {}
     rows = []
     for room in cfg["rooms"]:
         # A room is a list of cameras, and one place at 140-H is watched by
@@ -469,6 +488,7 @@ def load_rooms_config(path="rooms.yaml"):
         else:
             unit_note = "no unit"
         caption = unit_note if has_unit else "nothing to switch off"
+        unit_kw, load = unit_rating(room, site) if has_unit else (0.0, 0.0)
         rows.append({
             "room": room["name"],
             "recorder": recorder,
@@ -482,6 +502,9 @@ def load_rooms_config(path="rooms.yaml"):
             "ac": room["ac"],
             "ac_count": (0 if not has_unit
                          else int(room.get("ac_count", 1) or 1)),
+            "ac_tons": room.get("ac_tons"),
+            "unit_kw": unit_kw,
+            "ac_load": load,
             "meter": room.get("meter"),
             "alerts": alerts,
             "caption": caption,
@@ -502,14 +525,33 @@ def load_hours(path="rooms.yaml"):
     return yaml.safe_load(open(path)).get("hours")
 
 
+def units_column(conn):
+    """The column holding how many units run, or NULL where there is none.
+
+    sql/09_ac_units.sql adds room_events.ac_units_on; until an administrator
+    runs it the page asks for a NULL in its place, and reads exactly as it
+    did before.
+    """
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT 1 FROM information_schema.columns"
+                    " WHERE table_name = 'room_events'"
+                    " AND column_name = 'ac_units_on'")
+        found = cur.fetchone() is not None
+    finally:
+        cur.close()
+    return "ac_units_on" if found else "NULL::smallint AS ac_units_on"
+
+
 @st.cache_data(ttl=20)
 def load_state():
     conn = psycopg2.connect(DATABASE_URL, sslmode=DB_SSLMODE, connect_timeout=10)
     try:
         latest = pd.read_sql_query(
             "SELECT DISTINCT ON (room) room, status, people, empty_since,"
-            " ac_state, timestamp"
-            " FROM room_events ORDER BY room, timestamp DESC", conn)
+            " ac_state, %s, timestamp"
+            " FROM room_events ORDER BY room, timestamp DESC"
+            % units_column(conn), conn)
         # Only changes are written, so "no event" means "no change", not
         # "nobody looked". A room empty since Friday has no row inside a
         # twenty-five hour window at all, and the day strip drew its whole
@@ -2280,7 +2322,8 @@ def show_arrivals(df, now):
         if a["busy_pct"] is None:
             continue
         units = int(room.get("ac_count") or 0) if room.get("has_unit") else 0
-        money = (a["empty_min"] / 60.0 * kw * units * rate
+        load = float(room.get("ac_load") or units) if units else 0.0
+        money = (a["empty_min"] / 60.0 * kw * load * rate
                  if units and room.get("alerts", True) else None)
         if money:
             at_stake += money
@@ -3197,7 +3240,7 @@ def front_figures(name):
     window = av.peak_window(assumptions)
     off = peak = 0.0
     for _, r in paid.iterrows():
-        units = int(r.get("ac_count") or 1)
+        units = float(r.get("ac_load") or r.get("ac_count") or 1)
         o, p = av.cooled_while_empty(events, [r["room"]], today_start, now,
                                      window, hours, "working")
         off, peak = off + o * units, peak + p * units
@@ -3274,9 +3317,24 @@ view = st.session_state["view"]
 
 if view == "Overview":
     import analysis_view as av
+    import campus_view
+    import live_ac
 
+    # What the air conditioners are doing this minute comes first: it is the
+    # one thing on the page somebody can act on before they scroll.
+    win = av.peak_window(assumptions)
+    local = now.tz_convert(PKT)
+    hour = local.hour + local.minute / 60.0
+    at_peak = win[0] <= hour < win[1]
+    rate_now = float(assumptions.get(
+        "peak_rs_per_kwh" if at_peak else "tariff_rs_per_kwh", 67) or 67)
+    st.markdown(live_ac.page(
+        mode, live_ac.rows(df, campus_view.calibrated_counts()), rate_now,
+        at_peak, int(df.loc[df["has_unit"], "ac_count"].sum()), LINK_BASE,
+        float(assumptions.get("unit_kw", 1.2) or 1.2)),
+        unsafe_allow_html=True)
     st.markdown(overview.campus_body(front_figures(campus), mode, LINK_BASE,
-                                     tariff=av.peak_window(assumptions)),
+                                     tariff=win),
                 unsafe_allow_html=True)
     st.stop()
 

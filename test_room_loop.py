@@ -366,6 +366,64 @@ def check_stays_up():
           sweep_src.index("with muffled():")
           < sweep_src.index("could not be read"), True)
 
+def check_units_count(check, room):
+    """How many units run is recorded, with or without the column for it."""
+    r = room()
+    r.ac_units_on = 2
+    before = r.state()
+    r.ac_units_on = 6
+    check("two towers to six is a change worth writing",
+          before != r.state(), True)
+
+    class Cursor:
+        def __init__(self, log, fail):
+            self.log, self.fail = log, fail
+
+        def executemany(self, sql, rows):
+            if self.fail and "ac_units_on" in sql:
+                err = Exception("column does not exist")
+                err.pgcode = "42703"
+                raise err
+            self.log.append((sql, list(rows)))
+
+        def close(self):
+            pass
+
+    class Conn:
+        def __init__(self, log, fail):
+            self.c = Cursor(log, fail)
+
+        def cursor(self):
+            return self.c
+
+        def commit(self):
+            pass
+
+        def rollback(self):
+            pass
+
+        def close(self):
+            pass
+
+    row = (T0, "dvr2", "Cafe", "occupied", 3, None, "on", 5)
+    for fail, want_cols, want_len in ((False, 8, 8), (True, 7, 7)):
+        log = []
+        room_loop.UNITS_COLUMN["present"] = None
+        saved = room_loop.connect
+        room_loop.connect = lambda: Conn(log, fail)
+        try:
+            ok = room_loop.record([row])
+        finally:
+            room_loop.connect = saved
+        sql, rows = log[-1]
+        check("%s the column: the write lands" % ("without" if fail
+                                                    else "with"), ok, True)
+        check("  and carries %d values" % want_len, len(rows[0]), want_len)
+        check("  and remembers whether the column is there",
+              room_loop.UNITS_COLUMN["present"], not fail)
+    room_loop.UNITS_COLUMN["present"] = None
+
+
 def main():
     # Seeing a person settles it. One camera is enough to prove occupancy.
     r = room()
@@ -761,6 +819,7 @@ def main():
     check_one_stream_rule(check)
     check_flicker(check, room, T0)
     check_stays_up()
+    check_units_count(check, room)
 
     print()
     if FAILURES:

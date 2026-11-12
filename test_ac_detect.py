@@ -457,6 +457,48 @@ def main():
     ok("141 Learning Center says how many units it cannot see",
        ON_DISK.get("141 Learning Center", {}).get("unseen_units") == 2)
 
+    print("-- an anchor can name its own region")
+    # 141 Finance Room: sun through the window under the unit read as a moved
+    # camera, because the default region took in the window.
+    scene = np.zeros((300, 400, 3), dtype=np.uint8)
+    for x in range(0, 400, 16):
+        scene[:, x:x + 8] = 90 + (x % 48)          # wall and unit, textured
+    box = (190, 90, 210, 110)
+    window = (100, 40, 300, 118)                  # the unit and above it
+    sunlit = scene.copy()
+    sunlit[122:142, :] = 250                      # the window below, in sun
+    for name, region in (("named", window), ("default", None)):
+        anchor_from = region or ac_detect.anchor_box(box, (400, 300))
+        unit = {"led_roi": list(box), "led_std_threshold": 10.0,
+                "measured": {"on_std": 30.0, "off_std": 1.0},
+                "anchor": ac_detect.pack(ac_detect.fingerprint(
+                    scene, anchor_from, box))}
+        if region:
+            unit["anchor_roi"] = list(region)
+        cfg = {"R": {"frame_size": [400, 300], "units": [unit]}}
+        why = ac_detect.read_units(sunlit, "R", cfg)[1]
+        if name == "named":
+            ok("a named region ignores the sun in the window below it",
+               "moved" not in why)
+        else:
+            ok("where the default region takes the window in, it refuses",
+               "moved" in why)
+    finance = ON_DISK.get("141 Finance Room", {}).get("units", [{}])[0]
+    ok("141 Finance Room's unit names its anchor region",
+       len(finance.get("anchor_roi") or []) == 4)
+
+    print("-- how many units are running")
+    ok("one seen unit lit counts one",
+       ac_detect.read_units(with_lit_display("Admin Room"), "Three Units",
+                            partial)[2] == 1)
+    ok("the seen unit dark counts none, though the room is unknown",
+       ac_detect.read_units(dark, "Three Units", partial)[2] == 0)
+    ok("a refused reading counts nothing at all",
+       ac_detect.read_units(dark, "Never Calibrated", partial)[2] is None)
+    ok("141-C Cafe reads five of its six towers",
+       len(ON_DISK.get("141-C Cafe", {}).get("units", [])) == 5
+       and ON_DISK["141-C Cafe"].get("unseen_units") == 1)
+
     print()
     if FAILED:
         print("%d check(s) failed:" % len(FAILED))

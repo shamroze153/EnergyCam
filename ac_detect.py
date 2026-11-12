@@ -161,23 +161,36 @@ def read_room(frame, room, units=None):
     `why` is there so a refusal can be read rather than puzzled over. A room
     that silently reports None looks identical to a room nobody calibrated.
     """
+    state, why, _ = read_units(frame, room, units)
+    return state, why
+
+
+def read_units(frame, room, units=None):
+    """The room's state, why, and how many of its units were seen running.
+
+    The count is what the dashboard draws as "5 of 6 running" and turns
+    into kilowatts; it is None whenever the reading was refused, because a
+    refusal knows nothing about any unit. 141-C Cafe has six towers and
+    five in view: four lit is (on, "...", 4), all five dark is (None, ...,
+    0) -- unknown for the room, but still nothing seen running.
+    """
     units = load_units() if units is None else units
     config = units.get(room)
     if not config:
-        return None, "not calibrated"
+        return None, "not calibrated", None
 
     height, width = frame.shape[:2]
     expected = config.get("frame_size")
     if expected and [width, height] != list(expected):
         return None, ("frame is %dx%d, the boxes were drawn on %dx%d"
-                      % (width, height, expected[0], expected[1]))
+                      % (width, height, expected[0], expected[1])), None
 
     expect = config.get("expect")
     infrared = is_infrared(frame)
     if expect == "infrared" and not infrared:
-        return None, "camera is in colour; calibrated in infrared"
+        return None, "camera is in colour; calibrated in infrared", None
     if expect == "colour" and infrared:
-        return None, "camera is in infrared; calibrated in colour"
+        return None, "camera is in infrared; calibrated in colour", None
 
     lit = []
     for unit in config.get("units", []):
@@ -187,20 +200,25 @@ def read_room(frame, room, units=None):
             continue
         x1, y1, x2, y2 = box
         if x2 > width or y2 > height or x1 < 0 or y1 < 0:
-            return None, "a box falls outside the frame"
+            return None, "a box falls outside the frame", None
         stored = unit.get("anchor")
         if stored:
-            score = anchor_match(frame, anchor_box(box, (width, height)),
-                                 unpack(stored), hide=box)
+            # The region round the box, unless the unit names its own: 141
+            # Finance Room's default took in the window under the unit, and
+            # the afternoon sun through it read as "the camera has moved".
+            region = unit.get("anchor_roi")
+            region = (tuple(int(v) for v in region) if region
+                      else anchor_box(box, (width, height)))
+            score = anchor_match(frame, region, unpack(stored), hide=box)
             if score is None:
-                return None, "the view round the box cannot be compared"
+                return None, "the view round the box cannot be compared", None
             if score < ANCHOR_MATCH:
                 return None, ("the camera has moved: the view round the box"
                               " matches the calibrated one only %.2f"
-                              % score)
+                              % score), None
         value = contrast(frame, box)
         if value is None:
-            return None, "a box is empty"
+            return None, "a box is empty", None
         # Which side of the threshold means "running" is taken from the
         # measurements themselves, not assumed.
         #
@@ -220,11 +238,12 @@ def read_room(frame, room, units=None):
                    else value <= threshold)
 
     if not lit:
-        return None, "no usable boxes"
+        return None, "no usable boxes", None
+    running = sum(1 for x in lit if x)
     # Any unit running means the room is being cooled. A room with two units
     # and one of them on is not an off room.
-    if any(lit):
-        return "on", "%d unit(s) read" % len(lit)
+    if running:
+        return "on", "%d unit(s) read" % len(lit), running
     # The converse does not hold. 141 Learning Center has three units and
     # its camera can read one of them: that one off says nothing about the
     # other two, and calling the room "off" would quietly drop every empty
@@ -234,5 +253,5 @@ def read_room(frame, room, units=None):
     if unseen:
         return None, ("%d unit(s) read off; %d more in the room cannot be"
                       " seen, so the room is not known to be off"
-                      % (len(lit), unseen))
-    return "off", "%d unit(s) read" % len(lit)
+                      % (len(lit), unseen)), 0
+    return "off", "%d unit(s) read" % len(lit), 0

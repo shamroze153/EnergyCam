@@ -187,6 +187,11 @@ def top_rooms(history, df, since, until, peak, assumptions, hours=None):
     paid = df[df["has_unit"] & df["alerts"]]
     for _, r in paid.iterrows():
         units = int(r.get("ac_count") or 1)
+        # Money by the room's load (units in typical-unit terms, rated by
+        # their tons where known); the count stays for the label.
+        load = r.get("ac_load")
+        load = float(load) if load is not None and pd.notna(load) and load \
+            else float(units)
         if hours is None:
             off, on_peak = av.cooled_while_empty(history, [r["room"]], since,
                                                  until, peak)
@@ -198,8 +203,8 @@ def top_rooms(history, df, since, until, peak, assumptions, hours=None):
                 history, [r["room"]], since, until, peak, hours, "after")
         if off + on_peak + a_off + a_peak <= 0:
             continue
-        _, _, rupees = av.money(off * units, on_peak * units, assumptions)
-        _, _, after_rs = av.money(a_off * units, a_peak * units, assumptions)
+        _, _, rupees = av.money(off * load, on_peak * load, assumptions)
+        _, _, after_rs = av.money(a_off * load, a_peak * load, assumptions)
         rows.append({
             "room": r["room"],
             "dept": overview.department_of(r["room"], r.get("zone"),

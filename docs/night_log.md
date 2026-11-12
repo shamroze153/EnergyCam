@@ -132,3 +132,10 @@ Two or three lines a round; picture file names, never pictures.
   Assembly Meeting Room's one unit is in no camera -> ac: hidden. Rooms
   with units no camera sees read "on" when any seen unit runs, and
   unknown, not "off", when the seen ones are off.
+* 11:30 the campus page opens on "Air conditioning, right now": units
+  running, kW, Rs an hour, empty rooms with units on flagged SWITCH OFF.
+  The loop counts units running (ac_units_on; needs sql/09 run once).
+  Rooms can carry ac_tons; money and kW follow it (cafe 2 t, Assembly 1 t).
+  141 Finance Room read "camera moved" all afternoon: sun through the
+  window under the unit. Its anchor now covers the unit and the wall above
+  (0.97-0.98 day and evening). All five calibrated rooms read live.

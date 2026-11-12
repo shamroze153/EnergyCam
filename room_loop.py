@@ -63,7 +63,7 @@ import psycopg2
 import yaml
 from dotenv import load_dotenv
 
-from ac_detect import load_units, read_room
+from ac_detect import load_units, read_room, read_units  # noqa: F401
 from alerts import Alerter, compose, configured, deliver, why_not_configured
 from concurrent.futures import ThreadPoolExecutor, as_completed  # noqa: E402
 
@@ -322,18 +322,50 @@ def verify_database():
                     " this machine deliberately cannot create tables.")
 
 
+# Whether room_events has the ac_units_on column, which an administrator
+# adds once with sql/09_ac_units.sql. None until the first write finds out.
+# This machine cannot add a column, and must not stop recording for the lack
+# of one: without it the rooms are written as before, without the count.
+UNITS_COLUMN = {"present": None}
+
+
 def record(rows):
-    """Insert one cycle's changes. False means they did not land."""
+    """Insert one cycle's changes. False means they did not land.
+
+    Each row is (timestamp, recorder, room, status, people, empty_since,
+    ac_state, ac_units_on); the last is dropped where the table has no
+    column for it.
+    """
     if not rows:
         return True
     try:
         conn = connect()
         try:
             cursor = conn.cursor()
+            if UNITS_COLUMN["present"] is not False:
+                try:
+                    cursor.executemany(
+                        "INSERT INTO room_events (timestamp, recorder, room,"
+                        " status, people, empty_since, ac_state, ac_units_on)"
+                        " VALUES (%s, %s, %s, %s, %s, %s, %s, %s)", rows)
+                    conn.commit()
+                    cursor.close()
+                    UNITS_COLUMN["present"] = True
+                    return True
+                except psycopg2.Error as e:
+                    if getattr(e, "pgcode", None) != "42703":  # no column
+                        raise
+                    conn.rollback()
+                    UNITS_COLUMN["present"] = False
+                    print(">> room_events has no ac_units_on column yet: rooms"
+                          " are recorded without the count of units running."
+                          " An administrator runs sql/09_ac_units.sql once,"
+                          " then this loop is restarted.")
             cursor.executemany(
                 "INSERT INTO room_events (timestamp, recorder, room, status,"
                 " people, empty_since, ac_state)"
-                " VALUES (%s, %s, %s, %s, %s, %s, %s)", rows)
+                " VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                [tuple(r[:7]) for r in rows])
             conn.commit()
             cursor.close()
         finally:
@@ -463,6 +495,7 @@ class Room:
         self.detail = "not sampled yet"
         self.ac_state = None            # on / off / None when unmeasured
         self.ac_detail = "not calibrated"
+        self.ac_units_on = None         # units seen running; None = not read
         self.recorded = None            # what the database last heard
         self.blank = 0                  # passes in a row with nobody seen
         self.first_blank = None         # when that run of passes began
@@ -486,8 +519,10 @@ class Room:
         # The air conditioner belongs in here. A unit coming on in a room that
         # was already empty changes nothing about the occupancy, and if state
         # were occupancy alone that moment -- the exact moment the waste
-        # starts -- would never be written down.
-        return (self.status, self.people, self.ac_state)
+        # starts -- would never be written down. The count of units running
+        # too: the cafe going from two towers to six is the same state, "on",
+        # and four times the load.
+        return (self.status, self.people, self.ac_state, self.ac_units_on)
 
     @property
     def watched_for_waste(self):
@@ -779,13 +814,17 @@ def examine(room, frames, model, imgsz, iou, ac_units=None,
     ac_recorder = ac_config.get("recorder", room.recorder)
     ac_state = None
     ac_detail = "not calibrated" if not ac_config else "camera did not answer"
+    # How many of its units were seen running, kept on the room itself so the
+    # tuple this returns keeps its shape for everything that unpacks it.
+    room.ac_units_on = None
     for key in room.cameras:
         wide = frames.get(key)
         if wide is None:
             continue
         answered += 1
         if key[1] == ac_channel and key[0] == ac_recorder:
-            ac_state, ac_detail = read_room(wide, room.name, ac_units)
+            ac_state, ac_detail, room.ac_units_on = read_units(
+                wide, room.name, ac_units)
         boxes = people_boxes(wide, model, conf=room.conf_for(after_hours),
                              imgsz=imgsz, iou=iou)
         here = sum(1 for b in boxes if not ignored(b, room.ignore.get(key)))
@@ -996,6 +1035,7 @@ def save_state(rooms, path, now):
             "empty_since": (room.empty_since.isoformat()
                             if room.empty_since else None),
             "ac_state": room.ac_state,
+            "ac_units_on": room.ac_units_on,
         }
     payload = {"saved_at": now.isoformat(), "rooms": known}
     tmp = path + ".tmp"
@@ -1039,6 +1079,7 @@ def load_state(rooms, path, max_gap_minutes):
         # .get, because a state file written before air conditioners were read
         # has no such key and should still load.
         room.ac_state = saved.get("ac_state")
+        room.ac_units_on = saved.get("ac_units_on")
         restored += 1
     print(">> carried %d room(s) over from %.0f min ago" % (restored, gap))
 
@@ -1262,7 +1303,8 @@ def main():
             if not args.no_db:
                 changed = [r for r in rooms if r.state() != r.recorded]
                 if record([(now, r.recorder, r.name, r.status, r.people,
-                            r.empty_since, r.ac_state) for r in changed]):
+                            r.empty_since, r.ac_state, r.ac_units_on)
+                           for r in changed]):
                     # Only once the insert has landed. Marking them recorded on a
                     # failed write would drop the change silently, and the next
                     # cycle, seeing no difference, would never write it either:
