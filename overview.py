@@ -638,6 +638,10 @@ margin-right:6px;border-radius:2px}
 .ec-kpi .k{font-size:12px;color:var(--t3)}
 .ec-kpi .v{font-size:26px;font-weight:700;margin-top:6px;letter-spacing:-.01em}
 .ec-kpi .s{font-size:12.5px;color:var(--t3);margin-top:3px}
+.ec-campwrap{display:flex;flex-direction:column;gap:8px;min-width:0}
+.ec-walklink{align-self:flex-start;font-size:13.5px;font-weight:650;
+color:var(--crit)!important;padding:7px 14px;border-radius:99px;
+border:1.5px solid var(--crit-line);background:var(--crit-bg)}
 .ec-h .t::before{content:"";display:inline-block;width:4px;height:16px;
 border-radius:2px;background:linear-gradient(180deg,#3987e5,#2a9d63);
 margin-right:9px;vertical-align:-2px}
@@ -772,6 +776,7 @@ def welcome(summaries, theme, mark, live_text, healthy, when, base):
     for s in summaries:
         last = (clock(s["last_out_yday"]) if s["last_out_yday"] is not None
                 else "stayed overnight" if s["overnight"] else "—")
+        h.append('<div class="ec-campwrap">')
         h.append(
             '<a target="_self" class="ec-card ec-camp" href="%s"><div class="head"><span '
             'class="name">%s</span><span class="ec-enter">Enter campus →'
@@ -805,6 +810,15 @@ def welcome(summaries, theme, mark, live_text, healthy, when, base):
                if s["walk"] else
                '<span class="ec-flag">%sNothing to walk to</span>' % TICK,
                rupees(s["stake"])))
+        # 12 Nov, Shamroze: "worth a walk" should open just those rooms.
+        # Its own link under the card -- a link inside the card's link is
+        # not allowed -- straight to the campus's worth-a-look list.
+        if s["walk"]:
+            h.append('<a target="_self" class="ec-walklink" href="%s">%s%d '
+                     'room%s worth a look &rarr;</a>'
+                     % (link(base, campus=s["name"], only="walk"), WARN,
+                        len(s["walk"]), "" if len(s["walk"]) == 1 else "s"))
+        h.append('</div>')
     h.append('</div><div class="ec-note">%s. Counts are what the cameras can'
              ' see — a floor, not a register: somebody no camera covers is'
              ' not counted, and two cameras on one place count once.</div>'

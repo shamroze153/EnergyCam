@@ -268,3 +268,5 @@ Two or three lines a round; picture file names, never pictures.
 * 20:25 Energy at 141: a card a building under the tiles -- today so far
   141 main Rs 8,603 (Rs 909 with nobody in), 141-C Rs 3,160, 141-D
   Rs 3,144. The gym watched again from 20:00 (0 unknown).
+* 20:55 front page: under each campus card, "N rooms worth a look ->"
+  straight to that campus's list (7 at 140-H, 9 at 141 this evening).

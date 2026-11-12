@@ -18,7 +18,7 @@ it here. Shamroze reads the morning summary in Roman Urdu.
       averaged table too, as the one-day lines have it.
 - [x] Energy at 141: tiles per building (main, 141-C, 141-D), as Who comes
       when's "Empty, with the AC on" has.
-- [ ] Front page: the campus cards' "N rooms worth a walk" opens the
+- [x] Front page: the campus cards' "N rooms worth a walk" opens the
       worth-a-look list (only=walk) rather than the whole campus.
 - [ ] Energy, meters (Shamroze reads them daily at about 6 pm): set each
       day's units beside its usage -- people-hours from the cameras that

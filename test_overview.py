@@ -191,6 +191,8 @@ def main():
         button = ov.walk_button(theme, len(items), {"campus": "Test"})
         check("%s: the button opens only those rooms" % theme,
               "only=walk" in button and "worth a look" in button)
+        check("%s: the front page's card links straight to the list" % theme,
+              "only=walk" in page and "worth a look" in page)
         check("%s: no rooms, no button" % theme,
               ov.walk_button(theme, 0, {"campus": "Test"}) == "")
         just = ov.walk_page(theme, items, {"campus": "Test"})
