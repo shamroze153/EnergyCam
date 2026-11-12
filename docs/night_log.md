@@ -250,3 +250,9 @@ Two or three lines a round; picture file names, never pictures.
   the whole day, Rs / day, colours, quiet loading, a heartbeat every
   minute. Night jobs: 2-hour audit, 21:22 calibration, the 30-minute
   check working through docs/night_todo.md.
+* 18:47 round: 75 MATCH, 3 GHOST, 1 MISSED, gym "no camera" (private
+  hours, as meant). Board Room, First Floor Lobby and Cyber Security were
+  people moving, right at 18:57. Pantry read 2 from 18:44 with nobody in
+  any of its three frames and no object to blame: no unit there, left;
+  look again next round (frames/verify/ghost_Pantry_ch1*_nvr4_1847.jpg).
+  Heartbeats now every ~70 s. Nothing changed, no restart.
