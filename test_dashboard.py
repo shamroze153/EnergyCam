@@ -662,6 +662,15 @@ def main():
         check("and a key says what the colours mean",
               "1 person" in html and "7+" in html and "not watched" in html,
               True)
+        # The whole day, not a line that stops at now.
+        day = namespace["slot_people"](ev, "R", mid + pd.Timedelta(hours=12),
+                                       288, mid, mid + pd.Timedelta(days=1))
+        check("the strip runs the whole day: 288 slots, the rest not yet",
+              (len(day), day[11 * 12], day[13 * 12], day[-1]),
+              (288, 0, "later", "later"))
+        full = namespace["people_strip"](day, mid, "light")
+        check("and marks now and what is still to come",
+              "<title>now</title>" in full and "not yet" in full, True)
         namespace["use_theme"]("dark")
     else:
         check("people_strip is defined", False)

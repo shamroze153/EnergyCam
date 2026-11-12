@@ -953,20 +953,28 @@ def slot_states(recent, room, now, hours=STRIP_HOURS, slots=STRIP_SLOTS,
     return [None if i < 0 else states[i] for i in where]
 
 
-def slot_people(recent, room, now, slots, since):
+def slot_people(recent, room, now, slots, since, until=None):
     """People in each five-minute slot: the count written, 0 when empty,
-    None when nobody was watching. The same stepping as slot_states."""
+    None when nobody was watching, "later" for a slot still to come.
+
+    until: where the strip ends; the whole day (Shamroze, 12 Nov: "the full
+    24 hours, not a line that stops at now"). Without it, now.
+    """
+    end = until if until is not None else now
+    span = (end - since).total_seconds()
+    marks = np.linspace(0, span, slots, endpoint=False)
+    later = marks >= (now - since).total_seconds()
     mine = recent[recent["room"] == room]
     if mine.empty:
-        return [None] * slots
+        return ["later" if f else None for f in later]
     stamps = (mine["timestamp"] - since).dt.total_seconds().to_numpy()
-    span = (now - since).total_seconds()
-    marks = np.linspace(0, span, slots, endpoint=False)
     where = np.searchsorted(stamps, marks, side="right") - 1
     status, people = mine["status"].tolist(), mine["people"].tolist()
     out = []
-    for i in where:
-        if i < 0:
+    for k, i in enumerate(where):
+        if later[k]:
+            out.append("later")
+        elif i < 0:
             out.append(None)
         elif status[i] == "occupied":
             p = people[i]
@@ -1012,7 +1020,9 @@ def people_strip(people, since, mode, height=26):
     rects = []
     for i, p in enumerate(people):
         at = start + pd.Timedelta(minutes=5 * i)
-        if p is None:
+        if p == "later":
+            fill, what = t["page"], "not yet"
+        elif p is None:
             fill, what = NO_DATA, "not watched"
         elif p == 0:
             fill, what = SLOT_INK.get("empty", NO_DATA), "empty"
@@ -1022,13 +1032,21 @@ def people_strip(people, since, mode, height=26):
         rects.append('<rect x="%d" y="0" width="1.02" height="6" fill="%s">'
                      '<title>%s · %s</title></rect>'
                      % (i, fill, at.strftime("%I:%M %p").lstrip("0"), what))
+    # Where now is, on a strip that runs the whole day.
+    first_later = next((i for i, p in enumerate(people) if p == "later"),
+                       None)
+    now_mark = ('<rect x="%.2f" y="0" width="0.6" height="6" fill="%s">'
+                '<title>now</title></rect>' % (first_later, t["text"])
+                if first_later else "")
     strip = ('<svg viewBox="0 0 %d 6" preserveAspectRatio="none" style="width:'
-             '100%%;height:%dpx;border-radius:5px;display:block;">%s</svg>'
-             % (n, height, "".join(rects)))
+             '100%%;height:%dpx;border-radius:5px;display:block;border:1px '
+             'solid %s;box-sizing:border-box">%s%s</svg>'
+             % (n, height, t["line"], "".join(rects), now_mark))
     hours = -(-n // 12)
     cells, axis = [], []
     for h in range(hours):
-        chunk = [p for p in people[h * 12:(h + 1) * 12] if p is not None]
+        chunk = [p for p in people[h * 12:(h + 1) * 12]
+                 if p is not None and p != "later"]
         most = max(chunk) if chunk else None
         width = min(12, n - h * 12) / n * 100
         if most is None:
@@ -1047,6 +1065,8 @@ def people_strip(people, since, mode, height=26):
                     % ("" if (start.hour + h) % 3 == 0 else "ax-minor",
                        h * 12 / n * 100, "0" if h == 0 else "-50%",
                        _h12(start.hour + h)))
+    axis.append('<span style="position:absolute;right:0">%s</span>'
+                % _h12(start.hour + hours))
     key = "".join(
         '<span style="display:inline-flex;align-items:center;gap:5px">'
         '<i style="width:12px;height:10px;border-radius:2px;background:%s;'
@@ -1056,7 +1076,8 @@ def people_strip(people, since, mode, height=26):
                          (headcount_colour(4, mode), "4–6"),
                          (headcount_colour(7, mode), "7+"),
                          (SLOT_INK.get("empty", NO_DATA), "empty"),
-                         (NO_DATA, "not watched")])
+                         (NO_DATA, "not watched"),
+                         (t["page"], "not yet")])
     return (
         '<style>.ps{container-type:inline-size}@container (max-width:720px)'
         '{.ps .ax-minor{display:none}}</style><div class="ps">'
@@ -1697,11 +1718,13 @@ def show_room_day(df, recent, chosen, now):
     # Coloured by how many were in (one person red, more people greener),
     # each hour's most people above it, an hourly 12-hour clock below.
     theme_now = LINK_BASE.get("theme") or "dark"
+    # The whole day, midnight to midnight, whatever the hour (Shamroze, 12
+    # Nov): what is still to come is drawn as not yet, after a "now" line.
     st.markdown(
-        dtl.phase_lane(theme_now, int(hours_today * 12) / 12.0, work_hours(),
+        dtl.phase_lane(theme_now, 24.0, work_hours(),
                        av.peak_window(load_assumptions()))
-        + people_strip(slot_people(recent, chosen, now,
-                                   int(hours_today * 12), midnight),
+        + people_strip(slot_people(recent, chosen, now, 288, midnight,
+                                   midnight + pd.Timedelta(days=1)),
                        midnight, theme_now), unsafe_allow_html=True)
 
     if not busy.empty:

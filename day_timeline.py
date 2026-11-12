@@ -152,9 +152,14 @@ def phase_lane(mode, upto=24.0, work=(10.0, 20.0), peak=(18.5, 22.5)):
         # The long label where the lane is wide (One room's full-width
         # strip), the short one where it is not (beside a list of rooms):
         # the lane's own width decides, by container query.
-        text = ('<span class="pl-l">%s %s–%s</span><span class="pl-s">%s'
-                '</span>' % (label, _h12(a), _h12(b), short[kind])
-                if wide > 0.06 else "")
+        if wide > 0.12:
+            text = ('<span class="pl-l">%s %s–%s</span><span class="pl-s">%s'
+                    '</span>' % (label, _h12(a), _h12(b), short[kind]))
+        elif wide > 0.05:
+            # Two hours of a day is too narrow for "Going home 6pm-8pm".
+            text = short[kind]
+        else:
+            text = ""
         parts.append(
             '<span title="%s, %s to %s" style="position:absolute;left:%.3f%%;'
             'width:%.3f%%;top:0;bottom:0;background:%s;color:%s;'
