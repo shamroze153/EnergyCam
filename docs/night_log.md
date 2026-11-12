@@ -104,3 +104,11 @@ Two or three lines a round; picture file names, never pictures.
 * 04:40 check_room (and so every night check) now warns when a zone
   reaches past the frame it is used on -- the test that would have caught
   the Reception Meeting Room zone a day earlier. Test in test_verify.py.
+* 06:15 round 7: 0 MISSED, 6 GHOST, no zone warnings. The ghosts in rooms
+  with units (Assembly, 141-D MR02, Squat Wolf 4, H First Floor Lobby)
+  are one or two events each since 02:30, around dawn: not chronic, left.
+  Pantry mugs on the counter at 0.34 -> zone on nvr4 ch17. For Shamroze:
+  Room 17's chair now 0.44 (over its 0.40 night bar) and Room 18's chair
+  with a jacket 0.61 (over 0.55) as the light changes at dawn -- raising
+  the bars further risks real people, so left (frames/Room_17_xvr3_ch03_
+  boxes.jpg, frames/Room_18_xvr3_ch13_boxes.jpg).

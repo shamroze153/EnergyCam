@@ -1138,6 +1138,10 @@ rooms:
     ignore:
       16:
         - [296, 28, 324, 73]     # through the doorway, the cafe beyond
+      # 12 Nov 06:15 night check: the mugs on the counter top at 0.34.
+      # Somebody standing at the counter is a bigger box and still counts.
+      17:
+        - [450, 238, 535, 336]   # mugs on the counter
     ac: none
     empty_after_minutes: null
     note: >
