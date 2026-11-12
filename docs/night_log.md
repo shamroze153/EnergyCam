@@ -191,3 +191,9 @@ Two or three lines a round; picture file names, never pictures.
   the first suspect; it was not the cause but stays out until tested on a
   healthy network. Loop stopped 15:04 so it stops retrying; checked again
   at 15:27 with an RTSP OPTIONS (no login) before restarting.
+* 15:06 the cause: Shamroze had unplugged the laptop's camera cable and
+  put it back. Every recorder answers again; the turn-taking change is
+  back in (the diagnostic that blamed it ran with the cable out). Loop
+  started 15:07; first pass 209 s, 0 unknown: 112 s waiting (was 151),
+  98 s counting (was 60) -- the laptop's CPU now decodes and counts at
+  once, so ~210 s is its pace. A gap in the record from ~14:48 to 15:07.
