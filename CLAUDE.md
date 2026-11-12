@@ -76,12 +76,13 @@ Only units whose display the camera can see can be read; see
     python calibrate_room.py --live --room "141 Finance Room" --channel 30 --roi 1083,90,1105,115 --write
     python calibrate_room.py --live --room "141 Room 32 (2nd floor)" --channel 25 --roi 1626,6,1646,28 --write
 
-141 Finance Room and 141 Learning Center are done (12 Nov). Learning Center
-has three units; only the floor-standing one is readable (its louvres), so
+141 Finance Room, 141 Learning Center and 141 Room 32 are done (12 Nov).
+Learning Center and Room 32 have three units each and one readable (the
+floor unit's louvres; the flap of the unit above Room 32's TV), so
 `unseen_units: 2` in ac_units.yaml keeps an "off" there as unknown. The "25"
-on its split unit is an asset number, not a display -- never box it. Room
-32's box above gave only a 3.4 gap in daylight: redraw it with the unit
-switched on and off on site.
+on Learning Center's split unit is an asset number, not a display -- never
+box it. A flap or louvre that opens when the unit runs reads as well as a
+display does, and better than a display too small to see.
 
 ## A night on its own
 

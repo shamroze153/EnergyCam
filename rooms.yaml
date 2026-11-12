@@ -1374,6 +1374,8 @@ rooms:
     # Main stream: ch 25 has a split unit with a lit display, top right.
     stream: main
     ac: visible
+    # Three units, counted on site by Shamroze, 12 Nov.
+    ac_count: 3
     empty_after_minutes: 45
 
   - name: 141 Room 32 Meeting Room (2nd floor)
