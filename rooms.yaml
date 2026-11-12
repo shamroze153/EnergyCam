@@ -176,6 +176,25 @@ assumptions:
   co2_kg_per_kwh: 0.45         # grid average; the national figure moves
   co2_kg_per_tree_year: 21     # what one mature tree takes up in a year
 
+# Units in places no camera watches. They are never read and never alerted
+# on, but they are on the bill, so the campus totals count them. 140-H's
+# survey, Shamroze, 12 Nov: 57 units, 74.5 tons (13 x 2 t, 3 x 1.5 t,
+# 2 x 2.5 t, 39 x 1 t; 5 inverter, 52 not) -- basement 6 / 8 t, ground
+# floor 22 / 28 t, first floor 22 / 25.5 t, cafe and mosque 7 / 13 t.
+unwatched_units:
+  - campus: 140-H
+    place: Directors' rooms (DR rooms, first floor, 7 rooms)
+    # The survey list gives these seven; "one 1.5 ton, the rest 1 ton" was
+    # also said, and the list (with a 2 ton Gree) is what makes the first
+    # floor add up to 25.5 tons.
+    ac_tons: [1, 1, 1, 2, 1.5, 1, 1]
+  - campus: 140-H
+    place: Data centre (the racks behind Room 13's glass)
+    ac_tons: [1, 2]              # Haier 1 ton, Super General 2 ton
+  - campus: 140-H
+    place: Room 16, guest room (first floor)
+    ac_tons: [1]                 # Kenwood
+
 recorders:
   # ------------------------------------------------------------ 141-C/D
   # Added 11 Nov. Same 192.168.67.x network as 140-H, so the laptop on
@@ -342,6 +361,7 @@ rooms:
     recorder: dvr2
     channels: [5]
     ac: visible
+    ac_tons: [1]   # survey 12 Nov: UPS room, 1 ton Haier
     alert: never
     empty_after_minutes: null
     # Through the doorway at the back is somebody else's desk, and the person
@@ -363,6 +383,7 @@ rooms:
     recorder: dvr2
     channels: [6]
     ac: visible
+    ac_tons: [1, 1]   # survey 12 Nov: Room 13, 1 ton TCL inverter + 1 ton Kenwood
     alert: never
     empty_after_minutes: null
 
@@ -450,6 +471,7 @@ rooms:
     # mounted. It was labelled visible from the survey contact sheet,
     # where a wall unit is a few pixels across. docs/camera_survey.md.
     ac: hidden
+    ac_tons: [1, 1]   # survey 12 Nov: Room 5, 2 x 1 ton (Kenwood)
     empty_after_minutes: 45
     # The camera looks straight through a glass door into the corridor. On
     # 7 November the room itself was empty -- every chair pushed in -- while
@@ -470,6 +492,7 @@ rooms:
     recorder: dvr2
     channels: [9]
     ac: visible
+    ac_tons: [1]   # survey 12 Nov: Admin room, 1 ton Kenwood
     empty_after_minutes: 45
 
   - name: AutoOS
@@ -489,6 +512,7 @@ rooms:
     # mounted. It was labelled visible from the survey contact sheet,
     # where a wall unit is a few pixels across. docs/camera_survey.md.
     ac: hidden
+    ac_tons: [1, 1]   # survey 12 Nov: Room 6, 1 ton Haier + 1 ton TCL
     empty_after_minutes: 45
     note: Two cameras assumed to be one room, as with Marketing.
 
@@ -515,6 +539,7 @@ rooms:
     # 7 Nov: the unit is on ch15, top left, vent slats clearly in frame.
     # ch16 sees none of it. Calibrate on ch15. docs/camera_survey.md.
     ac: visible
+    ac_tons: [1, 1]   # survey 12 Nov: Room 10, 1 ton TCL + 1 ton Daikin
     empty_after_minutes: 45
     note: Two cameras assumed to be one room, as with Marketing.
 
@@ -569,6 +594,7 @@ rooms:
     # floor-standing unit or may be a cupboard. Confirm on site before
     # calibrating; ch11 may want tilting down. docs/camera_survey.md.
     ac: visible
+    ac_tons: [2, 2, 2]   # survey 12 Nov: Reception, 3 x 2 ton Kenwood
     empty_after_minutes: 45
     note: >
       Two cameras and the unit is in frame on both, which is the easy case:
@@ -861,6 +887,7 @@ rooms:
     # 7 Nov: no unit seen in the upper part of ch3, ch5 or ch8, but only
     # that part was read. Left as visible pending one look on site.
     ac: visible
+    ac_tons: [1.5, 1.5, 1, 1]   # survey 12 Nov: Room 17, Kenwood 1.5 + 1.5 + 1 + 1
     ac_channel: 5
     # 12 Nov 02:15 night check, nobody in: chairs at 0.32 (ch3) and 0.26
     # (ch5) counted as people. Seats, so a night-only bar, not a zone.
@@ -884,6 +911,7 @@ rooms:
     # mounted. It was labelled visible from the survey contact sheet,
     # where a wall unit is a few pixels across. docs/camera_survey.md.
     ac: hidden
+    ac_tons: [1, 1, 1, 1, 1]   # survey 12 Nov: Room 18, 5 x 1 ton (Kenwood, TCL x3 one inverter, Haier inverter)
     ac_channel: 13
     empty_after_minutes: 45
     # 12 Nov 00:15 night check, ch13 in infrared, nobody in the room: a
@@ -912,6 +940,7 @@ rooms:
       "xvr3:16":
         - [1615, 480, 1720, 620]
     ac: visible
+    ac_tons: [1]   # survey 12 Nov: first-floor sitting area, 1 ton Kenwood
     empty_after_minutes: 45
     note: >
       One place, two recorders. Settled on 7 November from both frames taken
@@ -1042,6 +1071,7 @@ rooms:
     # 7 Nov: a white unit at the extreme left edge of ch6, partly out of
     # frame. Confirm on site. docs/camera_survey.md.
     ac: visible
+    ac_tons: [1, 1]   # survey 12 Nov: mosque, 2 x 1 ton Kenwood
     empty_after_minutes: 20
     note: >
       Worth doing first. A prayer room fills and empties on a fixed schedule,
@@ -1061,6 +1091,7 @@ rooms:
     recorder: nvr4
     channels: [13, 14, 15, 20]
     ac: visible
+    ac_tons: [2.5, 2.5, 2, 2, 2]   # survey 12 Nov: cafeteria, 2 x 2.5 ton General + 3 x 2 ton Kenwood
     empty_after_minutes: 45
     # 12 Nov night checks: an orange-and-blue chair on ch14 at 0.41 (02:15)
     # and a glass reflection on ch20 at 0.27 (00:15); real people here at

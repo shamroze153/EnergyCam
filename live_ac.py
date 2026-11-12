@@ -111,12 +111,15 @@ def rows(df, seen_units):
         people = _int(r.get("people"))
         tons = r.get("ac_tons")
         tons = float(tons) if tons is not None and pd.notna(tons) else None
+        total_t = r.get("tons_total")
+        total_t = (float(total_t) if total_t is not None and pd.notna(total_t)
+                   else (tons * count if tons else None))
         out.append({
             "room": r["room"], "zone": r.get("zone") or "",
             "count": count, "seen": seen, "state": state,
             "running": running, "counted": counted, "exact": exact,
             "kw": counted * kw_each, "kw_each": kw_each,
-            "tons": tons,
+            "tons": tons, "tons_total": total_t,
             "status": status, "people": people,
             "alerts": bool(r.get("alerts", True)),
             "waste": (state == "on" and status == "empty"
@@ -220,12 +223,18 @@ def page(theme, items, rate, peak, total_units, base, typical_kw=1.2):
     h.append('<div class="la-list">')
     for r in items:
         what, who = status_text(r)
-        size = ("%s ton" % ("%g" % float(r["tons"]))) if r["tons"] else \
-            "%.1f kW" % r["kw_each"]
+        if r["tons"]:
+            size = "%g ton each" % r["tons"]
+        elif r["tons_total"] and r["count"] == 1:
+            size = "%g ton" % r["tons_total"]
+        elif r["tons_total"]:
+            size = "%g tons in all" % r["tons_total"]
+        else:
+            size = "%.1f kW each" % r["kw_each"]
         h.append(
             '<div class="la-row%s"><a class="nm" target="_self" '
             'href="%s#roomdetail"><b>%s%s</b><span>%d unit%s &middot; %s'
-            ' each</span></a><div class="la-dots dt">%s</div>'
+            '</span></a><div class="la-dots dt">%s</div>'
             '<div class="st">%s%s</div><div class="kw">%s<span>%s</span>'
             '</div></div>'
             % (" waste" if r["waste"] else "",

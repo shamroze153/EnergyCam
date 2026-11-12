@@ -139,3 +139,8 @@ Two or three lines a round; picture file names, never pictures.
   141 Finance Room read "camera moved" all afternoon: sun through the
   window under the unit. Its anchor now covers the unit and the wall above
   (0.97-0.98 day and evening). All five calibrated rooms read live.
+* 13:00 Shamroze's 140-H AC survey (57 units, 74.5 t) in rooms.yaml:
+  each unit's tons for 12 rooms (ac_tons lists), and the directors' rooms,
+  the data centre and the guest room as unwatched_units. Still to place:
+  the ground-floor director room, the prayer area (GCR), the glass meeting
+  room, Rooms 7, 8, 9, and the basement's six between its three rooms.

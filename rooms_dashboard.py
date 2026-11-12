@@ -454,11 +454,49 @@ def unit_rating(room, assumptions):
     splits.
     """
     base = float(assumptions.get("unit_kw", 1.2) or 1.2)
+    per_ton = float(assumptions.get("kw_per_ton", 1.0) or 1.0)
     tons = room.get("ac_tons")
-    kw = (float(tons) * float(assumptions.get("kw_per_ton", 1.0) or 1.0)
-          if tons else base)
+    if isinstance(tons, (list, tuple)) and tons:
+        # Each unit's own size, as surveyed: Room 17 is 1.5 + 1.5 + 1 + 1.
+        total = sum(float(t) for t in tons) * per_ton
+        return total / len(tons), total / base
+    kw = float(tons) * per_ton if tons else base
     count = int(room.get("ac_count", 1) or 1)
     return kw, count * kw / base
+
+
+def unit_count(room):
+    """How many units a room has: its list of sizes, else ac_count, else 1."""
+    tons = room.get("ac_tons")
+    if isinstance(tons, (list, tuple)) and tons:
+        return len(tons)
+    return int(room.get("ac_count", 1) or 1)
+
+
+def tons_of(room):
+    """A room's cooling in tons, where its units' sizes are written down."""
+    tons = room.get("ac_tons")
+    if isinstance(tons, (list, tuple)) and tons:
+        return sum(float(t) for t in tons)
+    return float(tons) * unit_count(room) if tons else None
+
+
+@st.cache_data(ttl=60)
+def load_unwatched(path="rooms.yaml"):
+    """Units no camera watches, per campus: (units, tons).
+
+    The directors' rooms, the data centre, a guest room: on the bill, never
+    on a camera. The live panel counts them into the campus's total so its
+    "the cameras can read 2 of 57" is the real 57.
+    """
+    out = {}
+    for item in yaml.safe_load(open(path)).get("unwatched_units") or []:
+        tons = item.get("ac_tons") or []
+        tons = tons if isinstance(tons, list) else [tons]
+        units, total = out.get(item.get("campus"), (0, 0.0))
+        out[item.get("campus")] = (units + len(tons),
+                                   total + sum(float(t) for t in tons))
+    return out
 
 
 @st.cache_data(ttl=20)
@@ -500,9 +538,12 @@ def load_rooms_config(path="rooms.yaml"):
             "dept": room.get("dept") or "",
             "cameras": len(cameras),
             "ac": room["ac"],
-            "ac_count": (0 if not has_unit
-                         else int(room.get("ac_count", 1) or 1)),
-            "ac_tons": room.get("ac_tons"),
+            "ac_count": 0 if not has_unit else unit_count(room),
+            # One unit's size where they are all alike; the room's total
+            # where they differ is in tons_total.
+            "ac_tons": (None if isinstance(room.get("ac_tons"), list)
+                        else room.get("ac_tons")),
+            "tons_total": tons_of(room) if has_unit else None,
             "unit_kw": unit_kw,
             "ac_load": load,
             "meter": room.get("meter"),
@@ -3328,10 +3369,11 @@ if view == "Overview":
     at_peak = win[0] <= hour < win[1]
     rate_now = float(assumptions.get(
         "peak_rs_per_kwh" if at_peak else "tariff_rs_per_kwh", 67) or 67)
+    unseen_units, _ = load_unwatched().get(campus, (0, 0.0))
     st.markdown(live_ac.page(
         mode, live_ac.rows(df, campus_view.calibrated_counts()), rate_now,
-        at_peak, int(df.loc[df["has_unit"], "ac_count"].sum()), LINK_BASE,
-        float(assumptions.get("unit_kw", 1.2) or 1.2)),
+        at_peak, int(df.loc[df["has_unit"], "ac_count"].sum()) + unseen_units,
+        LINK_BASE, float(assumptions.get("unit_kw", 1.2) or 1.2)),
         unsafe_allow_html=True)
     st.markdown(overview.campus_body(front_figures(campus), mode, LINK_BASE,
                                      tariff=win),

@@ -601,6 +601,27 @@ def main():
     check("nothing is called above where it is defined", not late,
           "; ".join(late))
 
+    # Each unit's size, from the 140-H survey of 12 Nov.
+    if "unit_rating" in namespace:
+        rate = namespace["unit_rating"]
+        site = {"unit_kw": 1.2, "kw_per_ton": 1.0}
+        kw, load = rate({"ac_tons": [1.5, 1.5, 1, 1]}, site)
+        check("Room 17's four units are five tons, five kW",
+              round(kw * 4, 2) == 5.0 and round(load, 2) == round(5 / 1.2, 2),
+              (kw, load))
+        kw, load = rate({"ac_tons": 2, "ac_count": 6}, site)
+        check("six 2-ton towers are twelve kW",
+              round(kw, 2) == 2.0 and round(load * 1.2, 2) == 12.0,
+              (kw, load))
+        kw, load = rate({"ac_count": 3}, site)
+        check("units of no stated size are the typical one",
+              kw == 1.2 and load == 3.0, (kw, load))
+        check("a list of sizes is the count",
+              namespace["unit_count"]({"ac_tons": [2, 2, 2],
+                                       "ac_count": 9}), 3)
+    else:
+        check("unit_rating is defined", False)
+
     wanted = ["figure_row", "money", "wasted_minutes", "against_baseline",
               "hour_pattern", "pattern_row", "settles_at", "daily_spans",
               "day_calendar", "status_row", "ac_pill", "room_card",
