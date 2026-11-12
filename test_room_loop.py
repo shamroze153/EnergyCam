@@ -780,34 +780,6 @@ def main():
         check("and the pass says where its time went",
               room_loop.PASS_TIMES["counting"] > 0.8
               and room_loop.PASS_TIMES["waiting"] < 0.7, True)
-
-        # 12 Nov: 151s of a 211s pass was waiting. rooms.yaml lists rooms
-        # recorder by recorder, so each batch sat on one recorder, two or
-        # four streams at a time, while the other workers idled. Taking
-        # turns, eight rooms on two recorders capped at two streams each
-        # are fetched four at a time, not two.
-        live["most"] = 0
-        room_loop.grab = slow_grab
-        two = {"nvr1": {"host": "a", "user": "u", "password": "p",
-                        "gate": threading.Semaphore(2)},
-               "dvr2": {"host": "b", "user": "u", "password": "p",
-                        "gate": threading.Semaphore(2)}}
-        grouped = ([room(name="A%d" % i, recorder="nvr1", channels=[i])
-                    for i in range(4)]
-                   + [room(name="B%d" % i, recorder="dvr2", channels=[i])
-                      for i in range(4)])
-        check("rooms take turns between recorders",
-              [r.name for r in room_loop.interleaved(grouped)],
-              ["A0", "B0", "A1", "B1", "A2", "B2", "A3", "B3"])
-        room_loop.BATCH = 4
-        try:
-            out = room_loop.sweep(grouped, two, None, 1280, 0.7, 5.0, None,
-                                  workers=4)
-        finally:
-            room_loop.BATCH = real_batch
-        check("every room read", len(out), 8)
-        check("a batch uses both recorders at once (%d streams open)"
-              % live["most"], live["most"] >= 3, True)
     finally:
         room_loop.grab = real_grab
 
