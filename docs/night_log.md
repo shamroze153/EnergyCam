@@ -318,3 +318,9 @@ Two or three lines a round; picture file names, never pictures.
   campuses: nothing past the screen but one line in Energy's "Where to
   start" list at 141 (a room's long figure), now wrapping. The list is
   done; the rest of the night is the 2-hour rounds and the morning jobs.
+* 02:47 round: 105 MATCH, 0 MISSED, 2 GHOST, both empty office chairs
+  the seat notes had flagged: AutoOS ch 10 (tall dark chair, up to 0.67,
+  12 passes -- likely 12 Nov's "first in at 2:38 night") and 141 Finance
+  Room ch 27 (0.30-0.49) -> night bars 0.70 and 0.55 (evidence/AutoOS_
+  dvr2_ch10_20261113_025800.jpg, evidence/141_Finance_Room_cd_nvr1_ch27_
+  20261113_025530.jpg). Loop restarted 03:05.
