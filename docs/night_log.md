@@ -275,3 +275,10 @@ Two or three lines a round; picture file names, never pictures.
   Meeting Room flickered every pass: a bag on the table read 0.56 on ch 4
   in the dark (frames/141_Assembly_Meeting_Room_cd_nvr2_ch04_boxes.jpg)
   -> a zone on the table top. Loop restarted 21:08.
+* 22:05 evening AC watch (18:15-21:15, every 5 min, 36 cameras): one unit
+  switched off cleanly with the lights left on -- 141 Room 27's split,
+  ch 7: its display lit to 19:40, dark from 19:45. Calibrated, box
+  272,150-300,176: on 51.2, off 5.2, gap 46 (frames/141_Room_27_(2nd_
+  floor)_ch07_box.jpg). Room 26's floor unit and Room 8's split never
+  changed all evening; Marketing ch3 and Room 17 ch5 were people and a
+  light, not units. Loop restarted.

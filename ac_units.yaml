@@ -268,3 +268,38 @@ rooms:
           taken: 2026-11-12T10:59+0500
           # A gap of 28.9 between the two states.
 
+
+  141 Room 27 (2nd floor):
+    recorder: cd_xvr1
+    channel: 7
+    # The lighting the measurement was taken in. The contrast inside a box
+    # depends on it, so a reading under the other kind is refused rather
+    # than guessed at.
+    expect: colour
+    # The frame this box was drawn on. A box is a position in pixels, so it
+    # means nothing on a picture of a different size: switch the stream from
+    # main to sub and these numbers land somewhere else entirely while still
+    # producing a confident answer. Checked before every reading.
+    frame_size: [1920, 1080]
+    units:
+      - label: split unit
+        led_roi: [272, 150, 300, 176]
+        led_std_threshold: 28.2
+        # A thumbnail of the unit and the wall round the box, levelled for
+        # brightness, compared before every reading. Nudge the camera and the
+        # box lands on blank wall, where it reads low contrast for ever and
+        # calls a running unit off -- silently, and in the direction nobody
+        # notices, because a unit never reported as on sends nobody anywhere.
+        anchor: ZGRkZGRnZ2RkZGRgYGBgXVpXV1RUVFRUVFRXWl1dZGRnZ2dqampqampqam1tcHBwZGRgYGBkZGBdWlpXV1dXVFFRTk5OUVFUVFdXWl1dZGRnZGdnZ2dnZ2dnam1tbW1tXV1dWl1aWlpXVFRRUVFOS05OTk5RVFRXV1dXWl1dYGBkZGRkZGRkZGdnZ2dnZ2pqWlpaV1dXVFRUUU5OS0tLR0tOUVFXV1dXV1paWlpaWl1dYGBkZGRkYGBkZGRkZGRgV1dUVFFRUVFOTktLR0dLTk5RV1daWlpaWlpaWldaV1paXV1dXV1dXV1dWlpaWldXVFRRUVFOTk5OTk5OS05RUVRXV1paWlpaWlpaWldXVFRXV1RXWlpaV1RUVFRRUUtLUVFOS0tHR0dLTk5RUVRUVFdXV1dXWlpaWldXV1dUVFFRUVFUVFFRS0E+Ozg1Mi4yTk5LR0dHR0dLTlFRVFRUV1dXV1dXV1RUVFRUUVFRTk5LR0dHR0RBODIrKygrMjtOR0dHR0dHS05OUVRUVFRUV1dXV1dXVFFOS0tLR0dHREFBPj4+ODIuKCUoMkRHOz5RRERER0dLTk5OUVFRVFRUVFRXVFRRTktHRERBQT4+Ozs7OzsyKCUlKztRbXZdOCsuREdHR0dLS0tLUVFRUVFRUVRUUUtHREFBPj47Ozg1NTIuKCUZGTJEZHmDhoZwPi4yR0dHR0dHR0tOUVFRUVFRUVFOR0RBPjs7ODUyLi4oIhwZFR84WnODiYyPko+JVDIlR0tHR0dLTk5OTktLR0dERERBPj47ODUyLisoJR8ZGSs+V3B9homPkpaZnJ+ihkEcR0dHR0tOTk5OS0dEREFBQT4+OzgyLi4oJR8ZFRwyV3N9g4aJj5KSlpyfoqilkkQZR0dHR0dLTk5LREE+Pj47Ozs4Mi4oJSIfGRwoO1p5g4OGiY+Skpmcn6WoqKWfcCgJR0RERERHR0RBPjs4ODg1LislIiIfHB8lMkdgeYaJjI+SkpKWnKKlqKurqKKcbT5LREREREFBPj47ODUyLislHxkVFRUiNUddanmAiYySkpaWlpmcpairr6uoqKKimZmfREFBQT4+Ozg1MjIrJR8ZFRUVIjtUZ3BzfYOJkpaZmZyZnJ+or6+vr6uopaKlpaWrQT4+Ozs4NS4rKyslHBUSHDJOj4+Pj4+Pj4+Pj4+PnJ+fpauysrKysq+oqKioqKurOzg4NTIuKCUiIhwVFR81VG12j4+Pj4+Pj4+Pj4+Pn6WvsrK1tbKysq+rqKioqKioNTUyKygiGRUVEhkoS2BzeX2Dj4+Pj4+Pj4+Pj4+PqLK1uLW4tbW1squoqKioqKuoMisoIhwSCQ8cK0RdcHZ9ho+Wj4+Pj4+Pj4+Pj4+PsrW4uLi4tbW4squoqKirq6urJSIcFRIVJT5UYGptdoOPlpycj4+Pj4+Pj4+Pj4+PsrW1uLW4uLi4squrqKirqKurDxUVGS5EWmpwc3mAiZKZnJ+ij4+Pj4+Pj4+Pj4+PsrKysrW4uLi1squrq6uoqKioEhwyTmBzfYCDiYySmZyfoqWoj4+Pj4+Pj4+Pj4+PsrKytbi4uLW1sq+vq6urq6uvRFFndoCJiYmMj5KZnKKlqKirj4+Pj4+Pj4+Pj4+PsrKytbi4uLi1srKvq6urq6uvYGp5ho+WmZaWlpmcoqWoq6+vj4+Pj4+Pj4+Pj4+PtbW1uLi4uLi4tbWyr6urq6uvdo+JjJmcnJycnJ+fpairr6+yj4+Pj4+Pj4+Pj4+PtbW1uLi4uLi4tbW1sq+vq6uvq7uZmZycnJ+fn6Woq6+vr7Kyj4+Pj4+Pj4+Pj4+PtbW1uLi4uLi4tbW1srKvq6uvssuoopycn6KlqKurr6+vsrKyj4+Pj4+Pj4+Pj4+PsrW1uLi4uLi4tbW1srKvr6urmeG1opyfoqirq7Kyr6+ysrW1tbi4uLi4tbW1srKysrW1uLi4uLi4tbW1sq+rqKWihu2+oqWoq6uvsrKyr6+ysrW1uLi4uLi4tbW1srKysrW1uLi4uLi1tbKvr6iin5+ccOfIq6+vr6+vr7Kyr6+ysrW1tbi4uLi1tbW1srKvsrK1uLi4uLW1squrpZ+cn5yZZ9fIq6+vsrKyq6uvr7KysrW1tbi4tbW1tbW1q6KfqLK1uLu7tbWvqKKfn5ycmZKJ//+vpa+vsrKvq6+vsrKysrK1tbW1tbK1tauZhoCJn7K1uLWyr6uinJyclpKJg319//+4q6ivr6+vr7KysrKysrK1uLW1tbKomYmAhpKcqK+vr6ilop+cko+MhoB2c3Z9//+yqKuvr6+vsrK1srKysrW1uLivoo+Gho+WnKKlqKWlop+clo+Gg315c3N2eYOJ//+lpairq6urr7K1srKytbi4uLKlj4aPnKKin5+cnJmcnJaMgHZzc3Z5eX2GjI+S/9SopaWlqKurq6+ysrK1tbWyr6uopZ+fop+cnJmWlpKMg3ZnZ2pzeYCGiY+SlpmZq6urpaKoqKurq6uysq+ysrKvq6uoqKKcmZmZmZaSiX1tYF1kbXaDhoyPkpaWmZycpa+rqKirr6urq6uvr6+vr6+vq6iinJmWlpaZkol9bWRgZ212gImPj4+SlpmZnJycpaurq6uvr6urq6+vr6+vr6uon5mWlpaSkomAdm1tcHZ5gIOJkpKWlpKSlpmZnJyZq6+vr6+ysrKvr6+ysq+rpZ+WkpKSj4yAdm1kZ3B9hoySlpaZmZmZlpaWlpmZmZmZq6+rr6+ysq+vr6+vq6WclpKPj4yDdmdkYGRteYOMkpmZmZmZmZmZlpaWlpmZmZycqKurq6uvr6urqKWinJaPj4yGfXBkWl1kc3mAiY+WlpmZmZmZmZyZlpaZmZmcnJycpairqKirqKWin5mSjIyJgHNqXVpdYGp2g4mPlpmWlpaWmZmZnJmZlpaWlpmZmZmZpaioqKilopmSj4yMg3ltYFpaXWRtc32GjJKWlpaWkpKWmZmZmZmWkpKWlpmZmZmZoqKlop+cloyGg4B5al1XV1pgbXZ9g4mMkpaWkpKSj5KSkpKSkpKWlpaWmZmZmZmZ
+        measured:
+          on_std: 51.21          # display lit
+          off_std: 5.22          # display blank
+          on_peak: 253
+          off_peak: 97
+          taken: 2026-11-12T21:56+0500
+          # A gap of 46.0 between the two states. The threshold is the
+          # midpoint, so anything inside that gap would read the same.
+          # Negative means this unit goes DARK when it runs rather than
+          # lighting up, and the reading is taken that way round: the
+          # direction is read back off these two numbers, not stored
+          # separately, so they cannot disagree with each other.

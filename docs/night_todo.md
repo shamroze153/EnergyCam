@@ -4,7 +4,7 @@ Work through these between the 2-hour audit rounds, one at a time: tests
 green, `git status` (no pictures), push, a line in night_log.md, then tick
 it here. Shamroze reads the morning summary in Roman Urdu.
 
-- [ ] 21:22 AC calibration from frames/ac_watch/ (18:15-21:15): every unit
+- [x] 21:22 AC calibration from frames/ac_watch/ (18:15-21:15): every unit
       with a clear on/off gap gets a box in ac_units.yaml (Rooms 26, 27 and
       8 at 141 are new candidates). Restart the loop after. In the morning
       report: which units were calibrated, on which camera, and how sure.
