@@ -262,3 +262,6 @@ Two or three lines a round; picture file names, never pictures.
   hours near-white on the light page and Plotly's toolbar over the bars
   (own colours, no toolbar, margins for the axes); the key's "not
   watched" and "not yet" swatches were invisible (outlined).
+* 19:55 Who comes when, last 7 working days: a "Wasted / day" column,
+  averaged only over days the loop watched for 12 hours or more (so far
+  one: Wed 11; the header says how many). Disrupt Labs Rs 516 that day.

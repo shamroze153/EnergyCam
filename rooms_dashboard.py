@@ -2939,6 +2939,42 @@ def show_arrivals(df, now):
         unsafe_allow_html=True)
 
     if not single:
+        # What each room's AC wasted a day, on average over these days -- as
+        # the one-day lines say it (Shamroze, 12 Nov). Whole days, this
+        # campus, the same ledger as the Energy tab.
+        waste_day, n_days = {}, 0
+        try:
+            upto = _to_5min(local_now)
+            for d0 in day_starts:
+                d1 = min(d0 + pd.Timedelta(days=1), upto)
+                if d1 <= d0:
+                    continue
+                fn = (cached_ledger_past
+                      if d0 + pd.Timedelta(days=1) <= local_now
+                      else cached_ledger)
+                led = fn(d0.tz_convert("UTC").isoformat(),
+                         d1.tz_convert("UTC").isoformat(),
+                         LINK_BASE.get("campus"))
+                # A day the loop barely watched would pull the average
+                # down: only days watched for half of them or more count.
+                if not led or led[0].get("watched_h", 24) < 12:
+                    continue
+                n_days += 1
+                for r in led:
+                    waste_day[r["room"]] = (waste_day.get(r["room"], 0.0)
+                                            + r["waste_rs"])
+        except psycopg2.Error:
+            waste_day = {}
+
+        def wasted(members):
+            if not n_days:
+                return dash
+            rs = sum(waste_day.get(m, 0.0) for m in members) / n_days
+            if not any(m in waste_day for m in members):
+                return muted("no AC")
+            return ('<b style="color:#d18a00">Rs %s</b>'
+                    % format(int(round(rs)), ",")) if rs >= 1 else muted("0")
+
         body = []
         for room, stories, windows, last in rows:
             a = ds.average_days(stories)
@@ -2962,14 +2998,16 @@ def show_arrivals(df, now):
                 "%.1f" % a["brief"] if a["brief"] else muted("0"),
                 ds.clock_minutes(a["last_out"]) if a["last_out"] is not None
                 else dash,
+                wasted(room["members"]),
             ]))
         body.sort(key=lambda b: b[0])
         st.markdown(table(
             [noun, "Days used", "First in", "Early visit", "Day starts",
-             "Peak", "Busy", "Brief / day", "Last out"],
+             "Peak", "Busy", "Brief / day", "Last out",
+             "Wasted / day" + (" (%d watched)" % n_days if n_days else "")],
             [b[1] for b in body],
             ["left", "right", "left", "left", "left", "left", "right",
-             "right", "left"]), unsafe_allow_html=True)
+             "right", "left", "right"]), unsafe_allow_html=True)
         empty_with_ac()
         for show in later:
             show()

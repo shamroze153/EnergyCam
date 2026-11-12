@@ -14,7 +14,7 @@ it here. Shamroze reads the morning summary in Roman Urdu.
       headcount strip). Fix anything cut off, overlapping or unreadable.
 - [x] Dark theme: the new pieces (walk list, day parts, headcount strip,
       week grid, Energy tiles) read well on dark.
-- [ ] Who comes when, "last 7 working days": the waste per room in the
+- [x] Who comes when, "last 7 working days": the waste per room in the
       averaged table too, as the one-day lines have it.
 - [ ] Energy at 141: tiles per building (main, 141-C, 141-D), as Who comes
       when's "Empty, with the AC on" has.
