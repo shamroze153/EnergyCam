@@ -223,4 +223,16 @@ def read_room(frame, room, units=None):
         return None, "no usable boxes"
     # Any unit running means the room is being cooled. A room with two units
     # and one of them on is not an off room.
-    return ("on" if any(lit) else "off"), "%d unit(s) read" % len(lit)
+    if any(lit):
+        return "on", "%d unit(s) read" % len(lit)
+    # The converse does not hold. 141 Learning Center has three units and
+    # its camera can read one of them: that one off says nothing about the
+    # other two, and calling the room "off" would quietly drop every empty
+    # hour they ran from the waste and the alerts. Off is only known when
+    # every unit in the room was read.
+    unseen = int(config.get("unseen_units") or 0)
+    if unseen:
+        return None, ("%d unit(s) read off; %d more in the room cannot be"
+                      " seen, so the room is not known to be off"
+                      % (len(lit), unseen))
+    return "off", "%d unit(s) read" % len(lit)

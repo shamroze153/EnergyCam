@@ -1633,6 +1633,8 @@ rooms:
     # the sub stream's 640x360 it is a smudge.
     stream: main
     ac: visible
+    # Three units, counted on site by Shamroze, 12 Nov.
+    ac_count: 3
     empty_after_minutes: 45
 
   - name: 141 Admin Room

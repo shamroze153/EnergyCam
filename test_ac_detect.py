@@ -442,6 +442,21 @@ def main():
     check_people_masked(ok)
     check_several_units(ok)
 
+    print("-- a room with units the camera cannot see")
+    # 141 Learning Center: three units, one readable. That one off is not
+    # the room off; that one on is the room cooled.
+    partial = {"Three Units": dict(plain["Old Room"], unseen_units=2)}
+    dark = grey(*plain["Old Room"]["frame_size"])
+    ok("the one seen unit off leaves the room unknown, not off",
+       ac_detect.read_room(dark, "Three Units", partial)[0] is None)
+    ok("and says why", "cannot be seen" in
+       ac_detect.read_room(dark, "Three Units", partial)[1])
+    ok("the one seen unit on is still the room cooled",
+       ac_detect.read_room(with_lit_display("Admin Room"), "Three Units",
+                           partial)[0] == "on")
+    ok("141 Learning Center says how many units it cannot see",
+       ON_DISK.get("141 Learning Center", {}).get("unseen_units") == 2)
+
     print()
     if FAILED:
         print("%d check(s) failed:" % len(FAILED))
