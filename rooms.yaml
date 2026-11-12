@@ -401,6 +401,7 @@ rooms:
     # mounted. It was labelled visible from the survey contact sheet,
     # where a wall unit is a few pixels across. docs/camera_survey.md.
     ac: hidden
+    ac_tons: [1]   # survey 12 Nov: the basement's fourth Haier 1 ton
     empty_after_minutes: 45
     # 12 Nov 00:15 night check: two empty chairs in the dark read as people
     # at 0.28 and 0.29, and the room flickered occupied/empty all night
@@ -427,6 +428,7 @@ rooms:
     # mounted. It was labelled visible from the survey contact sheet,
     # where a wall unit is a few pixels across. docs/camera_survey.md.
     ac: hidden
+    ac_tons: [2]   # survey 12 Nov: placed as Room 7, Dawlance 2 ton (check)
     empty_after_minutes: 45
 
   - name: Marketing
@@ -441,7 +443,7 @@ rooms:
     # what is not honest until all five are is the money, which assumes a
     # room's worth of cooling from whichever units have been measured.
     ac: visible
-    ac_count: 5
+    ac_tons: [1, 1, 1, 1, 1]   # survey 12 Nov: Room 8 (several depts), Kenwood x3 + TCL x2, 1 ton
     empty_after_minutes: 45
     note: >
       Two cameras, written down as "marketingroom" and "marketing". Grouped on
@@ -527,6 +529,7 @@ rooms:
     # mounted. It was labelled visible from the survey contact sheet,
     # where a wall unit is a few pixels across. docs/camera_survey.md.
     ac: hidden
+    ac_tons: [2, 1]   # survey 12 Nov: Room 11; placed as the survey's ground-floor director room, Green Air 2 t + 1 t inverter -- the survey lists no Room 11 of its own (check)
     empty_after_minutes: 30
     note: >
       A single-occupant office empties completely and predictably, so thirty
@@ -608,6 +611,7 @@ rooms:
     recorder: nvr1
     channels: [24]
     ac: hidden
+    ac_tons: [2]   # survey 12 Nov: placed as GCR, the survey's 2 ton Kenwood 'pray area' entry (check)
     empty_after_minutes: 30
     # An empty orange-and-white chair reads as a person at 0.28 on this
     # camera (7 November, nobody in the room). A zone is the usual answer,
@@ -876,6 +880,7 @@ rooms:
     # 7 Nov: no unit seen in the upper part of ch2, but only that part
     # was read. Left as visible pending one look on site.
     ac: visible
+    ac_tons: [1]   # survey 12 Nov: 1 ton, Shamroze 12 Nov; the survey's glass meeting room
     empty_after_minutes: 45
 
   - name: Room 17
@@ -975,6 +980,7 @@ rooms:
       7:
         - [760, 225, 960, 576]   # chair cut off by the right edge, 8 of 8
     ac: hidden
+    ac_tons: [1]   # survey 12 Nov: 1 ton, Shamroze 12 Nov; the survey's Room 9
     empty_after_minutes: 45
 
   # ---- no unit to switch off; watched for occupancy only --------------------
@@ -1116,6 +1122,7 @@ rooms:
     recorder: nvr4
     channels: [21, 23, 24, 25]
     ac: hidden
+    ac_tons: [1, 1, 1, 2]   # survey 12 Nov: basement floor: Haier 1 t x3 + 2 t
     empty_after_minutes: 45
 
   - name: Basement Meeting Room
@@ -1131,6 +1138,7 @@ rooms:
     recorder: nvr4
     channels: [22]
     ac: hidden
+    ac_tons: [2]   # survey 12 Nov: the basement's 2 ton unit, Shamroze 12 Nov
     empty_after_minutes: 30
     note: >
       A meeting room empties all at once and the unit gets left on. If its unit

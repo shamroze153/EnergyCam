@@ -144,3 +144,10 @@ Two or three lines a round; picture file names, never pictures.
   the data centre and the guest room as unwatched_units. Still to place:
   the ground-floor director room, the prayer area (GCR), the glass meeting
   room, Rooms 7, 8, 9, and the basement's six between its three rooms.
+* 13:10 all 140-H units placed (Shamroze: Cyber Security 1 t, Old Finance
+  1 t, the basement's 2 t in its meeting room). Placed by judgement and
+  marked "check" in rooms.yaml: IT Head Room = the survey's director room
+  (2 t + 1 t inverter; no Room 11 in the survey), Board Room = GCR 2 t,
+  HR = Room 7 2 t, Marketing = Room 8 5 x 1 t. rooms.yaml now adds up to
+  the survey exactly: 57 units, 74.5 t (39 x 1, 3 x 1.5, 13 x 2, 2 x 2.5),
+  a test holds it there.

@@ -622,6 +622,34 @@ def main():
     else:
         check("unit_rating is defined", False)
 
+    # 140-H's AC survey (Shamroze, 12 Nov): 57 units, 74.5 tons, by size
+    # 39 x 1, 3 x 1.5, 13 x 2, 2 x 2.5. Every room with a unit carries its
+    # sizes, and with the units no camera watches they add up to the survey.
+    import collections
+    import yaml
+    cfg = yaml.safe_load(open("rooms.yaml", encoding="utf-8"))
+    recs = cfg["recorders"]
+    sizes, bare = collections.Counter(), []
+    for r in cfg["rooms"]:
+        first = (r["cameras"][0]["recorder"] if r.get("cameras")
+                 else r["recorder"])
+        if recs[first].get("campus") != "140-H" or r.get("ac") not in (
+                "visible", "hidden"):
+            continue
+        if isinstance(r.get("ac_tons"), list):
+            sizes.update(float(t) for t in r["ac_tons"])
+        else:
+            bare.append(r["name"])
+    for item in cfg.get("unwatched_units") or []:
+        if item.get("campus") == "140-H":
+            sizes.update(float(t) for t in item["ac_tons"])
+    check("every 140-H room with a unit lists its units' sizes", not bare,
+          bare)
+    check("140-H adds up to the survey: 57 units, 74.5 tons",
+          (sum(sizes.values()), sum(k * v for k, v in sizes.items())),
+          (57, 74.5))
+    check("  and by size", dict(sizes), {1.0: 39, 1.5: 3, 2.0: 13, 2.5: 2})
+
     wanted = ["figure_row", "money", "wasted_minutes", "against_baseline",
               "hour_pattern", "pattern_row", "settles_at", "daily_spans",
               "day_calendar", "status_row", "ac_pill", "room_card",
