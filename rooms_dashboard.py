@@ -89,8 +89,8 @@ def _fresh_modules():
 
 _fresh_modules()
 
-from schedule import (AFTER_HOURS, WEEKEND, WORKING, describe,  # noqa: E402
-                      split_by_period, wait_before_reporting)
+from schedule import (AFTER_HOURS, DAY_NAMES, WEEKEND, WORKING,  # noqa: E402
+                      describe, split_by_period, wait_before_reporting)
 import overview  # noqa: E402  (the front pages: welcome and campus overview)
 
 PKT = timezone(timedelta(hours=5))
@@ -1865,6 +1865,49 @@ def app_chrome(mode):
         " border-radius: 12px !important; min-height: 44px; }"
         " div[data-baseweb='input'], div[data-baseweb='select'] > div,"
         " div[data-baseweb='base-input'] { background: %(surface)s; }"
+        # config.toml is dark, so in the light theme every box kept a dark
+        # inside and near-white text: the Days dates on "Who comes when"
+        # could not be read. The boxes, their text, and the lists they open
+        # follow the page instead.
+        " div[data-baseweb='input'], div[data-baseweb='base-input'],"
+        " div[data-baseweb='select'] > div, div[data-baseweb='textarea']"
+        " { background: %(surface)s !important;"
+        " border-color: %(line)s !important; }"
+        " .stApp input, .stApp textarea { color: %(text)s !important;"
+        " -webkit-text-fill-color: %(text)s !important;"
+        " background: transparent !important; caret-color: %(text)s; }"
+        " .stApp input::placeholder { color: %(muted)s !important;"
+        " -webkit-text-fill-color: %(muted)s !important; }"
+        " div[data-baseweb='select'] div, div[data-baseweb='select'] span"
+        " { color: %(text)s !important; }"
+        " div[data-baseweb='select'] svg { fill: %(muted)s !important; }"
+        " div[data-baseweb='popover'] ul, div[data-baseweb='popover'] li,"
+        " div[data-baseweb='menu'], div[data-baseweb='calendar']"
+        " { background: %(surface)s !important; color: %(text)s !important; }"
+        " div[data-baseweb='calendar'] div, div[data-baseweb='calendar'] button"
+        " { color: %(text)s; }"
+        # Newer Streamlit draws the same boxes with react-aria, not baseweb.
+        " .stApp [data-testid$='InputField'],"
+        " .stApp [data-testid='stTextInputRootElement'],"
+        " .stApp [data-testid='stNumberInputContainer'],"
+        " .stApp [data-rac][role='group']"
+        " { background: %(surface)s !important;"
+        " border-color: %(line)s !important; }"
+        " [role='listbox'], [role='listbox'] [role='option'],"
+        " [data-rac][role='dialog'] { background: %(surface)s;"
+        " color: %(text)s; }"
+        # An unticked box and an unchosen radio kept the dark theme's fill,
+        # which on a light page reads as ticked and chosen -- "By room"
+        # looked selected beside the one that was.
+        " .stApp [data-testid='stCheckbox'] label:has(input:not(:checked))"
+        " > span + div { background: %(surface)s !important;"
+        " border: 1.5px solid %(muted)s !important; }"
+        " .stApp [data-testid='stRadio'] label:has(input:not(:checked))"
+        " > div:first-of-type > div { background: %(surface)s !important;"
+        " box-shadow: inset 0 0 0 1.5px %(muted)s !important; }"
+        " .stApp [data-testid='stRadio'] label:has(input:not(:checked))"
+        " > div:first-of-type > div > div { background: transparent"
+        " !important; }"
         "</style>" % t)
 
 
@@ -2020,52 +2063,89 @@ def show_arrivals(df, now):
     assumptions = load_assumptions()
     pk_a, pk_b = av.peak_window(assumptions)
 
-    c1, c2, c3, c4 = st.columns([1.6, 1.5, 1.0, 1.0])
-    picked = c1.date_input("Days", value=(today, today),
-                           min_value=first_day, max_value=today)
-    if isinstance(picked, (list, tuple)):
-        d_from, d_to = (picked[0], picked[-1]) if picked else (today, today)
-    else:
-        d_from = d_to = picked
-    presets = {
-        "Peak tariff, 6:30–10:30 evening": (pk_a, pk_b),
-        "Working day, 10 morning–8 evening": (10.0, 20.0),
-        "Morning arrivals, 6–11 morning": (6.0, 11.0),
-        "Night, 9 night–6 morning (to midnight)": (21.0, 24.0),
-        "Whole day": (0.0, 24.0),
-        "Custom": None,
+    # One click, no forms. 12 Nov, from the person this page is for: a date
+    # picker and a dropdown of time windows lose a newcomer -- the office
+    # boy, a technician, the CEO -- before they have seen a single room.
+    # So the page opens on a finished day (the last working one; this
+    # morning's "today" is three hours of cleaners), and every other view
+    # is one button away. Dates and custom times are still there, behind
+    # "Choose dates".
+    op_days = [d.strip().lower()[:3] for d in
+               (load_hours() or {}).get("operations", {}).get(
+                   "days", ["mon", "tue", "wed", "thu", "fri"])]
+
+    def workday(d):
+        return DAY_NAMES[d.weekday()] in op_days
+
+    last_work = today - timedelta(days=1)
+    for _ in range(7):
+        if workday(last_work) or last_work <= first_day:
+            break
+        last_work -= timedelta(days=1)
+    last_work = max(last_work, first_day)
+    day_options = {
+        "%s (%s)" % ("Yesterday" if last_work == today - timedelta(days=1)
+                     else "Last working day", last_work.strftime("%a %d %b")):
+            (last_work, last_work, False),
+        "Today so far": (today, today, False),
+        "Last 7 working days, averaged":
+            (max(first_day, today - timedelta(days=7)),
+             today - timedelta(days=1), True),
+        "Choose dates": None,
     }
-    choice = c2.selectbox("Time window", list(presets))
-    if presets[choice] is None:
-        t_a = c3.time_input("From", value=pd.Timestamp("18:30").time())
-        t_b = c4.time_input("To", value=pd.Timestamp("22:30").time())
-        w_a = t_a.hour + t_a.minute / 60.0
-        w_b = t_b.hour + t_b.minute / 60.0 or 24.0
-        if w_b <= w_a:
-            st.warning("The window has to end after it starts, within one"
-                       " day. For a night across midnight, use two windows.")
-            return
+    hour_options = {
+        "Whole day": (0.0, 24.0),
+        "Working hours, 10–8": (10.0, 20.0),
+        "Morning arrivals, 6–11": (6.0, 11.0),
+        "Peak tariff, 6:30–10:30 pm": (pk_a, pk_b),
+        "Night, 9 pm–midnight": (21.0, 24.0),
+    }
+
+    def one_click(label, options, key):
+        """A row of buttons where Streamlit has them, a radio where not."""
+        names = list(options)
+        if hasattr(st, "segmented_control"):
+            got = st.segmented_control(label, names, default=names[0],
+                                       key=key)
+            return got if got in options else names[0]
+        return st.radio(label, names, index=0, horizontal=True, key=key)
+
+    day_pick = one_click("Day", day_options, "arrivals_day")
+    only_workdays = False
+    if day_options[day_pick] is None:
+        c1, c2 = st.columns([1.6, 3])
+        picked = c1.date_input("Days", value=(last_work, last_work),
+                               min_value=first_day, max_value=today)
+        if isinstance(picked, (list, tuple)):
+            d_from, d_to = (picked[0], picked[-1]) if picked else \
+                (last_work, last_work)
+        else:
+            d_from = d_to = picked
     else:
-        w_a, w_b = presets[choice]
-        with_outside = c3.checkbox("Include outside", value=False,
-                                   help="The street, the car parks, the"
-                                        " smoking area and the plant.")
-    if presets[choice] is None:
-        with_outside = False
+        d_from, d_to, only_workdays = day_options[day_pick]
+    hour_pick = one_click("Hours", hour_options, "arrivals_hours")
+    w_a, w_b = hour_options[hour_pick]
+    with_outside = st.checkbox("Include outside", value=False,
+                               help="The street, the car parks, the"
+                                    " smoking area and the plant.")
 
     # A department is several rooms read as one: Squat Wolf is five rooms,
     # and the question about it is when the department started and finished,
     # not when Room 3 did. Offered first wherever departments have been
     # written down; a campus with none opens on rooms as before.
     named = bool((df["dept"].astype(str) != "").any()) if "dept" in df else False
-    by_dept = st.radio(
-        "Show", ["By department", "By room"], index=0 if named else 1,
-        horizontal=True, key="arrivals_group",
-        label_visibility="collapsed") == "By department"
+    groups = ["By department", "By room"] if named else \
+        ["By room", "By department"]
+    by_dept = one_click("Show", dict.fromkeys(groups),
+                        "arrivals_group") == "By department"
     noun = "Department" if by_dept else "Room"
 
     day_starts = [pd.Timestamp(d).tz_localize(PKT)
                   for d in pd.date_range(d_from, d_to, freq="D")]
+    # An average over a week that counts Saturday and Sunday as two days
+    # nobody came is an average of nothing in particular.
+    if only_workdays:
+        day_starts = [d for d in day_starts if workday(d)] or day_starts
     try:
         beats = load_beats(day_starts[0] - pd.Timedelta(days=1, minutes=15),
                            min(day_starts[-1] + pd.Timedelta(days=1),
@@ -2237,7 +2317,7 @@ def show_arrivals(df, now):
         ' multiplied by each room\'s units at %.1f kW and Rs %.0f a unit'
         '%s -- an upper bound, because for most rooms nobody can see'
         ' whether the unit was actually running.%s</div>'
-        % (choice if presets[choice] else "Custom window", MUTED, label,
+        % (hour_pick, MUTED, label,
            win_note or span_text, kw, rate,
            " (the peak rate)" if rate_frac >= 0.999 else
            " (blended with the peak rate)" if rate_frac > 0 else "",
@@ -2312,14 +2392,21 @@ def show_arrivals(df, now):
     # who wants it.
     import day_timeline as dt
 
-    mode = st.session_state.get("theme", "dark")
+    # The theme lives in the address (LINK_BASE), not the session: read from
+    # the session it was always "dark", so in the light theme every track
+    # was drawn dark and every department's name in a grey meant for a dark
+    # page -- on white, the names could not be read at all.
+    mode = LINK_BASE.get("theme") or "dark"
     mode = mode if mode in ("light", "dark") else "dark"
     # Who opened the place is a question about where people work: the
     # cafe's breakfast and the guard at the gate are not the day starting,
     # and the overview already says so -- the two pages name the same room.
+    # Nor is the night: AutoOS "first to arrive at 2:38 night" on 12 Nov.
     stayed = [(room, s) for room, _, _, (_, _, _, s) in rows
               if s["starts"] is not None and not s["carried"]
-              and room.get("work", True)]
+              and room.get("work", True)
+              and pd.Timestamp(s["starts"]).tz_convert(PKT).hour
+              >= overview.DAY_OPENS_AT]
     totals = []
     for i in range(24):
         hour = [ds.hourly(day, st_)[i] for _, _, _, (st_, _, day, _) in rows]
