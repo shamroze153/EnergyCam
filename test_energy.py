@@ -74,6 +74,18 @@ def main():
     check("a missed day is shared out, not drawn as one tall day",
           len(gap) == 2 and all(abs(u - 250) < 1e-6 for u in gap["units"]),
           gap[["day", "units"]].to_dict("records"))
+    # 12 Nov: read "at about six" -- 16:49 one day, 18:31 the next. 213
+    # units over 25.7 hours is a 199-unit day, not 213.
+    late = pd.DataFrame([
+        {"meter": "gf_basement", "taken": at(1, 16, 49), "reading": 51505.0,
+         "units": None, "max_temp": None},
+        {"meter": "gf_basement", "taken": at(0, 18, 31), "reading": 51718.0,
+         "units": None, "max_temp": None}])
+    p = ev.reading_periods(late, METERS).iloc[0]
+    check("a reading taken late is put on a 24-hour footing",
+          abs(p["units"] - 213 * 24 / p["hours"]) < 1e-6
+          and abs(p["hours"] - (25 + 42 / 60.0)) < 0.01 and p["raw"] == 213,
+          p.to_dict())
     table, _ = ev.daily_table(readings, METERS,
                               pd.DataFrame({"taken": [at(1)], "kwh": [90.0]}))
     check("solar typed in today sits on yesterday, beside its reading",

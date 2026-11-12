@@ -242,3 +242,11 @@ Two or three lines a round; picture file names, never pictures.
 * 17:15 Shamroze ran sql/10 (all days, at his word): checked read-only,
   the gym has no count left in 15:00-20:00 on any day -- only "unknown"
   at 15:00 on 11 and 12 Nov and the loop's own at 16:49.
+* 18:30 Shamroze's readings for 12 Nov are in (he will read at about 6 pm
+  daily): ground floor 51,718 (213 units in 25.7 h), first floor 33,265
+  (262), solar 255 kWh. Each day is now put on a 24-hour footing (213 in
+  25.7 h is 199 a day), the raw figure and hours in the tooltip. Evening
+  dashboard work: worth-a-look list, day parts, the headcount strip over
+  the whole day, Rs / day, colours, quiet loading, a heartbeat every
+  minute. Night jobs: 2-hour audit, 21:22 calibration, the 30-minute
+  check working through docs/night_todo.md.

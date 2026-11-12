@@ -89,12 +89,17 @@ def reading_periods(readings, meters):
         if hours <= 0:
             continue
         days = max(1, int(round(hours / 24.0)))
-        each = float(p["units"]) / days
+        # Put on a 24-hour footing. Shamroze reads the meters "at about six"
+        # (12 Nov): 213 units over 25.7 hours is a 199-unit day, and without
+        # this a reading taken an hour late made the day look bigger.
+        each = float(p["units"]) * 24.0 / hours
         end = pd.Timestamp(p["to"]).tz_convert(LOCAL).normalize()
         for k in range(days):
             rows.append({"meter": p["meter"],
                          "day": end - pd.Timedelta(days=k + 1),
                          "units": each, "shared": days > 1,
+                         "raw": float(p["units"]) / days,
+                         "hours": hours / days,
                          "from": p["from"], "to": p["to"]})
     return pd.DataFrame(rows)
 
@@ -125,6 +130,11 @@ def daily_table(readings, meters, solar):
         table[code + "_shared"] = table["day"].map(
             dict(zip(mine["day"], mine["shared"])) if len(mine) else {}) \
             .fillna(False).astype(bool)
+        # The units as read and the hours they covered, for the tooltip.
+        for extra in ("raw", "hours"):
+            table[code + "_" + extra] = table["day"].map(
+                dict(zip(mine["day"], mine[extra]))
+                if len(mine) and extra in mine else {})
     table["solar"] = table["day"].map(shifted) if shifted else None
     return table, kind
 
@@ -522,11 +532,18 @@ def meters_page(theme, table, kind, meters, bills, cooled_hours, rate,
             shared = any(bool(r.get(k + "_shared")) for k in (gf, ff) if k)
             marks.append("avg" if shared else None)
             bits = ["%s" % pd.Timestamp(r["day"]).strftime("%A %d %B")]
-            for name, value in (("grid, ground floor", parts[0]),
-                                ("solar", parts[1]),
-                                ("grid, first floor", parts[2])):
-                bits.append("%s %s" % (name, "—" if value is None
-                                       else format(int(round(value)), ",")))
+            for name, value, code in (("grid, ground floor", parts[0], gf),
+                                      ("solar", parts[1], None),
+                                      ("grid, first floor", parts[2], ff)):
+                text = "—" if value is None else format(int(round(value)), ",")
+                raw = r.get(code + "_raw") if code else None
+                hrs = r.get(code + "_hours") if code else None
+                if (value is not None and raw is not None and pd.notna(raw)
+                        and hrs is not None and pd.notna(hrs)
+                        and abs(float(hrs) - 24) >= 0.5):
+                    text += " (%s read over %.1f h)" % (
+                        format(int(round(float(raw))), ","), float(hrs))
+                bits.append("%s %s" % (name, text))
             if shared:
                 bits.append("a missed reading, shared out evenly")
             tips.append(" · ".join(bits))
@@ -538,7 +555,10 @@ def meters_page(theme, table, kind, meters, bills, cooled_hours, rate,
         h.append('<div class="ec-card" style="padding:16px 18px 26px">%s'
                  '<div class="en-note">A reading at eleven covers eleven the '
                  'day before to eleven that day, so it is drawn on the day '
-                 'before. "avg" is a day with no reading of its own: the '
+                 'before. Every day is put on a 24-hour footing, so a reading '
+                 'taken an hour early or late does not make a day look smaller '
+                 'or bigger: hover a day for the units as read and the hours '
+                 'they covered. "avg" is a day with no reading of its own: the '
                  'units across the gap are shared out evenly.%s</div></div>'
                  % (columns(labels, stacks, [c["gf"], c["solar"], c["ff"]],
                             tips, height=230, marks=marks),
