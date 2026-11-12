@@ -306,3 +306,6 @@ Two or three lines a round; picture file names, never pictures.
   20261113_000515.jpg); 141-C Cafe ch2, a thin figure by the far pillar
   at 0.55, maybe the guard (frames/141-C_Cafe_cd_nvr1_ch02_boxes.jpg).
   Wellows' 0.78 and 0.66 are real people working late. Loop restarted.
+* 00:47 round: covered by the 00:20 audit. The two night bars hold: no
+  "person" in Squat Wolf Room 2 or HR Room in the seat notes since 00:40.
+  Loop healthy, 0 unknown.
