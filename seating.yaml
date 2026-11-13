@@ -302,23 +302,35 @@ spaces:
     teams: {PureSquare: 25}
     rooms:
       - 141 Room 11 (ground floor)
-  - name: Squat Wolf, rooms 12-16
+  - name: Squat Wolf, rooms 12-14
     campus: 141-C/D
     building: 141-D
     floor: First floor
-    codes: [C2-FF-R12, C2-FF-R13, C2-FF-R14, C2-FF-R15]
-    seats: 49
-    allocated: 26
-    in_use: 26
-    teams: {G&A: 1, Squatwolf: 25}
+    codes: [C2-FF-R12, C2-FF-R13, C2-FF-R14]
+    seats: 36
+    allocated: 16
+    in_use: 16
+    teams: {Squatwolf: 16}
     rooms:
       - 141-D Squat Wolf Room 0
       - 141-D Squat Wolf Room 1
       - 141-D Squat Wolf Room 2
       - 141-D Squat Wolf Room 3
       - 141-D Squat Wolf Room 4
-    note: 'Five Squat Wolf cameras, five rooms (12-16) on the sheet: counted together until it is known which camera is which room. Check.'
-  - name: 141-D Room 17
+    note: 'Five Squat Wolf cameras over rooms 12-14 (15 and 16 are the data centre, Shamroze 13 Nov): counted together until it is known which camera is which room.'
+  - name: 141-D Data centre (Rooms 15-16)
+    campus: 141-C/D
+    building: 141-D
+    floor: First floor
+    codes: [C2-FF-R15]
+    seats: 13
+    allocated: 10
+    in_use: 10
+    teams: {Squatwolf: 9, G&A: 1}
+    rooms:
+      - 141 Data Centre
+    note: 'Rooms 15 and 16 are the data centre (Shamroze, 13 Nov). The sheet gives both the code C2-FF-R15, and puts nine Squat Wolf desks in Room 15.'
+  - name: 141-D HR (Room 17)
     campus: 141-C/D
     building: 141-D
     floor: First floor
@@ -327,8 +339,8 @@ spaces:
     allocated: 8
     in_use: 9
     teams: {G&A: 8}
-    note: Finance? Which camera room is it?
-  - name: 141-D Room 18
+    note: HR (Shamroze, 13 Nov). No camera room for it yet.
+  - name: 141-D HR (Room 18)
     campus: 141-C/D
     building: 141-D
     floor: First floor
@@ -337,7 +349,8 @@ spaces:
     allocated: 5
     in_use: 3
     teams: {G&A: 5}
-  - name: 141-D Room 19
+    note: HR (Shamroze, 13 Nov). No camera room for it yet.
+  - name: 141-D Finance (Room 19)
     campus: 141-C/D
     building: 141-D
     floor: First floor
@@ -346,6 +359,9 @@ spaces:
     allocated: 10
     in_use: 10
     teams: {G&A: 8, Zignaly: 2}
+    rooms:
+      - 141 Finance Room
+    note: Room 19 is the Finance Room (Shamroze, 13 Nov).
   - name: 141-D Room 20
     campus: 141-C/D
     building: 141-D

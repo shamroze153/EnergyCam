@@ -1593,6 +1593,10 @@ rooms:
       27: 0.55
     ac: visible
     empty_after_minutes: 45
+    # Shamroze, 13 Nov: Room 19 on 141-D's first floor (the seating sheet's
+    # C2-FF-R19; Rooms 17 and 18 beside it are HR).
+    building: 141-D
+    floor: First floor
 
   - name: 141 Room 32 (2nd floor)
     dept: Room 32
@@ -1928,6 +1932,9 @@ rooms:
     ac: hidden
     alert: never
     empty_after_minutes: null
+    # Shamroze, 13 Nov: Rooms 15 and 16 on 141-D's first floor.
+    building: 141-D
+    floor: First floor
 
   - name: 141 UPS Room (1st floor)
     dept: IT
