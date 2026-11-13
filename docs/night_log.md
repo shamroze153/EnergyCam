@@ -386,3 +386,13 @@ Two or three lines a round; picture file names, never pictures.
   off (units 0, room unknown for the sixth) and the AC line drew that as
   not read; now it is off. Loop restarted 10:39. Last night's rows stay as
   written; tonight should read three towers.
+* 10:47 round: 93 MATCH, 0 MISSED, 3 GHOST -- 141 Gym (people exercising,
+  0.73-0.82, gone by the check) and Reception Meeting Room (a real 0.78)
+  the loop a pass behind; 141 Outside (NVR 3) outdoors, no unit. Nothing
+  changed for them.
+* 11:00 the cafe's tower 6 is the one at the back by the coffee machine,
+  face on to ch 2 (Shamroze; I had been looking at the wrong tower). He had
+  it switched off at 10:53: its louvre read ~52 on, ~23 off. A room can now
+  be read on more than one camera (ac_units.yaml `also:`), and the cafe
+  reads 1-5 on ch 14 and 6 on ch 2 -- six of six, a real "off" at last.
+  Loop restarted 10:59.
