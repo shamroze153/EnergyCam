@@ -193,6 +193,13 @@ def read_units(frame, room, units=None):
         return None, "camera is in infrared; calibrated in colour", None
 
     lit = []
+    # Units whose surroundings no longer match are left unread one by one,
+    # and the room is refused only when none of them matches. The cafe on 12
+    # Nov: at 20:45 the lights changed, towers 2 and 3 matched 0.17 and 0.31
+    # and the whole room went unread all night as "the camera has moved",
+    # while towers 1, 4 and 5 still matched 0.70-0.88 and read off plainly.
+    # A camera that really moved fails every unit, and is still refused.
+    astray = []
     for unit in config.get("units", []):
         box = unit.get("led_roi")
         threshold = unit.get("led_std_threshold")
@@ -213,9 +220,8 @@ def read_units(frame, room, units=None):
             if score is None:
                 return None, "the view round the box cannot be compared", None
             if score < ANCHOR_MATCH:
-                return None, ("the camera has moved: the view round the box"
-                              " matches the calibrated one only %.2f"
-                              % score), None
+                astray.append(score)
+                continue
         value = contrast(frame, box)
         if value is None:
             return None, "a box is empty", None
@@ -238,20 +244,27 @@ def read_units(frame, room, units=None):
                    else value <= threshold)
 
     if not lit:
+        if astray:
+            return None, ("the camera has moved: the view round the box"
+                          " matches the calibrated one only %.2f"
+                          % max(astray)), None
         return None, "no usable boxes", None
+    skipped = ("; %d left unread, the view round %s not as calibrated (%s)"
+               % (len(astray), "it" if len(astray) == 1 else "them",
+                  ", ".join("%.2f" % s for s in astray)) if astray else "")
     running = sum(1 for x in lit if x)
     # Any unit running means the room is being cooled. A room with two units
     # and one of them on is not an off room.
     if running:
-        return "on", "%d unit(s) read" % len(lit), running
+        return "on", "%d unit(s) read%s" % (len(lit), skipped), running
     # The converse does not hold. 141 Learning Center has three units and
     # its camera can read one of them: that one off says nothing about the
     # other two, and calling the room "off" would quietly drop every empty
     # hour they ran from the waste and the alerts. Off is only known when
     # every unit in the room was read.
-    unseen = int(config.get("unseen_units") or 0)
+    unseen = int(config.get("unseen_units") or 0) + len(astray)
     if unseen:
         return None, ("%d unit(s) read off; %d more in the room cannot be"
-                      " seen, so the room is not known to be off"
-                      % (len(lit), unseen)), 0
+                      " seen, so the room is not known to be off%s"
+                      % (len(lit), unseen, skipped)), 0
     return "off", "%d unit(s) read" % len(lit), 0

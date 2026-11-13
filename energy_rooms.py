@@ -220,6 +220,13 @@ def ac_slots(events, row, read, since, now, until, slots, alive, beats=None):
     status = mine["status"].tolist()
     ac = (mine["ac_state"].tolist() if "ac_state" in mine
           else [None] * len(stamps))
+    # The units seen running. In a part-read room the loop writes the room's
+    # state as unknown when every unit it reads is off (the rest might be
+    # running) but still writes 0 here: those slots are the read units off,
+    # not "not read" -- the cafe drew a whole morning of five towers read off
+    # as not read (Shamroze, 13 Nov).
+    seen_on = (mine["ac_units_on"].tolist() if "ac_units_on" in mine
+               else [None] * len(stamps))
     always = not row.get("alerts", True)
     runs = []
     if not always and not read:
@@ -241,6 +248,9 @@ def ac_slots(events, row, read, since, now, until, slots, alive, beats=None):
         empty = status[i] == "empty"
         if read:
             state = ac[i] if isinstance(ac[i], str) else None
+            n = seen_on[i]
+            if state is None and n is not None and n == n and int(n) == 0:
+                state = "off"
             out.append((WASTE if empty else ON) if state == "on"
                        else OFF if state == "off" else UNREAD)
         elif status[i] not in ("occupied", "empty"):

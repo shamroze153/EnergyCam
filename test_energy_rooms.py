@@ -135,6 +135,14 @@ def main():
     check("read room, no reading: not read, never off",
           er.ac_slots(unread, room("Cafe"), 1, START, at(16), END, 24,
                       ALIVE)[5], er.UNREAD)
+    # Part read, every read unit off: the loop writes the room unknown but
+    # 0 units on -- the read units off, not "not read".
+    part_off = events("Cafe", [(at(0), "empty", 0, None, 0),
+                               (at(9, 30), "occupied", 4, "on", 2)])
+    s = er.ac_slots(part_off, room("Cafe", 6), 5, START, at(12), END, 24,
+                    ALIVE)
+    check("part read, read units all off: off", s[8], er.OFF)
+    check("  and on once one runs", s[10], er.ON)
     s = er.ac_slots(hr, room("HR", 2), 0, START, at(23), END, 24, ALIVE)
     check("assumed: on while people are in", s[10], er.ASSUMED_ON)
     check("assumed: the lunch hour inside the stretch is waste", s[13],

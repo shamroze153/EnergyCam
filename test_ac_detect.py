@@ -483,6 +483,29 @@ def main():
         else:
             ok("where the default region takes the window in, it refuses",
                "moved" in why)
+    print("-- one unit's surroundings changed, the others still read")
+    # The cafe, 12 Nov 20:45: the lights changed round towers 2 and 3 and
+    # the whole room went unread all night, though 1, 4 and 5 still matched.
+    pair = []
+    for b in ((50, 90, 70, 110), (290, 90, 310, 110)):
+        pair.append({"led_roi": list(b), "led_std_threshold": 200.0,
+                     "measured": {"on_std": 300.0, "off_std": 1.0},
+                     "anchor": ac_detect.pack(ac_detect.fingerprint(
+                         scene, ac_detect.anchor_box(b, (400, 300)), b))})
+    two = {"R2": {"frame_size": [400, 300], "units": pair}}
+    relit = scene.copy()
+    relit[40:160, 0:120] = 255 - relit[40:160, 0:120]
+    state, why, n = ac_detect.read_units(relit, "R2", two)
+    ok("the unit still in place is read: nothing running", n == 0)
+    ok("  the room unknown, not off, with one unread", state is None)
+    ok("  and it says one was left unread", "left unread" in why)
+    ok("both in place: the room off",
+       ac_detect.read_units(scene, "R2", two)[0] == "off")
+    shifted = np.roll(scene, 8, axis=1)
+    ok("every unit astray is a moved camera, still refused",
+       ac_detect.read_units(shifted, "R2", two)[2] is None
+       and "moved" in ac_detect.read_units(shifted, "R2", two)[1])
+
     finance = ON_DISK.get("141 Finance Room", {}).get("units", [{}])[0]
     ok("141 Finance Room's unit names its anchor region",
        len(finance.get("anchor_roi") or []) == 4)
