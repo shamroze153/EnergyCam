@@ -442,3 +442,12 @@ Two or three lines a round; picture file names, never pictures.
   plotly are imported -- naming the campus, with changing lines and a
   moving bar, lifted when the page is built; only on a visit's first run,
   so the half-minute refresh does not flash it.
+* 13:30 The loop now keeps every AC camera's frame every 10 min in
+  frames/ac_keep (3 days) for calibrating from the data, and
+  ac_units.yaml takes an `infrared:` block for nights. Loop restarted
+  12:24; 26 frames in its first minutes.
+* 15:35 Shamroze: the timings page looked odd. Rebuilt as cards, a room
+  each, on one page: the saving on top, then the day in five parts in
+  plain words (night, arriving, working hours, going home, after hours --
+  "1 AC 10am-12pm -> 2 AC 12pm-3pm -> ..."), the bars behind "Details".
+  Three tiles above: the day's saving, the rooms, the room that saves most.

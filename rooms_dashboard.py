@@ -2854,28 +2854,53 @@ def show_ac_timings(mode, today):
     colours = ac_timing_colours(mode)
     days = max(i["days"] for i in items)
     total = sum(max(0.0, i["saving_rs"]) for i in items)
+    best = max(items, key=lambda i: i["saving_rs"])
+
+    # Three numbers first, then one line of how, then the cards: whoever
+    # opens it reads the whole of it from the first screen (13 Nov).
+    def tile(label, value, note):
+        return ('<div style="flex:1 1 180px;background:%s;border:1px solid %s;'
+                'border-radius:14px;padding:12px 16px"><div style="font-size:'
+                '1.5rem;font-weight:740;color:%s;line-height:1.15">%s</div>'
+                '<div style="font-size:.72rem;color:%s;margin-top:3px">%s</div>'
+                '<div style="font-size:.66rem;color:%s">%s</div></div>'
+                % (SURFACE, LINE, TEXT, value, MUTED, label, FAINT, note))
     st.markdown(
-        '<div style="font-size:.86rem;color:%s;margin:6px 0 2px">Followed in'
-        ' these %d room%s, about <b style="color:%s">Rs %s a day</b> less than'
-        ' running every unit from %s to %s%s.</div>'
-        % (TEXT, len(items), "" if len(items) == 1 else "s", TEXT,
-           format(int(round(total)), ","), ac_plan._clock(hours[0] * 60),
-           ac_plan._clock(hours[1] * 60),
-           " &mdash; the amber bar under each is what its read units really"
-           " did" if pick == names[0] else ""),
+        '<div style="display:flex;flex-wrap:wrap;gap:12px;margin:8px 0 6px">'
+        '%s%s%s</div><div style="font-size:.76rem;color:%s;line-height:1.5;'
+        'margin:6px 0 4px">When people are usually in each room, from up to'
+        ' the last %d working day%s, and how many of its units that needs.'
+        ' The office runs %s to %s; after that one unit only where people'
+        ' are usually still there. Open a card for its whole day%s. Rs %.0f'
+        ' a unit.</div>'
+        % (tile("a day less, if followed", "Rs %s" % format(
+                    int(round(total)), ","),
+                "against every unit from %s to %s" % (
+                    ac_plan._clock(hours[0] * 60),
+                    ac_plan._clock(hours[1] * 60))),
+           tile("rooms", str(len(items)),
+                "whose AC a camera reads" if pick == names[0]
+                else "with an AC"),
+           tile("saves the most", overview.esc(best["room"]),
+                "about Rs %s a day" % format(int(round(best["saving_rs"])),
+                                             ",")),
+           MUTED, days, "" if days == 1 else "s",
+           ac_plan._clock(hours[0] * 60), ac_plan._clock(hours[1] * 60),
+           " and, in amber, what its units really did"
+           if pick == names[0] else "", rate),
         unsafe_allow_html=True)
-    first = True
     for camp in sorted({i["campus"] for i in items}):
         mine = [i for i in items if i["campus"] == camp]
         st.markdown(
-            '<div style="font-size:.95rem;font-weight:720;color:%s;margin:'
-            '18px 0 0">%s <span style="font-weight:400;color:%s;font-size:'
-            '.78rem">%d room%s</span></div>'
-            % (TEXT, camp, MUTED, len(mine), "" if len(mine) == 1 else "s"),
+            '<div style="font-size:1rem;font-weight:740;color:%s;margin:'
+            '20px 0 0">%s <span style="font-weight:400;color:%s;font-size:'
+            '.78rem">&middot; %d room%s &middot; about Rs %s a day</span></div>'
+            % (TEXT, camp, MUTED, len(mine), "" if len(mine) == 1 else "s",
+               format(int(round(sum(max(0.0, i["saving_rs"])
+                                    for i in mine))), ",")),
             unsafe_allow_html=True)
         st.markdown(ac_plan.page(mine, colours, days, hours, rate,
-                                 heading=first), unsafe_allow_html=True)
-        first = False
+                                 heading=False), unsafe_allow_html=True)
 
 
 def ac_timing_colours(mode):

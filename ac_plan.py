@@ -195,21 +195,89 @@ def _clock(minute):
     return ("%d%s" % (h12, half)) if not m else ("%d:%02d%s" % (h12, m, half))
 
 
+PHASES = [("&#127769;", "Night", 0, 6), ("&#127749;", "Arriving", 6, 10),
+          ("&#9728;&#65039;", "Working hours", 10, 18),
+          ("&#127751;", "Going home", 18, 20),
+          ("&#127747;", "After hours", 20, 24)]
+
+
+def _units_word(n, units):
+    if n is None:
+        return "not watched yet"
+    if not n:
+        return "off"
+    if n >= units and units > 1:
+        return "all %d AC" % units
+    return "%d AC" % n
+
+
+def phase_lines(bands, units):
+    """The day in five parts, each said plainly: [(icon, name, from hour,
+    to hour, text)]. Shamroze, 13 Nov: "first say early morning run it till
+    this time, then from here to here this many"."""
+    out = []
+    for icon, name, a, b in PHASES:
+        lo, hi = a * 60, b * 60
+        parts = []
+        for x, y, n in bands or []:
+            x2, y2 = max(x, lo), min(y, hi)
+            if y2 <= x2:
+                continue
+            if parts and parts[-1][2] == n:
+                parts[-1] = (parts[-1][0], y2, n)
+            else:
+                parts.append((x2, y2, n))
+        if not parts or all(n is None for _, _, n in parts):
+            text = "not watched yet"
+        elif len(parts) == 1:
+            n = parts[0][2]
+            text = "off" if not n else "%s the whole time" % _units_word(
+                n, units)
+        else:
+            text = " &rarr; ".join(
+                "%s %s&ndash;%s" % (_units_word(n, units), _clock(x), _clock(y))
+                for x, y, n in parts)
+        out.append((icon, name, a, b, text))
+    return out
+
+
+CARD_CSS = (
+    "<style>.acg{display:grid;grid-template-columns:repeat(auto-fill,"
+    "minmax(310px,1fr));gap:14px;margin:10px 0 6px}"
+    ".acc{border-radius:16px;padding:14px 16px 12px;border:1px solid var(--acl);"
+    "background:var(--acs);box-shadow:0 1px 0 rgba(0,0,0,.03)}"
+    ".acc-h{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}"
+    ".acc-h b{font-size:1.02rem}.acc-h span{font-size:.72rem;opacity:.7}"
+    ".acc-save{font-size:.8rem;margin:3px 0 8px}"
+    ".acc-ph{display:grid;grid-template-columns:1.6em 7.4em 1fr;gap:2px 6px;"
+    "align-items:baseline;font-size:.8rem;padding:4px 0;border-top:1px dashed "
+    "var(--acl)}"
+    ".acc-ph .n{opacity:.75;font-size:.74rem;line-height:1.25}"
+    ".acc-ph .n small{display:block;opacity:.75;font-size:.66rem}"
+    ".acc-ph .v b{font-weight:700}"
+    ".acc details{margin-top:8px}.acc summary{cursor:pointer;font-size:.76rem;"
+    "opacity:.8;list-style:none}.acc summary::-webkit-details-marker"
+    "{display:none}"
+    ".acc summary:before{content:'\\25B8 ';}"
+    ".acc details[open] summary:before{content:'\\25BE ';}"
+    "@media (max-width:520px){.acg{grid-template-columns:1fr}}</style>")
+
+
 def page(items, colours, days, work=(10.0, 20.0), rate=67.0, heading=True):
-    """The section under Who comes when.
+    """Every room a card (Shamroze, 13 Nov: "blocks, all on one page, the
+    day said in parts; click a block for its detail").
 
     items: [{"room", "units", "bands", "saving_rs"}, and where a camera
-    reads the units "ran" (bands of units seen running) and "read"], best
-    saving first.
-    colours: {"text", "muted", "faint", "line", "off", "on", "surface"},
-    and "ran" for the observed bar (amber by default).
-    heading=False gives the rows alone, for the rest of the rooms.
+    reads the units "ran" (bands seen running), "read" and "cap"], best
+    saving first. colours: {"text", "muted", "faint", "line", "off", "on",
+    "surface"}, and "ran" for the observed bar (amber by default).
+    heading=False gives the cards alone.
     """
     if not items:
         return ""
     c = colours
 
-    def bar(bands, units, ink, label):
+    def bar(bands, units, ink, label, height=12):
         segs = []
         for a, b, n in bands:
             share = n / float(units) if units and n else 0
@@ -226,78 +294,90 @@ def page(items, colours, days, work=(10.0, 20.0), rate=67.0, heading=True):
                 'opacity:%.2f;border-right:1px solid %s"></span>'
                 % (label, _clock(a), _clock(b), what, a / 14.4,
                    (b - a) / 14.4, fill, op, c["surface"]))
-        return ('<div style="font-size:.64rem;color:%s;margin:4px 0 2px">%s'
-                '</div><div style="position:relative;height:13px;'
+        return ('<div style="font-size:.64rem;color:%s;margin:6px 0 2px">%s'
+                '</div><div style="position:relative;height:%dpx;'
                 'border-radius:4px;overflow:hidden;background:%s;border:1px '
                 'solid %s">%s</div>'
-                % (c["muted"], label, c["off"], c["line"], "".join(segs)))
+                % (c["muted"], label, height, c["off"], c["line"],
+                   "".join(segs)))
 
-    rows = []
+    ticks = ('<div style="position:relative;height:13px;font-size:.6rem;'
+             'color:%s;margin-top:2px">%s</div>'
+             % (c["faint"], "".join(
+                 '<span style="position:absolute;left:%.3f%%;transform:'
+                 'translateX(%s)">%s</span>'
+                 % (h / 24.0 * 100, "0" if h == 0 else "-100%" if h == 24
+                    else "-50%", _clock(h * 60))
+                 for h in (0, 6, 12, 18, 24))))
+    cards = []
     for it in items:
         units, bands = it["units"], it["bands"]
+        saving = it.get("saving_rs") or 0
+        save = ('Saves about <b style="color:%s">Rs %s a day</b> against %s'
+                ' from %s to %s' % (
+                    c["text"], format(int(round(saving)), ","),
+                    "all %d" % units if units > 1 else "running it",
+                    _clock(work[0] * 60), _clock(work[1] * 60))
+                if saving >= 1 else "No saving against %s from %s to %s"
+                % ("all %d" % units if units > 1 else "running it",
+                   _clock(work[0] * 60), _clock(work[1] * 60)))
+        phases = "".join(
+            '<div class="acc-ph"><span>%s</span><span class="n">%s<small>'
+            '%s&ndash;%s</small></span><span class="v" style="color:%s">%s'
+            '</span></div>'
+            % (icon, name, _clock(a * 60), _clock(b * 60),
+               c["muted"] if text in ("off", "not watched yet") else c["text"],
+               text.replace(" AC", " <b>AC</b>") if text not in
+               ("off", "not watched yet") else text.capitalize())
+            for icon, name, a, b, text in phase_lines(bands, units))
+        detail = bar(bands, units, c["on"], "Recommended")
         ran_bands = it.get("ran")
-        bars = bar(bands, units, c["on"], "Recommended")
         observed = ""
         if ran_bands:
-            # What the cameras saw the read units do (13 Nov): beside the
-            # plan, in amber, so too long and too many show at a glance.
             seen = it.get("read") or units
-            bars += bar(ran_bands, seen, c.get("ran", "#e8a21a"),
-                        "What ran &mdash; the %d unit%s a camera reads"
-                        % (seen, "" if seen == 1 else "s"))
+            detail += bar(ran_bands, seen, c.get("ran", "#e8a21a"),
+                          "What ran &mdash; the %d unit%s a camera reads"
+                          % (seen, "" if seen == 1 else "s"))
             cap = it.get("cap")
-            observed = ('<div style="font-size:.74rem;color:%s;margin-top:3px">'
+            observed = ('<div style="font-size:.72rem;color:%s;margin-top:4px">'
                         'Ran about <b>%.0f unit-hours a day</b> where read'
-                        ' &middot; the plan above, %.0f%s</div>'
+                        ' &middot; recommended %.0f%s</div>'
                         % (c["muted"], unit_hours(ran_bands),
                            unit_hours(bands),
                            (" &middot; never more than %d at once: the most"
                             " ever seen running, and it was enough" % cap)
                            if cap and cap < units else ""))
-        ticks = "".join(
-            '<span style="position:absolute;left:%.3f%%;transform:translateX('
-            '%s);">%s</span>' % (h / 24.0 * 100, "0" if h == 0 else "-100%"
-                                  if h == 24 else "-50%", _clock(h * 60))
-            for h in (0, 6, 12, 18, 24))
-        saving = it.get("saving_rs")
-        note = ('<span style="color:%s">· about <b>Rs %s a day</b> less than'
-                ' %s from %s to %s</span>' % (
-                    c["muted"], format(int(round(saving)), ","),
-                    "all %d" % units if units > 1 else "running it",
-                    _clock(work[0] * 60), _clock(work[1] * 60))
-                if saving and saving >= 1 else "")
-        rows.append(
-            '<div style="padding:10px 0;border-bottom:1px solid %s">'
-            '<div style="display:flex;flex-wrap:wrap;gap:4px 10px;'
-            'align-items:baseline;margin-bottom:2px"><b style="color:%s">%s'
-            '</b><span style="color:%s;font-size:.72rem">%d AC%s</span></div>'
-            '%s<div style="position:relative;height:14px;font-size:.62rem;'
-            'color:%s;margin-top:2px">%s</div>'
-            '<div style="font-size:.8rem;color:%s;margin-top:2px;line-height:'
-            '1.45">%s %s</div>%s</div>'
-            % (c["line"], c["text"], it["room"], c["muted"], units,
-               (" · from %d working day%s" % (it["days"], "" if it["days"] == 1
-                                              else "s")) if it.get("days")
-               else "",
-               bars, c["faint"], ticks,
-               c["text"], say(bands, units), note, observed))
+        days_txt = ("from %d working day%s" % (it["days"], "" if it["days"] == 1
+                                              else "s")) if it.get("days") \
+            else ""
+        cards.append(
+            '<div class="acc"><div class="acc-h"><b style="color:%s">%s</b>'
+            '<span style="color:%s">%d AC%s%s</span></div>'
+            '<div class="acc-save" style="color:%s">%s</div>%s'
+            '<details><summary style="color:%s">Details: the whole day, and'
+            ' what really ran</summary>%s%s<div style="font-size:.72rem;'
+            'color:%s;margin-top:4px;line-height:1.45">%s</div>%s</details>'
+            '</div>'
+            % (c["text"], it["room"], c["muted"], units,
+               " &middot; " + it["campus"] if it.get("campus") else "",
+               " &middot; " + days_txt if days_txt else "",
+               c["muted"], save, phases, c["muted"], detail, ticks,
+               c["muted"], say(bands, units), observed))
+    grid = ('<div class="acg" style="--acl:%s;--acs:%s">%s</div>'
+            % (c["line"], c["surface"], "".join(cards)))
     if not heading:
-        return "".join(rows)
+        return CARD_CSS + grid
     return (
-        '<div style="margin:26px 0 4px;font-size:1.1rem;font-weight:720;'
+        CARD_CSS +
+        '<div style="margin:26px 0 2px;font-size:1.1rem;font-weight:720;'
         'color:%s">Recommended AC timings</div>'
-        '<div style="font-size:.74rem;color:%s;margin-bottom:6px;line-height:'
-        '1.5">From up to the last %d working day%s: when people are usually in each'
-        ' room, and how many of its units that needs -- half the people of'
-        ' its busiest half hour, half the units. The office runs %s to %s;'
-        ' after that one unit only where people are usually still there,'
-        ' not for the office boy\'s round. The darker the blue, the more'
-        ' units. Savings at Rs %.0f a unit.%s</div>%s'
+        '<div style="font-size:.74rem;color:%s;line-height:1.5">When people'
+        ' are usually in each room, from up to the last %d working day%s, and'
+        ' how many of its units that needs. The office runs %s to %s; after'
+        ' that one unit only where people are usually still there. Open a'
+        ' card for its whole day. Rs %.0f a unit.</div>%s'
         % (c["text"], c["muted"], days, "" if days == 1 else "s",
-           _clock(work[0] * 60), _clock(work[1] * 60), rate,
-           " Each room says how many it is from; a few days only is a first"
-           " guess, firmer with every working day.", "".join(rows)))
-
+           _clock(work[0] * 60), _clock(work[1] * 60), rate, grid))
 
 def say(bands, units):
     """The stretches in words: "off until 9:30am · 1 AC 9:30am-12pm · ..."."""

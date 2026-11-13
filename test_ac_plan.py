@@ -41,6 +41,24 @@ def main():
           "5 of 6 3pm–6pm · 2 of 6 6pm–8pm · off after 8pm")
     check("the office boy's round switches nothing on",
           [n for a, b, n in bands if a <= 21 * 60 < b], [0])
+    parts = {name: text for _, name, _, _, text in ap.phase_lines(bands, 6)}
+    check("the day in parts: night off", parts["Night"], "off")
+    check("  arriving: off, then one from 9:30", parts["Arriving"],
+          "off 6am&ndash;9:30am &rarr; 1 AC 9:30am&ndash;10am")
+    check("  working hours step by step", parts["Working hours"],
+          "1 AC 10am&ndash;12pm &rarr; all 6 AC 12pm&ndash;3pm &rarr; "
+          "5 AC 3pm&ndash;6pm")
+    check("  going home: two the whole time", parts["Going home"],
+          "2 AC the whole time")
+    check("  after hours off", parts["After hours"], "off")
+    html = ap.page([{"room": "141-C Cafe", "units": 6, "bands": bands,
+                     "saving_rs": 2580, "days": 1}],
+                   {"text": "#000", "muted": "#555", "faint": "#999",
+                    "line": "#ddd", "off": "#eee", "on": "#36c",
+                    "surface": "#fff"}, 1)
+    check("each room a card, its detail behind a click",
+          ("class=\"acc\"" in html, "<details>" in html,
+           "Rs 2,580 a day" in html), (True, True, True))
     check("unit-hours a day", round(ap.unit_hours(bands), 1),
           round(2.5 * 1 + 3 * 6 + 3 * 5 + 2 * 2, 1))
 
