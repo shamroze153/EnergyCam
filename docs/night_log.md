@@ -373,3 +373,9 @@ Two or three lines a round; picture file names, never pictures.
   it moved when towers 2 and 4 went off at 20:35 on 12 Nov. ch 2's tower
   is one of the five from the far end. The panel says "not readable" now;
   reading it needs one on/off by hand while the cameras are watched.
+* 10:30 Shamroze: on a room's page he cannot tell whether the AC ran while
+  the room sat empty. One room now has an AC line under the people line,
+  slot for slot (blue running with people, red stripes running with nobody
+  in, grey off, dark grey not read; paler where it is assumed), and three
+  cards: how long it ran, how long with nobody in, Rs wasted. A 20-second
+  live watch of the cafe runs to 11:21 for the sixth tower's switch.
