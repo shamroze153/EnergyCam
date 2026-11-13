@@ -324,3 +324,11 @@ Two or three lines a round; picture file names, never pictures.
   Room ch 27 (0.30-0.49) -> night bars 0.70 and 0.55 (evidence/AutoOS_
   dvr2_ch10_20261113_025800.jpg, evidence/141_Finance_Room_cd_nvr1_ch27_
   20261113_025530.jpg). Loop restarted 03:05.
+* 04:47 round: 107 MATCH, 0 MISSED, 2 GHOST. 141-D Outside Area is
+  outdoors with no unit (no waste, left). Marketing: tiny boxes on desk
+  things, ch 3 at 0.39 and ch 13 at 0.34 -> night bar 0.45. The seat
+  notes also showed Room 17 with 1-5 "people" every pass all night (two
+  empty chairs at the top of ch 3, median 0.52-0.56, up to 0.82) over its
+  0.40 bar, so its four units were taken as running all night -> 0.60
+  (evidence/Room_17_xvr3_ch03_20261113_045812.jpg, evidence/Marketing_
+  dvr2_ch03_20261113_045912.jpg). Loop restarted 05:06.
