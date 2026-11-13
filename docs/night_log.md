@@ -414,3 +414,9 @@ Two or three lines a round; picture file names, never pictures.
   Every live channel is in a room except cd_nvr4:17 (a corridor), :26 (an
   outside lane with a guard), :31 (a pantry/kitchen) and :30, a duplicate
   of the cafe's cd_nvr1:14. Names asked for.
+* 11:40 morning calibration (08:21-10:56 watch, every 5 minutes): no
+  uncalibrated unit switched cleanly. Every local step was a chair, a bag,
+  a door or a person (Room 17 ch 5, Reception, Room 26, Cyber Security,
+  H First Floor Lobby, Marketing ch 3); the unit areas of Marketing,
+  Wellows, Mosque and Room 8 stayed flat. Those units need a hand on/off,
+  as tower 6 had. Nothing written.

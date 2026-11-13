@@ -35,8 +35,16 @@ it here. Shamroze reads the morning summary in Roman Urdu.
       person was, numbers only, this machine only). After a working day,
       draw a seat map per camera locally (dots on an empty-room frame) and
       list in the report which rooms' seats are used; never commit them.
-- [ ] 09:12 morning report job; 11:12 morning AC calibration from the
-      08:00-11:00 watch (both scheduled).
+- [x] 09:12 morning report job; 11:12 morning AC calibration from the
+      08:00-11:00 watch (both scheduled). Report sent; the watch caught no
+      uncalibrated unit switching, but the cafe's tower 6 was calibrated by
+      hand with Shamroze (ch 2, `also:`).
+- [ ] Night (infrared) calibration: Finance Room, Room 32, Room 27,
+      Learning Center go infrared when the lights go off and their
+      calibrations are colour-only; Admin Room the reverse. One on/off each
+      in the dark, watched live. Asked Shamroze 13 Nov 11:30.
+- [ ] Names for cd_nvr4:17 (corridor), :26 (outside lane, guard), :31
+      (pantry/kitchen); :30 duplicates the cafe's cd_nvr1:14. Asked.
 
 Rules that hold all night: the 141 gym's camera is never opened 15:00-20:00;
 no picture into git; no recorder settings; no retried logins (XVR 2 and 4
