@@ -61,7 +61,7 @@ def main():
     check("  and says so", r32["exact"], False)
     check("units out of view are not reported as off",
           live_ac.status_text(cafe)[0],
-          "<b>5 running</b> &middot; 1 not visible")
+          "<b>5 running</b> &middot; 1 not readable")
     lc = next(r for r in items if r["room"] == "141 Learning Center")
     check("  nor counted into 'of N running'",
           "of 3" in live_ac.status_text(lc)[0], False)

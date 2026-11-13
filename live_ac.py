@@ -159,7 +159,10 @@ def status_text(r):
             bits = ["<b>%d running</b>" % r["running"]]
             if r["seen"] - r["running"]:
                 bits.append("%d off" % (r["seen"] - r["running"]))
-            bits.append("%d not visible" % (r["count"] - r["seen"]))
+            # "not readable", not "not visible": the cafe's sixth tower is
+            # in the picture, side on, and a camera that can see a unit but
+            # not its louvre cannot tell on from off either.
+            bits.append("%d not readable" % (r["count"] - r["seen"]))
             what = " &middot; ".join(bits)
         else:
             what = "<b>running</b> &middot; how many not recorded yet"
@@ -168,7 +171,7 @@ def status_text(r):
             "%d seen, all off" % r["seen"]
     else:
         if r["running"] == 0:
-            what = "%d seen off &middot; %d not visible" % (
+            what = "%d seen off &middot; %d not readable" % (
                 r["seen"], r["count"] - r["seen"])
         elif r["seen"] < r["count"]:
             # Read off, but units no camera sees may be running: the loop
@@ -246,10 +249,11 @@ def page(theme, items, rate, peak, total_units, base, typical_kw=1.2):
     h.append('</div><div class="la-key"><span><i style="background:%s"></i>'
              'running</span><span><i style="border:2px solid var(--t3)"></i>'
              'off</span><span><i style="border:2px dashed var(--line2)"></i>'
-             'no camera sees it</span></div>' % c["on"])
+             'not readable by a camera</span></div>' % c["on"])
     h.append('<div class="en-note">The cameras can read %d of the %d units on '
-             'this campus; the rest are not in any camera\'s view, so they are '
-             'left out here rather than guessed. kW is each running unit\'s '
+             'this campus; the rest are out of every camera\'s view, or show it '
+             'only a side where on and off look the same, so they are left '
+             'out here rather than guessed. kW is each running unit\'s '
              'size (its tons where known, else a typical %.1f kW split); the '
              'rupees are that at Rs %.0f a unit.%s</div></div></div>'
              % (sum(r["seen"] for r in items), total_units, typical_kw, rate,

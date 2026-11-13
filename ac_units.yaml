@@ -189,8 +189,13 @@ rooms:
     recorder: cd_nvr1
     channel: 14
     # Six tower units, 2 ton each (Shamroze, 12 Nov). Camera 14 reads five
-    # by the louvre at the top of each, which opens when it runs; the sixth
-    # is in no camera. So "on" is known, "off" only when it is seen too.
+    # by the louvre at the top of each, which opens when it runs. The sixth
+    # is in the picture too -- the tower on the right of ch 14, by the plant
+    # (frames/cafe_sixth.jpg) -- but side on: its louvre faces away, and
+    # when towers 2 and 4 went off at 20:35 on 12 Nov nothing on it moved.
+    # ch 2's tower by the patterned wall is one of the five, from the far
+    # end. So "on" is known, "off" only when the sixth is read too: switch
+    # it on and off once by hand and see whether any part of it changes.
     unseen_units: 1
     # The lighting the measurement was taken in. The contrast inside a box
     # depends on it, so a reading under the other kind is refused rather
