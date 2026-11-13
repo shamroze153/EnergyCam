@@ -500,3 +500,17 @@ Two or three lines a round; picture file names, never pictures.
   (Room 22 0 -> 6 seats, AutoOS 0 -> 2). test_seats has the case; all
   19 green. Room 22's ch 1 is dark and blurred on its right third --
   on the morning camera list. Two people still at Room 22's desks 22:22.
+* 22:47 round: 4 GHOST, 1 MISSED, 2 FAINT; 33 night detections, most
+  of them people working late (Creative, Wellows, Room 17, Rooms 11, 22,
+  29). Three clear ghosts in rooms with a unit, fixed:
+  - 141 Admin Room ch 5: a thing on the counter top, 0.25-0.64 six times
+    from 22:14 -- zone [455,130,515,192] (640x360); nobody sits there.
+  - Basement ch 25: an empty chair at the frame's edge, 0.31-0.60 every
+    pass 21:23-23:01, the basement "occupied 1" all night -- a seat, so
+    conf_after_hours 0.65 on ch 25 only (by day people there 0.73-0.83).
+  - 141-D MR01 ch 15: the next office's desk through the glass door,
+    0.26-0.51 all evening and its people at 13:39 -- zone [455,0,530,110].
+  Left to watch at 00:47: 141 Room 25 ch 8's white chair (0.32-0.43 at
+  night, but 0.73 at 22:53 and people there till late), and 141 IT Sub
+  Store, "1" on and off until 22:43 with nothing on its cameras. Tests
+  green, pushed; loop restarted 23:05 (one loop).
