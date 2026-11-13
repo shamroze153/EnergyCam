@@ -355,3 +355,8 @@ Two or three lines a round; picture file names, never pictures.
   started at 22:45, re-read the date after midnight and was waiting for
   14 Nov. Fixed and restarted at 08:21: 36 frames from 17 rooms every
   five minutes until 11:00, for the 11:12 calibration.
+* 08:47 round: 93 MATCH, 0 MISSED, 2 GHOST, 17 FOLLOWING. Wellows: a
+  real person 08:33-08:51 (0.90-0.92) had just gone out -- jacket on the
+  chair, bag on the desk -- the loop a pass behind, not a fault. 141 Room
+  26: the known chairs, left. Night check at 08:57 is people arriving.
+  Nothing changed, no restart.
