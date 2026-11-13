@@ -527,3 +527,13 @@ Two or three lines a round; picture file names, never pictures.
   chair, 0.32-0.59 at night (once 0.73) -- its one camera would need a
   night bar near 0.6, which could miss somebody working late
   (frames/141_Room_25_(2nd_floor)_cd_xvr1_ch08_boxes.jpg). Restarted.
+* 00:47 round: 3 GHOST, 0 MISSED, 2 FAINT; 21 night detections. Fixed:
+  141 Admin Room, ghost again from other faint spots (0.25-0.48) -- its
+  evening people scored 0.55-0.94, so conf_after_hours 0.50 for the
+  room. Real: 140-H Admin Room's guard, feet up (0.54). For Shamroze:
+  Room 17 ch 3's far chairs, cut by the frame's top edge, read 0.44-0.85
+  in the same two boxes every pass 23:28-01:01 -- Room 17 (4 units)
+  "occupied" all night; seats by day and too strong for a night bar, so
+  the camera wants tilting down (on the morning camera list). Wellows
+  ch 16's dark shape by the door 0.29 once: left. Tests green, pushed,
+  loop restarted.

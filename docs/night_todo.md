@@ -58,7 +58,11 @@ it here. Shamroze reads the morning summary in Roman Urdu.
       frames to fix, I will do it myself"): a contact sheet of the cameras
       to clean or turn, each with what is wrong -- local, sent with
       SendUserFile, never in git. So far: 140-H xvr3 ch 8 (Room 17) hazy;
-      141 cd_xvr1 ch 1 (Room 22) its right third dark and blurred.
+      141 cd_xvr1 ch 1 (Room 22) its right third dark and blurred;
+      140-H xvr3 ch 3 (Room 17): the far desks' chairs, cut by the top
+      edge, read as people all night at 0.44-0.85 -- tilt it down a
+      little (they are seats by day, so no zone, and too strong for a
+      night bar); 141 Room 25's alcove chair (one camera, 0.32-0.73).
       Add to it each round.
 - [x] 19:25 Seat map for 13 Nov, numbers (`seat_map.py --no-pictures`,
       10-19): Room 18 33 seats used (sheet 43 desks), Marketing 26 (28),

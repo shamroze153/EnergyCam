@@ -2179,6 +2179,13 @@ rooms:
     ignore:
       5:
         - [455, 130, 515, 192]   # the thing on the counter, 0.25-0.64
+    # 14 Nov 00:47 audit GHOST again, from other spots: a few-pixel thing
+    # far off on ch 12 (0.25-0.37), the bottom-right corner of ch 5 (0.44-
+    # 0.48), a shape by the door (0.31) -- the room "occupied" on and off
+    # all night. The people here in the evening scored 0.55-0.94 (median
+    # 0.80, 13 Nov 20:00-23:00); the ghosts all under 0.50. A stricter bar
+    # at night only, for the room.
+    conf_after_hours: 0.50
 
   - name: 141 Reception Meeting Room
     dept: Meeting rooms
