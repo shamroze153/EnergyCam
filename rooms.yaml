@@ -1290,6 +1290,14 @@ rooms:
     ac: hidden
     ac_tons: [1, 1, 1, 2]   # survey 12 Nov: basement floor: Haier 1 t x3 + 2 t
     empty_after_minutes: 45
+    # 13 Nov 22:47 night check: an empty white chair cut off by ch 25's left
+    # edge (box 137x203 at x 68, y 974 in the 1920 frame) read as a person
+    # at 0.31-0.60 in every pass from 21:23 to 23:01, and the basement read
+    # "occupied 1" all night. A seat, so no zone: a stricter bar at night
+    # on ch 25 alone -- people in that chair by day scored 0.73-0.83, and
+    # chs 21, 23 and 24 keep the normal bar for whoever works late.
+    conf_after_hours:
+      25: 0.65
 
   - name: Basement Meeting Room
     floor: Basement
@@ -2146,6 +2154,16 @@ rooms:
     floor: Ground floor
     ac_tons: [1]                  # Haier
     empty_after_minutes: 45
+    # 13 Nov 22:47 audit GHOST, and the seat notes: something on the
+    # counter top under the wall cupboards on ch 5 read as a person at
+    # 0.25-0.64 in six passes from 22:14 to 22:49 (a 32-50 px box at x 478,
+    # y 158), nobody in the room (frames/141_Admin_Room_cd_nvr2_ch05_
+    # boxes.jpg). Nobody sits on the counter; somebody standing at it is
+    # a 90x145 box, mostly outside this, and still counted. In the loop's
+    # own 640x360 frame.
+    ignore:
+      5:
+        - [455, 130, 515, 192]   # the thing on the counter, 0.25-0.64
 
   - name: 141 Reception Meeting Room
     dept: Meeting rooms
@@ -2193,6 +2211,17 @@ rooms:
     channels: [15]
     ac: hidden
     empty_after_minutes: 30
+    # 13 Nov 22:47 night check, and the seat notes: ch 15 looks through the
+    # glass door (top right) into the next office, and a chair there read
+    # as a person at 0.26-0.51 eight times from 21:20 to 23:03 -- the room
+    # flickered "occupied 1" all evening -- and at 13:39 the people at that
+    # desk (0.70-0.86) were counted as in this meeting room. Beyond the
+    # glass, so nobody in this room is ever there; somebody at this room's
+    # own door is a far taller box and still counted. In the loop's own
+    # 640x360 frame.
+    ignore:
+      15:
+        - [455, 0, 530, 110]     # the next office's desk, beyond the glass
 
   - name: 141-D MR02 (2nd floor)
     dept: Meeting rooms
