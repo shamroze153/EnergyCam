@@ -337,3 +337,14 @@ Two or three lines a round; picture file names, never pictures.
   beside its caption on a phone; the caption now wraps under it. Today's
   biggest AC figure at 140-H is Room 17's 13 kWh -- the chairs before
   05:06, for Shamroze in the morning.
+* 06:47 round: 95 MATCH, 0 MISSED, 4 GHOST, 21 FOLLOWING. First, a
+  correction to 04:47: Room 17's 0.60 was wrong. 12 Nov's evening frames
+  show a real person at that same far desk on ch 3 scoring 0.87 (frames/
+  ac_watch/2040) and one on ch 8 at 0.37-0.57; chairs and people score
+  alike there, so back to 0.40 and left for Shamroze. The night bar can
+  now name one camera (conf_after_hours: {10: 0.70}): AutoOS ch 10 and
+  141 Finance Room ch 27 only, so their other cameras keep the normal
+  bar; Marketing 0.45 -> 0.40. Ghosts: 141 Gym ch 7 weight plates and
+  141 Room 6 ch 7 wall marks -> tight zones. 141 Room 26 ch 10 (chairs
+  where people sit and score 0.45-0.90 in the evening) and 140-H Commons
+  (far terrace chairs, no unit) left. Loop restarted 07:01.
