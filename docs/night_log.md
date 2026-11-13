@@ -514,3 +514,9 @@ Two or three lines a round; picture file names, never pictures.
   night, but 0.73 at 22:53 and people there till late), and 141 IT Sub
   Store, "1" on and off until 22:43 with nothing on its cameras. Tests
   green, pushed; loop restarted 23:05 (one loop).
+* 23:25 after the restart: Admin Room and MR01 empty since 23:10. 141
+  Room 25 ch 8 at 23:18 (check_room): empty, a pile of bags in the
+  corner at 0.40 -- zone [1660,600,1910,1060]; the alcove chair (0.42-
+  0.58, a seat) still watched. Basement ch 24 and IT Sub Store ch 20 had
+  faint 0.27-0.39 notes and nothing at all at 23:20: left. Loop
+  restarted.

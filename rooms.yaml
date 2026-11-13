@@ -1687,6 +1687,16 @@ rooms:
     channels: [8]
     ac: hidden
     empty_after_minutes: 45
+    # 13 Nov 23:18 check_room: bags and cartons piled in the bottom-right
+    # corner, against the wall, read as a person at 0.35-0.40 (a 200x500
+    # box at x 1780, y 800, from 23:07), the room empty. Nobody sits in
+    # that corner; somebody in the chair at the desk beside it is a box
+    # further left, mostly outside this, and still counted. In the 1920
+    # frame. (The white chair in the alcove at the back, 0.32-0.58 at
+    # night, is a seat: left for now, watched.)
+    ignore:
+      8:
+        - [1660, 600, 1910, 1060]   # the pile of bags in the corner, 0.35-0.40
 
   - name: 141 Room 26 (2nd floor)
     dept: Room 26
