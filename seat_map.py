@@ -25,6 +25,7 @@ from datetime import datetime, timedelta
 import pandas as pd
 
 SEAT_RADIUS = 0.035     # of the frame's width: one seat, give or take
+SEAT_REACH = 0.3        # of the camera's usual box height: the same, near it
 MIN_SHARE = 0.15        # seen in this share of the passes or more
 
 
@@ -55,7 +56,8 @@ def load(days, hours, folder="seats"):
     return s[(hour >= hours[0]) & (hour < hours[1])].copy()
 
 
-def seats(notes, radius=SEAT_RADIUS, min_share=MIN_SHARE, passes=None):
+def seats(notes, radius=SEAT_RADIUS, min_share=MIN_SHARE, passes=None,
+          reach=SEAT_REACH):
     """Spots people stayed at: greedy clusters of the box bottoms.
 
     The bottom of a box is where somebody is (their seat or their feet),
@@ -63,27 +65,40 @@ def seats(notes, radius=SEAT_RADIUS, min_share=MIN_SHARE, passes=None):
     in the hours (the share's denominator); without it, the passes in
     which this camera saw anybody. Returns per camera a list of
     (x, y, passes held, share) in the camera's own pixels, busiest first.
+
+    A seat's reach is a share of the frame's width, or of the camera's
+    usual box height where that is more: near a camera a person is big,
+    and where the box ends wanders with them -- leaning on the desk, half
+    hidden by it, standing up. 13 Nov: AutoOS's and 141 Room 22's chairs
+    each split into three or four spots 60-200 px apart, none of them
+    reaching the bar, and both rooms read "0 seats used" after a full day.
+    Each note is measured against a spot's middle so far, not against the
+    first note that started it.
     """
     out = {}
     if notes.empty:
         return out
     for (room, rec, ch), d in notes.groupby(["room", "recorder", "channel"]):
         width = float(d["frame_w"].iloc[0]) or 1.0
-        r = radius * width
+        r = max(radius * width, reach * float(d["h"].median()))
         total = passes or d[["day", "time"]].drop_duplicates().shape[0] or 1
         pts = list(zip(d["cx"], d["cy"] + d["h"] / 2.0,
                        d["day"] + d["time"]))
         found = []
         for x, y, when in sorted(pts, key=lambda p: p[1]):
             for spot in found:
-                if (spot["x"] - x) ** 2 + (spot["y"] - y) ** 2 <= r * r:
+                n = len(spot["xs"])
+                if ((spot["sx"] / n - x) ** 2 + (spot["sy"] / n - y) ** 2
+                        <= r * r):
                     spot["seen"].add(when)
                     spot["xs"].append(x)
                     spot["ys"].append(y)
+                    spot["sx"] += x
+                    spot["sy"] += y
                     break
             else:
-                found.append({"x": x, "y": y, "seen": {when}, "xs": [x],
-                              "ys": [y]})
+                found.append({"seen": {when}, "xs": [x], "ys": [y],
+                              "sx": x, "sy": y})
         keep = []
         for spot in found:
             share = min(1.0, len(spot["seen"]) / float(total))

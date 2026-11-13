@@ -493,3 +493,10 @@ Two or three lines a round; picture file names, never pictures.
   four cameras at 20:45 and no night detection: somebody coming and
   going, or a ghost -- no frame of it yet, so left; watch at 22:47. The
   other ghost is the Meeting Room Lobby (no unit). Nothing changed.
+* 22:20 seat maps for 13 Nov drawn on tonight's frames (71, local).
+  AutoOS's and 141 Room 22's "0 seats" was seat_map splitting each chair
+  into 3-4 spots near the camera: it now measures a note against a
+  spot's middle, with a reach of 0.3 of the camera's usual box height
+  (Room 22 0 -> 6 seats, AutoOS 0 -> 2). test_seats has the case; all
+  19 green. Room 22's ch 1 is dark and blurred on its right third --
+  on the morning camera list. Two people still at Room 22's desks 22:22.

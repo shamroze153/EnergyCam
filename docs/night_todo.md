@@ -57,17 +57,20 @@ it here. Shamroze reads the morning summary in Roman Urdu.
 - [ ] For Shamroze's morning (13 Nov, "send me a picture of which camera
       frames to fix, I will do it myself"): a contact sheet of the cameras
       to clean or turn, each with what is wrong -- local, sent with
-      SendUserFile, never in git. So far: 140-H xvr3 ch 8 (Room 17) hazy.
+      SendUserFile, never in git. So far: 140-H xvr3 ch 8 (Room 17) hazy;
+      141 cd_xvr1 ch 1 (Room 22) its right third dark and blurred.
       Add to it each round.
 - [x] 19:25 Seat map for 13 Nov, numbers (`seat_map.py --no-pictures`,
       10-19): Room 18 33 seats used (sheet 43 desks), Marketing 26 (28),
       141 Room 32 19 (17), Room 17 6 (47). AutoOS and 141 Room 22 show
       people every pass but no spot held 15% of the day: their boxes
       wander more than a seat's radius. Local only (seats.txt).
-- [ ] Seat map pictures for 13 Nov, after 22:00 when the rooms are empty
-      (`python seat_map.py --day 2026-11-13 --hours 10-19`; it opens the
-      cameras): look at AutoOS's and Room 22's -- are the dots spread
-      over real desks, or is the camera seeing a passage? Local only.
+- [x] 22:20 Seat map pictures for 13 Nov (71, frames/seats/, local).
+      AutoOS's and Room 22's dots are on real desks, each chair split
+      into 3-4 spots: seat_map now measures against a spot's middle and
+      reaches 0.3 of the camera's usual box height. Room 22 0 -> 6 seats,
+      AutoOS 0 -> 2; the rest about the same. A room with two cameras
+      can count one seat twice (Room 32: 22 spots, 17 desks).
 - [ ] 140-H rooms on the sheet with no camera room yet: R4, R11, R12,
       R14, R15, 19A/19B (asked Shamroze).
 
