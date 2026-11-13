@@ -395,4 +395,10 @@ Two or three lines a round; picture file names, never pictures.
   it switched off at 10:53: its louvre read ~52 on, ~23 off. A room can now
   be read on more than one camera (ac_units.yaml `also:`), and the cafe
   reads 1-5 on ch 14 and 6 on ch 2 -- six of six, a real "off" at last.
-  Loop restarted 10:59.
+  Loop restarted 10:59. The panel now says "3 of 6 running".
+* 11:10 Shamroze: the cafe's AC line still says "not read" for 00:00-
+  07:14 -- the camera never switched off. Right: those rows were written
+  before the 10:39 fix (tower 4 matched 0.53 at 07:09 and the whole room
+  was refused); kept pictures read them now as off, but rows already
+  written stay. Tonight the lights will still put towers 2, 3 and 6 astray,
+  and 1, 4, 5 read. "not read" renamed "unit unreadable (camera on)".

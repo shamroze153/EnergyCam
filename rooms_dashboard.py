@@ -1109,7 +1109,13 @@ def ac_inks(mode):
 
 
 AC_WHAT = {"on": "AC running, people in", "waste": "AC running, nobody in",
-           "off": "AC off", "unread": "AC not read",
+           # "not read" read as "the camera was off" (Shamroze, 13 Nov:
+           # "cameras don't switch off"). They don't: the camera answered
+           # and its picture of the unit could not be trusted -- the lights
+           # changed under the calibration, or the room before 13 Nov
+           # 10:39, when one unit astray refused the whole room.
+           "off": "AC off",
+           "unread": "camera on, but the unit could not be read",
            "assumed": "AC taken as running, people in",
            "assumed_waste": "AC taken as running, nobody in",
            "assumed_off": "AC taken as off"}
@@ -1167,7 +1173,7 @@ def ac_strip(slots, since, mode, basis, read, count, height=16):
         (crit, 0.45 if pale else 1.0, "running, nobody in"),
         (t["slot_empty"], 1.0, "off"),
     ] + ([] if pale or basis == er.ALWAYS else
-         [(t["slot_unknown"], 1.0, "not read")]))
+         [(t["slot_unknown"], 1.0, "unit unreadable (camera on)")]))
     return (
         '<div style="display:flex;align-items:baseline;gap:8px;margin:12px 0 '
         '4px;font-size:.78rem"><b style="color:%s">AC</b><span style="color:'
