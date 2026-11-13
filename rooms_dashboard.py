@@ -130,7 +130,7 @@ def _fresh_modules():
     order = ("schedule", "campus_view", "day_story", "day_timeline",
              "overview", "analysis_view", "meters_view", "energy_view",
              "empty_view", "live_ac", "floors_view", "energy_rooms",
-             "ac_plan")
+             "ac_plan", "seating")
     # The tests run this half of the file through exec, with no __file__.
     here = os.path.dirname(os.path.abspath(
         globals().get("__file__") or "rooms_dashboard.py"))
@@ -2711,6 +2711,21 @@ def _ledger(start_iso, end_iso, campus=None):
                      av.peak_window(a), float(a.get("ac_duty", 1.0) or 1.0))
 
 
+def past_workdays(today, month, n=10):
+    """The last n working days before today that the history reaches back
+    to, as local midnights, oldest first."""
+    first_day = min(t.date() for t in to_local(month["timestamp"]))
+    op_days = [d.strip().lower()[:3] for d in
+               (load_hours() or {}).get("operations", {}).get(
+                   "days", ["mon", "tue", "wed", "thu", "fri"])]
+    past, d = [], today - timedelta(days=1)
+    while len(past) < n and d >= first_day:
+        if DAY_NAMES[d.weekday()] in op_days:
+            past.append(d)
+        d -= timedelta(days=1)
+    return [pd.Timestamp(x).tz_localize(PKT) for x in sorted(past)]
+
+
 @st.cache_data(ttl=1800, show_spinner=False)
 def cached_ac_timings(day_iso):
     """Recommended AC timings for every room with a unit, both campuses.
@@ -2731,18 +2746,9 @@ def cached_ac_timings(day_iso):
     month = load_history(days=21)
     if month.empty:
         return []
-    first_day = min(t.date() for t in to_local(month["timestamp"]))
-    op_days = [d.strip().lower()[:3] for d in
-               (load_hours() or {}).get("operations", {}).get(
-                   "days", ["mon", "tue", "wed", "thu", "fri"])]
-    past, d = [], today - timedelta(days=1)
-    while len(past) < 10 and d >= first_day:
-        if DAY_NAMES[d.weekday()] in op_days:
-            past.append(d)
-        d -= timedelta(days=1)
-    if not past:
+    starts = past_workdays(today, month)
+    if not starts:
         return []
-    starts = [pd.Timestamp(x).tz_localize(PKT) for x in sorted(past)]
     seen = load_beats(starts[0] - pd.Timedelta(minutes=15),
                       starts[-1] + pd.Timedelta(days=1, minutes=15))
     read = campus_view.calibrated_counts()
@@ -2913,6 +2919,211 @@ def ac_timing_colours(mode):
     return {"text": TEXT, "muted": MUTED, "faint": FAINT, "line": LINE,
             "off": t["slot_empty"], "on": t["ink"]["Cool"]["bar"],
             "ran": t["ink"]["Amber"]["bar"], "surface": SURFACE}
+
+
+@st.cache_data(ttl=1800, show_spinner=False)
+def cached_seating(day_iso, now_iso=None):
+    """Desks against people, every space on the seating sheet.
+
+    Shamroze, 13 Nov: the admin team's seating sheet (desks per room, given
+    to somebody or not) against what the cameras counted, Envoy-style. Each
+    space's rooms minute by minute over the last ten working days, added
+    up where several cameras share the desks; each campus the same, every
+    watched space added up, for its busiest moment and the hour-by-hour
+    picture. Cached for half an hour: it walks every room through ten days.
+
+    Today counts too, up to now_iso, once half its office hours so far were
+    watched: 141's second floor was first watched on 12 Nov, and a page of
+    "not watched yet" until a whole day had passed was no use to anybody.
+    """
+    import day_story as ds
+    import seating
+    data = seating.load()
+    got = {"as_of": data["as_of"], "source": data["source"], "days": 0,
+           "campuses": {}}
+    if not data["spaces"]:
+        return got
+    today = pd.Timestamp(day_iso).date()
+    month = load_history(days=21)
+    starts = past_workdays(today, month) if not month.empty else []
+    hours = work_hours()
+    # Today, so far: its office hours end at now where now is earlier.
+    ends = [hours] * len(starts)
+    if now_iso and not month.empty:
+        here = pd.Timestamp(now_iso).tz_convert(PKT)
+        start = pd.Timestamp(today).tz_localize(PKT)
+        op_days = [d.strip().lower()[:3] for d in
+                   (load_hours() or {}).get("operations", {}).get(
+                       "days", ["mon", "tue", "wed", "thu", "fri"])]
+        so_far = (here - start).total_seconds() / 3600.0
+        if DAY_NAMES[today.weekday()] in op_days and so_far > hours[0] + 1:
+            starts.append(start)
+            ends.append((hours[0], min(hours[1], so_far)))
+    seen = load_beats(starts[0] - pd.Timedelta(minutes=15),
+                      starts[-1] + pd.Timedelta(days=1, minutes=15)) \
+        if starts else []
+    by_room = ({n: r.sort_values("timestamp") for n, r in month.groupby("room")}
+               if not month.empty else {})
+    none = month.iloc[0:0]
+    cache = {}
+
+    def room_days(name):
+        if name not in cache:
+            mine = by_room.get(name, none)
+            cache[name] = [ds.by_minute(ds.spells(
+                mine, s0, s0 + pd.Timedelta(days=1), seen), s0)
+                for s0 in starts]
+        return cache[name]
+
+    got["days"] = len(starts)
+    for camp in sorted({s["campus"] for s in data["spaces"]}):
+        items, totals = [], []
+        for sp in data["spaces"]:
+            if sp["campus"] != camp:
+                continue
+            it = dict(sp, summary=None)
+            if sp["rooms"] and starts:
+                per_day = [seating.combined([room_days(r)[k]
+                                             for r in sp["rooms"]])
+                           for k in range(len(starts))]
+                it["summary"] = seating.summary(
+                    [seating.day_figures(m, e) for m, e in zip(per_day, ends)])
+                totals.append(per_day)
+            items.append(it)
+        heat_rows, fig = [], None
+        if totals:
+            watched = sum(i["seats"] for i in items if i["rooms"])
+            whole = [seating.combined([t[k] for t in totals])
+                     for k in range(len(starts))]
+            fig = seating.summary([seating.day_figures(m, e)
+                                   for m, e in zip(whole, ends)])
+            for s0, m, e in zip(starts, whole, ends):
+                values = seating.hourly(m, e)
+                if any(v is not None for v in values):
+                    heat_rows.append(("Today" if s0.date() == today
+                                      else s0.strftime("%a %d"), watched,
+                                      values))
+        got["campuses"][camp] = (items, heat_rows, fig)
+    return got
+
+
+def seating_colours(mode):
+    t = THEMES[mode]
+    ink = t["ink"]
+    dark = mode == "dark"
+    return {"text": TEXT, "muted": MUTED, "faint": FAINT, "line": LINE,
+            "surface": SURFACE, "track": t["sunken"],
+            "track_dark": t["slot_unknown"], "given": t["slot_unknown"],
+            "peak": "#1c5cab" if dark else "#9ec5f4",
+            "mean": "#6da7ec" if dark else "#2a78d6",
+            "unwatched": t["slot_none"],
+            # Numbers on the heatmap: light on the dark steps, dark on the
+            # light ones, whichever way round the ramp runs.
+            "cell_ink": (["#f0efec"] * 4 + ["#0b0b0b"] * 2) if dark
+            else (["#0b0b0b"] * 3 + ["#ffffff"] * 3),
+            "tones": {k: (ink[v]["bg"], ink[v]["fg"]) for k, v in (
+                ("empty", "Red"), ("low", "Amber"), ("half", "Fault"),
+                ("good", "Green"), ("over", "Cool"), ("unwatched", "Fault"))}}
+
+
+def live_people():
+    """People in each room this minute, where the loop is reporting."""
+    out = {}
+    if not healthy:
+        return out
+    for _, r in everything.iterrows():
+        if r["status"] == "occupied":
+            p = r.get("people")
+            out[r["room"]] = int(p) if p == p and p is not None else 1
+        elif r["status"] == "empty":
+            out[r["room"]] = 0
+    return out
+
+
+def seating_items(items, rooms_cfg, live):
+    """The cached items, with today's verdict, AC and people now."""
+    import seating
+    cfg = rooms_cfg.set_index("room")
+    out = []
+    for it in items:
+        it = dict(it, verdict=seating.verdict(it["summary"], it["seats"]))
+        mine = [r for r in it["rooms"] if r in cfg.index]
+        units = sum(int(cfg.at[r, "ac_count"] or 0) for r in mine
+                    if cfg.at[r, "has_unit"])
+        tons = [cfg.at[r, "tons_total"] for r in mine if cfg.at[r, "has_unit"]]
+        if units:
+            known = all(t == t and t is not None for t in tons)
+            it["ac"] = "%d AC%s cooling these desks" % (
+                units, (" · %s ton" % ("%g" % sum(tons))) if known else "")
+        now = [live.get(r) for r in it["rooms"]]
+        it["now"] = sum(now) if now and all(n is not None for n in now) \
+            else None
+        out.append(it)
+    return out
+
+
+def seating_button(mode):
+    """On the front page: the way in to desks and how full they are."""
+    import seating
+    data = seating.load()
+    if not data["spaces"]:
+        return ""
+    seats = sum(s["seats"] for s in data["spaces"])
+    given = sum(s["allocated"] for s in data["spaces"])
+    live = live_people()
+    watched = [s for s in data["spaces"] if s["rooms"]]
+    now = [live.get(r) for s in watched for r in s["rooms"]]
+    known = [n for n in now if n is not None]
+    note = ("%d desks, %d%% given to somebody" % (
+        seats, round(100.0 * given / seats))) if seats else ""
+    if known:
+        note = "%d people at their desks now &middot; %s" % (sum(known), note)
+    href = overview.link(dict(LINK_BASE, campus=None), only="seats")
+    return ('<div class="ec"><a target="_self" class="ec-acbtn" href="%s" '
+            'style="margin-top:10px;border-color:%s;background:linear-'
+            'gradient(90deg,rgba(57,135,229,.10),rgba(154,153,143,.08))">'
+            '<i>&#129681;</i><b>Desks &amp; space</b><span>%s &rarr;</span>'
+            '</a></div>' % (overview.esc(href), LINE, note))
+
+
+def show_seating(mode, today, campus=None):
+    """Desks against people (Shamroze, 13 Nov: the seating sheet, Envoy's
+    workplace utilization from the cameras). Both campuses from the front
+    page; one from its own tab."""
+    import seating
+    if campus is None:
+        back = overview.link(dict(LINK_BASE, campus=None))
+        st.markdown(
+            overview.css(mode) + '<div class="ec"><div class="ec-h"><span '
+            'class="t">Desks &amp; space</span><span class="c">both campuses'
+            '</span><a target="_self" class="ec-back" href="%s">&larr; both '
+            'campuses</a></div></div>' % overview.esc(back),
+            unsafe_allow_html=True)
+    try:
+        got = cached_seating(today.isoformat(),
+                             _to_5min(now).floor("30min").isoformat())
+    except psycopg2.Error as e:
+        st.error("Could not read the rooms (%s)." % type(e).__name__)
+        return
+    if not got["campuses"]:
+        st.info("No seating sheet yet: seating.yaml has no desks.")
+        return
+    rooms_cfg = load_rooms_config()
+    live = live_people()
+    blocks = []
+    for camp, (items, heat_rows, fig) in sorted(got["campuses"].items()):
+        if campus and camp != campus:
+            continue
+        blocks.append((camp, seating_items(items, rooms_cfg, live),
+                       heat_rows, fig))
+    if not blocks:
+        st.info("The seating sheet has no desks on this campus yet.")
+        return
+    st.markdown(seating.page(
+        blocks, seating_colours(mode),
+        seating.RAMP_DARK if mode == "dark" else seating.RAMP_LIGHT,
+        work_hours(), got["as_of"], got["source"], got["days"]),
+        unsafe_allow_html=True)
 
 
 def _to_5min(t):
@@ -4343,6 +4554,11 @@ if campus is None:
         show_ac_timings(mode, now.tz_convert(PKT).date())
         _BOOT.empty()
         st.stop()
+    if st.query_params.get("only") == "seats":
+        # ---- one click from the front door: desks and how full -----------
+        show_seating(mode, now.tz_convert(PKT).date())
+        _BOOT.empty()
+        st.stop()
     # ---- the front door: both campuses, each a way in --------------------
     # st.markdown, not st.html: st.html sanitises every SVG away, which
     # took the charts, the strips and the company mark with it.
@@ -4352,6 +4568,8 @@ if campus is None:
                 unsafe_allow_html=True)
     # Under the people and the campuses (Shamroze, 13 Nov).
     st.markdown(ac_timings_button(mode), unsafe_allow_html=True)
+    # And the desks (13 Nov: the seating sheet against the cameras).
+    st.markdown(seating_button(mode), unsafe_allow_html=True)
     _BOOT.empty()
     st.stop()
 
@@ -4365,7 +4583,9 @@ st.markdown(overview.campus_head({"name": campus}, campuses, mode,
 # Five in a row across the top -- the ones people open -- and the rest behind
 # "More". A click on a room anywhere is a link carrying its name, and lands on
 # One room.
-PRIMARY = ["Overview", "Who comes when", "Rooms", "Empty time", "Energy"]
+# "Desks" (13 Nov): the seating sheet against the cameras, Envoy-style.
+PRIMARY = ["Overview", "Who comes when", "Rooms", "Desks", "Empty time",
+           "Energy"]
 SECONDARY = ["One room", "Camera health", "Look at the rooms",
              "Numbers & history"]
 VIEWS = PRIMARY + SECONDARY
@@ -4467,6 +4687,11 @@ if view == "Overview":
                 unsafe_allow_html=True)
     st.markdown(overview.campus_body(figures, mode, LINK_BASE, tariff=win),
                 unsafe_allow_html=True)
+    _BOOT.empty()
+    st.stop()
+
+if view == "Desks":
+    show_seating(mode, now.tz_convert(PKT).date(), campus)
     _BOOT.empty()
     st.stop()
 

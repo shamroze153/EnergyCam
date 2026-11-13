@@ -47,7 +47,15 @@ Tests: `python test_room_loop.py`, `test_overview.py`, `test_energy.py`,
 `test_integration.py`, `test_audit.py`, `test_ac_detect.py`,
 `test_meters.py`, `test_analysis.py`, `test_alerts.py`, `test_empty.py`,
 `test_live_ac.py`, `test_floors.py`, `test_energy_rooms.py`, `test_seats.py`,
-`test_ac_plan.py`.
+`test_ac_plan.py`, `test_seating.py`.
+
+Desks (13 Nov): `seating.yaml` holds the admin team's seating sheet as
+counts only -- desks per room, how many given to somebody, by team -- and
+which camera rooms see them (`rooms:`). The sheet itself has people's
+names: never commit it, never copy a name into the repo. To refresh,
+download its "seating" tab as CSV and run `python import_seating.py
+<file.csv>`, then delete the CSV. The dashboard's "Desks" tab (and "Desks &
+space" on the front page) puts the cameras' head counts against it.
 
 Where people sit: the loop writes each counted person's place to
 `seats/<date>.csv` (numbers only, this machine only). `python seat_map.py`

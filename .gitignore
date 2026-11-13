@@ -68,5 +68,11 @@ seats.txt
 frames/
 *.zip
 
+# The admin team's seating sheet as downloaded: people's names and codes.
+# import_seating.py takes the counts out of it into seating.yaml.
+*seating*.csv
+*Seating*.csv
+Claude support sheet*
+
 # this laptop's own Claude settings (paths with the user's name in them)
 .claude/
