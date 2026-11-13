@@ -469,3 +469,16 @@ Two or three lines a round; picture file names, never pictures.
   are real visitors (0.67-0.88; cooled on purpose anyway), the Meeting
   Room Lobby's too (0.85-0.90); 141 Reception Roof has a small thing at
   0.34 on ch 14 -- outdoors, no unit, left. Nothing changed, no restart.
+* 17:00-18:45 Desks: the admin team's seating sheet into seating.yaml,
+  counts only (701 desks, 399 given; no names), and a Desks tab. Shamroze
+  matched 141-D: Finance is Room 19, HR Rooms 17-18, the data centre
+  Rooms 15-16 (none of its desks given, whatever the sheet says -- an
+  `override:`). Loop restarted 18:18 for Finance and the data centre's
+  `building:`; one loop running.
+* 18:47 round: 123 rooms, 2 GHOST, 1 MISSED, 2 FAINT, 7 DRIFT; nothing
+  with a unit. Attendance Machine H and P3 Parking show nobody (a pass
+  behind, no unit); the Pantry miss is a real person just in (0.89).
+  Room 17 (47 desks, never more than 5 seen): its three cameras see most
+  desks and the chairs really are empty -- the low count is real. But
+  xvr3 ch 8 is hazy (lens dirty or misted): on the list for Shamroze's
+  morning camera fixes. Nothing changed, no restart.

@@ -49,6 +49,22 @@ it here. Shamroze reads the morning summary in Roman Urdu.
 - [ ] Names for cd_nvr4:17 (corridor), :26 (outside lane, guard), :31
       (pantry/kitchen); :30 duplicates the cafe's cd_nvr1:14. Asked.
 
+## Added 13 Nov evening (the seating sheet, Desks page)
+
+- [x] 18:47 Room 17: the sheet has 24 of its 47 desks given, the cameras
+      never saw more than 5 at once. Its three cameras see most desks and
+      the chairs were empty: the count is real. xvr3 ch 8 is hazy.
+- [ ] For Shamroze's morning (13 Nov, "send me a picture of which camera
+      frames to fix, I will do it myself"): a contact sheet of the cameras
+      to clean or turn, each with what is wrong -- local, sent with
+      SendUserFile, never in git. So far: 140-H xvr3 ch 8 (Room 17) hazy.
+      Add to it each round.
+- [ ] Seat map for 13 Nov (`python seat_map.py`, after 20:00 -- it opens
+      cameras, and the gym is private until then): which desks were used,
+      against the Desks page's counts. Local only.
+- [ ] 140-H rooms on the sheet with no camera room yet: R4, R11, R12,
+      R14, R15, 19A/19B (asked Shamroze).
+
 Rules that hold all night: the 141 gym's camera is never opened 15:00-20:00;
 no picture into git; no recorder settings; no retried logins (XVR 2 and 4
 are IP conflicts, the DVR is on another network -- leave them).
