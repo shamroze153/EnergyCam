@@ -22,6 +22,8 @@ the room. Prices are the marginal rate, peak and off-peak by the clock.
 Only watched time is counted: a stretch the loop was not running is left
 out, not assumed. No Streamlit and no database: frames in, figures out.
 """
+from bisect import bisect_right
+
 import pandas as pd
 
 import analysis_view as av
@@ -133,6 +135,11 @@ def room_day(events, row, start, end, alive, read, rates, window, beats,
     read = max(0, min(int(read or 0), count))
     acc = _Sum()
     on_min = empty_on_min = 0.0
+    # In a part-read room, the minutes the units nobody reads are taken to
+    # run, kept apart: their rupees are in the totals, and a page that showed
+    # those rupees beside the read units' minutes alone would say "nobody in
+    # under a minute, Rs 134 wasted" (the cafe, 13 Nov).
+    part_on_min = part_empty_min = 0.0
     if not row.get("alerts", True):
         basis = ALWAYS
         for x, y in _alive_parts(start, end, alive):
@@ -169,6 +176,10 @@ def room_day(events, row, start, end, alive, read, rates, window, beats,
                             on_min += m
                             if status == "empty":
                                 empty_on_min += m
+                        else:
+                            part_on_min += m
+                            if status == "empty":
+                                part_empty_min += m
     tons = row.get("tons_total")
     return {"room": row["room"], "floor": _text(row.get("floor")),
             "building": building(row), "campus": _text(row.get("campus")),
@@ -178,8 +189,67 @@ def room_day(events, row, start, end, alive, read, rates, window, beats,
             "sizes": _text(row.get("ac_sizes")),
             "basis": basis,
             "on_h": on_min / 60.0, "empty_on_h": empty_on_min / 60.0,
+            "assumed_on_h": part_on_min / 60.0,
+            "assumed_empty_on_h": part_empty_min / 60.0,
             "kwh": acc.kwh, "rs": acc.rs, "waste_kwh": acc.waste_kwh,
             "waste_rs": acc.waste_rs, "measured_kwh": acc.measured_kwh}
+
+
+# One room's day slot by slot, for the line under its people (Shamroze, 13
+# Nov: "I can't tell whether the AC was running or off while the room sat
+# empty -- how do I judge how long the power was wasted?").
+ON, WASTE, OFF, UNREAD = "on", "waste", "off", "unread"
+ASSUMED_ON, ASSUMED_WASTE, ASSUMED_OFF = ("assumed", "assumed_waste",
+                                          "assumed_off")
+
+
+def ac_slots(events, row, read, since, now, until, slots, alive, beats=None):
+    """The room's AC in each of `slots` equal slots of [since, until).
+
+    Where a camera reads a unit: ON (running, people in), WASTE (running,
+    nobody in), OFF, or UNREAD (no reading). Where none does: ASSUMED_ON /
+    ASSUMED_WASTE inside the stretch it is taken to run (as room_day takes
+    it), ASSUMED_OFF outside it. A room cooled round the clock is ON. None
+    where the loop was not watching, "later" for a slot still to come, and
+    [] for a room with no unit at all.
+    """
+    if not row.get("has_unit"):
+        return []
+    mine = events[events["room"] == row["room"]].sort_values("timestamp")
+    stamps = mine["timestamp"].tolist()
+    status = mine["status"].tolist()
+    ac = (mine["ac_state"].tolist() if "ac_state" in mine
+          else [None] * len(stamps))
+    always = not row.get("alerts", True)
+    runs = []
+    if not always and not read:
+        runs = sessions(ds.spells(mine, since, min(now, until), beats), since)
+    step = (until - since) / slots
+    out = []
+    for k in range(slots):
+        t = since + step * k
+        if t >= now:
+            out.append("later")
+            continue
+        i = bisect_right(stamps, t) - 1
+        if i < 0 or not any(a <= t < b for a, b in alive):
+            out.append(None)
+            continue
+        if always:
+            out.append(ON)
+            continue
+        empty = status[i] == "empty"
+        if read:
+            state = ac[i] if isinstance(ac[i], str) else None
+            out.append((WASTE if empty else ON) if state == "on"
+                       else OFF if state == "off" else UNREAD)
+        elif status[i] not in ("occupied", "empty"):
+            out.append(None)
+        elif any(a <= t < b for a, b in runs):
+            out.append(ASSUMED_WASTE if empty else ASSUMED_ON)
+        else:
+            out.append(ASSUMED_OFF)
+    return out
 
 
 def building(row):

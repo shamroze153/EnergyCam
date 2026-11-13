@@ -1092,6 +1092,123 @@ def people_strip(people, since, mode, height=26):
            key))
 
 
+# The AC line under the people line (Shamroze, 13 Nov: "I can't tell whether
+# the AC was running or off while the room sat empty -- how do I judge how
+# long the power was wasted?"). Blue running with people in; running with
+# nobody in is red in stripes -- the "go and switch it off" red, striped so it
+# never reads as the one-person red of the line above; grey off. Where no
+# camera reads the unit the same colours come paler: the energy figures'
+# assumption (on from settling in to the last one leaving), shown as one.
+def ac_inks(mode):
+    t = THEMES.get(mode, THEMES["dark"])
+    cool, crit = t["ink"]["Cool"]["bar"], t["rank_bar"]
+    return {"on": (cool, 1.0), "waste": ("url(#acw)", 1.0),
+            "off": (t["slot_empty"], 1.0), "unread": (t["slot_unknown"], 1.0),
+            "assumed": (cool, 0.42), "assumed_waste": ("url(#acw)", 0.45),
+            "assumed_off": (t["slot_empty"], 1.0)}, crit
+
+
+AC_WHAT = {"on": "AC running, people in", "waste": "AC running, nobody in",
+           "off": "AC off", "unread": "AC not read",
+           "assumed": "AC taken as running, people in",
+           "assumed_waste": "AC taken as running, nobody in",
+           "assumed_off": "AC taken as off"}
+
+
+def ac_strip(slots, since, mode, basis, read, count, height=16):
+    """The room's AC over the same day as people_strip, slot for slot."""
+    import energy_rooms as er
+    if not slots:
+        return ""
+    t = THEMES.get(mode, THEMES["dark"])
+    inks, crit = ac_inks(mode)
+    start = since.tz_convert("Asia/Karachi")
+    rects = []
+    for i, s in enumerate(slots):
+        at = (start + pd.Timedelta(minutes=5 * i)).strftime("%I:%M %p")
+        if s == "later":
+            fill, op, what = t["page"], 1.0, "not yet"
+        elif s is None:
+            fill, op, what = NO_DATA, 1.0, "not watched"
+        else:
+            (fill, op), what = inks[s], AC_WHAT[s]
+        rects.append('<rect x="%d" y="0" width="1.02" height="6" fill="%s" '
+                     'fill-opacity="%.2f"><title>%s · %s</title></rect>'
+                     % (i, fill, op, at.lstrip("0"), what))
+    first_later = next((i for i, s in enumerate(slots) if s == "later"), None)
+    now_mark = ('<rect x="%.2f" y="0" width="0.6" height="6" fill="%s"/>'
+                % (first_later, t["text"]) if first_later else "")
+    svg = ('<svg viewBox="0 0 %d 6" preserveAspectRatio="none" style="width:'
+           '100%%;height:%dpx;border-radius:5px;display:block;border:1px solid '
+           '%s;box-sizing:border-box"><defs><pattern id="acw" width="3" '
+           'height="6" patternUnits="userSpaceOnUse" patternTransform='
+           '"rotate(35)"><rect width="3" height="6" fill="%s"/><rect width="1.1"'
+           ' height="6" fill="%s" fill-opacity=".55"/></pattern></defs>%s%s'
+           '</svg>' % (len(slots), height, t["line"], crit, t["page"],
+                       "".join(rects), now_mark))
+    if basis == er.ALWAYS:
+        how = "cooled round the clock on purpose"
+    elif basis == er.ASSUMED:
+        how = ("no camera reads its unit &mdash; taken as running from when "
+               "people settle in to when the last one leaves")
+    elif read < count:
+        how = ("a camera reads %d of its %d units; the line is theirs"
+               % (read, count))
+    else:
+        how = "read off the unit by the camera"
+    swatch = ('<span style="display:inline-flex;align-items:center;gap:5px">'
+              '<svg width="14" height="10" style="border-radius:2px;box-shadow:'
+              'inset 0 0 0 1px %s"><rect width="14" height="10" fill="%s" '
+              'fill-opacity="%.2f"/></svg>%s</span>')
+    pale = basis == er.ASSUMED
+    key = "".join(swatch % (t["line"], f, o, label) for f, o, label in [
+        (inks["assumed" if pale else "on"][0],
+         inks["assumed" if pale else "on"][1], "running, people in"),
+        (crit, 0.45 if pale else 1.0, "running, nobody in"),
+        (t["slot_empty"], 1.0, "off"),
+    ] + ([] if pale or basis == er.ALWAYS else
+         [(t["slot_unknown"], 1.0, "not read")]))
+    return (
+        '<div style="display:flex;align-items:baseline;gap:8px;margin:12px 0 '
+        '4px;font-size:.78rem"><b style="color:%s">AC</b><span style="color:'
+        '%s">%s</span></div>%s<div style="display:flex;flex-wrap:wrap;'
+        'gap:14px;font-size:.7rem;color:%s;margin-top:6px">%s</div>'
+        % (t["text"], t["muted"], how, svg, t["muted"], key))
+
+
+def ac_day_figures(r):
+    """Today's AC in three cards: how long it ran, how long nobody was in,
+    and what that cost -- the answer to "how long was power wasted"."""
+    if not r:
+        return ""
+    busy = max(0.0, r["on_h"] - r["empty_on_h"])
+    unseen = r["units"] - r["read"]
+    if r["read"] and unseen:
+        # Part read: the cards say whose minutes they are, and the units
+        # nobody reads get their own line, so the rupees add up in words.
+        ran_note = ("the %d read unit%s · the other %d taken as on %s"
+                    % (r["read"], "" if r["read"] == 1 else "s", unseen,
+                       spell(r.get("assumed_on_h", 0) * 60)))
+        empty_note = ("the read units · and %s for the %d no camera reads"
+                      % (spell(r.get("assumed_empty_on_h", 0) * 60), unseen))
+    else:
+        ran_note = "today so far · %s with people in" % spell(busy * 60)
+        empty_note = "could have been off"
+    empty_h = r["empty_on_h"]
+    return (
+        '<div style="display:flex;gap:11px;flex-wrap:wrap;margin:10px 0 4px;">'
+        '%s%s%s</div>' % (
+            figure_row("AC ran", spell(r["on_h"] * 60), ran_note),
+            figure_row("With nobody in", spell(r["empty_on_h"] * 60),
+                       empty_note,
+                       tone=RANK_BAR if empty_h >= 0.25 else None),
+            figure_row("Wasted", "Rs %s" % format(int(round(r["waste_rs"])),
+                                                  ","),
+                       "of Rs %s for the AC today"
+                       % format(int(round(r["rs"])), ","),
+                       tone=RANK_BAR if r["waste_rs"] >= 1 else None)))
+
+
 def strip_svg(slots, height=7, radius=3):
     rects = "".join(
         '<rect x="%d" y="0" width="1" height="6" fill="%s"/>'
@@ -1658,6 +1775,39 @@ def against_baseline(history, rooms, now, assumptions):
     return money(before - after, assumptions)[1], span, True
 
 
+def room_ac_today(row, chosen, midnight, now, mode):
+    """The AC line under a room's people, and today's AC figures under it:
+    how long it ran, how long with nobody in, and what that cost. The same
+    reckoning as Energy's room ledger, for this one room."""
+    if not row.get("has_unit"):
+        return ""
+    import analysis_view as av
+    import campus_view
+    import empty_view as evw
+    import energy_rooms as er
+    end = _to_5min(now)
+    try:
+        events = load_events_between(midnight, end)
+        day_beats = load_beats(midnight - evw.VOUCH, end + evw.VOUCH)
+    except psycopg2.Error:
+        return ""
+    read = campus_view.calibrated_counts().get(chosen, 0)
+    alive = evw.watched(day_beats, midnight, now)
+    slots = er.ac_slots(events, row, read, midnight, now,
+                        midnight + pd.Timedelta(days=1), 288, alive,
+                        day_beats)
+    a = load_assumptions()
+    rates = (float(a.get("tariff_rs_per_kwh", 67) or 67),
+             float(a.get("peak_rs_per_kwh", 81) or 81))
+    today = er.room_day(events[events["room"] == chosen], row, midnight, now,
+                        alive, read, rates, av.peak_window(a), day_beats,
+                        float(a.get("ac_duty", 1.0) or 1.0))
+    count = int(row.get("ac_count") or 1)
+    basis = today["basis"] if today else er.ASSUMED
+    return (ac_strip(slots, midnight, mode, basis, read, count)
+            + ac_day_figures(today))
+
+
 def show_room_day(df, recent, chosen, now):
     """One room: today in detail, then its habits over the week."""
     row = df[df["room"] == chosen].iloc[0]
@@ -1726,7 +1876,9 @@ def show_room_day(df, recent, chosen, now):
                        av.peak_window(load_assumptions()))
         + people_strip(slot_people(recent, chosen, now, 288, midnight,
                                    midnight + pd.Timedelta(days=1)),
-                       midnight, theme_now), unsafe_allow_html=True)
+                       midnight, theme_now)
+        + room_ac_today(row, chosen, midnight, now, theme_now),
+        unsafe_allow_html=True)
 
     if not busy.empty:
         by_hour = busy.copy()

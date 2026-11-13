@@ -120,6 +120,34 @@ def main():
     check("part read: only the measured part counts as measured",
           round(r["measured_kwh"], 2), 2.4)
     check("part read: badge", er.badge(r), "read 1 of 3")
+    check("part read: the assumed units' hours kept apart",
+          (round(r["on_h"], 2), round(r["assumed_on_h"], 2)), (2.0, 6.0))
+
+    # The AC line under a room's people, slot by slot (Shamroze, 13 Nov:
+    # "was the AC running or off while it sat empty?"). Hourly slots here.
+    s = er.ac_slots(cafe, room("Cafe", 6), 6, START, at(16), END, 24, ALIVE)
+    check("read: off before ten", s[9], er.OFF)
+    check("read: running with people in", s[10], er.ON)
+    check("read: running with nobody in is waste", s[14], er.WASTE)
+    check("read: off again after three", s[15], er.OFF)
+    check("read: still to come after now", s[16], "later")
+    unread = events("Cafe", [(at(0), "empty", 0, None, None)])
+    check("read room, no reading: not read, never off",
+          er.ac_slots(unread, room("Cafe"), 1, START, at(16), END, 24,
+                      ALIVE)[5], er.UNREAD)
+    s = er.ac_slots(hr, room("HR", 2), 0, START, at(23), END, 24, ALIVE)
+    check("assumed: on while people are in", s[10], er.ASSUMED_ON)
+    check("assumed: the lunch hour inside the stretch is waste", s[13],
+          er.ASSUMED_WASTE)
+    check("assumed: the cleaner's round switches nothing on", s[21],
+          er.ASSUMED_OFF)
+    check("assumed: off before anybody came", s[8], er.ASSUMED_OFF)
+    gap = [(START, at(12)), (at(14), END)]
+    s = er.ac_slots(cafe, room("Cafe", 6), 6, START, at(16), END, 24, gap)
+    check("a stretch nobody watched is blank, not off", s[12], None)
+    check("a room with no unit has no AC line",
+          er.ac_slots(cafe, {"room": "Lobby", "has_unit": False}, 0, START,
+                      at(16), END, 24, ALIVE), [])
 
     # A server room: cooled all day on purpose.
     dc = events("DC", [(at(0), "empty", 0, None, None)])
