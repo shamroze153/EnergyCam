@@ -537,3 +537,7 @@ Two or three lines a round; picture file names, never pictures.
   the camera wants tilting down (on the morning camera list). Wellows
   ch 16's dark shape by the door 0.29 once: left. Tests green, pushed,
   loop restarted.
+* 01:20 141 Admin Room, Basement and MR01 empty since the restart. 141
+  IT Sub Store "1" again at 01:13: faint things on ch 13 and ch 20, 0.26-
+  0.42 all night, nobody on its cameras at 20:45 or 23:20; its people by
+  day 0.60-0.86 -- conf_after_hours 0.45 for the room. Restarted.

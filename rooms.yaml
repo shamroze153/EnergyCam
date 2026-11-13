@@ -1896,6 +1896,13 @@ rooms:
     floor: Ground floor
     ac_tons: [1.5]                # Dawlance
     empty_after_minutes: 45
+    # 13-14 Nov night: "1" on and off from 19:27 to past 01:00, from faint
+    # things on ch 13 (0.27-0.39, a 110x141 box at x 310, y 422) and ch 20
+    # (0.26-0.42, two spots on the left); nobody on any of the four
+    # cameras at 20:45 (audit GHOST) or 23:20 (check_room, no detection).
+    # People here by day scored 0.60-0.86 on ch 13. A stricter bar at
+    # night only, for the room.
+    conf_after_hours: 0.45
 
   - name: 141 MR 01 (1st floor)
     dept: Meeting rooms
