@@ -1727,6 +1727,15 @@ rooms:
     recorder: cd_xvr3
     # Three angles on one room (Shamroze).
     channels: [2, 6, 7]
+    # 13 Nov 06:48 audit GHOST: dark marks on the left wall of ch 7, one
+    # shaped like a head and shoulders, read as a person all night (0.26-
+    # 0.44, 21 passes at the same 72x90 box; frames/verify/ghost_141_Room
+    # _6__ground_floor__ch07_cd_xvr3_0648.jpg). A wall above the desk:
+    # nobody sits there, and a person at the desk is far bigger than these.
+    ignore:
+      7:
+        - [312, 465, 410, 585]   # wall mark, 0.26-0.44
+        - [205, 280, 335, 440]   # the mark above it, 0.27-0.35
     ac: hidden
     empty_after_minutes: 45
 
@@ -2109,9 +2118,15 @@ rooms:
     private_hours: ["15:00", "20:00"]
     # 12 Nov 00:15 night check: the running figure on the "Challenge
     # yourself" wall poster read as a person at 0.34. A poster on a wall.
+    # 13 Nov 06:48 audit GHOST: weight plates on a machine at the back,
+    # 0.38-0.56, 40 times tonight in the same 33x48 box (frames/verify/
+    # ghost_141_Gym_ch07_cd_nvr2_0648.jpg, 06:46, outside ladies' hours).
+    # Tight round the plates: someone on that machine is a box several
+    # times this size and is still counted.
     ignore:
       7:
         - [286, 42, 330, 96]   # poster figure, 0.34
+        - [222, 108, 272, 172]   # weight plates, 0.38-0.56
 
   - name: 141-C Genset
     dept: Facilities
