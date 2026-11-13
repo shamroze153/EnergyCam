@@ -379,3 +379,10 @@ Two or three lines a round; picture file names, never pictures.
   in, grey off, dark grey not read; paler where it is assumed), and three
   cards: how long it ran, how long with nobody in, Rs wasted. A 20-second
   live watch of the cafe runs to 11:21 for the sixth tower's switch.
+* 10:40 Shamroze: why "not read" for the cafe all night? Two faults. At
+  20:45 the lights changed round towers 2 and 3 (match 0.17-0.31) and the
+  whole room was refused as "camera moved", though 1, 4, 5 matched; now
+  only the astray units go unread. And from 07:14 the loop read all five
+  off (units 0, room unknown for the sixth) and the AC line drew that as
+  not read; now it is off. Loop restarted 10:39. Last night's rows stay as
+  written; tonight should read three towers.
