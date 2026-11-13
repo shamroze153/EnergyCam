@@ -451,3 +451,8 @@ Two or three lines a round; picture file names, never pictures.
   plain words (night, arriving, working hours, going home, after hours --
   "1 AC 10am-12pm -> 2 AC 12pm-3pm -> ..."), the bars behind "Details".
   Three tiles above: the day's saving, the rooms, the room that saves most.
+* 15:30 round: 87 MATCH, 0 MISSED, 6 GHOST; the gym not opened (ladies'
+  hours). 141 Room 21 ch 23: a black bin under the counter counted 74
+  times today, 00:00-15:38 -> a tight zone (74 of 75 notes go, ch 24's
+  people stay). The rest were people just gone or outdoors. Loop
+  restarted 15:42.
