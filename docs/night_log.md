@@ -402,3 +402,15 @@ Two or three lines a round; picture file names, never pictures.
   was refused); kept pictures read them now as off, but rows already
   written stay. Tonight the lights will still put towers 2, 3 and 6 astray,
   and 1, 4, 5 read. "not read" renamed "unit unreadable (camera on)".
+* 11:30 Shamroze: confirm the units stay readable at night, when nobody is
+  there to look. Not yet: last night's rows show Finance Room, Room 32 and
+  Room 27 unread from about 01:00 to 07:00, and the night audits' pictures
+  say why -- those cameras switch to infrared when the lights go off, and
+  every calibration but Admin Room's is colour-only (Admin Room is the
+  reverse: infrared-only, so colour evenings are refused). Each needs a
+  night calibration: one on/off in the dark. Asked for.
+* 11:30 Multi-camera rooms: the recorders' channel names are all defaults
+  (read once each, read-only), so Shamroze's names live in his viewer.
+  Every live channel is in a room except cd_nvr4:17 (a corridor), :26 (an
+  outside lane with a guard), :31 (a pantry/kitchen) and :30, a duplicate
+  of the cafe's cd_nvr1:14. Names asked for.
