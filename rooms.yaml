@@ -1579,6 +1579,15 @@ rooms:
     zone: Offices
     recorder: cd_nvr1
     channels: [23, 24]
+    # 13 Nov 15:31 audit GHOST, and the seat notes: a black bin on the floor
+    # under the right-hand counter of ch 23 read as one person 74 times
+    # today, from 00:00 to 15:38, always the same 47x84 box at 0.29-0.64
+    # (frames/verify/ghost_141_Room_21__1st_floor__ch23_cd_nvr1_1531.jpg).
+    # The floor under a counter: nobody sits there, and a person at that
+    # desk is a far bigger box and is still counted.
+    ignore:
+      23:
+        - [598, 340, 656, 438]   # the bin, 0.29-0.64
     ac: hidden
     empty_after_minutes: 45
 
