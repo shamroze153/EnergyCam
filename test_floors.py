@@ -39,6 +39,13 @@ def main():
     check("a 141 room on the ground floor says so",
           fv.floor_of({"room": "141 Room 7 (ground floor)"}),
           "Main building · Ground floor")
+    # 13 Nov survey: rooms.yaml can say the building where the name cannot.
+    check("rooms.yaml's building wins over the name",
+          fv.floor_of({"room": "141 Room 7 (ground floor)",
+                       "building": "141-D"}), "141-D · Ground floor")
+    check("  with its floor written out too",
+          fv.floor_of({"room": "141-C Cafe", "building": "141-C",
+                       "floor": "Ground floor"}), "141-C · Ground floor")
     check("under its floor's heading a room drops the floor from its name",
           fv.on_floor("141 Room 7 (ground floor)"), "Room 7")
     check("  and so does a numbered floor",

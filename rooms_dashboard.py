@@ -696,6 +696,11 @@ def load_rooms_config(path="rooms.yaml"):
             "campus": recorders[recorder].get("campus", "unknown"),
             "zone": room.get("zone", "Other"),
             "floor": room.get("floor"),
+            # Which of 141's buildings, where the name does not say: 141-D's
+            # ground-floor rooms are "141 Room 3 (ground floor)" and the
+            # like, named before the survey placed them (13 Nov). A name is
+            # the key of every row in the database, so it stays.
+            "building": room.get("building") or "",
             # Whose space it is. Empty when nobody has said; a blank rather
             # than None so that "dept or something" reads the same on every
             # row, and never NaN, which is true.

@@ -46,17 +46,25 @@ def floor_of(row):
     # NaN there, which is truthy: on 12 Nov the campus page had a floor
     # called "NAN" holding Commons and the lobbies.
     floor = row.get("floor")
-    if isinstance(floor, str) and floor.strip():
-        return floor.strip()
     name = str(row["room"])
+    building = row.get("building")
+    building = building.strip() if isinstance(building, str) else ""
+    if isinstance(floor, str) and floor.strip() and not building:
+        return floor.strip()
+    level = floor.strip() if isinstance(floor, str) and floor.strip() \
+        else None
     m = re.search(r"\((\d)(?:st|nd|rd|th) floor\)", name)
-    level = NUMBER.get(int(m.group(1))) if m else None
+    if level is None and m:
+        level = NUMBER.get(int(m.group(1)))
     # 141's XVR 3 rooms (12 Nov) are named "(ground floor)".
     if level is None and re.search(r"\(ground floor\)", name, re.I):
         level = "Ground floor"
-    if name.startswith("141"):
-        block = ("141-C" if name.startswith("141-C") else
-                 "141-D" if name.startswith("141-D") else "Main building")
+    # rooms.yaml's own `building` first (13 Nov: 141-D's ground floor rooms
+    # are named "141 Room 3 (ground floor)"), else the name's prefix.
+    if building or name.startswith("141"):
+        block = building or (
+            "141-C" if name.startswith("141-C") else
+            "141-D" if name.startswith("141-D") else "Main building")
         return "%s · %s" % (block, level) if level else block
     return level or "Not placed on a floor yet"
 

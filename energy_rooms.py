@@ -265,6 +265,8 @@ def ac_slots(events, row, read, since, now, until, slots, alive, beats=None):
 def building(row):
     """140-H, or which of 141's three buildings: the CEO's first question."""
     name = str(row.get("room") or "")
+    if _text(row.get("building")):
+        return _text(row.get("building"))      # rooms.yaml says (13 Nov)
     if name.startswith("141-C"):
         return "141-C"
     if name.startswith("141-D"):

@@ -209,6 +209,53 @@ unwatched_units:
     # Placed in IT Head Room until 12 Nov, when Shamroze found one 1.5 t
     # unit there: this is another room, and no camera sees it.
     ac_tons: [2, 1]
+  # 141's ground floors, Shamroze's survey 13 Nov. Rooms no camera sees
+  # yet ("we will get cameras on them later"): until then they are counted
+  # on the bill and in the campus totals, never read and never alerted on.
+  # A room that gets a camera moves up into rooms: with its units.
+  - campus: 141-C/D
+    place: 141-C Mosque (ground floor)
+    ac_tons: [1.5]                # Kenwood
+  - campus: 141-C/D
+    place: 141-C Ladies prayer area (ground floor)
+    ac_tons: [1]                  # Kenwood
+  - campus: 141-C/D
+    place: 141-C Reception (ground floor)
+    # The desk is seen through 141 Reception Meeting Room's ch 10 glass,
+    # but no room is mapped to it.
+    ac_tons: [1]                  # Haier
+  - campus: 141-C/D
+    place: 141-C Reception meeting room, the second (ground floor)
+    ac_tons: [1]                  # TCL
+  - campus: 141-C/D
+    place: 141-C Assembly area meeting room, the second (ground floor)
+    ac_tons: [1]                  # Haier
+  - campus: 141-C/D
+    place: 141-D R2 Security (ground floor)
+    ac_tons: [1]                  # Haier
+  - campus: 141-C/D
+    place: 141-D Admin UPS room (ground floor)
+    ac_tons: [1]                  # Haier
+  - campus: 141-C/D
+    place: 141-D Procurement room (ground floor)
+    ac_tons: [1]                  # Haier
+  - campus: 141-C/D
+    place: 141-D Room 4 (ground floor)
+    ac_tons: [1, 1]               # Kenwood x2
+  - campus: 141-C/D
+    place: 141-D R9 (ground floor)
+    ac_tons: [1.5]                # TCL
+  - campus: 141-C/D
+    place: 141-D R10 (ground floor)
+    ac_tons: [1]                  # TCL
+  - campus: 141-C/D
+    place: 141-D Waiting area (ground floor)
+    # Perhaps what 141 Lobby (ground floor)'s cameras see; that room has no
+    # unit written down, so the unit is kept here until that is settled.
+    ac_tons: [1]                  # TCL
+  - campus: 141-C/D
+    place: 141-D Tree room, meeting room (ground floor)
+    ac_tons: [2]                  # Kenwood
 
 recorders:
   # ------------------------------------------------------------ 141-C/D
@@ -1720,6 +1767,9 @@ rooms:
     recorder: cd_xvr3
     channels: [3]
     ac: hidden
+    # Survey 13 Nov (Shamroze): 141-D ground floor, "Room3: IT".
+    building: 141-D
+    ac_tons: [1, 1, 1]           # Kenwood 1 + Kenwood 1 + TCL 1
     empty_after_minutes: 45
 
   - name: 141 Room 5 (ground floor)
@@ -1728,6 +1778,9 @@ rooms:
     recorder: cd_xvr3
     channels: [5, 11]
     ac: hidden
+    # Survey 13 Nov (Shamroze): 141-D ground floor, "R5".
+    building: 141-D
+    ac_tons: [1, 1]              # TCL x2
     empty_after_minutes: 30
 
   - name: 141 Room 6 (ground floor)
@@ -1746,6 +1799,9 @@ rooms:
         - [312, 465, 410, 585]   # wall mark, 0.26-0.44
         - [205, 280, 335, 440]   # the mark above it, 0.27-0.35
     ac: hidden
+    # Survey 13 Nov (Shamroze): 141-D ground floor, "R6".
+    building: 141-D
+    ac_tons: [1, 1, 1, 1]        # Kenwood x2 + TCL x2
     empty_after_minutes: 45
 
   - name: 141 Room 7 (ground floor)
@@ -1754,6 +1810,9 @@ rooms:
     recorder: cd_xvr3
     channels: [1, 8]
     ac: hidden
+    # Survey 13 Nov (Shamroze): 141-D ground floor, "R7".
+    building: 141-D
+    ac_tons: [1, 1]              # Kenwood 1 + Haier 1
     empty_after_minutes: 45
 
   - name: 141 Room 8 (ground floor)
@@ -1763,6 +1822,10 @@ rooms:
     channels: [4, 13]
     # visible: a split unit at the top right of ch 13.
     ac: visible
+    # Survey 13 Nov (Shamroze): 141-D ground floor, "R8": two units, so
+    # the one on ch 13 is half the room until the other is found.
+    building: 141-D
+    ac_tons: [1, 1]              # Kenwood x2
     empty_after_minutes: 30
 
   - name: 141 Room 11 (ground floor)
@@ -1771,6 +1834,9 @@ rooms:
     recorder: cd_xvr3
     channels: [9]
     ac: hidden
+    # Survey 13 Nov (Shamroze): 141-D ground floor, "R11".
+    building: 141-D
+    ac_tons: [1.5, 1.5, 1.5, 1.5, 1]   # TCL 1.5, Haier 1.5, Kenwood 1.5 x2, TCL 1
     empty_after_minutes: 45
 
   - name: 141 Lobby (ground floor)
@@ -1798,6 +1864,10 @@ rooms:
     # calibrate on.
     channels: [13, 18, 20, 32]
     ac: visible
+    # Survey 13 Nov: 141-C ground floor, "IT Store", one Dawlance 1.5 ton.
+    building: 141-C
+    floor: Ground floor
+    ac_tons: [1.5]                # Dawlance
     empty_after_minutes: 45
 
   - name: 141 MR 01 (1st floor)
@@ -1878,8 +1948,11 @@ rooms:
     ac: visible
     # Six tower units, 2 ton each -- 12 ton in all -- counted on site by
     # Shamroze, 12 Nov. The biggest cooling load on this campus.
+    # Survey 13 Nov (Shamroze): 141-C ground floor, 6 Haier, 2 ton.
+    building: 141-C
+    floor: Ground floor
     ac_count: 6
-    ac_tons: 2
+    ac_tons: [2, 2, 2, 2, 2, 2]   # Haier towers
     empty_after_minutes: 60
 
   - name: 141 Main Entrance
@@ -2010,7 +2083,12 @@ rooms:
     # "visible", which promised a reading no camera can give.
     channels: [1, 4]
     ac: hidden
-    ac_tons: 1
+    # Survey 13 Nov: 141-C ground floor has two "Assembly area meeting"
+    # rooms, a Haier 1 ton each. This is the one these cameras see; the
+    # other is under unwatched_units until a camera is found for it.
+    building: 141-C
+    floor: Ground floor
+    ac_tons: [1]                  # Haier
     empty_after_minutes: 30
     # 12 Nov 00:15 night check: the empty table and chairs read as a
     # person at 0.34 on ch4, occupied/empty flicker from 23:12. Chairs are
@@ -2055,6 +2133,11 @@ rooms:
     recorder: cd_nvr2
     channels: [5, 12]
     ac: hidden
+    # Survey 13 Nov: 141-D ground floor, "R1: Admin room", one Haier 1 ton.
+    # (141-C's ground floor list has no admin room.)
+    building: 141-D
+    floor: Ground floor
+    ac_tons: [1]                  # Haier
     empty_after_minutes: 45
 
   - name: 141 Reception Meeting Room
@@ -2074,6 +2157,13 @@ rooms:
       10:
         - [108, 44, 212, 178]      # reception desk beyond the glass
     ac: hidden
+    # Survey 13 Nov: 141-C ground floor has "Reception Meeting room 1" and
+    # "2", a TCL 1 ton each. ch 9 and ch 10 have been read as one room;
+    # the second is under unwatched_units until Shamroze says whether one
+    # of these channels is it.
+    building: 141-C
+    floor: Ground floor
+    ac_tons: [1]                  # TCL
     empty_after_minutes: 30
 
   - name: 141-C Room 3 (1st floor)

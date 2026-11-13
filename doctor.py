@@ -105,7 +105,11 @@ def check_calibration(cfg):
     units = (yaml.safe_load(open("ac_units.yaml", encoding="utf-8"))
              or {}).get("rooms", {}) or {}
     rooms = {r["name"]: r for r in (cfg or {}).get("rooms", [])}
-    declared = sum(int(r.get("ac_count", 1) or 1) for r in rooms.values()
+    # A room's units: its list of sizes where surveyed (141, 13 Nov), else
+    # ac_count, else one.
+    declared = sum(len(r["ac_tons"]) if isinstance(r.get("ac_tons"), list)
+                   and r["ac_tons"] else int(r.get("ac_count", 1) or 1)
+                   for r in rooms.values()
                    if r.get("ac") in ("visible", "hidden")
                    and r.get("alert") != "never" and r.get("watch", True))
     from ac_detect import all_units, blocks
