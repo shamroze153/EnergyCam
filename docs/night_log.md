@@ -456,3 +456,11 @@ Two or three lines a round; picture file names, never pictures.
   times today, 00:00-15:38 -> a tight zone (74 of 75 notes go, ch 24's
   people stay). The rest were people just gone or outdoors. Loop
   restarted 15:42.
+* 15:50 Shamroze's survey of 141's ground floors, by room: 141-C 14 units /
+  21 t, 141-D 28 units / 31.5 t. Rooms the cameras see got their units;
+  the rest went into unwatched_units (counted, never read). 141-D's
+  ground-floor rooms are named "141 Room N (ground floor)": a new
+  `building:` in rooms.yaml puts them under 141-D without renaming them.
+  To confirm with him: whether Reception meeting room 2 and Assembly
+  meeting room 2 have cameras, and whether 141 Admin Room is 141-D's R1.
+  First and second floors to come. Loop restarted 15:53.
