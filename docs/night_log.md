@@ -351,3 +351,7 @@ Two or three lines a round; picture file names, never pictures.
   night_check (07:04): 20 detections, indoors only faint one-offs (0.28-
   0.42, Wellows, Rooms 22/25, Squat Wolf 1) and a real person in Room 29
   at 06:58 (0.89). Nothing more changed.
+* 08:20: the morning AC watch had not started -- the scratch watcher,
+  started at 22:45, re-read the date after midnight and was waiting for
+  14 Nov. Fixed and restarted at 08:21: 36 frames from 17 rooms every
+  five minutes until 11:00, for the 11:12 calibration.
