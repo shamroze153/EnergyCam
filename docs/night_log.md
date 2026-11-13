@@ -520,3 +520,10 @@ Two or three lines a round; picture file names, never pictures.
   0.58, a seat) still watched. Basement ch 24 and IT Sub Store ch 20 had
   faint 0.27-0.39 notes and nothing at all at 23:20: left. Loop
   restarted.
+* 23:50 Basement ch 24: the far row's last white chair with a dark plant
+  behind it, 0.26-0.34 in every pass 23:15-23:41, nobody in the 23:47
+  frame -- a seat, so a night bar of 0.45 on ch 24 (people there at
+  23:49 scored 0.63-0.92, real). Left for Shamroze: 141 Room 25's alcove
+  chair, 0.32-0.59 at night (once 0.73) -- its one camera would need a
+  night bar near 0.6, which could miss somebody working late
+  (frames/141_Room_25_(2nd_floor)_cd_xvr1_ch08_boxes.jpg). Restarted.

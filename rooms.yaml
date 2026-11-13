@@ -1296,7 +1296,12 @@ rooms:
     # "occupied 1" all night. A seat, so no zone: a stricter bar at night
     # on ch 25 alone -- people in that chair by day scored 0.73-0.83, and
     # chs 21, 23 and 24 keep the normal bar for whoever works late.
+    # 23:50: ch 24 the same -- the last white chair of the far row, with a
+    # dark plant behind it, read 0.26-0.34 in every pass 23:15-23:41 (box
+    # 88x262 at x 1198, y 240), the room empty in the 23:47 frame; people
+    # in the basement at night scored 0.63-0.92 (23:49). Night bar 0.45.
     conf_after_hours:
+      24: 0.45
       25: 0.65
 
   - name: Basement Meeting Room
