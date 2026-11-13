@@ -94,6 +94,35 @@ def main():
           "off until 10am · on 10am–8pm · off after 8pm")
     check("a room with no unit has no plan", ap.plan([cafe] * 5, 0), None)
 
+    # What ran: the read units minute by minute from the room's rows.
+    import pandas as pd
+    t0 = pd.Timestamp("2026-11-12 00:00", tz="Asia/Karachi")
+    at = lambda h: t0 + pd.Timedelta(hours=h)
+    mins = ap.units_minutes([at(-2), at(9), at(13), at(20)], [0, 2, 5, 0],
+                            t0, [(t0, at(24))])
+    check("rows hold until the next one: 2 from nine",
+          (mins[8 * 60], mins[9 * 60], mins[13 * 60], mins[21 * 60]),
+          (0, 2, 5, 0))
+    mins_gap = ap.units_minutes([at(-2), at(9)], [0, 2], t0,
+                                [(t0, at(10)), (at(12), at(24))])
+    check("a minute the loop was off is not known",
+          (mins_gap[11 * 60], mins_gap[12 * 60]), (None, 2))
+    unread = ap.units_minutes([at(-2)], [None], t0, [(t0, at(24))])
+    check("a row with no reading is not known", unread[600], None)
+    bands = ap.ran([mins] * 3)
+    check("what ran, as stretches",
+          ap.say(bands, 5),
+          "off until 9am · 2 of 5 9am–1pm · all 5 1pm–8pm · off after 8pm")
+    check("nothing read: nothing to show", ap.ran([unread] * 3), None)
+
+    # Capped by what was seen to be enough: the cafe's fullest lunch ran on
+    # three towers, so the plan never asks for more than three.
+    capped = ap.plan([cafe] * 5, 6, cap=3)
+    check("the busiest half hour gets the most ever seen running",
+          max(n for a, b, n in capped if n), 3)
+    check("and the quiet morning stays at one",
+          [n for a, b, n in capped if a <= 10 * 60 < b], [1])
+
     print()
     if FAILURES:
         print("%d failure(s)" % len(FAILURES))

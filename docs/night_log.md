@@ -429,3 +429,16 @@ Two or three lines a round; picture file names, never pictures.
   units 10-8. The cafe, from one full day so far: 1 at 10, 2 from 10:30, 3
   at noon, all 6 at 3, down to 2 by 6:30, 1 after 8 -- about Rs 1,600 a day
   less. test_ac_plan.py.
+* 13:15 Shamroze: the timings on the front page too, one click, for the
+  rooms a camera reads (with what was observed) or every room. A button
+  under the campuses opens "Recommended AC timings" for both; read rooms
+  get a second, amber bar of what their units really did. Where every unit
+  is read the plan is capped at the most ever seen running: the cafe ran
+  16 unit-hours a day on two or three towers, the uncapped plan asked for
+  36. Capped: 1 at 10, 2 at noon, 3 at 3, 1 after 6:30, never more than 3
+  -- about Rs 2,580 a day less than all six 10-8.
+* 13:15 Loading: a new visit sat on a black screen while the page was
+  built. Now a curtain is the first thing painted -- before pandas and
+  plotly are imported -- naming the campus, with changing lines and a
+  moving bar, lifted when the page is built; only on a visit's first run,
+  so the half-minute refresh does not flash it.

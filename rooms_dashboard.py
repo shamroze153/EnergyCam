@@ -29,10 +29,76 @@ import warnings
 from datetime import timedelta, timezone
 from urllib.parse import quote
 
-import numpy as np
-import pandas as pd
-import plotly.express as px
-import psycopg2
+import streamlit as st
+
+
+def boot_screen(mode, campus=None):
+    """The whole screen while a visit's first run builds the page.
+
+    13 Nov, Shamroze: opening a campus sat on a black screen for seconds, and
+    nobody could tell it was loading. So the very first thing a new visit
+    paints -- before pandas, plotly and the database are even imported -- is
+    this: the name, where it is taking you, a few lines that change while it
+    works, and a moving bar. It covers the page until the page is built, and
+    comes in after a third of a second so a quick page never flickers.
+    Colours are its own: the palette further down is not loaded yet.
+    """
+    p = ({"page": "#f4f4f1", "text": "#0b0b0b", "muted": "#6b6a64",
+          "line": "#e1e0d9"} if mode == "light" else
+         {"page": "#0d0d0d", "text": "#f0efec", "muted": "#9a998f",
+          "line": "#2b2b29"})
+    where = ("Opening %s" % campus) if campus else "Opening both campuses"
+    lines = ["Counting people on every camera&hellip;",
+             "Reading the air conditioners&hellip;",
+             "Adding up today&rsquo;s electricity&hellip;",
+             "Finding the rooms worth a look&hellip;"]
+    stack = "".join(
+        "<span style='position:absolute;left:0;right:0;opacity:0;"
+        "animation:ecline 8s %.1fs infinite'>%s</span>" % (i * 2.0, line)
+        for i, line in enumerate(lines))
+    return (
+        "<style>@keyframes ecin{to{opacity:1}}"
+        "@keyframes ecslide{0%%{transform:translateX(-100%%)}"
+        "100%%{transform:translateX(260%%)}}"
+        "@keyframes ecline{0%%,2%%{opacity:0;transform:translateY(6px)}"
+        "6%%,22%%{opacity:1;transform:none}26%%,100%%{opacity:0}}"
+        "@keyframes ecpulse{50%%{opacity:.45}}</style>"
+        "<div style='position:fixed;inset:0;z-index:999990;background:%(page)s;"
+        "display:flex;align-items:center;justify-content:center;opacity:0;"
+        "animation:ecin .35s .3s forwards;font-family:system-ui,-apple-system,"
+        "Segoe UI,Roboto,sans-serif'>"
+        "<div style='width:min(440px,86vw);text-align:center;color:%(muted)s'>"
+        "<div style='font-size:.74rem;letter-spacing:.34em;font-weight:800;"
+        "color:%(text)s;animation:ecpulse 2.4s ease-in-out infinite'>"
+        "ENERGYCAM</div>"
+        "<div style='font-size:1.25rem;font-weight:700;color:%(text)s;"
+        "margin:16px 0 6px'>%(where)s</div>"
+        "<div style='font-size:.86rem;line-height:1.5'>You are about to see"
+        " live data from every camera &mdash; who is in, which ACs run, and"
+        " what it costs.</div>"
+        "<div style='position:relative;height:1.4em;margin:18px 0 14px;"
+        "font-size:.82rem'>%(stack)s</div>"
+        "<div style='height:4px;border-radius:4px;overflow:hidden;"
+        "background:%(line)s'><div style='width:38%%;height:100%%;"
+        "border-radius:4px;background:linear-gradient(90deg,#3987e5,#2a9d63,"
+        "#e8a21a);animation:ecslide 1.15s ease-in-out infinite'></div></div>"
+        "</div></div>" % dict(p, where=where, stack=stack))
+
+
+st.set_page_config(page_title="EnergyCam", layout="wide", page_icon="🏢")
+# Only a visit's first run: the half-minute refresh and a click on a tab
+# rerun with the old page still on screen, and need no curtain.
+_BOOT = st.empty()
+if not st.session_state.get("_booted"):
+    st.session_state["_booted"] = True
+    _BOOT.markdown(boot_screen(st.query_params.get("theme", "dark"),
+                               st.query_params.get("campus")),
+                   unsafe_allow_html=True)
+
+import numpy as np  # noqa: E402
+import pandas as pd  # noqa: E402
+import plotly.express as px  # noqa: E402
+import psycopg2  # noqa: E402
 
 # pandas prefers SQLAlchemy and says so once per query. Four lines every time
 # the page refreshes is how a real message gets missed, and the connection
@@ -41,9 +107,8 @@ import psycopg2
 warnings.filterwarnings(
     "ignore", message="pandas only supports SQLAlchemy connectable",
     category=UserWarning)
-import streamlit as st
-import yaml
-from streamlit_autorefresh import st_autorefresh
+import yaml  # noqa: E402
+from streamlit_autorefresh import st_autorefresh  # noqa: E402
 
 
 def _fresh_modules():
@@ -64,7 +129,8 @@ def _fresh_modules():
     import sys
     order = ("schedule", "campus_view", "day_story", "day_timeline",
              "overview", "analysis_view", "meters_view", "energy_view",
-             "empty_view", "live_ac", "floors_view", "energy_rooms")
+             "empty_view", "live_ac", "floors_view", "energy_rooms",
+             "ac_plan")
     # The tests run this half of the file through exec, with no __file__.
     here = os.path.dirname(os.path.abspath(
         globals().get("__file__") or "rooms_dashboard.py"))
@@ -224,7 +290,6 @@ ZONE_ORDER = ["Offices", "H offices", "Entrance", "H entrance", "Basement",
               "Cafe & common", "H common", "Server rooms",
               "Outside & plant", "H perimeter", "Unused"]
 
-st.set_page_config(page_title="EnergyCam", layout="wide", page_icon="🏢")
 st_autorefresh(interval=30000, key="rooms_refresh")
 
 
@@ -432,6 +497,7 @@ def guard():
         st.session_state["let_in"] = True
         return
 
+    _BOOT.empty()                     # the curtain must not hide the door
     st.markdown("### EnergyCam")
     st.caption("140-H · Disrupt")
     typed = st.text_input("Password", type="password",
@@ -2338,28 +2404,6 @@ def stretch(widget, *args, **kwargs):
         return widget(*args, use_container_width=True, **kwargs)
 
 
-def loading_line(mode):
-    """A small branded line while the rooms are read, in the page's colours.
-
-    Instead of a blank page and Streamlit's "Running load_state()".
-    """
-    t = THEMES[mode]
-    return (
-        "<style>@keyframes ecslide{0%%{transform:translateX(-100%%)}"
-        "100%%{transform:translateX(250%%)}}</style>"
-        "<div style='max-width:420px;margin:12vh auto 0;text-align:center;"
-        "color:%(muted)s;font-family:system-ui,sans-serif'>"
-        "<div style='font-size:.72rem;letter-spacing:.32em;font-weight:700;"
-        "color:%(text)s'>ENERGYCAM</div>"
-        "<div style='font-size:.9rem;margin:10px 0 14px'>reading the cameras"
-        " and the rooms&hellip;</div>"
-        "<div style='height:4px;border-radius:4px;overflow:hidden;"
-        "background:%(line)s'><div style='width:40%%;height:100%%;"
-        "border-radius:4px;background:linear-gradient(90deg,#3987e5,#2a9d63,"
-        "#e8a21a);animation:ecslide 1.1s ease-in-out infinite'></div></div>"
-        "</div>" % t)
-
-
 def app_chrome(mode):
     """Streamlit's own surfaces, set to the page's palette.
 
@@ -2660,6 +2704,185 @@ def _ledger(start_iso, end_iso, campus=None):
     return er.ledger(events, rooms, start, end, beats,
                      campus_view.calibrated_counts(), rates,
                      av.peak_window(a), float(a.get("ac_duty", 1.0) or 1.0))
+
+
+@st.cache_data(ttl=1800, show_spinner=False)
+def cached_ac_timings(day_iso):
+    """Recommended AC timings for every room with a unit, both campuses.
+
+    From the ten working days before day_iso: each room's people half hour
+    by half hour (ac_plan.plan), and for a room a camera reads, what its
+    units were seen doing (ac_plan.ran). Shared by Who comes when and the
+    front page's "Recommended AC timings" (Shamroze, 13 Nov), and cached for
+    half an hour: it walks every room through ten days.
+    """
+    import ac_plan
+    import campus_view
+    import day_story as ds
+    import empty_view as evw
+
+    today = pd.Timestamp(day_iso).date()
+    rooms_cfg = load_rooms_config()
+    month = load_history(days=21)
+    if month.empty:
+        return []
+    first_day = min(t.date() for t in to_local(month["timestamp"]))
+    op_days = [d.strip().lower()[:3] for d in
+               (load_hours() or {}).get("operations", {}).get(
+                   "days", ["mon", "tue", "wed", "thu", "fri"])]
+    past, d = [], today - timedelta(days=1)
+    while len(past) < 10 and d >= first_day:
+        if DAY_NAMES[d.weekday()] in op_days:
+            past.append(d)
+        d -= timedelta(days=1)
+    if not past:
+        return []
+    starts = [pd.Timestamp(x).tz_localize(PKT) for x in sorted(past)]
+    seen = load_beats(starts[0] - pd.Timedelta(minutes=15),
+                      starts[-1] + pd.Timedelta(days=1, minutes=15))
+    read = campus_view.calibrated_counts()
+    a = load_assumptions()
+    rate = float(a.get("tariff_rs_per_kwh", 67) or 67)
+    duty = float(a.get("ac_duty", 1.0) or 1.0)
+    hours = work_hours()
+    by_room = {n: r.sort_values("timestamp") for n, r in month.groupby("room")}
+    none = month.iloc[0:0]
+    items = []
+    for _, room in rooms_cfg.iterrows():
+        units = int(room.get("ac_count") or 0) if room.get("has_unit") else 0
+        if units < 1 or not room.get("alerts", True):
+            continue
+        mine = by_room.get(room["room"], none)
+        mins, ran_mins = [], []
+        stamps = list(mine["timestamp"]) if len(mine) else []
+        if read.get(room["room"]) and len(mine):
+            # Units seen running on each row: the count where written, 0 for
+            # a reading of off, unknown for no reading.
+            values = []
+            for _, r in mine.iterrows():
+                n = r.get("ac_units_on")
+                if n is not None and n == n:
+                    values.append(int(n))
+                elif r.get("ac_state") == "off":
+                    values.append(0)
+                elif r.get("ac_state") == "on":
+                    values.append(1)
+                else:
+                    values.append(None)
+        for s0 in starts:
+            s1 = s0 + pd.Timedelta(days=1)
+            mins.append(ds.by_minute(ds.spells(mine, s0, s1, seen), s0))
+            if read.get(room["room"]) and stamps:
+                i = max(0, sum(1 for t in stamps if t < s0) - 1)
+                j = sum(1 for t in stamps if t < s1)
+                ran_mins.append(ac_plan.units_minutes(
+                    stamps[i:j], values[i:j], s0, evw.watched(seen, s0, s1)))
+        ran = ac_plan.ran(ran_mins) if ran_mins else None
+        # Every unit read: the most ever seen running is enough for the
+        # busiest half hour (ac_plan.plan's cap). Part read, it is not.
+        cap = (max([n for _, _, n in ran if n] or [0]) or None) \
+            if ran and read.get(room["room"], 0) >= units else None
+        bands = ac_plan.plan(mins, units, hours, cap=cap)
+        if not bands:
+            continue
+        kw = float(room.get("unit_kw") or a.get("unit_kw", 1.2) or 1.2)
+        base = units * (hours[1] - hours[0])
+        items.append({
+            "room": room["room"], "campus": room.get("campus"),
+            "units": units, "read": int(read.get(room["room"], 0)),
+            "bands": bands, "ran": ran, "cap": cap,
+            "days": sum(1 for m in mins
+                        if sum(1 for v in m if v is not None) >= 720),
+            "saving_rs": (base - ac_plan.unit_hours(bands)) * kw * duty * rate})
+    items.sort(key=lambda i: (-i["saving_rs"], i["room"]))
+    return items
+
+
+AC_TIMES_CSS = """<style>
+.ec-acbtn{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+padding:15px 18px;border-radius:14px;border:1.5px solid #3987e5;
+background:linear-gradient(90deg,rgba(57,135,229,.14),rgba(42,157,99,.10));
+color:var(--t1)!important;margin:18px 0 4px;text-decoration:none!important}
+.ec-acbtn:hover{transform:translateY(-1px);box-shadow:0 6px 18px
+rgba(57,135,229,.18)}
+.ec-acbtn b{font-size:15px}
+.ec-acbtn span{font-size:13px;color:var(--t2);margin-left:auto}
+.ec-acbtn i{font-style:normal;font-size:20px}
+@media (max-width:560px){.ec-acbtn span{margin-left:0;width:100%}}
+</style>""".replace("\n", " ")       # one line: markdown broke it otherwise
+
+
+def ac_timings_button(mode):
+    """On the front page, under the campuses: the way in to the timings."""
+    href = overview.link(dict(LINK_BASE, campus=None), only="actimes")
+    return (overview.css(mode) + AC_TIMES_CSS +
+            '<div class="ec"><a target="_self" class="ec-acbtn" href="%s">'
+            '<i>&#10052;</i><b>Recommended AC timings</b><span>when to run how'
+            ' many units, room by room, from what the cameras saw &rarr;'
+            '</span></a></div>' % overview.esc(href))
+
+
+def show_ac_timings(mode, today):
+    """Every room's recommended AC timings, both campuses (Shamroze, 13 Nov:
+    on the front page, one click -- the rooms whose AC a camera reads, with
+    what was observed, or every room with a unit)."""
+    import ac_plan
+    back = overview.link(dict(LINK_BASE, campus=None))
+    st.markdown(
+        overview.css(mode) + '<div class="ec"><div class="ec-h"><span '
+        'class="t">Recommended AC timings</span><span class="c">both '
+        'campuses</span><a target="_self" class="ec-back" href="%s">&larr; '
+        'both campuses</a></div></div>' % overview.esc(back),
+        unsafe_allow_html=True)
+    try:
+        every = cached_ac_timings(today.isoformat())
+    except psycopg2.Error as e:
+        st.error("Could not read the rooms (%s)." % type(e).__name__)
+        return
+    names = ["Rooms whose AC a camera reads", "Every room with an AC"]
+    if hasattr(st, "segmented_control"):
+        pick = st.segmented_control("Show", names, default=names[0],
+                                    key="actimes_scope") or names[0]
+    else:
+        pick = st.radio("Show", names, horizontal=True, key="actimes_scope")
+    items = [i for i in every if i["read"]] if pick == names[0] else every
+    if not items:
+        st.info("No room has enough days watched yet.")
+        return
+    hours = work_hours()
+    rate = float(load_assumptions().get("tariff_rs_per_kwh", 67) or 67)
+    colours = ac_timing_colours(mode)
+    days = max(i["days"] for i in items)
+    total = sum(max(0.0, i["saving_rs"]) for i in items)
+    st.markdown(
+        '<div style="font-size:.86rem;color:%s;margin:6px 0 2px">Followed in'
+        ' these %d room%s, about <b style="color:%s">Rs %s a day</b> less than'
+        ' running every unit from %s to %s%s.</div>'
+        % (TEXT, len(items), "" if len(items) == 1 else "s", TEXT,
+           format(int(round(total)), ","), ac_plan._clock(hours[0] * 60),
+           ac_plan._clock(hours[1] * 60),
+           " &mdash; the amber bar under each is what its read units really"
+           " did" if pick == names[0] else ""),
+        unsafe_allow_html=True)
+    first = True
+    for camp in sorted({i["campus"] for i in items}):
+        mine = [i for i in items if i["campus"] == camp]
+        st.markdown(
+            '<div style="font-size:.95rem;font-weight:720;color:%s;margin:'
+            '18px 0 0">%s <span style="font-weight:400;color:%s;font-size:'
+            '.78rem">%d room%s</span></div>'
+            % (TEXT, camp, MUTED, len(mine), "" if len(mine) == 1 else "s"),
+            unsafe_allow_html=True)
+        st.markdown(ac_plan.page(mine, colours, days, hours, rate,
+                                 heading=first), unsafe_allow_html=True)
+        first = False
+
+
+def ac_timing_colours(mode):
+    t = THEMES[mode]
+    return {"text": TEXT, "muted": MUTED, "faint": FAINT, "line": LINE,
+            "off": t["slot_empty"], "on": t["ink"]["Cool"]["bar"],
+            "ran": t["ink"]["Amber"]["bar"], "surface": SURFACE}
 
 
 def _to_5min(t):
@@ -3110,58 +3333,25 @@ def show_arrivals(df, now):
     # of its units to run when. The arithmetic is in ac_plan.py, tested.
     def recommended_ac():
         import ac_plan
-        past, d = [], today - timedelta(days=1)
-        while len(past) < 10 and d >= first_day:
-            if workday(d):
-                past.append(d)
-            d -= timedelta(days=1)
-        if len(past) < ac_plan.MIN_DAYS:
-            return
-        starts = [pd.Timestamp(x).tz_localize(PKT) for x in sorted(past)]
         try:
-            seen = load_beats(starts[0] - pd.Timedelta(minutes=15),
-                              starts[-1] + pd.Timedelta(days=1, minutes=15))
+            every = cached_ac_timings(today.isoformat())
         except psycopg2.Error:
             return
-        rate = float(assumptions.get("tariff_rs_per_kwh", 67) or 67)
-        duty = float(assumptions.get("ac_duty", 1.0) or 1.0)
-        hours = work_hours()
-        items = []
-        for room in singles:
-            units = int(room.get("ac_count") or 0) if room.get("has_unit") \
-                else 0
-            if units < 1 or not room.get("alerts", True):
-                continue
-            mine = by_room.get(room["room"], none_yet)
-            mins = [ds.by_minute(ds.spells(mine, s0, s0 + pd.Timedelta(days=1),
-                                           seen), s0) for s0 in starts]
-            bands = ac_plan.plan(mins, units, hours)
-            if not bands:
-                continue
-            # The days this room was watched at all: 141 began on 11 Nov.
-            watched = sum(1 for m in mins
-                          if sum(1 for v in m if v is not None) >= 720)
-            kw = float(room.get("unit_kw") or assumptions.get("unit_kw", 1.2)
-                       or 1.2)
-            base = units * (hours[1] - hours[0])
-            items.append({"room": room["room"], "units": units,
-                          "bands": bands, "days": watched,
-                          "saving_rs": (base - ac_plan.unit_hours(bands))
-                          * kw * duty * rate})
+        here = {r["room"] for r in singles}
+        items = [i for i in every if i["room"] in here]
         if not items:
             return
-        items.sort(key=lambda i: (-i["saving_rs"], i["room"]))
-        t = THEMES[mode]
-        colours = {"text": TEXT, "muted": MUTED, "faint": FAINT,
-                   "line": LINE, "off": t["slot_empty"],
-                   "on": t["ink"]["Cool"]["bar"], "surface": SURFACE}
-        st.markdown(ac_plan.page(items[:8], colours, len(starts), hours,
-                                 rate), unsafe_allow_html=True)
+        hours = work_hours()
+        rate = float(assumptions.get("tariff_rs_per_kwh", 67) or 67)
+        colours = ac_timing_colours(mode)
+        days = max(i["days"] for i in items)
+        st.markdown(ac_plan.page(items[:8], colours, days, hours, rate),
+                    unsafe_allow_html=True)
         if items[8:]:
             with st.expander("The other %d rooms with a unit"
                              % len(items[8:])):
-                st.markdown(ac_plan.page(items[8:], colours, len(starts),
-                                         hours, rate, heading=False),
+                st.markdown(ac_plan.page(items[8:], colours, days, hours,
+                                         rate, heading=False),
                             unsafe_allow_html=True)
 
     # ---- who comes when ----------------------------------------------------
@@ -3986,13 +4176,12 @@ mode = st.query_params.get("theme", "dark")
 mode = mode if mode in THEMES else "dark"
 use_theme(mode)
 st.markdown(app_chrome(mode), unsafe_allow_html=True)
-_loading = st.empty()
-_loading.markdown(loading_line(mode), unsafe_allow_html=True)
 
 try:
     rooms = load_rooms_config()
     latest, recent, last_beat, beats = load_state()
 except FileNotFoundError:
+    _BOOT.empty()
     st.error("rooms.yaml not found. Run this from the project folder.")
     st.stop()
 except psycopg2.Error as e:
@@ -4010,6 +4199,7 @@ except psycopg2.Error as e:
                  % (type(e).__name__, why_unreachable(e),
                     connection_hint(DATABASE_URL),
                     masked_text(e, DATABASE_URL).replace("`", "'")))
+    _BOOT.empty()
     st.stop()
 
 now = pd.Timestamp.now(tz="UTC")
@@ -4019,7 +4209,6 @@ everything["private_now"] = [
     private_now(spec, pd.Timestamp.now(tz=PKT))
     for spec in everything.get("private_hours",
                                pd.Series([""] * len(everything)))]
-_loading.empty()
 
 campuses = sorted(everything["campus"].unique())
 campus = st.query_params.get("campus")
@@ -4119,6 +4308,11 @@ def front_figures(name):
 
 
 if campus is None:
+    if st.query_params.get("only") == "actimes":
+        # ---- one click from the front door: every room's AC timings -------
+        show_ac_timings(mode, now.tz_convert(PKT).date())
+        _BOOT.empty()
+        st.stop()
     # ---- the front door: both campuses, each a way in --------------------
     # st.markdown, not st.html: st.html sanitises every SVG away, which
     # took the charts, the strips and the company mark with it.
@@ -4126,6 +4320,9 @@ if campus is None:
                                  wordmark(mode), live_text, healthy, when,
                                  dict(LINK_BASE, campus=None)),
                 unsafe_allow_html=True)
+    # Under the people and the campuses (Shamroze, 13 Nov).
+    st.markdown(ac_timings_button(mode), unsafe_allow_html=True)
+    _BOOT.empty()
     st.stop()
 
 df = everything[everything["campus"] == campus].copy()
@@ -4222,6 +4419,7 @@ if view == "Overview":
     if st.query_params.get("only") == "walk":
         st.markdown(overview.walk_page(mode, walk, LINK_BASE),
                     unsafe_allow_html=True)
+        _BOOT.empty()
         st.stop()
     st.markdown(overview.walk_button(mode, len(walk), LINK_BASE),
                 unsafe_allow_html=True)
@@ -4239,6 +4437,7 @@ if view == "Overview":
                 unsafe_allow_html=True)
     st.markdown(overview.campus_body(figures, mode, LINK_BASE, tariff=win),
                 unsafe_allow_html=True)
+    _BOOT.empty()
     st.stop()
 
 cooled = df[df["has_unit"]]
@@ -4352,3 +4551,6 @@ elif view == "Look at the rooms":
 
 else:
     show_numbers(df, cooled, recent, now)
+
+# The page is built: lift the curtain (a no-op after the first run).
+_BOOT.empty()

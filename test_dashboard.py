@@ -34,11 +34,23 @@ def check(label, ok, detail=""):
 
 
 def install_stubs():
+    class FakePlace:
+        def markdown(self, *a, **k):
+            pass
+
+        def empty(self):
+            pass
+
     class FakeStreamlit:
         secrets = {}
+        session_state = {}
+        query_params = {}
 
         def set_page_config(self, **kw):
             pass
+
+        def empty(self):
+            return FakePlace()
 
         def cache_data(self, **kw):
             return lambda fn: fn
