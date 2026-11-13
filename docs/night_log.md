@@ -486,3 +486,10 @@ Two or three lines a round; picture file names, never pictures.
   opened): Room 18 33 seats used, Marketing 26, Basement 20, 141 Room 32
   19, Room 17 6. AutoOS and 141 Room 22 had people all day but no seat
   held 15% of it -- pictures after 22:00 to see why.
+* 20:47 round: 123 rooms, 2 GHOST, 0 MISSED, 1 FAINT; 54 night
+  detections, the ones looked at (HR Room, Cyber Security, 141 Reception
+  Meeting Room) real people working late. 141 IT Sub Store (a unit) read
+  "1" for 10-15 min every 15-30 min from 19:27 to 20:35, nobody on its
+  four cameras at 20:45 and no night detection: somebody coming and
+  going, or a ghost -- no frame of it yet, so left; watch at 22:47. The
+  other ghost is the Meeting Room Lobby (no unit). Nothing changed.
