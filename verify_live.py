@@ -104,7 +104,7 @@ def count_now(room, recorders, model, timeout):
         # The bar the loop is using at this hour, or the two would argue
         # about Creative Room every evening and agree about nothing.
         boxes = people_boxes(frame, model,
-                             conf=room.conf_for(AFTER_HOURS[0]),
+                             conf=room.conf_for(AFTER_HOURS[0], key),
                              imgsz=DETECT_SIZE, iou=DETECT_IOU)
         zones = room.ignore.get(key) or []
         kept = [b for b in boxes if not ignored(b, zones)]

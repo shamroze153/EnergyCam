@@ -632,6 +632,25 @@ def main():
         check("a night-only bar applies at night and not by day", seen,
               [0.40, None])
 
+        # A night bar for one camera only: Room 17's chairs are on ch 3,
+        # and a person working late on its ch 8 scored 0.37-0.57.
+        one = room(channels=[3, 8], conf=0.30, conf_after_hours={3: 0.60})
+        seen[:] = []
+        room_loop.examine(one, {("dvr2", 3): "frame", ("dvr2", 8): "frame"},
+                          model=None, imgsz=1280, iou=0.7, after_hours=True)
+        check("a camera's own night bar holds for that camera only",
+              sorted(seen), [0.30, 0.60])
+        seen[:] = []
+        room_loop.examine(one, {("dvr2", 3): "frame", ("dvr2", 8): "frame"},
+                          model=None, imgsz=1280, iou=0.7, after_hours=False)
+        check("and not by day", seen, [0.30, 0.30])
+        two = room(channels=[3], conf_after_hours={"dvr2:3": 0.6})
+        check("keyed by recorder too", two.conf_for(True, ("dvr2", 3)), 0.6)
+        check("a camera it does not name keeps the normal bar",
+              two.conf_for(True, ("dvr2", 4)), None)
+        check("the start-up line shows it",
+              room_loop.bar_text(one.conf_after_hours), "dvr2:3 0.60")
+
         # A camera that did not answer must not be counted as having answered
         # with nobody in it -- that is the reading that empties a room nobody
         # looked at.

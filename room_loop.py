@@ -536,7 +536,16 @@ class Room:
         # high bar at night, when its chairs scored like people, and the
         # normal one by day: at 17:10 on 11 November six people sat at its
         # desks and not one scored the night's 0.40 under the purple light.
-        self.conf_after_hours = cfg.get("conf_after_hours")
+        # A number holds for every camera on the room; a mapping, keyed like
+        # ignore below, for the cameras it names only. A chair that scores
+        # like a person sits in one camera's picture, and a bar across the
+        # whole room costs the people the other cameras see: on 12 Nov a
+        # person working late on Room 17's ch 8 scored 0.37-0.57.
+        after = cfg.get("conf_after_hours")
+        if isinstance(after, dict):
+            after = {self.camera_key(ch): float(bar)
+                     for ch, bar in after.items()}
+        self.conf_after_hours = after
         # Boxes where a camera reliably sees a person who is not there. On
         # this site that is mostly a doorway or a pane of glass: the camera
         # looks straight through into a corridor, and the people it finds are
@@ -564,11 +573,12 @@ class Room:
         self.was_occupied = False       # somebody was seen, and not yet
                                         # disproved by CONFIRM_EMPTY passes
 
-    def conf_for(self, after_hours):
-        """The confidence this room is read at, at this hour."""
-        if after_hours and self.conf_after_hours:
-            return self.conf_after_hours
-        return self.conf
+    def conf_for(self, after_hours, key=None):
+        """The confidence this room's camera `key` is read at, at this hour."""
+        bar = self.conf_after_hours if after_hours else None
+        if isinstance(bar, dict):
+            bar = bar.get(key)
+        return bar or self.conf
 
     def camera_key(self, spec):
         """Turn 16 or "xvr3:16" into the (recorder, channel) pair it means."""
@@ -796,6 +806,14 @@ def overlap_fraction(box, zone):
     return 0.0 if area <= 0 else (width * height) / float(area)
 
 
+def bar_text(bar):
+    """A room's confidence for the start-up line: 0.40, or ch10 0.70."""
+    if isinstance(bar, dict):
+        return ", ".join("%s:%d %.2f" % (rec, ch, v)
+                         for (rec, ch), v in sorted(bar.items()))
+    return "%.2f" % bar
+
+
 def ignored(box, zones):
     """Is this detection one of the room's known false people?
 
@@ -892,7 +910,8 @@ def examine(room, frames, model, imgsz, iou, ac_units=None,
         if key[1] == ac_channel and key[0] == ac_recorder:
             ac_state, ac_detail, room.ac_units_on = read_units(
                 wide, room.name, ac_units)
-        boxes = people_boxes(wide, model, conf=room.conf_for(after_hours),
+        boxes = people_boxes(wide, model,
+                             conf=room.conf_for(after_hours, key),
                              imgsz=imgsz, iou=iou)
         counted = [b for b in boxes if not ignored(b, room.ignore.get(key))]
         here = len(counted)
@@ -1399,7 +1418,7 @@ def main():
                   "%s %s" % (r.name, " / ".join(
                       bit for bit in (
                           ("%.2f" % r.conf) if r.conf else "",
-                          ("%.2f after hours" % r.conf_after_hours)
+                          ("%s after hours" % bar_text(r.conf_after_hours))
                           if r.conf_after_hours else "") if bit))
                   for r in strict)))
 

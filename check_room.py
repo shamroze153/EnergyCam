@@ -104,9 +104,10 @@ def look(rooms, recorders, model, args, say):
                     say("   %-28s could not be read (%s)" % (room.name, e))
                     frames[room.name] = {}
         for room in batch:
-            conf = args.conf or room.conf_for(
-                getattr(args, "after_hours", False))
             for key in room.cameras:
+                # Camera by camera: a night bar may hold for one only.
+                conf = args.conf or room.conf_for(
+                    getattr(args, "after_hours", False), key)
                 frame = frames[room.name].get(key)
                 if frame is None:
                     findings.append({"room": room, "camera": key,
