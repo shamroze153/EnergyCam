@@ -493,6 +493,11 @@ rooms:
     zone: Offices
     recorder: dvr2
     channels: [3, 13]
+    # 13 Nov 04:59 night evidence: a small thing on a far desk on ch 3 at
+    # 0.39, and a small shape behind a chair on ch 13 at 0.34 -- tiny boxes
+    # that kept the room flickering occupied all night. People working
+    # late here have scored 0.8 and more: a stricter bar at night only.
+    conf_after_hours: 0.45
     # 7 Nov: the unit is on ch13, above the green door, top right. ch3
     # sees none of it. Calibrate on ch13. docs/camera_survey.md.
     # 10 Nov: five units in this room, not one -- counted on site while the
@@ -983,7 +988,14 @@ rooms:
     ac_channel: 5
     # 12 Nov 02:15 night check, nobody in: chairs at 0.32 (ch3) and 0.26
     # (ch5) counted as people. Seats, so a night-only bar, not a zone.
-    conf_after_hours: 0.40
+    # 13 Nov 04:58: the 0.40 bar was not enough -- the room read 1-5
+    # "people" every pass all night (seat notes: two chairs at the top of
+    # ch 3, median 0.52-0.56, 30-46 night passes; evidence/Room_17_xvr3_
+    # ch03_20261113_045812.jpg, an empty chair), so its four units were
+    # taken as running all night. Raised to 0.60. A person in good view
+    # here scores 0.8 and more; one half out of frame at night may be
+    # missed, and Shamroze is told.
+    conf_after_hours: 0.60
     empty_after_minutes: 45
     note: >
       Three cameras on one room, and only channel 5 can see the unit. Which
