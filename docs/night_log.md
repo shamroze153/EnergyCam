@@ -541,3 +541,13 @@ Two or three lines a round; picture file names, never pictures.
   IT Sub Store "1" again at 01:13: faint things on ch 13 and ch 20, 0.26-
   0.42 all night, nobody on its cameras at 20:45 or 23:20; its people by
   day 0.60-0.86 -- conf_after_hours 0.45 for the room. Restarted.
+* 01:50 sweep of every room the page called occupied (check_room, no
+  audit): Squat Wolf 0/1, Marketing, Room 18 nothing at all (a pass's
+  flicker). 141's second floor: empty black chairs read 0.35-0.67
+  (Room 28 ch 2 0.67, Room 26 ch 10 0.43, Room 27 ch 7 0.35) -- while a
+  real person working in Room 22 at 01:47 scored 0.39. In the dark a
+  chair and a person score alike there, so no night bar: left for
+  Shamroze. Tried on the seat notes: a box the same to 6 px in 4+
+  passes of the hour before is 2.5% of notes by day, 12.6% at night --
+  it would catch Room 17's and the basement's chairs, not most of the
+  rest. An idea for the loop, not built.
