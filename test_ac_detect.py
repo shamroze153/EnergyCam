@@ -549,9 +549,12 @@ def main():
        ac_detect.read_units(dark, "Three Units", partial)[2] == 0)
     ok("a refused reading counts nothing at all",
        ac_detect.read_units(dark, "Never Calibrated", partial)[2] is None)
-    ok("141-C Cafe reads five of its six towers",
-       len(ON_DISK.get("141-C Cafe", {}).get("units", [])) == 5
-       and ON_DISK["141-C Cafe"].get("unseen_units") == 1)
+    cafe = ON_DISK.get("141-C Cafe", {})
+    ok("141-C Cafe reads all six towers: five on ch 14, the sixth on ch 2",
+       len(cafe.get("units", [])) == 5
+       and len(ac_detect.all_units(cafe)) == 6
+       and [k[1] for k, _ in ac_detect.blocks(cafe)] == [14, 2]
+       and not cafe.get("unseen_units"))
 
     print()
     if FAILED:

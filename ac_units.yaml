@@ -190,13 +190,11 @@ rooms:
     channel: 14
     # Six tower units, 2 ton each (Shamroze, 12 Nov). Camera 14 reads five
     # by the louvre at the top of each, which opens when it runs. The sixth
-    # is in the picture too -- the tower on the right of ch 14, by the plant
-    # (frames/cafe_sixth.jpg) -- but side on: its louvre faces away, and
-    # when towers 2 and 4 went off at 20:35 on 12 Nov nothing on it moved.
-    # ch 2's tower by the patterned wall is one of the five, from the far
-    # end. So "on" is known, "off" only when the sixth is read too: switch
-    # it on and off once by hand and see whether any part of it changes.
-    unseen_units: 1
+    # stands at the back by the coffee machine and is read on ch 2, which
+    # faces it (Shamroze, 13 Nov, who had it switched off at 10:53 for the
+    # measurement): the `also:` block below. All six read, so an "off" for
+    # the cafe is now a real off.
+    unseen_units: 0
     # The lighting the measurement was taken in. The contrast inside a box
     # depends on it, so a reading under the other kind is refused rather
     # than guessed at.
@@ -273,6 +271,34 @@ rooms:
           taken: 2026-11-12T10:59+0500
           # A gap of 28.9 between the two states.
 
+    also:
+      # Tower 6, at the back of the cafe by the coffee machine, face on to
+      # ch 2 (sub stream, 720x576). Its louvre's slats show dark when it
+      # runs. Measured 13 Nov: on 41.5-54 (09:31-10:51, and 37-38 on the
+      # evening of 12 Nov under the lamps, slats plainly open in the
+      # picture), off 9-24 (08:21-09:26, and from 10:53 when Shamroze had it
+      # switched off). The threshold sits between the lowest on and the
+      # highest off. The anchor is the tower top and the wall above it --
+      # not the default, which took in the table beside it, where people
+      # sit, and the doorway's daylight.
+      - recorder: cd_nvr1
+        channel: 2
+        expect: colour
+        frame_size: [720, 576]
+        units:
+          - label: tower unit 6, at the back by the coffee machine, its louvre
+            led_roi: [392, 30, 401, 51]
+            led_std_threshold: 30.5
+            anchor_roi: [366, 4, 406, 64]
+            anchor: f398eXNpaXyChIeHiYmJiYqNkJKSk5WWmZubnJyfoaSnp6iqq66xs7S3u77Cx8vQf39+eXVwZ3yChIaJiYmJiYqNkJKSk5WWmZubnJ6foqWnqKiqq66xs7S3u77CxcvQgYF+eXZ1ZnyChIaJiYmJiYqNkJKSk5WWmZucnJ6foqeoqqqqra6xtLa3u77BxcrQf4F/e3Z2Z3uChIaHiYmJiYqNkJCSkpWWm5ycnp6hoqWoqKqqrbCxtLa2vL7BwsXLf4F/e3Z1aXaBhISHiYmJiYqNkJCSk5WYm5ycnp6hoqWoqKqrrbCztLa3u76/wcTKf4F+fHhzZnJ+goSHh4mJiYqPkJCSk5WYm5ycnp6hoqWnqKqrrbCztLa3u76/wcTKgYF/fnl1Xm97goaGh4mJiYqPkJCSk5WYm5ycnJ6hoqWoqqqrrbCztLa3vL/BxMfNgX+Bf3t2Wm17goaEh4mJiYqPkJCSk5WYm5ycnp6hpKeoqKqrrbCztLa3vMHExcrOgX9/fnx4XWx5goaGh4mJiYqPkJCSk5WYm5ycnp+ipKeoqKqrrbCztLa3vsLFx8jNgX9+fn55Y2p5goaGh4mJioqNkJCSk5WYm5ucnp+ipKeoqKqrrbCztLa3vsLFx8rNgYF/fnx2ZGl2goSGh4mJioqNkJKSk5WWmZucnp+ipaeoqqqrrrCztLe5vMHFyMvQgYF/fn54Z2Z2goKCh4mKioqNkJKSk5WWmZucnp+ipaiqqqutrrC0trm8vsLHys3Tf39/gYJ7b2d2goKCh4eJiYqNkJCSkpOVmJucnp+ipaioqquusLG2ubu+v8TIys3Qf39/gYKBdWx4goKEhoeJiYqMj5CQkpOVmJucnp+ipaeqq62urrG0t7m5u8HFx8jNgYGCgoGEeHB5goSEh4mJioyMkJCQkpOVmJucnp+hpKeoqqurra6xtLa0trzBwsXLgX+EhIGEe3h+hIaEiYmKjIyNkJKSk5WWmZucnp+hpKSlqKiqq66ws7a3t7u/wsXLgX+BgoKBgXZ8hIaHioqMjZCSkpKSkpOVmZuen5+ipKSlp6iqq62wtLe7u7/BwsfIgX+BgoGBgXZ5gYeHioqMj5CSkpKSkpOVmJucnp+ipaSkp6qqqquws7e7ub/BwsfLgX+BgX+Bgnh4f4eHiYqKjI+PkJCSk5WVmJucnp+hpKKkp6iqqq2wtLe3v7/BxMfHgoGCgn9/gXZ4f4eJh4eHiYqKjI+Sk5OVmZucnp6foaSlp6qrra2tra6zub/Cxb6hgoGCgoF/gnZ2cGRhhoSEhIaHioyPkpOVmJucnJyen56enqGkpaenpae2sJuMkKGxgoGCgoSBgnVzYUQ9hIKBgoSHiYyNkJOVmZyen5+ipIqEhISEhISEhISEm6W8xLmxhISCgoSChHZ2Y0M4f39/f4GKiYqMkJOYnJ6emZWVj4aEhISEhISEhISExL6ljXxthoSEhIeHhnl4Zkk3fn5/fnyCho2Qk5WQgXh2dXBsVHmEhISEhISEhISEvq2Nh5+7hoaGhoeJh354alI0e3x7eXyGfnZ1cmxqam9vZ1taVHmEhISEhISEhISEub7CxcrOh4eGhoeJh352aVQudnZ1dXh+fHNqaWxqbG1sYVVebH+EhISEhISEhISEtr7Ex8fOh4eHh4eJiX51aVQvanBvbGppamdpaWdmYV1hYFtkZn6EhISEhISEhISEt7u+xMvRh4eHh4eJiX52alU3WmBURkBMbXBtbGxpYVtgXldhZ36EhISEhISEhISEtLe/wsXKh4aGhoSGhnt1aldAOkFMXnN/gXVvbGpmXlhgXldeY3yEhISEhISEhISEu7a8xMfIhIKCgX+Hhnx1bWFXXV5kbHV8fnZwbWxpaWRmXlRaZ36EhISEhISEhISEtru+wcTHhIeEgX+BfH52b2ljW15jbHV+fnZwbGpvalFVWlpbZn6EhISEhISEhISEtru/wcLIhomEfHVybXV2cGNgV1hganV/f3ZvampsaWBUVF1YaX6EhISEhISEhISEtrm+wsXHaXWEh3x7T0RAR1RSSk9aZnV/gXZtaWlmb29RSVtbbH+EhISEhISEhISEubC2vsXUN2SKmHkcAAAAAzhAQ0pXZHJ+gnhqZ2psampnY2BSbH+EhISEhISEhISEtrO0v8vNMWGKcyAAAAAAAAs0QUxYZHB8gnhpZGltbWxsaWFUaX6EhISEhISEhISEsbCxu8S+KVpVHwAAAAAAAAAALkdXZnJ5f3tnYGlzaWlqaWFVaX6EhISEhISEhISEtLGwtL65IlIsAAAAAAAAAAAAHT5UZnN2f3xqYWpzZ2lqaWNVaX6EhISEhISEhISEs7O0tLSxH08xAAAAAAAAAAAAJUFVZnJ2gn5pYWlyaWlpZ2NUZm1panV7fn5+foGTtLOurbC5H0ovAAAAAAAAAAAALkNUY291hH9sYWdvamlpZ2NSZFVAQ1tscnJycnmitLGwrrC+Fz4jAAAAAAAAAAAALz5SY3B1gn9vZGdsamlnZ2RUYVVAQVppb29wb3ihtrOxra25CTslAAAAAAAAAAAONT5PYXJ1gn9wZmdqamlnaWdUYFhDQVhnbW1vbXWTtLSzsbOxF1U9AwAAAAAAAAAiOD1JXW92goFwZmZpamlpamZUXlpEQVdmbGxtb3aWt7S2trOxUW9dJQAAAAAAAAY3NDtGWG14foJyZGRpbGlqamZXXl1HQ1RmbGxtb3aTube2tLOxUUZBLggAAAAAADtVMTdBVGl1fH9yZGFnamlqamdaXV5JQ1Fkampsb3aMvry8ubSwRj09PTEAAAAARmlGLzdBVGl1fH9zZl5maWlpaWZaV15NQ0xjamlscHiPu7u5tLCuNTc3PUQ7Gi5NZGRNLjdAUWd2fH91ZFtjZmdnZ2RaVF5RQ0dgamltcHmWu7m0tLazNTQvLC87OGRsbGlbLjU+TWR1fH92ZlhjZGdmZmRbUWFSQUFeaWdscHWJubO0trawKSwlGAkAHFFjamxnLjU9TGFzfIF5aVtkZGZkZGRdUWNVQT1bZ2Zqb29tpLC0tre3
+            measured:
+              on_std: 37.3           # the lowest on seen (12 Nov evening)
+              off_std: 23.6          # the highest off seen
+              on_peak: 232
+              off_peak: 234
+              taken: 2026-11-13T10:53+0500
+              # On 52.0 and off 23.1 in the switch itself (10:51, 10:55);
+              # the stored pair is the narrowest seen across both days.
 
   141 Room 27 (2nd floor):
     recorder: cd_xvr1
