@@ -360,3 +360,10 @@ Two or three lines a round; picture file names, never pictures.
   chair, bag on the desk -- the loop a pass behind, not a fault. 141 Room
   26: the known chairs, left. Night check at 08:57 is people arriving.
   Nothing changed, no restart.
+* 09:50 calibration, first look at 08:21-09:46: no uncalibrated unit
+  switched cleanly. Room 26's unit turned yellow at 08:51 together with
+  the floor under it -- the wooden door opening, reflected, not the unit;
+  Marketing, Wellows, Mosque unchanged; Room 8's flap sits under the
+  clock overlay. The calibrated ones read right in daylight: 141-C Cafe 2
+  running / 3 off, Room 32 one running with its person in. The rest at
+  11:12, on the full 08:21-11:00 watch.
