@@ -347,4 +347,7 @@ Two or three lines a round; picture file names, never pictures.
   bar; Marketing 0.45 -> 0.40. Ghosts: 141 Gym ch 7 weight plates and
   141 Room 6 ch 7 wall marks -> tight zones. 141 Room 26 ch 10 (chairs
   where people sit and score 0.45-0.90 in the evening) and 140-H Commons
-  (far terrace chairs, no unit) left. Loop restarted 07:01.
+  (far terrace chairs, no unit) left. Loop restarted 07:01. The audit's
+  night_check (07:04): 20 detections, indoors only faint one-offs (0.28-
+  0.42, Wellows, Rooms 22/25, Squat Wolf 1) and a real person in Room 29
+  at 06:58 (0.89). Nothing more changed.
