@@ -255,6 +255,18 @@ def _read_block(frame, config):
 
     expect = config.get("expect")
     infrared = is_infrared(frame)
+    # The other lighting's own calibration, where there is one: a block
+    # measured in colour may carry `infrared:` for the night (13 Nov: Finance
+    # Room, Room 32 and Room 27 go infrared when the lights go off, and their
+    # nights went unread), one measured in infrared `colour:` for the day
+    # (Admin Room). Same units, same order, measured in that light.
+    if expect in ("colour", "infrared") and infrared != (expect == "infrared"):
+        other = "infrared" if infrared else "colour"
+        alt = config.get(other)
+        if alt:
+            alt = dict(alt, expect=other)
+            alt.setdefault("frame_size", config.get("frame_size"))
+            return _read_block(frame, alt)
     if expect == "infrared" and not infrared:
         return None, None, "camera is in colour; calibrated in infrared"
     if expect == "colour" and infrared:

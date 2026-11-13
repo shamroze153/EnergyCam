@@ -41,8 +41,11 @@ it here. Shamroze reads the morning summary in Roman Urdu.
       hand with Shamroze (ch 2, `also:`).
 - [ ] Night (infrared) calibration: Finance Room, Room 32, Room 27,
       Learning Center go infrared when the lights go off and their
-      calibrations are colour-only; Admin Room the reverse. One on/off each
-      in the dark, watched live. Asked Shamroze 13 Nov 11:30.
+      calibrations are colour-only; Admin Room the reverse. Shamroze, 13
+      Nov: do it from the data. The loop now keeps every AC camera's frame
+      every 10 min in frames/ac_keep (3 days) and ac_units.yaml takes an
+      `infrared:` block; each morning, find a unit's switch in infrared and
+      calibrate it there.
 - [ ] Names for cd_nvr4:17 (corridor), :26 (outside lane, guard), :31
       (pantry/kitchen); :30 duplicates the cafe's cd_nvr1:14. Asked.
 

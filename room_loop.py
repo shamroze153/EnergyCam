@@ -969,6 +969,83 @@ def note_seats(room, key, boxes, shape, folder=None, now=None):
         pass        # a seat note that cannot be written must not stop a pass
 
 
+# Frames of every camera that can see an air conditioner, every ten minutes,
+# day and night, kept three days on this machine (frames/ is git-ignored).
+# 13 Nov, Shamroze: "calibrate them yourself -- you have the data, watch
+# when an AC went on and off". A unit is calibrated from a frame either side
+# of its switching; the loop already holds these frames every pass, so it
+# keeps one now and then instead of a second program asking the recorders.
+# The night's infrared frames are what the night calibrations need.
+AC_KEEP_DIR = os.path.join("frames", "ac_keep")
+AC_KEEP_EVERY = 600          # seconds, per camera
+AC_KEEP_DAYS = 3
+_last_ac_keep = {}
+
+
+def ac_cameras(room, ac_units):
+    """The cameras a room's units are seen on: every camera its calibration
+    names, or for a unit marked visible and not calibrated yet, all of the
+    room's cameras (which one shows the unit is what is being found out)."""
+    cfg = (ac_units or {}).get(room.name)
+    if cfg:
+        return [k for k, _ in camera_blocks(cfg, room.recorder)]
+    if room.ac == "visible" and room.alerts:
+        return list(room.cameras)
+    return []
+
+
+def keep_ac_frames(room, frames, ac_units, folder=None, now=None):
+    """Save this pass's AC-camera frames, at most one per camera per
+    AC_KEEP_EVERY, as <folder>/<date>/<HHMM>/<room>__<rec>_chNN.jpg -- the
+    layout ac_watch used, so the same tools read both. A room in its private
+    hours sends no frame and so saves none."""
+    folder = folder or AC_KEEP_DIR
+    now = now or datetime.now(PKT)
+    saved = 0
+    for key in ac_cameras(room, ac_units):
+        last = _last_ac_keep.get((room.name, key))
+        if last is not None and (now - last).total_seconds() < AC_KEEP_EVERY:
+            continue
+        frame = frames.get(key)
+        if frame is None:
+            continue
+        try:
+            here = os.path.join(folder, now.strftime("%Y-%m-%d"),
+                                now.strftime("%H%M"))
+            os.makedirs(here, exist_ok=True)
+            name = "%s__%s_ch%02d.jpg" % (
+                "".join(c if c.isalnum() else "_" for c in room.name),
+                key[0], key[1])
+            if cv2.imwrite(os.path.join(here, name), frame,
+                           [getattr(cv2, "IMWRITE_JPEG_QUALITY", 1), 80]):
+                saved += 1
+                _last_ac_keep[(room.name, key)] = now
+        except Exception:                               # noqa: BLE001
+            pass        # a frame that cannot be kept must not stop a pass
+    return saved
+
+
+def prune_ac_keep(folder=None, days=AC_KEEP_DAYS, today=None):
+    """Remove day folders older than `days`. Returns how many went."""
+    import shutil
+    folder = folder or AC_KEEP_DIR
+    today = today or datetime.now(PKT).date()
+    gone = 0
+    try:
+        names = os.listdir(folder)
+    except OSError:
+        return 0
+    for name in names:
+        try:
+            day = datetime.strptime(name, "%Y-%m-%d").date()
+        except ValueError:
+            continue
+        if (today - day).days >= days:
+            shutil.rmtree(os.path.join(folder, name), ignore_errors=True)
+            gone += 1
+    return gone
+
+
 def prune_evidence(folder, keep=EVIDENCE_KEEP, days=EVIDENCE_DAYS):
     """Throw away the oldest, so the folder stops growing.
 
@@ -1158,6 +1235,7 @@ def sweep(rooms, recorders, model, imgsz, iou, timeout, ac_units=None,
                 people, answered, keep, ac, why = examine(
                     room, frames.get(room.name, {}), model, imgsz, iou,
                     ac_units, after_hours=after)
+                keep_ac_frames(room, frames.get(room.name, {}), ac_units)
                 if on_frame is not None and keep is not None:
                     on_frame(room, keep)
                 now = datetime.now(PKT)
@@ -1180,6 +1258,7 @@ def sweep(rooms, recorders, model, imgsz, iou, timeout, ac_units=None,
                     # A heartbeat that fails is reported at the pass's end;
                     # it must never take the pass down.
                     print(">> heartbeat during the pass failed: %s" % e)
+    prune_ac_keep()
     return out
 
 

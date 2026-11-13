@@ -23,7 +23,8 @@ for name, module in (
             resize=lambda *a, **k: None, INTER_LINEAR=1,
             FONT_HERSHEY_SIMPLEX=0,
             rectangle=lambda *a, **k: None, putText=lambda *a, **k: None,
-            imwrite=lambda path, img: open(path, "wb").write(b"\xff\xd8") > 0)),
+            imwrite=lambda path, img, *params:
+                open(path, "wb").write(b"\xff\xd8") > 0)),
         ("dotenv", types.SimpleNamespace(load_dotenv=lambda: None)),
         # Stubbed so the state machine can be checked anywhere, including on a
         # machine with no database driver installed. Nothing here touches it.
@@ -42,6 +43,7 @@ import tempfile as _seat_tmp  # noqa: E402
 
 # The stand-in people these tests count must not land in the real seat notes.
 room_loop.SEATS_DIR = _seat_tmp.mkdtemp()
+room_loop.AC_KEEP_DIR = _seat_tmp.mkdtemp()
 
 T0 = datetime.datetime(2026, 11, 5, 18, 0, tzinfo=PKT)
 FAILURES = []
@@ -920,6 +922,47 @@ def main():
     check("and nobody seen notes nothing", len(seat_lines), 2)
     check("the seat notes stay off git",
           "seats/" in open(".gitignore", encoding="utf-8").read(), True)
+
+    # 13 Nov: the AC cameras' frames, every ten minutes, for calibrating
+    # units from the data -- night ones too.
+    import numpy as _np
+    keep_dir = _tf3.mkdtemp()
+    room_loop._last_ac_keep.clear()
+    cafe = room(name="141-C Cafe", recorder="cd_nvr1", channels=[2, 14, 9],
+                ac="visible")
+    units = {"141-C Cafe": {"recorder": "cd_nvr1", "channel": 14,
+                            "units": [{}],
+                            "also": [{"channel": 2, "units": [{}]}]}}
+    check("a calibrated room keeps the cameras its calibration names",
+          room_loop.ac_cameras(cafe, units),
+          [("cd_nvr1", 14), ("cd_nvr1", 2)])
+    check("a visible unit not calibrated yet keeps all its cameras",
+          room_loop.ac_cameras(cafe, {}), cafe.cameras)
+    check("a room with no unit in view keeps none",
+          room_loop.ac_cameras(room(ac="hidden"), {}), [])
+    pic = _np.zeros((576, 704, 3), _np.uint8)
+    shots = {("cd_nvr1", 14): pic, ("cd_nvr1", 2): pic, ("cd_nvr1", 9): pic}
+    check("a pass keeps one frame per AC camera",
+          room_loop.keep_ac_frames(cafe, shots, units, folder=keep_dir,
+                                   now=at_noon), 2)
+    check("  in <date>/<HHMM>/<room>__<rec>_chNN.jpg",
+          sorted(_os3.listdir(_os3.path.join(keep_dir, "2026-11-12", "1200"))),
+          ["141_C_Cafe__cd_nvr1_ch02.jpg", "141_C_Cafe__cd_nvr1_ch14.jpg"])
+    check("and not again within ten minutes",
+          room_loop.keep_ac_frames(
+              cafe, shots, units, folder=keep_dir,
+              now=at_noon + datetime.timedelta(minutes=5)), 0)
+    check("a camera that sent nothing keeps nothing",
+          room_loop.keep_ac_frames(
+              cafe, {}, units, folder=keep_dir,
+              now=at_noon + datetime.timedelta(minutes=30)), 0)
+    _os3.makedirs(_os3.path.join(keep_dir, "2026-11-08"))
+    check("days older than three go",
+          (room_loop.prune_ac_keep(folder=keep_dir,
+                                   today=datetime.date(2026, 11, 12)),
+           sorted(_os3.listdir(keep_dir))), (1, ["2026-11-12"]))
+    check("and they stay off git",
+          "frames/" in open(".gitignore", encoding="utf-8").read(), True)
 
     # cycles.csv gained two columns; a file with the old header is set
     # aside rather than mixed into one table with rows of two shapes.

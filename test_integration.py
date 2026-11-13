@@ -69,6 +69,7 @@ import tempfile as _seat_tmp  # noqa: E402
 
 # The stand-in people these tests count must not land in the real seat notes.
 room_loop.SEATS_DIR = _seat_tmp.mkdtemp()
+room_loop.AC_KEEP_DIR = _seat_tmp.mkdtemp()
 from ac_detect import load_units  # noqa: E402
 
 room_loop.grab = fake_grab

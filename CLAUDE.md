@@ -94,6 +94,18 @@ Only units whose display the camera can see can be read; see
     python calibrate_room.py --live --room "141 Finance Room" --channel 30 --roi 1083,90,1105,115 --write
     python calibrate_room.py --live --room "141 Room 32 (2nd floor)" --channel 25 --roi 1626,6,1646,28 --write
 
+Calibrating from the data, without anybody switching units by hand
+(Shamroze, 13 Nov: "calibrate them yourself"): the loop keeps a frame of
+every camera that can see a unit every ten minutes, day and night, in
+`frames/ac_keep/<date>/<HHMM>/` for three days (never in git; private
+rooms are never opened, so never kept). Each morning look there for a
+unit switching -- a clean local step at a unit's display or louvre with
+the room's lights unchanged -- and calibrate from the frame either side.
+A camera that goes infrared at night needs its own night calibration: an
+`infrared:` block inside the colour one in ac_units.yaml (same units, same
+order, measured on infrared frames), or `colour:` inside an infrared one
+(Admin Room). A unit seen face-on by a second camera goes in `also:`.
+
 141 Finance Room, 141 Learning Center, 141 Room 32 and 141-C Cafe are done
 (12 Nov, on site with Shamroze). Learning Center and Room 32 have three
 units each and one readable (the floor unit's louvres; the flap of the unit
@@ -119,5 +131,7 @@ Each round, every two hours:
 6. Add two or three lines to `docs/night_log.md`: the time, what the
    audit found, what was changed. Commit it.
 
-In the morning: a short Roman Urdu summary — what was found, what was
-fixed, what needs a person.
+In the morning: look through `frames/ac_keep/` for units that switched
+(day and night, see "Air conditioners") and calibrate what is clean; then
+a short Roman Urdu summary — what was found, what was fixed, which ACs
+were calibrated, what needs a person.

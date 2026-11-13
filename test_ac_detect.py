@@ -537,6 +537,29 @@ def main():
     ok("the cameras named, the room's recorder where none is given",
        [k for k, _ in ac_detect.blocks(on2["C"])] == [("r", 14), ("r", 2)])
 
+    print("-- a calibration for each light")
+    # 13 Nov: cameras go infrared when the lights go off; a block measured
+    # in colour can carry its night in `infrared:`, and the other way round.
+    colour_scene = scene.copy()
+    colour_scene[:, :, 2] = np.clip(colour_scene[:, :, 2].astype(int) + 40,
+                                    0, 255).astype(np.uint8)
+    grey_scene = scene.copy()
+    grey_scene[:, :, :] = scene[:, :, :1]
+    lit_at_night = dict(dark_unit, led_std_threshold=10.0,
+                        measured={"on_std": 30.0, "off_std": 1.0})
+    day_and_night = {"R3": {"frame_size": [400, 300], "expect": "colour",
+                            "units": [dark_unit],
+                            "infrared": {"units": [lit_at_night]}}}
+    ok("in colour the day's calibration reads: off",
+       ac_detect.read_units(colour_scene, "R3", day_and_night)[0] == "off")
+    ok("in infrared the night's: on",
+       ac_detect.read_units(grey_scene, "R3", day_and_night)[0] == "on")
+    day_only = {"R3": dict(day_and_night["R3"], infrared=None)}
+    ok("with no night calibration infrared is still refused",
+       "infrared" in ac_detect.read_units(grey_scene, "R3", day_only)[1])
+    ok("and the night's units are not counted twice",
+       len(ac_detect.all_units(day_and_night["R3"])) == 1)
+
     finance = ON_DISK.get("141 Finance Room", {}).get("units", [{}])[0]
     ok("141 Finance Room's unit names its anchor region",
        len(finance.get("anchor_roi") or []) == 4)
