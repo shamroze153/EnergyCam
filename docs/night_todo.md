@@ -59,9 +59,15 @@ it here. Shamroze reads the morning summary in Roman Urdu.
       to clean or turn, each with what is wrong -- local, sent with
       SendUserFile, never in git. So far: 140-H xvr3 ch 8 (Room 17) hazy.
       Add to it each round.
-- [ ] Seat map for 13 Nov (`python seat_map.py`, after 20:00 -- it opens
-      cameras, and the gym is private until then): which desks were used,
-      against the Desks page's counts. Local only.
+- [x] 19:25 Seat map for 13 Nov, numbers (`seat_map.py --no-pictures`,
+      10-19): Room 18 33 seats used (sheet 43 desks), Marketing 26 (28),
+      141 Room 32 19 (17), Room 17 6 (47). AutoOS and 141 Room 22 show
+      people every pass but no spot held 15% of the day: their boxes
+      wander more than a seat's radius. Local only (seats.txt).
+- [ ] Seat map pictures for 13 Nov, after 22:00 when the rooms are empty
+      (`python seat_map.py --day 2026-11-13 --hours 10-19`; it opens the
+      cameras): look at AutoOS's and Room 22's -- are the dots spread
+      over real desks, or is the camera seeing a passage? Local only.
 - [ ] 140-H rooms on the sheet with no camera room yet: R4, R11, R12,
       R14, R15, 19A/19B (asked Shamroze).
 

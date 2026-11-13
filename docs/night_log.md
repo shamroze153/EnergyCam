@@ -482,3 +482,7 @@ Two or three lines a round; picture file names, never pictures.
   desks and the chairs really are empty -- the low count is real. But
   xvr3 ch 8 is hazy (lens dirty or misted): on the list for Shamroze's
   morning camera fixes. Nothing changed, no restart.
+* 19:25 seat map numbers for 13 Nov, 10-19 (local seats.txt, no camera
+  opened): Room 18 33 seats used, Marketing 26, Basement 20, 141 Room 32
+  19, Room 17 6. AutoOS and 141 Room 22 had people all day but no seat
+  held 15% of it -- pictures after 22:00 to see why.
