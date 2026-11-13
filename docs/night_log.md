@@ -551,3 +551,9 @@ Two or three lines a round; picture file names, never pictures.
   passes of the hour before is 2.5% of notes by day, 12.6% at night --
   it would catch Room 17's and the basement's chairs, not most of the
   rest. An idea for the loop, not built.
+* 02:47 round: 1 GHOST (Entry H, no unit), 0 MISSED -- the night's fixes
+  hold. 23 night detections; in rooms with units they are empty black
+  chairs in infrared: Creative Room ch 4 0.59, Room 18 ch 13 0.63, Room
+  17 ch 5 0.62, Wellows ch 16 0.36, 141 Rooms 25/27/28 again. Seats, and
+  as strong as real people at night, so nothing changed; written up for
+  Shamroze in night_todo (a movement check at night, his call).

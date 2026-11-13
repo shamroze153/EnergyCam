@@ -49,6 +49,18 @@ it here. Shamroze reads the morning summary in Roman Urdu.
 - [ ] Names for cd_nvr4:17 (corridor), :26 (outside lane, guard), :31
       (pantry/kitchen); :30 duplicates the cafe's cd_nvr1:14. Asked.
 
+## For Shamroze, 14 Nov morning: black chairs at night
+
+- [ ] In infrared, empty black office chairs read as people at 0.35-0.67
+      (Creative Room ch 4 0.59, Room 18 ch 13 0.63, Room 17 ch 5 0.62,
+      141 Rooms 25-28 0.35-0.67), while real people at night scored
+      0.39-0.57 (141 Room 22 01:47, Creative Room 22:53). A chair is a
+      seat (no zone) and a bar would lose the late workers, so those rooms
+      read "occupied" through the night and their AC is never flagged.
+      Proposal, not built: a night check for movement -- a box whose
+      pixels do not change between passes is furniture (a seated person
+      breathes, types, turns). Needs his yes; it changes the loop.
+
 ## Added 13 Nov evening (the seating sheet, Desks page)
 
 - [x] 18:47 Room 17: the sheet has 24 of its 47 desks given, the cameras
