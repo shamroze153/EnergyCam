@@ -46,7 +46,8 @@ Tests: `python test_room_loop.py`, `test_overview.py`, `test_energy.py`,
 `test_dashboard.py`, `test_day_story.py`, `test_verify.py`,
 `test_integration.py`, `test_audit.py`, `test_ac_detect.py`,
 `test_meters.py`, `test_analysis.py`, `test_alerts.py`, `test_empty.py`,
-`test_live_ac.py`, `test_floors.py`, `test_energy_rooms.py`, `test_seats.py`.
+`test_live_ac.py`, `test_floors.py`, `test_energy_rooms.py`, `test_seats.py`,
+`test_ac_plan.py`.
 
 Where people sit: the loop writes each counted person's place to
 `seats/<date>.csv` (numbers only, this machine only). `python seat_map.py`

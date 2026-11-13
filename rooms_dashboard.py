@@ -3104,6 +3104,66 @@ def show_arrivals(df, now):
     mode = LINK_BASE.get("theme") or "dark"
     mode = mode if mode in ("light", "dark") else "dark"
 
+    # ---- recommended AC timings (Shamroze, 13 Nov) --------------------------
+    # From the usual day, not the day picked above: the last ten working
+    # days, each room's people half hour by half hour, turned into how many
+    # of its units to run when. The arithmetic is in ac_plan.py, tested.
+    def recommended_ac():
+        import ac_plan
+        past, d = [], today - timedelta(days=1)
+        while len(past) < 10 and d >= first_day:
+            if workday(d):
+                past.append(d)
+            d -= timedelta(days=1)
+        if len(past) < ac_plan.MIN_DAYS:
+            return
+        starts = [pd.Timestamp(x).tz_localize(PKT) for x in sorted(past)]
+        try:
+            seen = load_beats(starts[0] - pd.Timedelta(minutes=15),
+                              starts[-1] + pd.Timedelta(days=1, minutes=15))
+        except psycopg2.Error:
+            return
+        rate = float(assumptions.get("tariff_rs_per_kwh", 67) or 67)
+        duty = float(assumptions.get("ac_duty", 1.0) or 1.0)
+        hours = work_hours()
+        items = []
+        for room in singles:
+            units = int(room.get("ac_count") or 0) if room.get("has_unit") \
+                else 0
+            if units < 1 or not room.get("alerts", True):
+                continue
+            mine = by_room.get(room["room"], none_yet)
+            mins = [ds.by_minute(ds.spells(mine, s0, s0 + pd.Timedelta(days=1),
+                                           seen), s0) for s0 in starts]
+            bands = ac_plan.plan(mins, units, hours)
+            if not bands:
+                continue
+            # The days this room was watched at all: 141 began on 11 Nov.
+            watched = sum(1 for m in mins
+                          if sum(1 for v in m if v is not None) >= 720)
+            kw = float(room.get("unit_kw") or assumptions.get("unit_kw", 1.2)
+                       or 1.2)
+            base = units * (hours[1] - hours[0])
+            items.append({"room": room["room"], "units": units,
+                          "bands": bands, "days": watched,
+                          "saving_rs": (base - ac_plan.unit_hours(bands))
+                          * kw * duty * rate})
+        if not items:
+            return
+        items.sort(key=lambda i: (-i["saving_rs"], i["room"]))
+        t = THEMES[mode]
+        colours = {"text": TEXT, "muted": MUTED, "faint": FAINT,
+                   "line": LINE, "off": t["slot_empty"],
+                   "on": t["ink"]["Cool"]["bar"], "surface": SURFACE}
+        st.markdown(ac_plan.page(items[:8], colours, len(starts), hours,
+                                 rate), unsafe_allow_html=True)
+        if items[8:]:
+            with st.expander("The other %d rooms with a unit"
+                             % len(items[8:])):
+                st.markdown(ac_plan.page(items[8:], colours, len(starts),
+                                         hours, rate, heading=False),
+                            unsafe_allow_html=True)
+
     # ---- who comes when ----------------------------------------------------
     st.markdown(
         '<div style="font-size:1.1rem;font-weight:720;margin:22px 0 2px;">'
@@ -3188,6 +3248,7 @@ def show_arrivals(df, now):
         empty_with_ac()
         for show in later:
             show()
+        recommended_ac()
         return
 
     # One day: four numbers, then the timeline, then the detail for anyone
@@ -3287,6 +3348,7 @@ def show_arrivals(df, now):
 
     for show in later:
         show()
+    recommended_ac()
 
     detail = st.expander("Every number for this day, as tables")
     body, strips = [], []

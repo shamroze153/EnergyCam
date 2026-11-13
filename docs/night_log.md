@@ -420,3 +420,12 @@ Two or three lines a round; picture file names, never pictures.
   H First Floor Lobby, Marketing ch 3); the unit areas of Marketing,
   Wellows, Mosque and Room 8 stayed flat. Those units need a hand on/off,
   as tower 6 had. Nothing written.
+* 12:30 Shamroze: from Who comes when, recommend AC timings -- when to run
+  how many units, when to keep all off. ac_plan.py: each room's people
+  half hour by half hour over up to ten working days, units in proportion
+  to its busiest half hour, one unit after 8 pm only where people are
+  there as a habit, short dips and short visits smoothed out. Under Who
+  comes when, a line and a 24-hour bar a room, with the saving against all
+  units 10-8. The cafe, from one full day so far: 1 at 10, 2 from 10:30, 3
+  at noon, all 6 at 3, down to 2 by 6:30, 1 after 8 -- about Rs 1,600 a day
+  less. test_ac_plan.py.
