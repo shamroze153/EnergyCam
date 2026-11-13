@@ -332,3 +332,8 @@ Two or three lines a round; picture file names, never pictures.
   0.40 bar, so its four units were taken as running all night -> 0.60
   (evidence/Room_17_xvr3_ch03_20261113_045812.jpg, evidence/Marketing_
   dvr2_ch03_20261113_045912.jpg). Loop restarted 05:06.
+* 05:25 phone check, dark, both campuses, every tab: nothing past the
+  screen, no errors. Rooms' "Every room" heading broke over two lines
+  beside its caption on a phone; the caption now wraps under it. Today's
+  biggest AC figure at 140-H is Room 17's 13 kWh -- the chairs before
+  05:06, for Shamroze in the morning.

@@ -4052,8 +4052,11 @@ if view == "Rooms":
                 unsafe_allow_html=True)
         st.divider()
     st.markdown(
-        '<div style="display:flex;align-items:baseline;gap:10px;'
-        'margin:0 0 6px;"><span style="font-size:1.1rem;font-weight:720;">'
+        # Wraps rather than squeezing: on a phone the line goes under the
+        # heading instead of breaking "Every room" over two lines.
+        '<div style="display:flex;flex-wrap:wrap;align-items:baseline;'
+        'column-gap:10px;row-gap:2px;margin:0 0 6px;">'
+        '<span style="font-size:1.1rem;font-weight:720;white-space:nowrap;">'
         'Every room</span><span style="font-size:.72rem;color:%s;">'
         '%d rooms &middot; who is in it, what its unit is doing, and its last'
         ' %d hours</span></div>' % (MUTED, len(df), STRIP_HOURS),
