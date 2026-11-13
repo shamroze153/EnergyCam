@@ -37,8 +37,15 @@ def main():
     check("seating.yaml loads, with desks", len(data["spaces"]) > 0, True)
     check("the sheet's 701 desks are all there",
           sum(s["seats"] for s in data["spaces"]), 701)
-    check("  399 of them given to somebody",
-          sum(s["allocated"] for s in data["spaces"]), 399)
+    check("  399 of them given to somebody on the sheet",
+          sum((s["sheet"] or s)["allocated"] for s in data["spaces"]), 399)
+    dc = [s for s in data["spaces"] if "Data centre" in s["name"]]
+    check("141-D's data centre: no desk given, whatever the sheet says"
+          " (Shamroze, 13 Nov)",
+          (dc[0]["allocated"], dc[0]["free"], dc[0]["teams"],
+           dc[0]["sheet"]["allocated"]), (0, 13, {}, 10))
+    check("  so 389 given once corrected",
+          sum(s["allocated"] for s in data["spaces"]), 389)
     check("given never exceeds desks", all(
         s["allocated"] <= s["seats"] for s in data["spaces"]), True)
     text = open(seating.PATH, encoding="utf-8").read()
@@ -105,6 +112,15 @@ def main():
           ("141-D Third Floor-Room 40", [], "Third floor", "141-D"))
     check("  and the written file has no name in it",
           "Somebody" in seating.dump(fresh), False)
+    fixed = dict(seating.load()["spaces"][0], name="Room 17",
+                 codes=["C1-FF-R17"], rooms=["Room 17"],
+                 override={"allocated": 0}, sheet={"allocated": 99})
+    again = import_seating.refresh({"as_of": "x", "source": "y",
+                                    "spaces": [fixed]}, found)
+    back = seating.load(_write(seating.dump(again)))["spaces"][0]
+    check("a refresh writes the sheet's new count and keeps the correction",
+          (back["sheet"]["allocated"], back["allocated"], back["seats"]),
+          (1, 0, 2))
 
     # ---- minutes into figures --------------------------------------------
     check("two cameras' minutes add up",

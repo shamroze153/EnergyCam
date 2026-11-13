@@ -59,7 +59,9 @@ def refresh(data, found):
     for s in data["spaces"]:
         mine = [found[c] for c in s["codes"] if c in found]
         known.update(s["codes"])
-        s = dict(s)
+        # The new counts are the sheet's own; a correction stays in
+        # override and still wins when the file is read.
+        s = dict(s, sheet=None)
         if mine:
             for key in ("seats", "allocated", "in_use", "out_of_order"):
                 s[key] = sum(m[key] for m in mine)

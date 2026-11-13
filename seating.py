@@ -32,19 +32,29 @@ def load(path=PATH):
         return {"as_of": None, "source": None, "spaces": []}
     spaces = []
     for s in data.get("spaces") or []:
-        seats = int(s.get("seats") or 0)
-        given = int(s.get("allocated") or 0)
+        sheet = {"seats": int(s.get("seats") or 0),
+                 "allocated": int(s.get("allocated") or 0),
+                 "in_use": int(s.get("in_use") or 0),
+                 "out_of_order": int(s.get("out_of_order") or 0),
+                 "teams": dict(s.get("teams") or {})}
+        # A figure somebody who knows the room has corrected (Shamroze,
+        # 13 Nov: nobody has a desk in 141-D's data centre, whatever the
+        # sheet says). The sheet's own figure stays in the file beside it,
+        # and a refresh from the sheet keeps the correction.
+        fix = dict(s.get("override") or {})
+        shown = dict(sheet, **fix)
         spaces.append({
             "name": s["name"], "campus": s.get("campus") or "",
             "building": s.get("building") or s.get("campus") or "",
             "floor": s.get("floor") or "", "codes": list(s.get("codes") or []),
-            "seats": seats, "allocated": given,
-            "free": max(0, seats - given),
-            "in_use": int(s.get("in_use") or 0),
-            "out_of_order": int(s.get("out_of_order") or 0),
-            "teams": dict(s.get("teams") or {}),
+            "seats": int(shown["seats"]), "allocated": int(shown["allocated"]),
+            "free": max(0, int(shown["seats"]) - int(shown["allocated"])),
+            "in_use": int(shown["in_use"]),
+            "out_of_order": int(shown["out_of_order"]),
+            "teams": dict(shown["teams"] or {}),
             "rooms": list(s.get("rooms") or []),
-            "note": s.get("note") or ""})
+            "note": s.get("note") or "",
+            "override": fix, "sheet": sheet if fix else None})
     return {"as_of": data.get("as_of"), "source": data.get("source"),
             "spaces": spaces}
 
@@ -72,6 +82,8 @@ def dump(data):
         "# rooms      the rooms.yaml rooms whose cameras see these desks;",
         "#            none yet means no camera sees them (counted, not watched)",
         "# codes      the sheet's Room Code(s): how a refresh finds the space",
+        "# override   figures a person corrected; they win over the sheet's,",
+        "#            which stay above them, and a refresh keeps them",
         "",
         "as_of: %s" % q(str(data.get("as_of") or "")),
         "source: %s" % q(data.get("source") or ""),
@@ -83,12 +95,16 @@ def dump(data):
             if s.get(key):
                 out.append("    %s: %s" % (key, q(s[key])))
         out.append("    codes: %s" % q(list(s.get("codes") or [])))
+        # The sheet's figures, never a correction's: those go in override.
+        counts = s.get("sheet") or s
         for key in ("seats", "allocated", "in_use", "out_of_order"):
-            if s.get(key) or key in ("seats", "allocated"):
-                out.append("    %s: %d" % (key, int(s.get(key) or 0)))
-        if s.get("teams"):
+            if counts.get(key) or key in ("seats", "allocated"):
+                out.append("    %s: %d" % (key, int(counts.get(key) or 0)))
+        if counts.get("teams"):
             out.append("    teams: %s" % q(dict(sorted(
-                s["teams"].items(), key=lambda kv: (-kv[1], kv[0])))))
+                counts["teams"].items(), key=lambda kv: (-kv[1], kv[0])))))
+        if s.get("override"):
+            out.append("    override: %s" % q(dict(s["override"])))
         if s.get("rooms"):
             out.append("    rooms:")
             out.extend("      - %s" % q(r) for r in s["rooms"])
@@ -349,6 +365,11 @@ def card(it, c):
                      % (c["muted"], it["allocated"] - round(s["peak"]),
                         "" if it["allocated"] - round(s["peak"]) == 1
                         else "s"))
+    sheet = it.get("sheet") or {}
+    if sheet and sheet.get("allocated") != it["allocated"]:
+        lines.append('<div class="st-line" style="color:%s">Corrected: the'
+                     ' sheet gives %d of these desks to somebody</div>'
+                     % (c["faint"], sheet["allocated"]))
     if it.get("ac"):
         lines.append('<div class="st-line" style="color:%s">&#10052; %s</div>'
                      % (c["muted"], esc(it["ac"])))

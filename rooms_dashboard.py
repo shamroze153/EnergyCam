@@ -2922,7 +2922,7 @@ def ac_timing_colours(mode):
 
 
 @st.cache_data(ttl=1800, show_spinner=False)
-def cached_seating(day_iso, now_iso=None):
+def cached_seating(day_iso, now_iso=None, sheet_stamp=None):
     """Desks against people, every space on the seating sheet.
 
     Shamroze, 13 Nov: the admin team's seating sheet (desks per room, given
@@ -2931,6 +2931,10 @@ def cached_seating(day_iso, now_iso=None):
     up where several cameras share the desks; each campus the same, every
     watched space added up, for its busiest moment and the hour-by-hour
     picture. Cached for half an hour: it walks every room through ten days.
+
+    sheet_stamp is seating.yaml's modification time, there only to key the
+    cache: a corrected or refreshed sheet shows at once, not half an hour
+    later (13 Nov, the data centre's desks).
 
     Today counts too, up to now_iso, once half its office hours so far were
     watched: 141's second floor was first watched on 12 Nov, and a page of
@@ -3100,8 +3104,12 @@ def show_seating(mode, today, campus=None):
             'campuses</a></div></div>' % overview.esc(back),
             unsafe_allow_html=True)
     try:
+        try:
+            stamp = os.path.getmtime(seating.PATH)
+        except OSError:
+            stamp = None
         got = cached_seating(today.isoformat(),
-                             _to_5min(now).floor("30min").isoformat())
+                             _to_5min(now).floor("30min").isoformat(), stamp)
     except psycopg2.Error as e:
         st.error("Could not read the rooms (%s)." % type(e).__name__)
         return

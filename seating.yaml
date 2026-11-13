@@ -9,6 +9,8 @@
 # rooms      the rooms.yaml rooms whose cameras see these desks;
 #            none yet means no camera sees them (counted, not watched)
 # codes      the sheet's Room Code(s): how a refresh finds the space
+# override   figures a person corrected; they win over the sheet's,
+#            which stay above them, and a refresh keeps them
 
 as_of: '2026-11-13'
 source: Admin seating sheet, 13 Nov 2026 -- an estimate
@@ -327,9 +329,10 @@ spaces:
     allocated: 10
     in_use: 10
     teams: {Squatwolf: 9, G&A: 1}
+    override: {allocated: 0, in_use: 0, teams: {}}
     rooms:
       - 141 Data Centre
-    note: 'Rooms 15 and 16 are the data centre (Shamroze, 13 Nov). The sheet gives both the code C2-FF-R15, and puts nine Squat Wolf desks in Room 15.'
+    note: 'Rooms 15 and 16 are the data centre (Shamroze, 13 Nov). The sheet gives both the code C2-FF-R15 and ten of their desks to somebody (nine Squat Wolf, one G&A); Shamroze, 13 Nov: no desk in the data centre is given to anybody -- the override.'
   - name: 141-D HR (Room 17)
     campus: 141-C/D
     building: 141-D
