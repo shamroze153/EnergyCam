@@ -464,3 +464,8 @@ Two or three lines a round; picture file names, never pictures.
   To confirm with him: whether Reception meeting room 2 and Assembly
   meeting room 2 have cameras, and whether 141 Admin Room is 141-D's R1.
   First and second floors to come. Loop restarted 15:53.
+* 16:47 round: 84 MATCH, 1 MISSED, 3 GHOST; the gym not opened. The
+  MISSED is 140-H After Entrance, a passage (no unit). UPS Room's people
+  are real visitors (0.67-0.88; cooled on purpose anyway), the Meeting
+  Room Lobby's too (0.85-0.90); 141 Reception Roof has a small thing at
+  0.34 on ch 14 -- outdoors, no unit, left. Nothing changed, no restart.
