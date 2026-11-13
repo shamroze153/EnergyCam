@@ -367,3 +367,9 @@ Two or three lines a round; picture file names, never pictures.
   clock overlay. The calibrated ones read right in daylight: 141-C Cafe 2
   running / 3 off, Room 32 one running with its person in. The rest at
   11:12, on the full 08:21-11:00 watch.
+* 10:00 Shamroze: the cafe's six towers are all in the cameras -- why "1
+  not visible"? The sixth is the tower on the right of ch 14 by the plant
+  (frames/cafe_sixth.jpg), side on: its louvre faces away and nothing on
+  it moved when towers 2 and 4 went off at 20:35 on 12 Nov. ch 2's tower
+  is one of the five from the far end. The panel says "not readable" now;
+  reading it needs one on/off by hand while the cameras are watched.
