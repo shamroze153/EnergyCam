@@ -66,8 +66,9 @@ def wanted(cfg, campus=None):
 def calibrated(path="ac_units.yaml"):
     if not os.path.exists(path):
         return {}
+    from ac_detect import all_units
     data = (yaml.safe_load(open(path, encoding="utf-8")) or {}).get("rooms") or {}
-    return {name: len(c.get("units") or []) for name, c in data.items()}
+    return {name: len(all_units(c)) for name, c in data.items()}
 
 
 def main():

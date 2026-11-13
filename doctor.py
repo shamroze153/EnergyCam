@@ -108,7 +108,8 @@ def check_calibration(cfg):
     declared = sum(int(r.get("ac_count", 1) or 1) for r in rooms.values()
                    if r.get("ac") in ("visible", "hidden")
                    and r.get("alert") != "never" and r.get("watch", True))
-    measured = sum(len(c.get("units") or []) for c in units.values())
+    from ac_detect import all_units, blocks
+    measured = sum(len(all_units(c)) for c in units.values())
     ok("%d of about %d units measured" % (measured, declared))
     for name, cfg_room in sorted(units.items()):
         room = rooms.get(name)
@@ -119,14 +120,14 @@ def check_calibration(cfg):
         cams = room.get("cameras") or [{"recorder": room["recorder"],
                                         "channel": c}
                                        for c in room["channels"]]
-        pair = (cfg_room.get("recorder", room.get("recorder")),
-                cfg_room.get("channel"))
-        if pair not in [(c["recorder"], c["channel"]) for c in cams]:
-            bad("%s is calibrated on %s channel %s, which it is not watched on"
-                % (name, pair[0], pair[1]),
-                "The loop only reads a unit on a channel it visits, so this"
-                " would never be read. Re-run calibrate_room.py.")
-        for unit in cfg_room.get("units", []):
+        watched = [(c["recorder"], int(c["channel"])) for c in cams]
+        for pair, _ in blocks(cfg_room, room.get("recorder")):
+            if pair not in watched:
+                bad("%s is calibrated on %s channel %s, which it is not"
+                    " watched on" % (name, pair[0], pair[1]),
+                    "The loop only reads a unit on a channel it visits, so"
+                    " this would never be read. Re-run calibrate_room.py.")
+        for unit in all_units(cfg_room):
             if not unit.get("anchor"):
                 warn("%s has no anchor" % name,
                      "a nudged camera would read it as off for ever;"

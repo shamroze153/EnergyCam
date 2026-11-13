@@ -178,19 +178,87 @@ def read_units(frame, room, units=None):
     config = units.get(room)
     if not config:
         return None, "not calibrated", None
+    lit, astray, why = _read_block(frame, config)
+    if why:
+        return None, why, None
+    return _verdict(lit, astray, int(config.get("unseen_units") or 0))
 
+
+def blocks(config, recorder=None):
+    """A room's calibration camera by camera: ((recorder, channel), block).
+
+    The room's own block first, then any `also:` -- 141-C Cafe reads towers
+    1-5 on ch 14 and tower 6, which ch 14 sees only side on, on ch 2
+    (Shamroze, 13 Nov). Each block carries its own frame size, lighting and
+    units, because each is a different camera's picture.
+    """
+    main = {k: v for k, v in config.items() if k != "also"}
+    out = [((main.get("recorder", recorder), int(main.get("channel", -1))),
+            main)]
+    for extra in config.get("also") or []:
+        out.append(((extra.get("recorder", main.get("recorder", recorder)),
+                     int(extra["channel"])), extra))
+    return out
+
+
+def all_units(config):
+    """Every unit a room's calibration reads, on whichever camera."""
+    return [u for _, b in blocks(config) for u in (b.get("units") or [])]
+
+
+def read_cameras(frames, room, units=None, recorder=None):
+    """read_units over every camera a room's calibration names.
+
+    frames: {(recorder, channel): frame or None}. A camera that sent
+    nothing, or whose reading was refused, leaves its units unread -- they
+    join the room's unseen ones -- and the others still count. Any unit
+    running is the room on; off needs every unit in the room read off.
+    """
+    units = load_units() if units is None else units
+    config = units.get(room)
+    if not config:
+        return None, "not calibrated", None
+    lit, astray, unread, notes = [], [], 0, []
+    for key, block in blocks(config, recorder):
+        count = len(block.get("units") or [])
+        frame = frames.get(key)
+        if frame is None:
+            unread += count
+            notes.append("ch %d sent nothing" % key[1])
+            continue
+        got, off_view, why = _read_block(frame, block)
+        if why:
+            unread += count
+            notes.append("ch %d: %s" % (key[1], why))
+            continue
+        lit += got
+        astray += off_view
+    if not lit and not astray:
+        return None, "; ".join(notes) or "no usable boxes", None
+    state, why, running = _verdict(
+        lit, astray, int(config.get("unseen_units") or 0) + unread)
+    if notes:
+        why += "; " + "; ".join(notes)
+    return state, why, running
+
+
+def _read_block(frame, config):
+    """One camera's boxes: (lit, astray, None), or (None, None, why) when
+    the picture itself cannot be read -- wrong size, wrong lighting, a box
+    off the edge. lit is True/False per unit read; astray the anchor scores
+    of the units whose surroundings no longer match."""
     height, width = frame.shape[:2]
     expected = config.get("frame_size")
     if expected and [width, height] != list(expected):
-        return None, ("frame is %dx%d, the boxes were drawn on %dx%d"
-                      % (width, height, expected[0], expected[1])), None
+        return None, None, ("frame is %dx%d, the boxes were drawn on %dx%d"
+                            % (width, height, expected[0], expected[1]))
 
     expect = config.get("expect")
     infrared = is_infrared(frame)
     if expect == "infrared" and not infrared:
-        return None, "camera is in colour; calibrated in infrared", None
+        return None, None, "camera is in colour; calibrated in infrared"
     if expect == "colour" and infrared:
-        return None, "camera is in infrared; calibrated in colour", None
+        return None, None, "camera is in infrared; calibrated in colour"
 
     lit = []
     # Units whose surroundings no longer match are left unread one by one,
@@ -207,7 +275,7 @@ def read_units(frame, room, units=None):
             continue
         x1, y1, x2, y2 = box
         if x2 > width or y2 > height or x1 < 0 or y1 < 0:
-            return None, "a box falls outside the frame", None
+            return None, None, "a box falls outside the frame"
         stored = unit.get("anchor")
         if stored:
             # The region round the box, unless the unit names its own: 141
@@ -218,13 +286,13 @@ def read_units(frame, room, units=None):
                       else anchor_box(box, (width, height)))
             score = anchor_match(frame, region, unpack(stored), hide=box)
             if score is None:
-                return None, "the view round the box cannot be compared", None
+                return None, None, "the view round the box cannot be compared"
             if score < ANCHOR_MATCH:
                 astray.append(score)
                 continue
         value = contrast(frame, box)
         if value is None:
-            return None, "a box is empty", None
+            return None, None, "a box is empty"
         # Which side of the threshold means "running" is taken from the
         # measurements themselves, not assumed.
         #
@@ -242,7 +310,12 @@ def read_units(frame, room, units=None):
                         or on_std >= off_std)
         lit.append(value >= threshold if higher_is_on
                    else value <= threshold)
+    return lit, astray, None
 
+
+def _verdict(lit, astray, unseen):
+    """The room's (state, why, running) from the units read, the ones left
+    unread as astray, and the ones no camera reads at all."""
     if not lit:
         if astray:
             return None, ("the camera has moved: the view round the box"
@@ -262,7 +335,7 @@ def read_units(frame, room, units=None):
     # other two, and calling the room "off" would quietly drop every empty
     # hour they ran from the waste and the alerts. Off is only known when
     # every unit in the room was read.
-    unseen = int(config.get("unseen_units") or 0) + len(astray)
+    unseen += len(astray)
     if unseen:
         return None, ("%d unit(s) read off; %d more in the room cannot be"
                       " seen, so the room is not known to be off%s"

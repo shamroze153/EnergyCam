@@ -64,6 +64,7 @@ import yaml
 from dotenv import load_dotenv
 
 from ac_detect import load_units, read_room, read_units  # noqa: F401
+from ac_detect import blocks as camera_blocks, read_cameras  # noqa: E402
 from alerts import Alerter, compose, configured, deliver, why_not_configured
 from concurrent.futures import ThreadPoolExecutor, as_completed  # noqa: E402
 
@@ -759,14 +760,15 @@ def check_ac_units(units, rooms):
         room = by_name.get(name)
         if room is None:
             continue            # another recorder's room, not in this run
-        channel = cfg.get("channel")
-        recorder = cfg.get("recorder", room.recorder)
-        if channel is None:
+        if cfg.get("channel") is None:
             problems.append("%s: no channel given" % name)
-        elif (recorder, int(channel)) not in room.cameras:
-            problems.append("%s: calibrated on %s channel %s, but the room's"
-                            " cameras are %s"
-                            % (name, recorder, channel, spell_cameras(room)))
+            continue
+        for (recorder, channel), _ in camera_blocks(cfg, room.recorder):
+            if (recorder, channel) not in room.cameras:
+                problems.append("%s: calibrated on %s channel %s, but the"
+                                " room's cameras are %s"
+                                % (name, recorder, channel,
+                                   spell_cameras(room)))
     if problems:
         fail_config("ac_units.yaml does not match rooms.yaml:\n   - "
                     + "\n   - ".join(problems))
@@ -895,21 +897,21 @@ def examine(room, frames, model, imgsz, iou, ac_units=None,
     """
     people, answered, keep = 0, 0, None
     ac_config = (ac_units or {}).get(room.name) or {}
-    ac_channel = ac_config.get("channel")
-    ac_recorder = ac_config.get("recorder", room.recorder)
     ac_state = None
-    ac_detail = "not calibrated" if not ac_config else "camera did not answer"
+    ac_detail = "not calibrated"
     # How many of its units were seen running, kept on the room itself so the
     # tuple this returns keeps its shape for everything that unpacks it.
     room.ac_units_on = None
+    if ac_config:
+        # Every camera the calibration names, each read on its own picture:
+        # 141-C Cafe reads five towers on ch 14 and the sixth on ch 2.
+        ac_state, ac_detail, room.ac_units_on = read_cameras(
+            frames, room.name, ac_units, room.recorder)
     for key in room.cameras:
         wide = frames.get(key)
         if wide is None:
             continue
         answered += 1
-        if key[1] == ac_channel and key[0] == ac_recorder:
-            ac_state, ac_detail, room.ac_units_on = read_units(
-                wide, room.name, ac_units)
         boxes = people_boxes(wide, model,
                              conf=room.conf_for(after_hours, key),
                              imgsz=imgsz, iou=iou)

@@ -506,6 +506,37 @@ def main():
        ac_detect.read_units(shifted, "R2", two)[2] is None
        and "moved" in ac_detect.read_units(shifted, "R2", two)[1])
 
+    print("-- a room read on two cameras")
+    # 141-C Cafe (Shamroze, 13 Nov): towers 1-5 on ch 14, tower 6 on ch 2,
+    # which faces it where ch 14 sees only its side.
+    dark_unit = {"led_roi": [50, 90, 70, 110], "led_std_threshold": 200.0,
+                 "measured": {"on_std": 300.0, "off_std": 1.0}}
+    lit_unit = dict(dark_unit, led_std_threshold=10.0,
+                    measured={"on_std": 30.0, "off_std": 1.0})
+    main_block = {"recorder": "r", "channel": 14, "frame_size": [400, 300],
+                  "units": [dark_unit]}
+    on2 = {"C": dict(main_block, also=[{"channel": 2, "frame_size": [400, 300],
+                                        "units": [lit_unit]}])}
+    off2 = {"C": dict(main_block, also=[{"channel": 2,
+                                         "frame_size": [400, 300],
+                                         "units": [dark_unit]}])}
+    both = {("r", 14): scene, ("r", 2): scene}
+    state, why, n = ac_detect.read_cameras(both, "C", on2)
+    ok("a unit running on the second camera is the room on",
+       state == "on" and n == 1)
+    ok("every unit read off on both cameras: the room off",
+       ac_detect.read_cameras(both, "C", off2)[0] == "off")
+    state, why, n = ac_detect.read_cameras({("r", 14): scene, ("r", 2): None},
+                                           "C", off2)
+    ok("the second camera silent: its unit unread, the room unknown",
+       (state, n) == (None, 0) and "ch 2 sent nothing" in why)
+    ok("both silent: nothing known at all",
+       ac_detect.read_cameras({}, "C", off2)[2] is None)
+    ok("every unit, on whichever camera", len(ac_detect.all_units(
+        on2["C"])) == 2)
+    ok("the cameras named, the room's recorder where none is given",
+       [k for k, _ in ac_detect.blocks(on2["C"])] == [("r", 14), ("r", 2)])
+
     finance = ON_DISK.get("141 Finance Room", {}).get("units", [{}])[0]
     ok("141 Finance Room's unit names its anchor region",
        len(finance.get("anchor_roi") or []) == 4)

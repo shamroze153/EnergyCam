@@ -165,7 +165,12 @@ def calibrated_counts(path="ac_units.yaml"):
         return {}
     import yaml
     data = (yaml.safe_load(open(path, encoding="utf-8")) or {}).get("rooms", {})
-    return {name: len(cfg.get("units") or []) for name, cfg in (data or {}).items()}
+    # Every camera's units: the cafe's sixth tower is read on ch 2 (an
+    # `also:` block). Counted here, not through ac_detect: that brings in
+    # OpenCV, which the hosted dashboard does not have.
+    return {name: len(cfg.get("units") or [])
+            + sum(len(b.get("units") or []) for b in cfg.get("also") or [])
+            for name, cfg in (data or {}).items()}
 
 
 # Where somebody counted is somebody in the building. A street, a car park
