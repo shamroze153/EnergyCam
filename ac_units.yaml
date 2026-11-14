@@ -386,3 +386,20 @@ rooms:
           taken: 2026-11-14T11:20+0500
           # A gap of 65.9 between the two states.
 
+    also:
+      - recorder: nvr4
+        channel: 20
+        expect: colour
+        frame_size: [1920, 1080]
+        units:
+          - label: Kenwood 2 ton 1, top right of ch20, seen side on, its flap
+            led_roi: [1788, 183, 1806, 195]
+            led_std_threshold: 24.6
+            anchor: YWFeXFxeXldeeXdtcjNL/86nv8K/v7+9vb26v729s3JXb9X////////QmK6srrOxYWFeXFxeXllcb3lydzVh/8azuMS9v7+/v7+/v7+/ur22sYVqZoCdy//Goq6urrGxYWFeXF5eXFlcZndyeTOM/8a9uMK/v7+/v7+/v7+/v6dZmLHCvamPjIqlrrGxsbGxYWFeXF5hXllcYW93eS62/8nLs73EwsK/v7+/v7+/08YrDiIOXrqzrK6xrq6xrq6uYWFeXF5hXllcXmh0eyvE/8bQsbrEwr+/v7+/v7+/ydBjWVwwXsa9urixsa6urq6uYWFeXl5hXlxeXmFqezPQ/8LLs7/Cv7+/v7+/vb29vdXTy72YoLjGrK6srq6usbGuYWFhXmFhYV5eYV5oezPT/72/usK9urq9vb29vb26uL+6uMLQvb22uLGzs7OzsbGxYWFhYWFhYWFhYV5hcjzT/7asv8K/vb29vb29vb26uLa6urjCsbq6urO2tra2s7OxYWFhYWFhYWFhYV5XZkSU/8msvb+/vb29vb26urq6urq6urq4v73Luri6tra2s7OzYWFhYWFhYWFhYWFeYVcw6Mm4yb+9ur29vb26urq6urq6uL2/ztz+8M6/tra2s7OzYWFhYWFhYWFhYWFeY1Id/trCxr2/vb29vb26urq6urq6urrOtgc8TdXJuLa2trazY2FhYWFhYWFhYV5eZlUi99rExrq/v729vb29urq6urq6urrQ0DVtH+bGrra2tra2Y2NhYWFhYWFhYV5hYUsf8sS4zsu/v7+9v729vbq6urq6urrEpRYkJ8bCsbGzuLa2Y2NhYWFhYWFhYWFeZksp98K6y8S/wsK/vb29vb26urq6urrE39W2mL22sbOztra2Y2NhYWFhYWFhYWFcZlxJ4cS2072/ycLCur29vb29urq6urq9xtPV8MuurrOztrazY2NjYWFhYWFhYWFcY1lVJzip2r3GycLEzsS9vb29vb26uri9uLG6s7Osqa6ztraxY2NjYWFhYWFhYWFhYV5eUDgkjL/X08K9ycbCvb29ur29urq6trO6s7Gup6yztri2Y2NjY2FhYWFhYWFhYV5hYVc6J0Gd18m9usLGwr2zur29uri4tra4trGxrrG2ur22Y2NjY2NjY2FhYWFhYWFhYV5jVTgTVbHtzsLCxL24uL29urq4uLa2trixqaezurOxY2NjY2NjY2FhYWFjYWFhXlxhYV5JKSdv2r/JxL2/vb29ur24uLa2traxs6yzuK6xY2NjY2NjY2NjY2NjY2FhXl5cXmNjYVA8hZiRjIiuxr+9urq4uLi6trGxurOztrGuY2NjY2NjY2NjY2NjY2FhYWFhYWNjY2NjY2NjY2OWtr+/uL29urq4urqxuLOutq6sY2NjY2NjY2NjY2NjY2FhYWFhYWNjY2NjY2NjY2Oxzr3Owsm/urq6urixurqzs7GzY2NjY2NjY2NjY2NjY2NhYWFhYWNjY2NjY2NjY2NttsS9v8S/vbq6uri2uLi2trG4ZmZjY2NjY2NjY2NjY2NjYWFhYWNjY2NjY2NjY2MpMIC9usvCvbq6urq4rKy2urG4ZmZmZmZmY2NjY2NjY2NjYWFhYWNjY2NjY2NjY2NjPDU8qb2/vbq/v7i4sbG6urO2ZmZmZmZmZmNjY2FhYWFhYWFhYWNjY2NjY2NjY2NeXFc6HYXc3Ma4xLq6uLq4uLq9ZmZmZmZmZmNjYWFhYWFhYWFhYWNhYWFhYWFhYWFeXFxVUCkdot/Cv7q9vbq9urizZmZmZmZmZmNjYWFhYWFhYWFhYWFeXlxcXFxcXFxcXFxXWVwfAGady722sbq/uri4ZmZmZmZmZmNhYWFhYWFhYWFhYWFeXlxcXFxcXFxcXF5mXGNZLgcwg5uxxLi2s7GuZmZmZmZmZmNhYWFhYWFhYWFhYWFhXlxcXFxcXlxcXFdhV141VUlEWVxmhYqYoKegZmZmZmZmZmNhYWFhYWFhYWFhYWFeXlxcXFxcXFxcXFleYVxESUZQaGhhXGFteYWRZmZmZmZjY2NjY2FhYWFhYWFhXl5eXFxcXFxcXFxcWVlcYVxGRkZSaHd7eXR0b293ZmZmY2NjY2NjY2FhYWFhYV5eXl5eXFxcXFxcXFxcXFleY1xGRktSZm9ydHJyeYODZmZjY2NjY2NjY2NhYWFhXl5eXl5eXFxcXFxcXFxcXFdcXldJSUlXanJ0dHd+g4N7ZmZjY2NjY2NjY2NjYWFeXF5eXl5eXlxcXFxcXFxcXFlcXldJRkZXam9vdHR0gIODZmZjY2NjY2NjY2NjY2FeXl5eXl5eXlxcXFxcXFxcXFlcXldJRkZZbW9tcnR0gIOAZmZjY2NjY2NjY2NjYWFeXl5eXl5eXlxcXFxcXFxcXFlcXlVJSUlZbW9vcnd3gIOAZmZjY2NjY2NjY2NhYWFhXl5eXl5eXl5cXFxcXFxcXFlcXldJSUlZbXJvcnd5gICAZmZjY2NjY2NjY2FhYWFhYV5eXl5eXl5cXFxcXFxcXFdcXlVLS0tcbW9tcnd7foCAZmZjY2NjY2NjY2FhYWFhYWFeXl5cXl5eXFxcXFxcXFlcXlVLS0tcbW9vcnd7gIB+ZmZjY2NjY2NjY2FhYWFhYWFhXl5eXl5eXlxcXFxcXFlcXlJNTUtcbW9ycnd7foB+ZmZjY2NjY2NjYWFhYWFhYWFhYV5eXl5eXl5cXFxcXFlcXlJNTU1ebXJydHl7e4CAZmZjY2NjY2NhYWFhYWFhYWFhYWFeXl5eXl5cXFxcXFlZXlJNTVBhb3Jyd3l7foB+ZmZjY2NjY2NjY2NhYWFhYWFhYWFeYV5eXl5eXFxcXFlZXFJNUFJhcnJ0d3l7foB+ZmZmZmZmY2NjY2NjYWFhYWFhYWFeXl5eXl5eXFxcXFlZWVBNS1Bjb3R3eXuAfoCAZmZmZmZmY2NjY2NjYWFhYWFhYWFeXl5eXl5eXFxcXFdZWU1NS1Jmcnd3eXt+foCAZmZmZmZmY2NjY2NjYWFhYWFhYWFcXl5eXl5eXFxcXFdZV01NS1JmdHd5eXt+foCA
+            measured:
+              on_std: 33.42          # display lit
+              off_std: 15.86          # display blank
+              on_peak: 164
+              off_peak: 131
+              taken: 2026-11-14T11:30+0500
+              # A gap of 17.6 between the two states.
