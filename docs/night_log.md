@@ -641,3 +641,6 @@ Two or three lines a round; picture file names, never pictures.
   aside boxes are empty chairs; in 141 Room 22 a real person typing at a
   laptop (0.46-0.76, his box moving every pass) is still counted -- the
   box set aside there is the empty chair beside him.
+* 22:47 round: 2 GHOST (141 Outside (NVR 3), H Backside; no units),
+  0 MISSED, 5 FAINT -- none of the chairs the loop now sets aside came
+  back as MISSED (verify_live reads still_spots.json). Nothing changed.
