@@ -565,3 +565,12 @@ Two or three lines a round; picture file names, never pictures.
   again. Real and worth knowing: somebody asleep on a bean bag in 141
   Learning Center at 04:59, scored only 0.28. Tests green, pushed, loop
   restarted.
+* 05:20 Marketing empty from 05:08, after the doorway zone.
+* 06:47 round (dawn, the cameras leaving infrared): 9 GHOST, 0 MISSED.
+  In the rooms with units the loop's last notes were at a different
+  spot each pass (Creative Room ch 4 five spots 06:15-06:58, Marketing
+  ch 3 and 13, Wellows ch 15) at 0.28-0.64 -- the light changing, not
+  one thing to zone. 141 Admin Room ch 5's chairs at the back (x 350,
+  y 106) 0.31 at 00:44 and 0.56 at 06:44: whether they are this room's
+  seats or the next room's through the door is not clear -- left for
+  Shamroze. Nothing changed.
