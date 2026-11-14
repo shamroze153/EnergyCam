@@ -653,3 +653,9 @@ Two or three lines a round; picture file names, never pictures.
   Assembly and Reception meeting rooms, all only since 00:49-00:53)
   against about fourteen at 01:50 the night before (Room 17, Room 18,
   Marketing, Creative, 141 Rooms 22-28...). Nothing changed.
+* 02:47 round: 2 GHOST (141 Outside (NVR 4), no unit; 141-C Cafe, six
+  units), 0 MISSED. The cafe read "1" on and off 00:10-02:54 from two
+  small things seen too seldom in a row for the movement check: a bag on
+  a table on ch 14 (16x30, 0.25-0.47) -- zoned; bin bags piled on the
+  counter on ch 2 (24x46, 0.25-0.43) -- staff may stand there by day, so
+  conf_after_hours 0.45 on ch 2 only. Tests green, pushed, restarted.

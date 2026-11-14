@@ -2055,6 +2055,19 @@ rooms:
     ac_count: 6
     ac_tons: [2, 2, 2, 2, 2, 2]   # Haier towers
     empty_after_minutes: 60
+    # 15 Nov night: the cafe read "1" on and off from 00:10 to 02:54 with
+    # nobody in it (audit GHOST 02:47). On ch 14 a dark bag left on a table
+    # top, a 16x30 box at x 455, y 390, 0.25-0.47 -- nobody sits on a
+    # table, and a person at it is a far bigger box, still counted. On ch 2
+    # the black bin bags piled on the counter at the back, 24x46 at x 562,
+    # y 96, 0.25-0.43 -- staff could stand there by day, so a bar at night
+    # only, not a zone. Both seen too seldom in a row for the movement
+    # check to take them. In the loop's own 704x576 / 720x576 frames.
+    ignore:
+      14:
+        - [440, 370, 476, 412]   # a bag left on a table, 0.25-0.47
+    conf_after_hours:
+      2: 0.45
 
   - name: 141 Main Entrance
     dept: Shared
