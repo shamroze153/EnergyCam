@@ -1535,6 +1535,10 @@ rooms:
 
   - name: 141-D Squat Wolf Room 0
     dept: Squat Wolf
+    # 14 Nov: 141-D by the admin team's seating sheet (its code C2 is
+    # 141-D: Rooms 20-21 first floor, 22-32 second).
+    building: 141-D
+    floor: First floor
     zone: Offices
     recorder: cd_nvr3
     channels: [4]
@@ -1552,6 +1556,10 @@ rooms:
 
   - name: 141-D Squat Wolf Room 1
     dept: Squat Wolf
+    # 14 Nov: 141-D by the admin team's seating sheet (its code C2 is
+    # 141-D: Rooms 20-21 first floor, 22-32 second).
+    building: 141-D
+    floor: First floor
     zone: Offices
     recorder: cd_nvr3
     channels: [5]
@@ -1561,6 +1569,10 @@ rooms:
 
   - name: 141-D Squat Wolf Room 2
     dept: Squat Wolf
+    # 14 Nov: 141-D by the admin team's seating sheet (its code C2 is
+    # 141-D: Rooms 20-21 first floor, 22-32 second).
+    building: 141-D
+    floor: First floor
     zone: Offices
     recorder: cd_nvr3
     channels: [6]
@@ -1574,6 +1586,10 @@ rooms:
 
   - name: 141-D Squat Wolf Room 3
     dept: Squat Wolf
+    # 14 Nov: 141-D by the admin team's seating sheet (its code C2 is
+    # 141-D: Rooms 20-21 first floor, 22-32 second).
+    building: 141-D
+    floor: First floor
     zone: Offices
     recorder: cd_nvr3
     channels: [7]
@@ -1583,6 +1599,10 @@ rooms:
 
   - name: 141-D Squat Wolf Room 4
     dept: Squat Wolf
+    # 14 Nov: 141-D by the admin team's seating sheet (its code C2 is
+    # 141-D: Rooms 20-21 first floor, 22-32 second).
+    building: 141-D
+    floor: First floor
     zone: Offices
     recorder: cd_nvr3
     channels: [8]
@@ -1624,6 +1644,9 @@ rooms:
 
   - name: 141 Room 32 (2nd floor)
     dept: Room 32
+    # 14 Nov: 141-D by the admin team's seating sheet (its code C2 is
+    # 141-D: Rooms 20-21 first floor, 22-32 second).
+    building: 141-D
     zone: Offices
     recorder: cd_nvr1
     # ch 16 was here too until 11 Nov; it is the meeting room next door
@@ -1643,6 +1666,9 @@ rooms:
     # Counted as one with Room 32 it could never read empty while anybody
     # was at a desk next door, so its unit could never be flagged.
     dept: Meeting rooms
+    # 14 Nov: 141-D by the admin team's seating sheet (its code C2 is
+    # 141-D: Rooms 20-21 first floor, 22-32 second).
+    building: 141-D
     zone: Offices
     recorder: cd_nvr1
     channels: [16]
@@ -1651,6 +1677,9 @@ rooms:
 
   - name: 141 Room 21 (1st floor)
     dept: Room 21
+    # 14 Nov: 141-D by the admin team's seating sheet (its code C2 is
+    # 141-D: Rooms 20-21 first floor, 22-32 second).
+    building: 141-D
     zone: Offices
     recorder: cd_nvr1
     channels: [23, 24]
@@ -1668,6 +1697,9 @@ rooms:
 
   - name: 141 Room 20 (1st floor)
     dept: Room 20
+    # 14 Nov: 141-D by the admin team's seating sheet (its code C2 is
+    # 141-D: Rooms 20-21 first floor, 22-32 second).
+    building: 141-D
     zone: Offices
     recorder: cd_nvr1
     channels: [29]
@@ -1682,6 +1714,9 @@ rooms:
   # a second angle on that room (below, with its cd_nvr2 camera).
   - name: 141 Room 22 (2nd floor)
     dept: CS
+    # 14 Nov: 141-D by the admin team's seating sheet (its code C2 is
+    # 141-D: Rooms 20-21 first floor, 22-32 second).
+    building: 141-D
     zone: Offices
     recorder: cd_xvr1
     channels: [1]
@@ -1690,6 +1725,9 @@ rooms:
 
   - name: 141 Room 24 (2nd floor)
     dept: Room 24
+    # 14 Nov: 141-D by the admin team's seating sheet (its code C2 is
+    # 141-D: Rooms 20-21 first floor, 22-32 second).
+    building: 141-D
     zone: Offices
     recorder: cd_xvr1
     channels: [11]
@@ -1698,6 +1736,9 @@ rooms:
 
   - name: 141 Room 25 (2nd floor)
     dept: Room 25
+    # 14 Nov: 141-D by the admin team's seating sheet (its code C2 is
+    # 141-D: Rooms 20-21 first floor, 22-32 second).
+    building: 141-D
     zone: Offices
     recorder: cd_xvr1
     channels: [8]
@@ -1716,6 +1757,9 @@ rooms:
 
   - name: 141 Room 26 (2nd floor)
     dept: Room 26
+    # 14 Nov: 141-D by the admin team's seating sheet (its code C2 is
+    # 141-D: Rooms 20-21 first floor, 22-32 second).
+    building: 141-D
     zone: Offices
     recorder: cd_xvr1
     # Two angles on one room (Shamroze): ch 10 shows a floor-standing unit
@@ -1727,6 +1771,9 @@ rooms:
 
   - name: 141 Room 27 (2nd floor)
     dept: Room 27
+    # 14 Nov: 141-D by the admin team's seating sheet (its code C2 is
+    # 141-D: Rooms 20-21 first floor, 22-32 second).
+    building: 141-D
     zone: Offices
     recorder: cd_xvr1
     channels: [7]
@@ -1736,6 +1783,9 @@ rooms:
 
   - name: 141 Room 28 (2nd floor)
     dept: Room 28
+    # 14 Nov: 141-D by the admin team's seating sheet (its code C2 is
+    # 141-D: Rooms 20-21 first floor, 22-32 second).
+    building: 141-D
     zone: Offices
     recorder: cd_xvr1
     channels: [2]
@@ -1744,6 +1794,9 @@ rooms:
 
   - name: 141 Room 29 (2nd floor)
     dept: Room 29
+    # 14 Nov: 141-D by the admin team's seating sheet (its code C2 is
+    # 141-D: Rooms 20-21 first floor, 22-32 second).
+    building: 141-D
     zone: Offices
     recorder: cd_xvr1
     channels: [13]

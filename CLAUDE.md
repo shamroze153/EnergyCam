@@ -94,6 +94,14 @@ Fixing:
   `room_loop.ANAMORPHIC`; a new squeezed size goes there.
 * A camera looking through glass into the next room: zone the next room.
 
+At night (after hours) the loop leaves out a box whose pixels have not
+moved for 40 minutes (`room_loop.drop_still`, 14 Nov): empty black chairs
+in infrared score like people (0.35-0.67) and real people at night as
+little as 0.28, so no bar separates them, but a chair never moves. A
+sleeper stirs within half an hour and is kept. What it leaves out goes to
+`still_spots.json` (local), which `verify_live` treats as a zone -- so a
+chair it set aside is not reported MISSED.
+
 ## Air conditioners
 
 Only units whose display the camera can see can be read; see
@@ -113,6 +121,16 @@ A camera that goes infrared at night needs its own night calibration: an
 `infrared:` block inside the colour one in ac_units.yaml (same units, same
 order, measured on infrared frames), or `colour:` inside an infrared one
 (Admin Room). A unit seen face-on by a second camera goes in `also:`.
+
+14 Nov, on site with Shamroze: Prompt Cafe 3 of 5 (both 2.5 t Generals on
+ch14, one Kenwood on ch20; `unseen_units: 2` until the other two are in a
+camera) and the Mosque's two Kenwoods (ch6, by their displays). Two
+lessons: `calibrate_room --add` puts a unit under the room's FIRST camera,
+so a unit on another camera must be moved into an `also:` block; and a
+unit's view check (anchor) must not take in the recorder's clock or date
+-- give it an `anchor_roi` clear of them (the cafe's unit 2 and the
+mosque's top unit). `docs/camera_work_list.md` is the list for the camera
+team, building by building, from Monday 16 Nov.
 
 141 Finance Room, 141 Learning Center, 141 Room 32 and 141-C Cafe are done
 (12 Nov, on site with Shamroze). Learning Center and Room 32 have three

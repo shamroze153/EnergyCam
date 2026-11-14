@@ -586,3 +586,22 @@ Two or three lines a round; picture file names, never pictures.
 * 08:47 round: 5 GHOST, all where there is no unit (141 First Aid Room,
   SoftFM Store, 141-D Outside Area, H Basement Parking, Solar Array);
   0 MISSED. Nothing changed. Morning report and the camera list sent.
+
+## 14 Nov, day (Shamroze on site)
+
+* 10:44 built the night movement check (Shamroze: "haan, banao"): after
+  hours a box whose pixels have not moved for 40 minutes is furniture.
+  Replayed on the night's kept frames: chairs, a monitor and Marketing's
+  doorway set aside from about 00:56, the sleeper and the guard kept.
+* 10:50-11:30 Prompt Cafe with Shamroze: General 2.5 t #1 (beam, louvre,
+  gap 26) and #2 (behind a light he moved, louvre just above the date,
+  gap 66; view check moved off the date) on ch14; Kenwood #1 on ch20 by
+  its flap (on 30-35, off 16-17), in an `also:` block. Two Kenwoods need
+  a camera moved: unseen_units 2.
+* 11:40 Mosque: both Kenwoods by their displays (41-45 / 1-2 and 52-60 /
+  0.5-1.6). 12:05 the top one's view check took in the clock's seconds
+  (13 of 96 frames unread): moved below the clock, lowest 0.90 since.
+* 12:10 docs/camera_work_list.md for the camera team (Monday): every
+  room with a unit, building by building; 103 units in rooms with a
+  camera, 16 read. 141's Rooms 20-32 and Squat Wolf placed in 141-D
+  (the seating sheet's code). Room 17 ch8 dead (black) at 11:55.
