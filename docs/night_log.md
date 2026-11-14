@@ -614,3 +614,5 @@ Two or three lines a round; picture file names, never pictures.
   are on the camera list (tilt down). Nothing changed.
 * 16:47 round: 1 GHOST (141 Ablution Area, no unit), 0 MISSED, 3 FAINT;
   the gym not opened (ladies' hours). Nothing changed.
+* 18:47 round: 2 GHOST (H Basement Parking, H Ground Floor Lobby; no
+  units), 0 MISSED, 4 FAINT (0.28-0.41). Nothing changed.
