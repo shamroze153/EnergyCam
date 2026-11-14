@@ -644,3 +644,12 @@ Two or three lines a round; picture file names, never pictures.
 * 22:47 round: 2 GHOST (141 Outside (NVR 3), H Backside; no units),
   0 MISSED, 5 FAINT -- none of the chairs the loop now sets aside came
   back as MISSED (verify_live reads still_spots.json). Nothing changed.
+
+## 15 Nov
+
+* 00:47 round: 1 GHOST (141-D Outside Area, no unit), 0 MISSED. The
+  movement check's first full night: at 00:53 six rooms with units read
+  occupied (140-H Admin Room's guard, real; Squat Wolf 3, 141 Room 6,
+  Assembly and Reception meeting rooms, all only since 00:49-00:53)
+  against about fourteen at 01:50 the night before (Room 17, Room 18,
+  Marketing, Creative, 141 Rooms 22-28...). Nothing changed.
