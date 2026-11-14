@@ -623,3 +623,14 @@ Two or three lines a round; picture file names, never pictures.
   (0.61). The movement check had set aside only the 141-C Cafe's spot
   by 20:54 -- the lights went off around 20:00; left for it to take
   them by the next look rather than zoned. Nothing changed.
+* 21:05-21:30 the movement check on its first real night took nothing
+  but the cafe's spot: Squat Wolf Room 1's chair was boxed identically in
+  every pass from 20:24 and still counted at 21:07. Probed through the
+  loop's own fetch, a minute apart: the chair's box changed 1.4% (over
+  the 1% bar -- infrared noise), and once the exposure stepped (mean grey
+  119 -> 129) 86% of the picture "moved". Fixed: the picture's brightness
+  shift is taken out before comparing, the bar is 3% (people moving
+  measured 4-74%), and a chair the detector misses for a pass keeps its
+  clock if nothing there moved (141 Admin Room missed one pass in nine).
+  Replayed on 13-14 Nov: sleeper and guard still counted, chairs still
+  set aside. Tests green, pushed, loop restarted.

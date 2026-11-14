@@ -224,7 +224,10 @@ IGNORE_OVERLAP = 0.8
 # within every 26 minutes. So at night a box whose pixels have not moved
 # for STILL_MINUTES is furniture and is not counted. By day nothing changes.
 STILL_MINUTES = 40      # still this long, at night: furniture
-STILL_SHARE = 0.01      # of a box's pixels changed since the last pass: still
+# 14 Nov 21:10: a chair on 141-D Squat Wolf Room 1's camera changed 1.4%
+# of its pixels between two frames a minute apart (infrared noise), and at
+# 1% it was never set aside; people moving were 4-74%.
+STILL_SHARE = 0.03      # of a box's pixels changed since the last pass: still
 STILL_LIGHT = 0.05      # of the whole picture changed: a light switched
 STILL_GREY = 12         # grey levels a pixel must move by to count
 STILL_WIDTH = 480       # pictures are compared at about this width
@@ -867,8 +870,16 @@ def small_grey(frame, width=STILL_WIDTH):
 
 def changed_share(now_grey, before_grey, box=None, k=1, outside=None):
     """Share of the picture -- of one box in it, or of everything outside
-    the boxes given -- that moved."""
-    moved = abs(now_grey - before_grey) > STILL_GREY
+    the boxes given -- that moved.
+
+    The whole picture's shift in brightness is taken out first: a camera's
+    exposure steps up and down on its own at night (14 Nov 21:15, Squat
+    Wolf Room 1's mean grey went 119 -> 129 between two frames a minute
+    apart, and 86% of the pixels "moved" with nothing in the room moving).
+    """
+    import numpy as np
+    diff = now_grey - before_grey
+    moved = abs(diff - float(np.median(diff))) > STILL_GREY
     if box is not None:
         x0, y0, x1, y1 = (max(0, int(v // k)) for v in box[:4])
         moved = moved[y0:max(y0 + 1, y1), x0:max(x0 + 1, x1)]
@@ -949,6 +960,19 @@ def drop_still(room, key, frame, boxes, after_hours, now=None):
                 >= STILL_MINUTES * 60:
             continue                        # furniture
         kept.append(b)
+    # A spot the detector missed this pass keeps its clock if nothing there
+    # moved: a chair scoring 0.49 once against a 0.50 night bar is still the
+    # same chair (14 Nov, 141 Admin Room ch5, one pass in nine missed and the
+    # 40 minutes started again each time).
+    if prev and usable:
+        for old_box, since in prev["spots"]:
+            if since is None or any(box_iou(old_box, s[0]) >= STILL_IOU
+                                    for s in spots):
+                continue
+            share = changed_share(grey, prev["grey"], old_box, k)
+            if (light and share <= around * 1.5 + 0.02) or \
+                    (not light and share < STILL_SHARE):
+                spots.append((old_box, since))
     store[key] = {"grey": grey, "k": k, "when": now, "spots": spots}
     return kept
 

@@ -446,6 +446,24 @@ def check_furniture_at_night(check, room):
           1)
 
     r = room()
+    seen = []
+    for n, m in enumerate(range(0, 61, 4)):
+        boxes = () if n in (3, 7) else (chair,)  # missed in two passes
+        seen.append(len(night(r, base, m, boxes=boxes)))
+    check("a chair the detector misses now and then keeps its clock",
+          seen[11:], [0] * 5)
+
+    r = room()
+    noisy = base.copy()
+    noise = np.random.default_rng(2).integers(-14, 15, size=base.shape)
+    noisy = np.clip(base.astype(np.int16) + noise, 0, 255).astype(np.uint8)
+    brighter = np.clip(base.astype(np.int16) + 10, 0, 255).astype(np.uint8)
+    frames = [base, noisy, brighter, noisy, base] * 4
+    seen = [len(night(r, f, m)) for f, m in zip(frames, range(0, 80, 4))]
+    check("infrared noise and the exposure stepping do not keep a chair"
+          " counted all night", seen[-5:], [0] * 5)
+
+    r = room()
     check("a frame that is not a picture is left alone",
           room_loop.drop_still(r, key, "frame", [chair], True, now=at(0)),
           [chair])
