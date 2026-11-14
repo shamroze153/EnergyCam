@@ -578,3 +578,8 @@ Two or three lines a round; picture file names, never pictures.
   frames (frames/morning/camera_list_14nov.jpg, local only): Room 17 ch 8
   hazy, Room 17 ch 3 to tilt down, 141 Room 22 ch 1 blurred on the right,
   141 Room 25 ch 8's alcove chair. Sent with the morning report.
+* 08:25 infrared calibration: frames/ac_keep 13 Nov 19:00 to 14 Nov
+  08:30, every AC camera through the step-finder -- no clean local step
+  anywhere: no unit switched in infrared last night, so there is no
+  before/after pair to calibrate on. Still open; the units have to be
+  seen switching after dark (or Shamroze switches one, once, at night).
