@@ -557,3 +557,11 @@ Two or three lines a round; picture file names, never pictures.
   17 ch 5 0.62, Wellows ch 16 0.36, 141 Rooms 25/27/28 again. Seats, and
   as strong as real people at night, so nothing changed; written up for
   Shamroze in night_todo (a movement check at night, his call).
+* 04:47 round: 5 GHOST (141 Room 26, Marketing, Room 18 with units; H
+  Smoking Area, Prompt Cafe Gate without), 0 MISSED. Fixed: Marketing
+  ch 13's doorway (door, frame, the light above) read 0.44-0.64 seven
+  times 00:53-05:02 over its 0.40 night bar -- zone [1300,40,1560,830];
+  nobody sits in a doorway. Room 26 and Room 18 are the black chairs
+  again. Real and worth knowing: somebody asleep on a bean bag in 141
+  Learning Center at 04:59, scored only 0.28. Tests green, pushed, loop
+  restarted.

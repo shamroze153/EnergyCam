@@ -547,6 +547,17 @@ rooms:
     # 12 Nov mostly scored 0.6-0.9, but one at the far right of ch 3 read
     # 0.40-0.43 and one on ch 13 0.41-0.50 (frames/ac_watch/2050-2100).
     conf_after_hours: 0.40
+    # 14 Nov 04:47 audit GHOST: the doorway at the right of ch 13 -- door,
+    # frame and the light above it, one tall 235x750 box at x 1426 -- read
+    # as a person at 0.44-0.64 seven times from 00:53 to 05:02 (and at
+    # 04:33 and 06:35 the night before), the room flickering occupied all
+    # night over the 0.40 bar (frames/Marketing_dvr2_ch13_boxes.jpg).
+    # Nobody sits in a doorway; people by day were boxes further left
+    # (x 1274-1294), mostly outside this, and still counted. Person
+    # detection only: the unit's reading on ch 13 is ac_units.yaml's.
+    ignore:
+      13:
+        - [1300, 40, 1560, 830]   # the doorway, right of ch 13, 0.44-0.64
     # 7 Nov: the unit is on ch13, above the green door, top right. ch3
     # sees none of it. Calibrate on ch13. docs/camera_survey.md.
     # 10 Nov: five units in this room, not one -- counted on site while the
