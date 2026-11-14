@@ -616,3 +616,10 @@ Two or three lines a round; picture file names, never pictures.
   the gym not opened (ladies' hours). Nothing changed.
 * 18:47 round: 2 GHOST (H Basement Parking, H Ground Floor Lobby; no
   units), 0 MISSED, 4 FAINT (0.28-0.41). Nothing changed.
+* 20:47 round: 2 GHOST (140-H Commons, Attendance Machine H; no units),
+  0 MISSED. Night detections in rooms with units at 20:56-21:01 are
+  empty black chairs: Squat Wolf Room 2 ch6 (0.46), Squat Wolf Room 1
+  ch5 (the next room's chair through the doorway), 141 Admin Room ch5
+  (0.61). The movement check had set aside only the 141-C Cafe's spot
+  by 20:54 -- the lights went off around 20:00; left for it to take
+  them by the next look rather than zoned. Nothing changed.
