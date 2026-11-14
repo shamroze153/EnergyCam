@@ -634,3 +634,10 @@ Two or three lines a round; picture file names, never pictures.
   clock if nothing there moved (141 Admin Room missed one pass in nine).
   Replayed on 13-14 Nov: sleeper and guard still counted, chairs still
   set aside. Tests green, pushed, loop restarted.
+* 22:20 the fixed movement check at work, 56 min after the restart:
+  furniture set aside in 18 rooms (Squat Wolf 1's chair, 141 Admin Room,
+  Creative, DL Department, 141 Rooms 11, 22, 25, 27, 28, 29, IT Sub Store,
+  First Aid...). Checked on the cameras: 141 Room 11's and Room 29's set-
+  aside boxes are empty chairs; in 141 Room 22 a real person typing at a
+  laptop (0.46-0.76, his box moving every pass) is still counted -- the
+  box set aside there is the empty chair beside him.
