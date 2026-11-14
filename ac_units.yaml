@@ -334,3 +334,55 @@ rooms:
           # lighting up, and the reading is taken that way round: the
           # direction is read back off these two numbers, not stored
           # separately, so they cannot disagree with each other.
+
+  Prompt Cafe:
+    recorder: nvr4
+    channel: 14
+    # The lighting the measurement was taken in. The contrast inside a box
+    # depends on it, so a reading under the other kind is refused rather
+    # than guessed at.
+    expect: colour
+    # The frame this box was drawn on. A box is a position in pixels, so it
+    # means nothing on a picture of a different size: switch the stream from
+    # main to sub and these numbers land somewhere else entirely while still
+    # producing a confident answer. Checked before every reading.
+    frame_size: [1920, 1080]
+    units:
+      - label: General 2.5 ton 1, on the beam, its louvre
+        led_roi: [1205, 150, 1290, 172]
+        led_std_threshold: 38.7
+        # A thumbnail of the unit and the wall round the box, levelled for
+        # brightness, compared before every reading. Nudge the camera and the
+        # box lands on blank wall, where it reads low contrast for ever and
+        # calls a running unit off -- silently, and in the direction nobody
+        # notices, because a unit never reported as on sends nobody anywhere.
+        anchor: YjxU0ZvQ/////////24XOElNUlFSUlBPTV1QSZNxO1JoWVpbVll5QkRDQUJCQUFCXi9lpZPY//////////+dTUsxT1BSUlBPTVJOTk1shD9RZlNVWVtQfEc8MkFBQkFCWilzl47i////////////t5eNUUpQUlJSUVJLS0F1dYBGPW1ZWVlSR4alNz9CQkJDViKDl4/s////////////l150cTtNUlNRU1RVUEk0RlaWdz9dX1pWVF3YsC9BQUFCUR+Wlo/v///////////1i0MTelkvS1BSU1JcYFJLOUFKo5E0Y11VY1Jmk1I1O0FCSCKkl4/W///////////1i04jovBtLENRVVlQVlFRV0k9Oqi9NFZfWVM8O4JQUEdFQjCol5Z3///////////winYWt9CshzVETlBSSFRXe0lHUnbTykZRWlRTV1B+SjxHO06dmJeE2f/////////diK4Xx8iHqp5KMkNRaGhTSl9pTTRJn+NGPFdUW1JFcUc1MV+YmJeWgP/////////djMqFwcCLlKCsZj07SFJWT2dSUD0qP7/oWz1WV1JSRWN3KHKYmJeYfv/////////TkbjhuLuNj4+TqYdCN0VRT1dfV1JDK0Kj3Y5FXVNVU0t6IoaXmJeXhv/////////KlrO6uLaPj4+Ni5ibYTlKTU5zcktGS0E2oP6bQV9SU1E7IpaWmJeXiPK35P/////Rl7G1uLCSkJCNiouMjng2S1NKZm6KQVQ9NK7pbTplVlVSIaqXmJeWi/3a5ar////RmbC1urCSkJCNioZ/dHV7R0FPX3GUgCk0NVN29KA0YlVXIqaZmJeWkMf//43mu2x0m7C2u7CSkZCNiIp6gnZKXWA/SkZaqpBRODdbXtqYPl9QiJ6ZmJiWlmvn/+PRmWqHmbK3u6ySkpCNioh4gIBcTlpuQ0E7XLOzPi1SVlvnkDVVvpiZmJiXlodo3f//io2Xl7S6u6+Sk5CNjIp+gGpUZV1IbD9BKi2bv1YkdpN+yIw8l5iZmJiYl5mESMP3eo6WmLW7u6uTk5CNjYyMhW5UU19mQX49PzcwkYhmFlU7NMiMmpqZmJiYl5STbhcfZY2UmbS7tqeWk5CNjIyKgm1aWVlfakKTSUZCLcC9aB5ifma2nJqZmJiYl5aWeCAcio6Sm7O7iISEhISEhISEhISEXFpWXWowc2oqQiiUzapetMhQnJqZmJiYl5aWlBk7k4yQn7W7iISEhISEhISEhISEgGZaWlVmPmB2KDAkTY1NhYOrm5qZmJiYl5aWpZ+Rh4yQn7q8h4SEhISEhISEhISEnGFtYVRafz5TgzQuRXGwYFKUm5qZmJiYl5aWl7N6houOjMPEiISEhISEhISEhISEjVJObVlTVW1EV6U9K0Zchkg3m5qZmJiYl5aWk5FyhIqMgJLVh4SEhISEhISEhISEh1tPOWNdUVVoOGWcSSVST6JKm5qZmJiXl5aWlJJygoqMiH5tgoSEhISEhISEhISEiFthdztcXVFUazI7qUcxTk6znJuamZiXlpaUlI95g4iKi4yNhYSEhISEhISEhISEhVpWeIg8TVxPUWo7HXxTKFennJuamZiXlpaUlIp6hIqKi4uMhYSEhISEhISEhISEgVxgaHl6VVlVUVNmSh13dDI1nJuamZiXlpaUlIh7hIqIi4uLhISEhISEhISEhISEiFtiZm9gdCxXVE9VblYgqnRInJuamZiXlpaUlIZ/hIiIi4uLhISEhISEhISEhISEaVpnZW5jazBTWlRSVW9TNpeBnJuamZiXlpaUk4N/g4eHioqKhISEhISEhISEhISEbVJha2plZTVQbWBaUFdnRUGQnJuamZiXlpaUk4F/g4WGioiKhISEhISEhISEhISEjHFhZmpoYj9Zd3NiXFZUYUY+nJuamZiXlpaUk4F+g4WGiIiIioeFhYaGhYaGiod6coFob2lnXEhceWx0am9NUGdOnJuamZiXlpaUk39/g4WGiIiIiIeFhYWFhYSChIOGgHpsZmxoUVJed2tpZlWBVVNinJuamZiXl5aUk3uAg4SGioiIiIiFhoWEg4OBgoKChIiBWWZySVpjc2toZz1QdFFUnJyamZiXl5aUkn6Ag4WHiIqIh4eGhoWFg4OCgoKCgIOFY6lfTmNqeWdsaEMZXFNVnJyamZiYl5aUknp/goWHiIqIh4eGhoWFhIOCgoGCgIF/W41GOWdmfGNocT8lX29WnJyampiYl5aUlHqAgoWHiIqIh4eGhoWFhIOCgoGBgIB8XV5LMmdyfGNpfzsmYX5vnJybmpmYl5aUlneBgoWHiIiIh4eGhoWFg4OCgoGAf396YUNCW2huemVqezsqXW9/nJybmpmYl5eTl3aBg4WHiIiIh4eGhoWFg4OCgYCAf4x8YU1tf2h0emlpfjowVHF1nJybmpmYl5aTmHOAg4WHiIiIh4eGhoWFg4OCgIB+jpSMYWp3aW95eGpogD41UW12nJybmpmYmJSUmXGAgoWIiIiIh4eGhoWFg4ODgoGBkCFrXmZ3aXJxeWxofkEyTm52nJybmpmYl5aTm22BgoaIiIiIh4eGhoWFg4OCgoCPRTYtSmV2aHRvd21ofj47bXJ3nZ2bmpmYl5aUm26Ag4eIioqIiIiGhoWEg4ODgn+BLTsrQWp3bHV0f2tpeFGFjnN0nZ2cm5mYlpaWl3GAhIeIioqIiIiGhoWEg4ODgoZaQTkqRnJ4b3ZzhF5ocaZ8c3FznZ2cm5mYlpaWk3WBhIeIioqIiIiHhoWEhIODgpA8Qz0sQXZ3cXZ4g2JtcYRtdnV1nZ2cm5mYlpaWjXmBhIeIioqIiIiHhoWFhIODgno6RTswOXx2cXd6g2VpbIRrdHR0nZ2cmpiYlpaWh3uBhYeIioqIiIiHhoWFhIOCgV5BRDk0MYF2dXd4f2lqb3Jsdm5znZ2cmpmYlpaWiHuBhYiIioqIiIiHhoWFhIODgl5CRDs1MXt1dXR3fGhub3F1dGtynZ2cmpmYlpaWg3uBhYeKioqIiIiHhoWFhIOCgWtEQzw0RIVxc3h6f2Zsb3V8cWpz
+        measured:
+          on_std: 51.85          # display lit
+          off_std: 25.58          # display blank
+          on_peak: 251
+          off_peak: 241
+          taken: 2026-11-14T11:04+0500
+          # A gap of 26.3 between the two states. The threshold is the
+          # midpoint, so anything inside that gap would read the same.
+          # Negative means this unit goes DARK when it runs rather than
+          # lighting up, and the reading is taken that way round: the
+          # direction is read back off these two numbers, not stored
+          # separately, so they cannot disagree with each other.
+      - label: General 2.5 ton 2, behind the light, its louvre (in the gap of the date)
+        led_roi: [238, 62, 262, 75]
+        led_std_threshold: 63.7
+        # The view check is the unit's body and the wall above
+        # the recorder's date, not round the box: the box sits
+        # in a gap of that date, whose day name changes every
+        # midnight and would read as the camera having moved.
+        anchor_roi: [150, 6, 350, 64]
+        anchor: SEdISlNeand7X15eXl5eX2BhYGBgYGFhXWVoZFlNQkJCQkJCQTkzMjM9Pj4+Pj48jIR8enx8fXh+Qzw6Ojk4ODg4ODg4OT1BQVRYWVpZYWpzaHB0dWZPSUhCRkRCOzYzhW9dXV5ZU0hcOjk5ODY2NTU1NTU1NTY3Njk4ODg2OkZUQ1NbbHh3fH1rXFlcVk5JZVRWW11cWFxpPkA/Pj4+Pj4+PT09PT4+PTw8PDw7OTYzMzM0P0lSVVhzUUpIV3h2UERIRkhHSE5YP0JBQUFBQkJCQUFBQUFAP0BBQUFBQT8+Pjs7MzM2NDQ/PDU0RoCBcGxoYl1XVFNaPkNCQUFBQUFBQEBAQEA/PkBBQUFBQEFBQEA/Pj1BPTc2PD07PD8+qKmop6eknJmQPURCQkFBQUJBQEBAQEBAP0BBQUFAQEBAQEBAQEBGRkE/PD09PDY1rq+vr7CwraqZPkRDQ0NCQ0NDQkJCQkJBQEBBQUFAQEBAQEFAP0FDRUZGPj09PT4+r66vr6+vrquQPUVEQ0JCQkNDQkJBQUFBQUBAQEBAQUFAQUJBQEJCQkNGQD4+P0FDr6+vr6+urq2HO0FBQT8/Pz8/Pz4+Pj8/QEBBQEBBQUFBQkJCQkRERUREQT4/QEJCr7Cvr6+urayDMzIyMTExMTIyMjQ2ODo7PD0+Pz8/QEBBQkNDREZHSUdDQj9AQUFCr7CvsK+urKqCOzc2NjU1NTU1NDMyMjI0NjY4Ojk5PUJCQkJCQ0ZISklEQz9AQUFCr7CwsK+uraqVeHNycXBvb29vZVVFOTc1NDM1OTMzNjo8Ozw+QEBDRkZEQz9AQUFCr6+wsK+uraqrqqmpqamoqKioo5eLgYB9Z2BZUjo3NDc4NjY0NzU2OTw+Pz9AQUFCr7CwsK+urausrKurqqqrq6ysra2srKysgopvUHF+WVxeWVBBOTUzMjM1OT4/QEBBr7CwsK+urauqqaenpqWlpaWlpqanqaqraXVOO42VQUBEUlp8jGJPS0k+ODo2NjU1r7CwsK+urauqqaiopqWjo6KioqKhoaOnWWxKOZaUMzM0NzuJraKenJVyTk5KRDczr7CwsK+urayrqamop6alpaSkpKOioaGfWmZHO5yONjw7OTeJpKWnp66aSlRQU2tqr7CwsK+vrayrqqiop6ampqampqSjoqKXX2JEPqGMOUI/PTiInJmcoaSdOD05QqGosLCwsK+vraysqqinpqWlpaSkpaSko6SOZF9DR6OJOkNAPjmJm5mZmZyZOkQ/PJ+lr7CwsK+vrqysqqempaWkpKSkpKOioqSFaF5CUKOCPENBPzmKmpybmpmYPUM9OJaYsLCwr6+vrq2sq6inpqWlpaWlpKSjoqN+alxAWqJ9PkNBQDqMm52cm5qYPj05NpmYsLCwr6+vrq2sq6mop6alpaWkpKOioqF9aFg+aKJ7PUFBQDqNm52cm5qaPkdXO5eTsLCwr6+vrq2sq6moqKelpaSkpKOioqGKYFg8dqR5PEBAQDmNm52cm5qbQmF1RJiTsLCwsK+vrq2tq6moqKempaWko6OioqKhUFI6haN2PUFAQDiOm52cm5qhPkBNRZeTsLCwsLCvrq2trKqpqKempqWko6Ojo6GpXT46lKF2PUFAQDiRm52cnJqiNjQ+SpyTsLCwsLCvrq2trKqpqKempqWkpKOjoqGoiUVgo6J1PkFAQDeTnJ2cnJqfNTQ2d5+TsLCwsLCwrq2trKuqqainpqWlpKSjoqGkqIWWo6R0P0FAQDiXnZ2cnJqhPjRdoZqTsLCwsLCwrq2trKuqqainpqalpKSjo6OiqKimo6RvP0BAQDienZycm5ukhX6bpJSTsLCwsLCwrq2trauqqainpqalpKSjpqurq62tqadmP0FAQDmgnZycnJuhra2pmZOTsLCwsLCwr66uraurqqinp6alpKSkpJ+do52coqljP0BAQDmfnZycnJubo6SclZOUsLCwsLCwr66urauqqainpqalpKSklIB7fG9xgaphQEBAQDmfnZycnJuamJqYlpSUsLCwsLCwr66urauqqainpqalpKSkjnVxamhxcKZeQEBAQDignZycnJuZmZmYlpSUsLCwsLCwr66urayrqqmop6empKSkn5STlpehl6dcQUBAQDignJycm5uamZqYlpSUsLCwsLCwr66urayrqqmop6empaSkqKysrKysq6pZQUBAQTignZycm5uamZqZlpSUsLCwsLCvrq6urauqqqmop6ampaWkpqempqWmpadXQEFBQDqhnZycnJuampqZlpSUsLCwsLCvrq6trKurqqmop6empqWlpKOjoqKioqZXQEFBQDuhnZycnJuampqZlpSUsLCwsLCvrq6traurqqmop6empqWlpKSjo6Ojo6ZWQEFBQDyhnZycnJybmpqYlpSUsLCwr6+urq2trauqqqmoqKinpqalpaOjoqGhoaZTQEFBQT+inZ2dnZybmpqXlZSUsLCwr6+ura2trKuqqqmoqKempaWkpKOioqKioqhPQEFBQUKknZ2cnJuampmWlZSUsLCwsK+urq2traurqqqpqKinp6ampaSkpKSkpKlNQEFBQUelnZycm5ubm5iWlJOVsLCwsK+vrq2trayrq6qqqampqamoqKenpqWlpapKQEFBQUqmnp6enp2cnJiUkZKUsLCwr6+uraysrKurqqqqqqmoqKenpqalpaWkpKlFQEFBQEymoKGhoaCgoZ+Zk5GSsK+wr66uraysq6qqqampqKiop6empqWko6Kjo6hCPz89QUymoJ+fnp6eoKipnZeSsK+vrq6traysrKuqqampqaiop6empqalpKSkpKhBPTY4PEymn5+fnp6en6arqJyXsK+vrq6tra2trauqqqqpqampqKenpqWlpqampqlBNkNHNk2moJ+enp6enp+jqqahr6+vrq6urq2tra2trKysrKurq6uroqCgoaGiqqtBSmh4VE6oo6KioaGhoJ+do6mnr6+vr66urq6tra6urq6tra2tra2tn52dnZ2fraxJbFx+cE+trKysrKyqqKaknqKl
+        measured:
+          on_std: 96.65          # display lit
+          off_std: 30.72          # display blank
+          on_peak: 249
+          off_peak: 250
+          taken: 2026-11-14T11:20+0500
+          # A gap of 65.9 between the two states.
+
