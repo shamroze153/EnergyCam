@@ -44,6 +44,7 @@ import tempfile as _seat_tmp  # noqa: E402
 # The stand-in people these tests count must not land in the real seat notes.
 room_loop.SEATS_DIR = _seat_tmp.mkdtemp()
 room_loop.AC_KEEP_DIR = _seat_tmp.mkdtemp()
+room_loop.STILL_FILE = _seat_tmp.mktemp(suffix=".json")
 
 T0 = datetime.datetime(2026, 11, 5, 18, 0, tzinfo=PKT)
 FAILURES = []
@@ -371,6 +372,96 @@ def check_stays_up():
     check("and failures are printed after the descriptor is back",
           sweep_src.index("with muffled():")
           < sweep_src.index("could not be read"), True)
+
+def check_furniture_at_night(check, room):
+    """At night a box that never moves is furniture; anything that moves
+    is counted. 14 Nov: empty black chairs in infrared scored 0.35-0.67
+    while real people at night scored 0.28-0.57, so no bar could tell
+    them apart -- but a chair's pixels do not change between passes, and
+    a person's do, even asleep, within every half hour or so."""
+    import numpy as np
+    rng = np.random.default_rng(1)
+    base = rng.integers(40, 200, size=(360, 640, 3)).astype(np.uint8)
+    chair = (100, 100, 180, 260, 0.5)
+    key = ("dvr2", 3)
+
+    def night(r, frame, minutes, boxes=(chair,), after=True):
+        return room_loop.drop_still(r, key, frame, list(boxes), after,
+                                    now=at(minutes))
+
+    r = room()
+    seen = [len(night(r, base, m)) for m in range(0, 61, 4)]
+    check("a chair that never moves is counted for the first 40 minutes",
+          seen[:10], [1] * 10)
+    check("  and from then on left out as furniture", seen[11:], [0] * 5)
+    check("  and the loop says which box it is leaving out",
+          room_loop.still_now(r), {key: [[100, 100, 180, 260]]})
+
+    r = room()
+    seen = []
+    for n, m in enumerate(range(0, 121, 4)):
+        frame = base.copy()
+        if n % 6 == 5:                       # every 24 minutes he shifts
+            frame[120:240, 110:170] = 255 - frame[120:240, 110:170]
+        seen.append(len(night(r, frame, m)))
+    check("somebody asleep who stirs every 24 minutes is always counted",
+          min(seen), 1)
+
+    r = room()
+    check("by day nothing is left out, however still",
+          [len(night(r, base, m, after=False)) for m in range(0, 81, 4)],
+          [1] * 21)
+    check("  and nothing is kept about the day", r.still, {})
+
+    r = room()
+    for m in range(0, 37, 4):
+        night(r, base, m)
+    check("a pass missed for longer than the gap starts the clock again",
+          len(night(r, base, 37 + room_loop.STILL_GAP + 1)), 1)
+
+    r = room()
+    for m in range(0, 37, 4):
+        night(r, base, m)
+    bright = np.clip(base.astype(np.int16) + 60, 0, 255).astype(np.uint8)
+    check("a light switching neither starts nor stops a chair's clock",
+          len(night(r, bright, 44)), 0)
+
+    r = room()
+    for m in range(0, 37, 4):
+        night(r, base, m)
+    # A lamp on the far side (half the picture brighter) while somebody
+    # sits up in the chair: the box changed far beyond the picture around.
+    moved = base.copy()
+    moved[:, 320:] = np.clip(base[:, 320:].astype(np.int16) + 60, 0,
+                             255).astype(np.uint8)
+    moved[100:260, 100:180] = 255 - base[100:260, 100:180]
+    check("  but a box that moved beyond the light's change is counted",
+          len(night(r, moved, 44)), 1)
+
+    r = room()
+    for m in range(0, 45, 4):
+        night(r, base, m)
+    check("somebody new in a different place is counted at once",
+          len(night(r, base, 48, boxes=(chair, (400, 50, 470, 250, 0.8)))),
+          1)
+
+    r = room()
+    check("a frame that is not a picture is left alone",
+          room_loop.drop_still(r, key, "frame", [chair], True, now=at(0)),
+          [chair])
+
+    import json
+    import os
+    import tempfile
+    r = room()
+    for m in range(0, 49, 4):
+        night(r, base, m)
+    path = os.path.join(tempfile.mkdtemp(), "still.json")
+    room_loop.write_still([r], path=path, now=at(48))
+    written = json.load(open(path, encoding="utf-8"))
+    check("the furniture is written down for verify_live, numbers only",
+          written["rooms"], {"Marketing": {"dvr2:3": [[100, 100, 180, 260]]}})
+
 
 def check_units_count(check, room):
     """How many units run is recorded, with or without the column for it."""
@@ -1057,6 +1148,7 @@ def main():
     check_flicker(check, room, T0)
     check_stays_up()
     check_units_count(check, room)
+    check_furniture_at_night(check, room)
 
     print()
     if FAILURES:

@@ -213,6 +213,25 @@ BATCH = 10
 # cutout is bigger and reaches outside it, and must still be counted.
 IGNORE_OVERLAP = 0.8
 
+# Furniture at night (14 Nov, Shamroze: "haan, banao"). In infrared an empty
+# black office chair scores 0.35-0.67 as a person, and a real person working
+# late or asleep can score as little as 0.28 -- no bar separates them, and a
+# chair is a seat, so no zone may cover it. What does separate them is that
+# a chair never moves. Measured on the kept frames of the night of 13 Nov,
+# 13 minutes apart: chairs, a monitor and a doorway changed 0.0-0.4% of
+# their pixels every time; a guard awake in his chair 12-74%; somebody
+# asleep on a bean bag as little as 0.1% in one interval, but 19-34% again
+# within every 26 minutes. So at night a box whose pixels have not moved
+# for STILL_MINUTES is furniture and is not counted. By day nothing changes.
+STILL_MINUTES = 40      # still this long, at night: furniture
+STILL_SHARE = 0.01      # of a box's pixels changed since the last pass: still
+STILL_LIGHT = 0.05      # of the whole picture changed: a light switched
+STILL_GREY = 12         # grey levels a pixel must move by to count
+STILL_WIDTH = 480       # pictures are compared at about this width
+STILL_GAP = 15          # minutes: an older picture is no comparison
+STILL_IOU = 0.6         # a box this like last pass's is the same thing
+STILL_FILE = "still_spots.json"   # what is being left out, for verify_live
+
 # How much evidence to keep. Left alone the folder only grows: a room that
 # invents a person once an hour writes a few hundred pictures a month, and
 # they are not blurred. Enough to find a pattern, not enough to become an
@@ -569,6 +588,9 @@ class Room:
         self.ac_detail = "not calibrated"
         self.ac_units_on = None         # units seen running; None = not read
         self.recorded = None            # what the database last heard
+        # At night, each camera's last picture (small, grey) and the boxes
+        # in it with since when they have not moved: see drop_still.
+        self.still = {}
         self.blank = 0                  # passes in a row with nobody seen
         self.first_blank = None         # when that run of passes began
         self.was_occupied = False       # somebody was seen, and not yet
@@ -829,6 +851,138 @@ def ignored(box, zones):
     return False
 
 
+def small_grey(frame, width=STILL_WIDTH):
+    """The picture in grey, as block means about `width` across, and the
+    block size. The averaging is the blur: camera noise goes, a moved arm
+    does not."""
+    import numpy as np
+    h, w = frame.shape[:2]
+    k = max(1, w // width)
+    h2, w2 = h // k, w // k
+    a = np.asarray(frame[:h2 * k, :w2 * k], dtype=np.float32)
+    if a.ndim == 3:
+        a = a.mean(axis=2)
+    return a.reshape(h2, k, w2, k).mean(axis=(1, 3)), k
+
+
+def changed_share(now_grey, before_grey, box=None, k=1, outside=None):
+    """Share of the picture -- of one box in it, or of everything outside
+    the boxes given -- that moved."""
+    moved = abs(now_grey - before_grey) > STILL_GREY
+    if box is not None:
+        x0, y0, x1, y1 = (max(0, int(v // k)) for v in box[:4])
+        moved = moved[y0:max(y0 + 1, y1), x0:max(x0 + 1, x1)]
+    elif outside:
+        keep = moved.copy()
+        keep[:] = True
+        for b in outside:
+            x0, y0, x1, y1 = (max(0, int(v // k)) for v in b[:4])
+            keep[y0:max(y0 + 1, y1), x0:max(x0 + 1, x1)] = False
+        moved = moved[keep]
+    return float(moved.mean()) if moved.size else 0.0
+
+
+def box_iou(a, b):
+    x0, y0 = max(a[0], b[0]), max(a[1], b[1])
+    x1, y1 = min(a[2], b[2]), min(a[3], b[3])
+    inter = max(0, x1 - x0) * max(0, y1 - y0)
+    union = ((a[2] - a[0]) * (a[3] - a[1]) + (b[2] - b[0]) * (b[3] - b[1])
+             - inter)
+    return inter / float(union) if union > 0 else 0.0
+
+
+def drop_still(room, key, frame, boxes, after_hours, now=None):
+    """At night, the boxes left once furniture is taken out.
+
+    A box is furniture when the pixels inside it have changed by less than
+    STILL_SHARE from one pass to the next, without a break, for
+    STILL_MINUTES. Anything that moves -- a person shifting in a chair,
+    turning a page, rolling over in their sleep -- starts its clock again
+    and is counted. A pass with no usable picture before it (the camera
+    missed a pass, or it is the first of the night) starts every clock
+    again too; one where a light switched (most of the picture changed at
+    once) neither starts nor stops them, since nothing can be told from it
+    -- unless the box changed well beyond the picture around it, which is
+    something moving, not the light. "The picture" means outside the boxes:
+    a guard getting up near the camera changes a tenth of the frame by
+    himself, and must not pass for a light switching.
+    By day this does nothing and keeps nothing.
+    """
+    try:
+        store = room.still
+    except AttributeError:
+        store = {}
+        try:
+            room.still = store
+        except AttributeError:
+            pass
+    if not after_hours or len(getattr(frame, "shape", ())) < 2:
+        store.pop(key, None)
+        return boxes
+    now = now or datetime.now(PKT)
+    grey, k = small_grey(frame)
+    prev = store.get(key)
+    usable = (prev is not None and prev["grey"].shape == grey.shape
+              and prev["k"] == k
+              and (now - prev["when"]).total_seconds() <= STILL_GAP * 60)
+    around = (changed_share(grey, prev["grey"], k=k, outside=boxes)
+              if usable else 0.0)
+    light = usable and around > STILL_LIGHT
+    kept, spots = [], []
+    for b in boxes:
+        old = None
+        if prev:
+            score, best = max(((box_iou(b, s[0]), s) for s in prev["spots"]),
+                              key=lambda m: m[0], default=(0.0, None))
+            old = best if score >= STILL_IOU else None
+        since = None
+        share = changed_share(grey, prev["grey"], b, k) if usable else 1.0
+        if light:
+            # The light changed: carry the clock on, unless this box moved
+            # well beyond everything around it.
+            if share <= around * 1.5 + 0.02:
+                since = old[1] if old else None
+        elif usable and share < STILL_SHARE:
+            since = (old[1] if old and old[1] else prev["when"])
+        spots.append((tuple(int(v) for v in b[:4]), since))
+        if since is not None and (now - since).total_seconds() \
+                >= STILL_MINUTES * 60:
+            continue                        # furniture
+        kept.append(b)
+    store[key] = {"grey": grey, "k": k, "when": now, "spots": spots}
+    return kept
+
+
+def still_now(room):
+    """{(recorder, channel): [box, ...]} this room is leaving out as
+    furniture as of its last pass."""
+    out = {}
+    for key, s in (getattr(room, "still", None) or {}).items():
+        boxes = [list(b) for b, since in s["spots"]
+                 if since is not None and (s["when"] - since).total_seconds()
+                 >= STILL_MINUTES * 60]
+        if boxes:
+            out[key] = boxes
+    return out
+
+
+def write_still(rooms, path=STILL_FILE, now=None):
+    """What every room is leaving out as furniture, for verify_live: a
+    chair the loop has set aside is not a person the page missed. Numbers
+    only, this machine only (git-ignored)."""
+    now = now or datetime.now(PKT)
+    out = {}
+    for r in rooms:
+        for (rec, ch), boxes in still_now(r).items():
+            out.setdefault(r.name, {})["%s:%d" % (rec, ch)] = boxes
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump({"at": now.isoformat(), "rooms": out}, f)
+    except OSError:
+        pass
+    return out
+
+
 def wants_main(room, rec):
     """Whether this room is read from the recorder's main stream.
 
@@ -916,6 +1070,7 @@ def examine(room, frames, model, imgsz, iou, ac_units=None,
                              conf=room.conf_for(after_hours, key),
                              imgsz=imgsz, iou=iou)
         counted = [b for b in boxes if not ignored(b, room.ignore.get(key))]
+        counted = drop_still(room, key, wide, counted, after_hours)
         here = len(counted)
         note_seats(room.name, key, counted, getattr(wide, "shape", (0, 0)))
         if keep is None or here > people:
@@ -1259,6 +1414,7 @@ def sweep(rooms, recorders, model, imgsz, iou, timeout, ac_units=None,
                     # it must never take the pass down.
                     print(">> heartbeat during the pass failed: %s" % e)
     prune_ac_keep()
+    write_still(rooms)
     return out
 
 

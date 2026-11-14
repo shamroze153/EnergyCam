@@ -53,7 +53,8 @@ import yaml
 from dotenv import load_dotenv
 
 from check_room import OUT_DIR, draw
-from room_loop import (DETECT_IOU, DETECT_SIZE, fetch, ignored, load_rooms,
+from room_loop import (DETECT_IOU, DETECT_SIZE, STILL_FILE, STILL_GAP,
+                       STILL_IOU, box_iou, fetch, ignored, load_rooms,
                        muffled, recorder_login, set_gates)
 from privacy_blur import DETECT_CONF, DETECTOR, people_boxes
 from schedule import PKT
@@ -82,6 +83,30 @@ def latest_state(rooms):
         conn.close()
 
 
+def loop_still(path=STILL_FILE, now=None):
+    """What the loop is leaving out as furniture right now: {room:
+    {"rec:ch": [box, ...]}}, or nothing if its note is older than a pass
+    or two. At night the loop sets aside a box that has not moved for long
+    enough (room_loop.drop_still); without this, every chair it had rightly
+    set aside would come back here as a MISSED person."""
+    try:
+        import json
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+        at = datetime.fromisoformat(data["at"])
+    except (OSError, ValueError, KeyError, TypeError):
+        return {}
+    now = now or datetime.now(PKT)
+    if (now - at).total_seconds() > STILL_GAP * 60:
+        return {}
+    return data.get("rooms") or {}
+
+
+def set_aside(box, still_boxes):
+    """Is this one of the boxes the loop is leaving out as furniture?"""
+    return any(box_iou(box, s) >= STILL_IOU for s in still_boxes or [])
+
+
 def count_now(room, recorders, model, timeout):
     """People the detector can see in this room right now, and the frames.
 
@@ -97,6 +122,7 @@ def count_now(room, recorders, model, timeout):
     with muffled():
         frames = fetch(room, recorders, timeout)      # already widened
     most, answered, drawn, best = 0, 0, [], 0.0
+    still = loop_still().get(room.name) or {}
     for key, frame in frames.items():
         if frame is None:
             continue
@@ -106,8 +132,12 @@ def count_now(room, recorders, model, timeout):
         boxes = people_boxes(frame, model,
                              conf=room.conf_for(AFTER_HOURS[0], key),
                              imgsz=DETECT_SIZE, iou=DETECT_IOU)
-        zones = room.ignore.get(key) or []
-        kept = [b for b in boxes if not ignored(b, zones)]
+        # And what the loop is leaving out as furniture at night, drawn as
+        # a zone: the same verdict on the same chair.
+        aside = still.get("%s:%d" % key) or []
+        zones = (room.ignore.get(key) or []) + aside
+        kept = [b for b in boxes if not ignored(b, zones)
+                and not set_aside(b, aside)]
         # The MAXIMUM across cameras, not the sum -- which is what the loop
         # does, because two cameras watching one room see the same people
         # twice and adding them would invent a crowd. Counting differently

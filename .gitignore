@@ -29,6 +29,8 @@ gemma_checks.jsonl
 scan_*/
 review_frames/
 room_state.json
+# the loop's furniture at night (room_loop.drop_still), for verify_live
+still_spots.json
 
 snapshots/
 
