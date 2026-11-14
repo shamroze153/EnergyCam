@@ -583,3 +583,6 @@ Two or three lines a round; picture file names, never pictures.
   anywhere: no unit switched in infrared last night, so there is no
   before/after pair to calibrate on. Still open; the units have to be
   seen switching after dark (or Shamroze switches one, once, at night).
+* 08:47 round: 5 GHOST, all where there is no unit (141 First Aid Room,
+  SoftFM Store, 141-D Outside Area, H Basement Parking, Solar Array);
+  0 MISSED. Nothing changed. Morning report and the camera list sent.
