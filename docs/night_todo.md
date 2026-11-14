@@ -66,7 +66,8 @@ it here. Shamroze reads the morning summary in Roman Urdu.
 - [x] 18:47 Room 17: the sheet has 24 of its 47 desks given, the cameras
       never saw more than 5 at once. Its three cameras see most desks and
       the chairs were empty: the count is real. xvr3 ch 8 is hazy.
-- [ ] For Shamroze's morning (13 Nov, "send me a picture of which camera
+- [x] 07:20 made (frames/morning/camera_list_14nov.jpg, local; to send
+      with the 08:53 report). For Shamroze's morning (13 Nov, "send me a picture of which camera
       frames to fix, I will do it myself"): a contact sheet of the cameras
       to clean or turn, each with what is wrong -- local, sent with
       SendUserFile, never in git. So far: 140-H xvr3 ch 8 (Room 17) hazy;

@@ -574,3 +574,7 @@ Two or three lines a round; picture file names, never pictures.
   y 106) 0.31 at 00:44 and 0.56 at 06:44: whether they are this room's
   seats or the next room's through the door is not clear -- left for
   Shamroze. Nothing changed.
+* 07:20 the morning camera list for Shamroze, one picture from daylight
+  frames (frames/morning/camera_list_14nov.jpg, local only): Room 17 ch 8
+  hazy, Room 17 ch 3 to tilt down, 141 Room 22 ch 1 blurred on the right,
+  141 Room 25 ch 8's alcove chair. Sent with the morning report.
