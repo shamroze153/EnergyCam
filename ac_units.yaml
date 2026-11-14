@@ -338,6 +338,12 @@ rooms:
   Prompt Cafe:
     recorder: nvr4
     channel: 14
+    # Five units (survey 12 Nov: 2 x 2.5 ton General, 3 x 2 ton Kenwood).
+    # Calibrated on site with Shamroze, 14 Nov: both Generals on ch 14 and
+    # one Kenwood on ch 20. The other two Kenwoods need a camera moved
+    # ("we will decide later"), so an "off" for the cafe stays unknown
+    # until they are read; any of the three seen running is a real "on".
+    unseen_units: 2
     # The lighting the measurement was taken in. The contrast inside a box
     # depends on it, so a reading under the other kind is refused rather
     # than guessed at.
