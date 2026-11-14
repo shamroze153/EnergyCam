@@ -605,3 +605,10 @@ Two or three lines a round; picture file names, never pictures.
   room with a unit, building by building; 103 units in rooms with a
   camera, 16 read. 141's Rooms 20-32 and Squat Wolf placed in 141-D
   (the seating sheet's code). Room 17 ch8 dead (black) at 11:55.
+* 12:13 round: 2 GHOST (141 HFM Workshop, 141-C Outside Area; no unit),
+  0 MISSED. The cafe read "on, 1" and the mosque "off, 0" live, as on
+  site. 12:47 round skipped: the 12:13 one had just finished.
+* 14:47 round: 2 GHOST (141-C Outside Area; Room 17), 0 MISSED. Room 17
+  flickers "1" every 10-15 min this Saturday afternoon -- ch5 0.87 at
+  14:40 and ch3 0.83 at 14:44 look like somebody in, and ch3's far chairs
+  are on the camera list (tilt down). Nothing changed.
