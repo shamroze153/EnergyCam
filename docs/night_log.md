@@ -612,3 +612,5 @@ Two or three lines a round; picture file names, never pictures.
   flickers "1" every 10-15 min this Saturday afternoon -- ch5 0.87 at
   14:40 and ch3 0.83 at 14:44 look like somebody in, and ch3's far chairs
   are on the camera list (tilt down). Nothing changed.
+* 16:47 round: 1 GHOST (141 Ablution Area, no unit), 0 MISSED, 3 FAINT;
+  the gym not opened (ladies' hours). Nothing changed.
