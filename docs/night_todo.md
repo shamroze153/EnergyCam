@@ -51,7 +51,11 @@ it here. Shamroze reads the morning summary in Roman Urdu.
 
 ## For Shamroze, 14 Nov morning: black chairs at night
 
-- [ ] In infrared, empty black office chairs read as people at 0.35-0.67
+- [x] 14 Nov: built on Shamroze's yes (room_loop.drop_still), fixed the
+      same night for infrared noise, exposure steps and missed passes;
+      by 22:17 it set aside chairs in 18 rooms and a real person working
+      in 141 Room 22 was still counted.
+      In infrared, empty black office chairs read as people at 0.35-0.67
       (Creative Room ch 4 0.59, Room 18 ch 13 0.63, Room 17 ch 5 0.62,
       141 Rooms 25-28 0.35-0.67), while real people at night scored
       0.39-0.57 (141 Room 22 01:47, Creative Room 22:53). A chair is a
