@@ -735,3 +735,13 @@ Two or three lines a round; picture file names, never pictures.
   error, nothing wider than the screen on either campus. The morning's
   fixes show: 141-C/D has Room 27 "all off" where it said not
   readable; 140-H has Admin Room "all off, 1 person in" (the guard).
+* 08:47 round: 3 GHOST, all rooms with no unit (141 Corridor Roof, 141
+  Pantry 2nd floor, 141-C Outside Area -- empty frames, the loop a pass
+  behind; the pantry's coffee machine has a picture of food on it, to
+  watch if it repeats), 0 MISSED. Check pictures: the cafe's drum and
+  bin bag (ch 2, 0.69), Wellows' two chairs (ch 15) and First Aid's
+  chair (0.31) are all in still_spots -- the movement check has them
+  aside. Staff at the cafe's coffee machine (ch 14), real. Squat Wolf
+  1's ch 5 counted a man sitting beyond its doorway (0.68, 08:55) --
+  whether that is the same room is for Shamroze (frames/141-D_Squat_
+  Wolf_Room_1_cd_nvr3_ch05_boxes.jpg). Nothing changed.
