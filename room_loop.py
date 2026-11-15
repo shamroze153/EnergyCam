@@ -940,7 +940,22 @@ def drop_still(room, key, frame, boxes, after_hours, now=None):
               if usable else 0.0)
     light = usable and around > STILL_LIGHT
     kept, spots = [], []
+    # What is already set aside: a box mostly inside one of these, with
+    # nothing moved there, is the same piece of furniture boxed smaller
+    # (15 Nov 04:50, 141 Room 29: one object boxed 63x171 and set aside,
+    # then 22x66 inside it, counted afresh each time). Like an ignore
+    # zone, and for the same reason safe: somebody sitting in that chair
+    # is a bigger box that reaches outside it.
+    aside = [s[0] for s in (prev["spots"] if prev else [])
+             if s[1] is not None and (now - s[1]).total_seconds()
+             >= STILL_MINUTES * 60] if usable else []
     for b in boxes:
+        if aside and any(overlap_fraction(b, s) >= IGNORE_OVERLAP
+                         for s in aside):
+            share = changed_share(grey, prev["grey"], b, k)
+            if (light and share <= around * 1.5 + 0.02) or \
+                    (not light and share < STILL_SHARE):
+                continue                    # furniture, boxed again
         old = None
         if prev:
             score, best = max(((box_iou(b, s[0]), s) for s in prev["spots"]),

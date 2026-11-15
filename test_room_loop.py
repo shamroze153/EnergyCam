@@ -464,6 +464,18 @@ def check_furniture_at_night(check, room):
           " counted all night", seen[-5:], [0] * 5)
 
     r = room()
+    for m in range(0, 49, 4):
+        night(r, base, m)                   # the chair, set aside by 40
+    inner = (120, 150, 160, 240, 0.3)       # the same thing, boxed smaller
+    check("furniture boxed smaller inside what is set aside stays aside",
+          len(night(r, base, 52, boxes=(inner,))), 0)
+    sitting = (80, 60, 220, 300, 0.8)       # somebody in that chair
+    moved = base.copy()
+    moved[60:300, 80:220] = 255 - base[60:300, 80:220]
+    check("  but somebody sitting in that chair is counted",
+          len(night(r, moved, 56, boxes=(sitting,))), 1)
+
+    r = room()
     check("a frame that is not a picture is left alone",
           room_loop.drop_still(r, key, "frame", [chair], True, now=at(0)),
           [chair])
