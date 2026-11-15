@@ -745,3 +745,11 @@ Two or three lines a round; picture file names, never pictures.
   1's ch 5 counted a man sitting beyond its doorway (0.68, 08:55) --
   whether that is the same room is for Shamroze (frames/141-D_Squat_
   Wolf_Room_1_cd_nvr3_ch05_boxes.jpg). Nothing changed.
+* 10:47 round: 1 GHOST (Solar Array, outside, no unit -- third time
+  today, an object out there), 0 MISSED, 11 FOLLOWING (Sunday work
+  going on). Real people on a Sunday: workmen in 141 Admin Room (three,
+  on the floor and at the desks), a man at the racks in 141 Data
+  Centre at 10:51 (it read "1"; the door he opened lit ch 19), the
+  cafe's staff, 140-H Admin Room's guard. Squat Wolf 1's figure beyond
+  the doorway (08:55) has not moved since and is set aside: a thing,
+  not a man. Nothing changed.
