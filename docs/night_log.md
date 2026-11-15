@@ -709,3 +709,15 @@ Two or three lines a round; picture file names, never pictures.
   3's door (0.29), a shape at the cafe's far counter (0.67, maybe
   staff at 07:00) -- still things for the movement check, or not sure.
   Nothing changed.
+* 07:20: every calibrated unit against every frame kept 13-15 Nov, the
+  frames either side of each threshold looked at. Three read a RUNNING
+  unit as OFF: 141 Room 27 by day (lit display 16-30 against 28.2; also
+  its anchor took in the ceiling light) -> 12.4 and an anchor on the
+  TV's corner; 141 Learning Center (louvres open, display lit, 31-36
+  against 36.1 -- including 04:22-05:44 on 14 Nov, empty room) -> 27.2;
+  Prompt Cafe's General 1 through the evening (louvre open, 36-38
+  against 38.7, 17:08-21:10 on 14 Nov) -> 30.4. Tests green, pushed
+  (9893b64, 7cb4f16), restarted 07:14 and 07:20; first pass 07:24 has
+  Room 27 read "off" in colour. Left for later: Prompt Cafe's Kenwood
+  (21-29 around 24.6), the Mosque's and Finance's view checks failing
+  on about half their frames.

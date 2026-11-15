@@ -58,6 +58,19 @@ it here. Shamroze reads the morning summary in Roman Urdu.
       colour). Also Room 27 in colour: 16 frames on Sat 14 Nov
       10:41-13:13 refused as a moved camera (anchor 0.45), fine again
       from 13:27 -- look at those frames for what changed by day.
+      Done 07:20 (9893b64, 7cb4f16): the room's ceiling light was on;
+      anchor moved to the TV's corner. And checking every unit against
+      the frames either side of its threshold found three reading a
+      running unit as off -- Room 27 by day (28.2 -> 12.4), Learning
+      Center (36.1 -> 27.2: running at 04:22 on 14 Nov, unflagged),
+      Prompt Cafe General 1 in the evening (38.7 -> 30.4).
+- [ ] Still to look at (scratchpad units_audit.py, unit_values.py):
+      Prompt Cafe's Kenwood on ch 20 reads 21-29 around its 24.6 on the
+      afternoon of 13 Nov (on or off not known) and its view check fails
+      at night (-0.38) -- best re-measured with Shamroze switching it.
+      Mosque: 87 of 142 colour frames fail the view check, Finance 52 of
+      108: unread rather than wrong, but find when and why (as Admin
+      Room's flap and Room 27's ceiling light).
 - [ ] Names for cd_nvr4:17 (corridor), :26 (outside lane, guard), :31
       (pantry/kitchen); :30 duplicates the cafe's cd_nvr1:14. Asked.
 
