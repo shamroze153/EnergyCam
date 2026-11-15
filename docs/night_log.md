@@ -721,3 +721,11 @@ Two or three lines a round; picture file names, never pictures.
   Room 27 read "off" in colour. Left for later: Prompt Cafe's Kenwood
   (21-29 around 24.6), the Mosque's and Finance's view checks failing
   on about half their frames.
+* 07:40: the Mosque's unread frames all predate its camera being
+  turned on 14 Nov 11:40 -- nothing wrong. Finance's unit had been
+  unread since 13 Nov 23:36: its anchor was on the unit's top vents,
+  which show only under the room light. Moved to the floor unit's
+  lower body (every colour frame 0.80+, a 50 px nudge -0.03); all 110
+  colour frames read, none refused. Tests green, pushed (dc29305),
+  restarted 07:33; its 07:15 and 07:20 frames read "off" (the camera
+  flips back to infrared at dawn, read unknown, as it should).

@@ -71,6 +71,13 @@ it here. Shamroze reads the morning summary in Roman Urdu.
       Mosque: 87 of 142 colour frames fail the view check, Finance 52 of
       108: unread rather than wrong, but find when and why (as Admin
       Room's flap and Room 27's ceiling light).
+      07:40: Mosque -- all its unread frames are from before its camera
+      was turned on 14 Nov 11:40; every frame since reads. Finance --
+      fixed (dc29305): its anchor was on the unit's top vents, seen only
+      under the room light, so from 13 Nov 23:36 it was unread for 32
+      hours; now on the floor unit's lower body. Only the Kenwood is
+      left. For Shamroze: Finance also has a floor-standing unit on the
+      right wall, in camera, while the survey says one AC.
 - [ ] Names for cd_nvr4:17 (corridor), :26 (outside lane, guard), :31
       (pantry/kitchen); :30 duplicates the cafe's cd_nvr1:14. Asked.
 
