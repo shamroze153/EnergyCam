@@ -697,3 +697,15 @@ Two or three lines a round; picture file names, never pictures.
   restart were kept (Squat Wolf 0's chair from 05:11). Energy's
   "19 kWh, Rs 1,244" for the night is 0% measured -- assumed from those
   night counts. Room 27 does go infrared (corrected above), flat 1-3.
+* 06:47 round: 4 GHOST (141-D Squat Wolf 4, Cyber Security Room, Room
+  18, H Basement Parking), 1 MISSED (Entry H: a man walking in at
+  06:49, the loop a pass behind), 3 FAINT. The three rooms are empty:
+  chairs boxed afresh as the cameras went from infrared to colour at
+  dawn, so their 40-minute clocks started again (a chair set aside in
+  infrared comes back in colour as a box of another shape). Same at
+  06:04-06:11 (Marketing, Creative, Basement), all set aside by 06:54.
+  Night check: somebody real working in AutoOS at 06:55 (0.91/0.80);
+  a cable bundle on a 141 Room 11 desk (0.60), a chair through Room
+  3's door (0.29), a shape at the cafe's far counter (0.67, maybe
+  staff at 07:00) -- still things for the movement check, or not sure.
+  Nothing changed.
