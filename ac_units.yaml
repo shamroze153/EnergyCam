@@ -160,7 +160,13 @@ rooms:
     units:
       - label: floor-standing unit, right, its louvres
         led_roi: [1700, 590, 1755, 690]
-        led_std_threshold: 36.1
+        # 15 Nov, from every colour frame kept 13-15 Nov: with the louvres
+        # shut (a flat panel, display dark) this reads 12-23.0; open
+        # (display lit, "24") 31.3 and up -- as low as 31-36 through the
+        # afternoon of 13 Nov and at 04:22-05:44 on 14 Nov, which 36.1
+        # read as off: a unit running at four in the morning in an empty
+        # room, unflagged. The line is now the middle of that gap.
+        led_std_threshold: 27.2
         # A thumbnail of the unit and the wall round the box, levelled for
         # brightness, compared before every reading. Nudge the camera and the
         # box lands on blank wall, where it reads low contrast for ever and
@@ -403,7 +409,13 @@ rooms:
     units:
       - label: General 2.5 ton 1, on the beam, its louvre
         led_roi: [1205, 150, 1290, 172]
-        led_std_threshold: 38.7
+        # 15 Nov, from frames/ac_keep: measured at midday with the spotlight
+        # beside it on, this louvre read 52-67 running; through the evening
+        # it read 36-38 with the louvre plainly open (frames 17:34, 21:03)
+        # and dropped to 14 when it closed at 21:10, so 38.7 read it off
+        # from 17:08 to 21:10. Closed it reads 19-25 by day, 14-17 at
+        # night; open, 36.0 at the least. The line is the middle of that.
+        led_std_threshold: 30.4
         # A thumbnail of the unit and the wall round the box, levelled for
         # brightness, compared before every reading. Nudge the camera and the
         # box lands on blank wall, where it reads low contrast for ever and
