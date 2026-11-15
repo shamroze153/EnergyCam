@@ -659,3 +659,15 @@ Two or three lines a round; picture file names, never pictures.
   a table on ch 14 (16x30, 0.25-0.47) -- zoned; bin bags piled on the
   counter on ch 2 (24x46, 0.25-0.43) -- staff may stand there by day, so
   conf_after_hours 0.45 on ch 2 only. Tests green, pushed, restarted.
+* 04:47 round: 1 GHOST (Attendance Machine H, no unit), 0 MISSED, Rooms
+  7 and 11 FAINT. 141 Room 29 read occupied from 04:29: on ch 13 one
+  object was boxed 63x171 and set aside, then boxed 22x66 inside that
+  (0.26-0.34), which matched nothing and counted afresh. The movement
+  check now leaves out a box mostly inside a spot already set aside,
+  with nothing moved there (somebody in that chair is a bigger box and
+  is still counted -- tested). Tests green, pushed (5162caf), restarted
+  05:03, so the night's chairs count again until about 05:45. Night
+  check: a bin bag by the cafe's drum on ch 2 (0.55, new since 02:47,
+  probably the cleaners), empty chairs in 141 Rooms 27 and 28 and a
+  thing on a Room 27 desk (0.31) -- all still objects the movement check
+  sets aside; no zone.

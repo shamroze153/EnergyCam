@@ -65,6 +65,14 @@ it here. Shamroze reads the morning summary in Roman Urdu.
       pixels do not change between passes is furniture (a seated person
       breathes, types, turns). Needs his yes; it changes the loop.
 
+- [ ] 15 Nov 05:10: every loop restart at night starts the movement
+      check's 40-minute clocks again, so the chairs count for 40 minutes
+      after each fix (05:03-05:45 tonight). Idea: on stopping, the loop
+      keeps each spot's clock and its small grey thumbnail in a local,
+      ignored file and reads it back if it is under 15 minutes old.
+      Those thumbnails are pictures (480 wide, grey): local only, never
+      in git, and never the gym in its private hours (never opened).
+
 ## Added 13 Nov evening (the seating sheet, Desks page)
 
 - [x] 18:47 Room 17: the sheet has 24 of its 47 desks given, the cameras
