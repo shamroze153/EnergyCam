@@ -65,7 +65,10 @@ it here. Shamroze reads the morning summary in Roman Urdu.
       pixels do not change between passes is furniture (a seated person
       breathes, types, turns). Needs his yes; it changes the loop.
 
-- [ ] 15 Nov 05:10: every loop restart at night starts the movement
+- [x] 05:25 done (807132e): each pass keeps the clocks in
+      still_state.npz; checked live by restarting at 05:20 -- the first
+      pass after it still had Room 27's chair timed from 05:13.
+      15 Nov 05:10: every loop restart at night starts the movement
       check's 40-minute clocks again, so the chairs count for 40 minutes
       after each fix (05:03-05:45 tonight). Idea: on stopping, the loop
       keeps each spot's clock and its small grey thumbnail in a local,

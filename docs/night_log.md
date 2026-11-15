@@ -671,3 +671,9 @@ Two or three lines a round; picture file names, never pictures.
   probably the cleaners), empty chairs in 141 Rooms 27 and 28 and a
   thing on a Room 27 desk (0.31) -- all still objects the movement check
   sets aside; no zone.
+* 05:25: the movement check's clocks now survive a loop restart (each
+  pass keeps them in still_state.npz, local and ignored, never a private
+  room). Tests green, pushed (807132e), restarted 05:11 and again 05:20
+  to see it: the first pass after had Room 27's chair still timed from
+  05:13 and Squat Wolf 0's from 05:11, so a fix at night no longer has
+  the chairs counted for forty minutes.
