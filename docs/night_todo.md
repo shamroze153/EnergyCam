@@ -88,6 +88,16 @@ it here. Shamroze reads the morning summary in Roman Urdu.
       Those thumbnails are pictures (480 wide, grey): local only, never
       in git, and never the gym in its private hours (never opened).
 
+- [ ] 15 Nov 07:10, PROPOSAL (needs Shamroze's yes; it changes the
+      count): when a camera switches between infrared and colour (dawn,
+      dusk), every chair already set aside comes back as a box of
+      another shape and is counted for forty more minutes (06:04-06:54
+      today: Marketing, Creative, Basement, Room 18, Cyber Security,
+      Squat Wolf 1 and 4). Idea: on a pass where the camera changed kind,
+      a new box that mostly overlaps a spot already set aside keeps that
+      spot's clock; it is checked for movement again from the next pass,
+      so somebody who sits down at dawn is counted one pass late at most.
+
 ## Added 13 Nov evening (the seating sheet, Desks page)
 
 - [x] 18:47 Room 17: the sheet has 24 of its 47 desks given, the cameras
