@@ -678,11 +678,22 @@ Two or three lines a round; picture file names, never pictures.
   05:13 and Squat Wolf 0's from 05:11, so a fix at night no longer has
   the chairs counted for forty minutes.
 * 06:05: infrared calibration from frames/ac_keep. No unit switched in
-  the dark in Finance, Learning Center or Room 32 (flat both nights);
-  Room 27 never goes infrared. Admin Room: a colour block for the days
+  the dark in Finance, Learning Center, Room 32 or Room 27 (flat both
+  nights; Room 27 first written here as never infrared -- wrong, see
+  06:35). Admin Room: a colour block for the days
   its camera comes back in colour (lit 17.0, blank 2.2, threshold 9.6),
   and its anchor moved off the flap -- at night 39 of 43 frames with
   the unit off had been refused as a moved camera. All 202 kept frames
   now read. Tests green (test_ac_detect taught the nested block),
   pushed (98c9cc2), restarted 06:02; at 06:06 the page has Admin
   Room's unit "off" where it had "unknown".
+* 06:35: the dashboard once more at 375 px, dark: front page, 141-C/D's
+  Overview, Who comes when, Rooms, Desks, Empty time, Energy -- no
+  error, nothing wider than the screen (the day timeline scrolls in
+  its own box, as designed). At 06:20 it said 17 people: objects in
+  Marketing, Creative Room, Basement and Squat Wolf 1 that scored up
+  as the light changed at 06:04-06:11, timed by the movement check and
+  due to be set aside by about 06:50; the clocks from before the 06:02
+  restart were kept (Squat Wolf 0's chair from 05:11). Energy's
+  "19 kWh, Rs 1,244" for the night is 0% measured -- assumed from those
+  night counts. Room 27 does go infrared (corrected above), flat 1-3.

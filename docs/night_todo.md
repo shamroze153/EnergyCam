@@ -48,12 +48,16 @@ it here. Shamroze reads the morning summary in Roman Urdu.
       calibrate it there.
       15 Nov 06:05, ac_keep 13-15 Nov: Admin Room's colour block done
       (98c9cc2), and its night "off" now read (the anchor took in the
-      flap: 39 of 43 off frames were refused). Room 27's camera never
-      went infrared (0 of 180 frames): nothing needed. Finance (IR 1-4),
-      Learning Center (8-10) and Room 32 (7-8) stayed flat in infrared
-      both nights -- no unit switched in the dark, so nothing to measure
-      yet. Keep looking each morning (scratchpad keep_steps.py,
-      ir_series.py).
+      flap: 39 of 43 off frames were refused). Finance (IR 1-4),
+      Learning Center (8-10), Room 32 (7-8) and Room 27 (1-3) stayed
+      flat in infrared both nights -- no unit switched in the dark, so
+      nothing to measure yet. Keep looking each morning (scratchpad
+      keep_steps.py, ir_series.py). Correction 06:35: Room 27 does go
+      infrared (90 frames by ac_detect.is_infrared, which the loop uses;
+      a looser test in keep_steps had called its tinted night picture
+      colour). Also Room 27 in colour: 16 frames on Sat 14 Nov
+      10:41-13:13 refused as a moved camera (anchor 0.45), fine again
+      from 13:27 -- look at those frames for what changed by day.
 - [ ] Names for cd_nvr4:17 (corridor), :26 (outside lane, guard), :31
       (pantry/kitchen); :30 duplicates the cafe's cd_nvr1:14. Asked.
 
