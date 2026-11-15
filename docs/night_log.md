@@ -729,3 +729,9 @@ Two or three lines a round; picture file names, never pictures.
   colour frames read, none refused. Tests green, pushed (dc29305),
   restarted 07:33; its 07:15 and 07:20 frames read "off" (the camera
   flips back to infrared at dawn, read unknown, as it should).
+* 07:50: nothing left on the list that can be done without Shamroze
+  (the Kenwood's on/off, the dawn proposal, names, 140-H rooms) or a
+  working day (seat map). Dashboard once more at 375 px, dark: no
+  error, nothing wider than the screen on either campus. The morning's
+  fixes show: 141-C/D has Room 27 "all off" where it said not
+  readable; 140-H has Admin Room "all off, 1 person in" (the guard).
