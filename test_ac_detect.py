@@ -28,10 +28,17 @@ ON_DISK = yaml.safe_load(open("ac_units.yaml"))["rooms"]
 # camera has moved". The anchor is exercised on its own further down; for
 # everything else the anchor is set aside, so these checks keep testing the
 # box and the threshold rather than failing on a room they were never of.
-UNITS = {room: dict(cfg, units=[{k: v for k, v in unit.items()
-                                 if k != "anchor"}
-                                for unit in cfg.get("units", [])])
-         for room, cfg in ON_DISK.items()}
+def without_anchors(cfg):
+    out = dict(cfg, units=[{k: v for k, v in unit.items() if k != "anchor"}
+                           for unit in cfg.get("units", [])])
+    # The other lighting's block too (Admin Room's colour:, 15 Nov).
+    for other in ("colour", "infrared"):
+        if cfg.get(other):
+            out[other] = without_anchors(cfg[other])
+    return out
+
+
+UNITS = {room: without_anchors(cfg) for room, cfg in ON_DISK.items()}
 FAILED = []
 
 
@@ -272,9 +279,19 @@ def main():
     colour = with_lit_display(room)
     colour[:, :, 0] = 20          # push blue away from green and red
     colour[:, :, 2] = 160
-    state, why = ac_detect.read_room(colour, room, UNITS)
+    ir_only = {room: {k: v for k, v in cfg.items() if k != "colour"}}
+    state, why = ac_detect.read_room(colour, room, ir_only)
     ok("a colour frame does not answer an infrared calibration", state is None)
     ok("and the reason says why", "colour" in why)
+    if cfg.get("colour"):
+        print("-- unless the room carries a colour calibration of its own")
+        ok("a colour frame with the display lit reads on",
+           ac_detect.read_room(colour, room, UNITS)[0] == "on")
+        blank = colour.copy()
+        x1, y1, x2, y2 = cfg["colour"]["units"][0]["led_roi"]
+        blank[y1:y2, x1:x2] = colour[0, 0]
+        ok("and with it blank reads off",
+           ac_detect.read_room(blank, room, UNITS)[0] == "off")
 
     print("-- a box that falls outside the picture is refused")
     moved = {room: dict(cfg, units=[dict(cfg["units"][0],
