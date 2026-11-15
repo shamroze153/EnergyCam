@@ -45,6 +45,7 @@ import tempfile as _seat_tmp  # noqa: E402
 room_loop.SEATS_DIR = _seat_tmp.mkdtemp()
 room_loop.AC_KEEP_DIR = _seat_tmp.mkdtemp()
 room_loop.STILL_FILE = _seat_tmp.mktemp(suffix=".json")
+room_loop.STILL_STATE = _seat_tmp.mktemp(suffix=".npz")
 
 T0 = datetime.datetime(2026, 11, 5, 18, 0, tzinfo=PKT)
 FAILURES = []
@@ -491,6 +492,46 @@ def check_furniture_at_night(check, room):
     written = json.load(open(path, encoding="utf-8"))
     check("the furniture is written down for verify_live, numbers only",
           written["rooms"], {"Marketing": {"dvr2:3": [[100, 100, 180, 260]]}})
+
+    # A restart keeps the clocks (15 Nov 05:03: every fix restarted the
+    # loop and the night's chairs counted for forty more minutes).
+    state = os.path.join(tempfile.mkdtemp(), "still_state.npz")
+    check("the clocks are kept for the next run",
+          room_loop.save_still_state([r], path=state, now=at(48)), 1)
+    again = room()
+    check("  and taken back by it",
+          room_loop.load_still_state([again], path=state, now=at(50)), 1)
+    check("  so a chair set aside before a restart stays aside",
+          len(night(again, base, 52)), 0)
+    sat = room()
+    room_loop.load_still_state([sat], path=state, now=at(50))
+    check("  and somebody sitting down in it after the restart is counted",
+          len(night(sat, moved, 52, boxes=(sitting,))), 1)
+    late = room()
+    check("clocks older than the gap are not taken back",
+          room_loop.load_still_state(
+              [late], path=state, now=at(48 + room_loop.STILL_GAP + 1)), 0)
+    check("  and that chair is counted again, as before",
+          len(night(late, base, 48 + room_loop.STILL_GAP + 2)), 1)
+    other = room(name="Creative Room")
+    check("a room by another name takes nothing back",
+          room_loop.load_still_state([other], path=state, now=at(50)), 0)
+
+    gym = room(name="141 Gym", private_hours=["15:00", "20:00"])
+    for m in range(0, 49, 4):
+        night(gym, base, m)
+    check("a room with private hours is never kept, at any hour",
+          room_loop.save_still_state([gym], path=state, now=at(48)), 0)
+    check("  and the file goes when nothing is timed",
+          os.path.exists(state), False)
+    room_loop.save_still_state([r], path=state, now=at(48))
+    day = room()
+    night(day, base, 0, after=False)
+    room_loop.save_still_state([day], path=state, now=at(60))
+    check("by day the file of pictures is removed", os.path.exists(state),
+          False)
+    check("a missing or broken file is no trouble",
+          room_loop.load_still_state([room()], path=state + ".x"), 0)
 
 
 def check_units_count(check, room):

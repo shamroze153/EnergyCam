@@ -100,7 +100,10 @@ in infrared score like people (0.35-0.67) and real people at night as
 little as 0.28, so no bar separates them, but a chair never moves. A
 sleeper stirs within half an hour and is kept. What it leaves out goes to
 `still_spots.json` (local), which `verify_live` treats as a zone -- so a
-chair it set aside is not reported MISSED.
+chair it set aside is not reported MISSED. Its clocks survive a restart
+(15 Nov): each pass keeps them, with the small grey picture each camera
+was last compared against, in `still_state.npz` -- pictures, so local and
+ignored, never a private-hours room, removed by day.
 
 ## Air conditioners
 

@@ -234,6 +234,7 @@ STILL_WIDTH = 480       # pictures are compared at about this width
 STILL_GAP = 15          # minutes: an older picture is no comparison
 STILL_IOU = 0.6         # a box this like last pass's is the same thing
 STILL_FILE = "still_spots.json"   # what is being left out, for verify_live
+STILL_STATE = "still_state.npz"   # the clocks, kept over a restart (local)
 
 # How much evidence to keep. Left alone the folder only grows: a room that
 # invents a person once an hour writes a few hundred pictures a month, and
@@ -1022,6 +1023,88 @@ def write_still(rooms, path=STILL_FILE, now=None):
     return out
 
 
+def save_still_state(rooms, path=None, now=None):
+    """Keep the movement check's clocks for the next run.
+
+    Every fix at night restarts the loop, and a restart used to start every
+    clock again: the night's chairs were counted as people for forty more
+    minutes each time (15 Nov, 05:03-05:45). So the clocks are kept, with
+    the small grey picture each was last compared against -- the next pass
+    needs it to tell whether anything moved.
+
+    Those grey pictures are pictures: this machine only, git-ignored, only
+    for cameras with a clock running (night, after hours), never for a room
+    with private hours, and the file is removed once nothing is timed (by
+    day). Returns how many cameras were kept."""
+    import numpy as np
+    path = path or STILL_STATE
+    now = now or datetime.now(PKT)
+    cams, arrays = [], {}
+    for r in rooms:
+        if getattr(r, "private", None):
+            continue
+        for (rec, ch), s in (getattr(r, "still", None) or {}).items():
+            if not any(since is not None for _, since in s["spots"]):
+                continue
+            name = "g%d" % len(cams)
+            arrays[name] = np.clip(np.rint(s["grey"]), 0, 255).astype(np.uint8)
+            cams.append({"room": r.name, "rec": rec, "ch": int(ch),
+                         "k": int(s["k"]), "when": s["when"].isoformat(),
+                         "grey": name,
+                         "spots": [[list(b), since.isoformat() if since
+                                    else None] for b, since in s["spots"]]})
+    try:
+        if not cams:
+            if os.path.exists(path):
+                os.remove(path)
+            return 0
+        tmp = path + ".tmp"
+        with open(tmp, "wb") as fh:
+            np.savez_compressed(fh, meta=np.array(json.dumps(
+                {"at": now.isoformat(), "cams": cams})), **arrays)
+        os.replace(tmp, path)       # never a half-written file after a kill
+    except OSError:
+        return 0
+    return len(cams)
+
+
+def load_still_state(rooms, path=None, now=None):
+    """Take back the clocks the last run kept, for every camera whose last
+    picture is recent enough to compare against (STILL_GAP). Anything older,
+    unreadable, renamed or private starts afresh, as it always did. Returns
+    how many cameras' clocks were taken back."""
+    import numpy as np
+    path = path or STILL_STATE
+    now = now or datetime.now(PKT)
+    if not os.path.exists(path):
+        return 0
+    by_name = {r.name: r for r in rooms if not getattr(r, "private", None)}
+    n = 0
+    try:
+        with np.load(path, allow_pickle=False) as z:
+            info = json.loads(str(z["meta"]))
+            for c in info["cams"]:
+                r = by_name.get(c["room"])
+                key = (c["rec"], int(c["ch"]))
+                if r is None or key not in r.cameras:
+                    continue
+                when = datetime.fromisoformat(c["when"])
+                if (now - when).total_seconds() > STILL_GAP * 60:
+                    continue
+                if not hasattr(r, "still"):
+                    r.still = {}
+                r.still[key] = {
+                    "grey": z[c["grey"]].astype(np.float32),
+                    "k": int(c["k"]), "when": when,
+                    "spots": [(tuple(int(v) for v in b),
+                               datetime.fromisoformat(since) if since
+                               else None) for b, since in c["spots"]]}
+                n += 1
+    except (OSError, ValueError, KeyError, TypeError):
+        return n
+    return n
+
+
 def wants_main(room, rec):
     """Whether this room is read from the recorder's main stream.
 
@@ -1743,6 +1826,10 @@ def main():
 
     load_state(rooms, args.state, max_gap_minutes=max(10.0,
                                                       args.min_cycle / 60 * 3))
+    kept = load_still_state(rooms)
+    if kept:
+        print(">> took back the movement check's clocks for %d camera(s) from"
+              " the last run: furniture already set aside stays aside" % kept)
 
     def keeper(room, frame):
         if room.ac in ("visible", "hidden"):
@@ -1786,6 +1873,7 @@ def main():
             report(rooms, now, cycle, elapsed, hours)
             log_cycle(rooms, now, cycle, elapsed)
             save_state(rooms, args.state, now)
+            save_still_state(rooms, now=now)
 
             if not args.no_db:
                 changed = [r for r in rooms if r.state() != r.recorded]

@@ -31,6 +31,9 @@ review_frames/
 room_state.json
 # the loop's furniture at night (room_loop.drop_still), for verify_live
 still_spots.json
+# its clocks kept over a restart, with small grey pictures of the cameras
+still_state.npz
+still_state.npz.tmp
 
 snapshots/
 
