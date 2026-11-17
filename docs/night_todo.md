@@ -31,10 +31,15 @@ it here. Shamroze reads the morning summary in Roman Urdu.
 - [ ] Every 2-hour round at night: look at the night_check pictures for
       ghosts in rooms with a unit; a clear object gets a zone (never a
       seat), as tonight's Assembly Meeting Room table.
-- [ ] Seat notes: the loop now writes seats/<date>.csv (where each counted
+- [x] Seat notes: the loop now writes seats/<date>.csv (where each counted
       person was, numbers only, this machine only). After a working day,
       draw a seat map per camera locally (dots on an empty-room frame) and
       list in the report which rooms' seats are used; never commit them.
+      17 Nov 19:25: `seat_map.py --day 2026-11-17`, 102 maps in
+      frames/seats (ignored), seats.txt local. Busiest: 141-C Cafe 30
+      seats, Room 18 29, Marketing 24, Room 32 23, Prompt Cafe 22,
+      Basement 21. Room 18's dots sit on its desks. Run it again any
+      working evening; it honours the gym's private hours.
 - [x] 09:12 morning report job; 11:12 morning AC calibration from the
       08:00-11:00 watch (both scheduled). Report sent; the watch caught no
       uncalibrated unit switching, but the cafe's tower 6 was calibrated by

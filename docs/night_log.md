@@ -811,3 +811,10 @@ Two or three lines a round; picture file names, never pictures.
   split into off-peak and peak (~Rs 7.7 lakh at 67/81); the units-an-hour
   chart moved up beside it. Supabase: 25 MB after 12 days.
 
+
+## 17 Nov, 19:25
+
+* night_todo: seat notes for today -- seat_map.py drew 102 maps locally
+  (frames/seats, never committed). Most seats used: 141-C Cafe 30, Room 18
+  29, Marketing 24, Room 32 23, Prompt Cafe 22, Basement 21. Ticked.
+
