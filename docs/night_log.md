@@ -792,3 +792,13 @@ Two or three lines a round; picture file names, never pictures.
   column. New on Energy: "Units an hour, reading to reading" --
   the weekend ran at ~10 units an hour, a working day 19-21, Monday's
   daytime 24. Readings form's Save button readable in light.
+
+## 17 Nov, 18:47 round
+
+* field_audit: 85 of 86 cameras (Squat Wolf Room 4 gave no frame, as before);
+  doctor/verify/ac_survey ok. Two GHOSTs (Admin Room: a jacket and bag on
+  a chair; 141 SoftFM Store, 0.38 in the dark) and a MISSED in the Pantry
+  (a person who had just walked in -- the loop a pass behind).
+* Three more rounds on Admin Room and SoftFM Store: neither came back.
+  Nothing changed; no restart.
+
