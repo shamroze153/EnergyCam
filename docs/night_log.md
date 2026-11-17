@@ -753,3 +753,19 @@ Two or three lines a round; picture file names, never pictures.
   cafe's staff, 140-H Admin Room's guard. Squat Wolf 1's figure beyond
   the doorway (08:55) has not moved since and is set aside: a thing,
   not a man. Nothing changed.
+
+## 17 Nov
+
+* 11:05-12:30: Shamroze, 16 Nov 16:42 -- the 141-C cafe had four towers
+  running and the page said two of six. Kept frames at that time: towers
+  2, 3, 4 and 5 open; towers 2 and 3 failed their view check on most
+  daytime frames (151 and 165 of 273: people and light round each
+  louvre). Towers 2-4 now check the wall above the people, tower 6 the
+  left wall on ch 2 (182 of 268 had failed); every cafe frame reads.
+  Tower 3's night readings (33-39, shut) had sat over its 35.7: 42.0.
+  Pushed a6cbd92, restarted 11:34; 11:49 frames read towers 1 and 2 on,
+  the rest plainly shut. The first pass after the restart took 888 s
+  with 22 rooms unanswered (recorders slow, not the change).
+* Energy tab, "Hour by hour for" (his ask, 16 Nov): the campus or any
+  room, rupees each hour with the waste on top, the stretches it ran
+  with nobody in as tips, a line a day for the week (59abacd).

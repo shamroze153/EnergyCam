@@ -118,6 +118,20 @@ it here. Shamroze reads the morning summary in Roman Urdu.
       spot's clock; it is checked for movement again from the next pass,
       so somebody who sits down at dawn is counted one pass late at most.
 
+## Added 17 Nov (Shamroze)
+
+- [x] 141-C Cafe read 2-3 of 6 when 4 ran (16 Nov 16:42): towers 2 and 3
+      failed their view check by day; anchors moved, tower 3's night
+      threshold raised (a6cbd92).
+- [x] Each room and campus, each day: AC cost, the waste, which hours,
+      and a chart -- "Hour by hour for" on the Energy tab (59abacd).
+- [ ] Envoy's look (his screenshot, 17 Nov): light page, a left sidebar
+      of sections with icons (Home, Schedule, Visitors, Workplace,
+      Analytics...), a setup checklist card, a help card on the right,
+      a red chat button in the corner -- "pyara sa khoobsurat sa". Study
+      it and propose our front page in that style (light theme first,
+      sidebar of our tabs, cards) before building.
+
 ## Added 13 Nov evening (the seating sheet, Desks page)
 
 - [x] 18:47 Room 17: the sheet has 24 of its 47 desks given, the cameras
