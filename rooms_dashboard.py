@@ -718,6 +718,10 @@ def load_rooms_config(path="rooms.yaml"):
             # in full. Text, not a list: a list in a cell breaks hashing.
             "ac_sizes": sizes_text(room) if has_unit else "",
             "unit_kw": unit_kw,
+            # How many people one of its units is there for: more units
+            # running than the people in need is waste too (Shamroze, 17
+            # Nov: the cafe ran four towers for three people).
+            "people_per_unit": room.get("people_per_unit"),
             "ac_load": load,
             "meter": room.get("meter"),
             "alerts": alerts,
@@ -2346,6 +2350,12 @@ def show_meters(df, recent, now):
         if len(bills) else bills, cooled_hours, rate,
         ev.suspicious(readings, mine), True, LINK_BASE.get("campus") or "",
         usage), unsafe_allow_html=True)
+    # Units an hour between readings: the weekend, a working day, a night
+    # side by side (Shamroze, 17 Nov).
+    paced = ev.pace_page(mode, readings, mine, rate)
+    if paced:
+        st.markdown(ev.css(mode) + '<div class="ec">' + paced + "</div>",
+                    unsafe_allow_html=True)
     with st.expander("Every reading, as entered"):
         if len(readings):
             shown = readings.copy()
@@ -2479,6 +2489,13 @@ def app_chrome(mode):
         " { background: %(sunken)s !important; }"
         " div[data-testid='stButtonGroup'] button[aria-checked='true'] p"
         " { color: %(text)s !important; }"
+        # The readings form's Save: dark on dark in the light theme (17
+        # Nov) -- the page's own colours, and plainly a button.
+        " div[data-testid='stFormSubmitButton'] button { background:"
+        " %(text)s !important; border: none !important;"
+        " border-radius: 10px !important; }"
+        " div[data-testid='stFormSubmitButton'] button p { color: %(surface)s"
+        " !important; font-weight: 650; }"
         " div[data-testid='stPopover'] button { background: %(surface)s"
         " !important; border: 1px solid %(line)s !important;"
         " border-radius: 12px !important; min-height: 44px; }"
@@ -3264,6 +3281,10 @@ def show_room_energy(df, now):
         st.markdown(er.hours_page(
             LINK_BASE.get("theme") or "dark", rows,
             None if chosen == everyone else chosen, week_rows,
+            so_far=(pick == "Today so far")), unsafe_allow_html=True)
+        st.markdown(er.too_many(
+            LINK_BASE.get("theme") or "dark",
+            [r for r in rows if chosen == everyone or r["room"] == chosen],
             so_far=(pick == "Today so far")), unsafe_allow_html=True)
 
 
@@ -4783,8 +4804,12 @@ if view == "Overview":
     # what could have been saved (Shamroze, 17 Nov).
     try:
         import energy_rooms as er_w
-        st.markdown(er_w.rooms_week(mode, week_ledgers(local, campus),
-                                    LINK_BASE), unsafe_allow_html=True)
+        week_l = week_ledgers(local, campus)
+        st.markdown(er_w.rooms_week(mode, week_l, LINK_BASE),
+                    unsafe_allow_html=True)
+        # And where more units ran than the people in needed (17 Nov).
+        st.markdown(er_w.too_many(mode, week_l[-1][1]),
+                    unsafe_allow_html=True)
     except psycopg2.Error:
         pass
     # Then the building itself: every floor, every room drawn with its

@@ -43,6 +43,8 @@ LOCAL_TZ = "Asia/Karachi"
 # inflated one -- and the empty minutes inside a stretch (a meeting
 # elsewhere, a long break) are the "could have been off".
 SESSION_GAP = pd.Timedelta(hours=2)
+# Two stretches of too many units this close are told as one.
+OVER_JOIN = pd.Timedelta(minutes=15)
 
 
 def _intervals(events, room, start, end):
@@ -156,6 +158,12 @@ def room_day(events, row, start, end, alive, read, rates, window, beats,
     # those rupees beside the read units' minutes alone would say "nobody in
     # under a minute, Rs 134 wasted" (the cafe, 13 Nov).
     part_on_min = part_empty_min = 0.0
+    # More units running than the people in need (people_per_unit in
+    # rooms.yaml): the rupees of the extra units, and when.
+    per = row.get("people_per_unit")
+    per = float(per) if per is not None and per == per and per else None
+    over_rs = over_kwh = over_min = 0.0
+    over = []
     if not row.get("alerts", True):
         basis = ALWAYS
         for x, y in _alive_parts(start, end, alive):
@@ -167,15 +175,39 @@ def room_day(events, row, start, end, alive, read, rates, window, beats,
             # Measured: the minutes a camera saw the unit running, at the
             # number of units it saw running (one where that was not yet
             # written down, the cautious count).
-            for a, b, status, _, ac, units in spans:
+            for a, b, status, people, ac, units in spans:
                 if ac != "on":
                     continue
-                kw = min(units if units else 1, read) * each
+                people = (0 if people is None or pd.isna(people)
+                          else int(people))
+                seen = min(units if units else 1, read)
+                kw = seen * each
+                need = (units_needed(people, per, count)
+                        if status == "occupied" and per else seen)
+                extra = max(0, seen - need)
                 for x, y in _alive_parts(a, b, alive):
                     m = acc.add(x, y, kw, status, rates, window, True)
                     on_min += m
                     if status == "empty":
                         empty_on_min += m
+                    elif extra:
+                        rs = _price(x, y, extra * each, rates, window)
+                        over_rs += rs
+                        over_kwh += m / 60.0 * extra * each
+                        over_min += m
+                        # One stretch while it lasts (a pass or two apart);
+                        # its most people and units, the cautious need.
+                        if over and x - over[-1]["to"] <= OVER_JOIN:
+                            o = over[-1]
+                            o["to"] = y
+                            o["rs"] += rs
+                            o["people"] = max(o["people"], people)
+                            o["units"] = max(o["units"], seen)
+                            o["need"] = max(o["need"], need)
+                        else:
+                            over.append({"from": x, "to": y, "units": seen,
+                                         "need": need, "people": people,
+                                         "rs": rs})
         unseen = count - read
         if unseen:
             mine = events[events["room"] == row["room"]]
@@ -209,7 +241,20 @@ def room_day(events, row, start, end, alive, read, rates, window, beats,
             "assumed_empty_on_h": part_empty_min / 60.0,
             "kwh": acc.kwh, "rs": acc.rs, "waste_kwh": acc.waste_kwh,
             "waste_rs": acc.waste_rs, "measured_kwh": acc.measured_kwh,
-            "hourly": acc.hours}
+            "hourly": acc.hours,
+            "over_rs": over_rs, "over_kwh": over_kwh, "over_h": over_min / 60.0,
+            "over": over, "people_per_unit": per}
+
+
+def units_needed(people, per, count):
+    """Units a room needs for `people`: one for every `per` people, and one
+    more for the sun and the door -- the cautious count, so a figure in front
+    of the CEO is never the inflated one. Never more than the room has."""
+    try:
+        p = max(0, int(people or 0))
+    except (TypeError, ValueError):
+        p = 0
+    return min(count, -(-p // int(max(1, round(per)))) + 1)
 
 
 # One room's day slot by slot, for the line under its people (Shamroze, 13
@@ -352,7 +397,7 @@ def average(days):
 
 def totals(rows):
     keys = ("kwh", "rs", "waste_kwh", "waste_rs", "measured_kwh",
-            "empty_on_h")
+            "empty_on_h", "over_rs", "over_kwh")
     out = {k: sum(r.get(k, 0.0) for r in rows) for k in keys}
     # The same for every row of one ledger: how much of it was watched.
     out["watched_h"] = max([r.get("watched_h", 0.0) for r in rows] or [0.0])
@@ -731,7 +776,7 @@ def rooms_week(theme, week, base=None, shown=12):
     for i, (_, ledger, _) in enumerate(week):
         for r in ledger:
             cell = names.setdefault(r["room"], [None] * len(week))
-            cell[i] = (r["rs"], r["waste_rs"])
+            cell[i] = (r["rs"], r["waste_rs"] + r.get("over_rs", 0.0))
     whole = [i for i, w in enumerate(week) if not w[2]]
 
     def total(cells, k):
@@ -788,7 +833,8 @@ def rooms_week(theme, week, base=None, shown=12):
                             _rs(sum(total(names[n], 0) for n in rest))))
 
     # The summary line: yesterday, the day before, a usual day.
-    sums = [(sum(r["rs"] for r in w[1]), sum(r["waste_rs"] for r in w[1]))
+    sums = [(sum(r["rs"] for r in w[1]),
+             sum(r["waste_rs"] + r.get("over_rs", 0.0) for r in w[1]))
             for w in week]
     said = []
     for back, word in ((1, "Yesterday"), (2, "The day before")):
@@ -810,7 +856,8 @@ def rooms_week(theme, week, base=None, shown=12):
         ev.css(theme), '<div class="ec">',
         '<div class="ec-h" style="margin-top:22px"><span class="t">Every room,'
         ' every day</span><span class="c">the ACs\' rupees each day; in red, '
-        "what ran with nobody in, which could have been saved</span></div>",
+        "what could have been saved: units running with nobody in, or more "
+        "units than the people in needed</span></div>",
         '<div class="ec-card" style="padding:14px 16px">',
         '<div class="en-note" style="margin:0 0 10px 0;line-height:1.6">%s.'
         "</div>" % ".<br>".join(s[0].upper() + s[1:] for s in said),
@@ -827,6 +874,53 @@ def rooms_week(theme, week, base=None, shown=12):
         "midnight, the same estimate as the rooms above. The totals leave out "
         "today, which is not over. Darker green, a dearer day.</div>",
         "</div></div>"])
+
+
+def too_many(theme, rows, so_far=True, shown=4):
+    """More units running than the people in needed, room by room.
+
+    Shamroze, 17 Nov: "the cafe has few people except at the peak, and we
+    ran six at once -- show where it is run wrong: fewer people, fewer
+    units". Only rooms with people_per_unit in rooms.yaml and a camera
+    reading how many units run.
+    """
+    mine = [r for r in rows if r.get("over")]
+    if not mine:
+        return ""
+    mine.sort(key=lambda r: -r.get("over_rs", 0.0))
+    cards = []
+    for r in mine:
+        spells = sorted(r["over"], key=lambda s: -s["rs"])[:shown]
+        spells.sort(key=lambda s: s["from"])
+        lines = "".join(
+            '<li><b>%s to %s</b>: %d running for %d %s, %d would do '
+            '&middot; <b style="color:var(--crit)">%s</b></li>'
+            % (ov.clock(s["from"]), ov.clock(s["to"]), s["units"],
+               s["people"], "person" if s["people"] == 1 else "people",
+               s["need"], _rs(s["rs"]))
+            for s in spells)
+        more = len(r["over"]) - len(spells)
+        cards.append(
+            '<div class="ec-card" style="padding:14px 16px;margin-bottom:10px">'
+            '<div style="display:flex;justify-content:space-between;gap:10px;'
+            'flex-wrap:wrap"><b style="font-size:15px">%s</b><span style="'
+            'color:var(--crit);font-weight:700">%s more than needed</span>'
+            '</div><div class="en-note" style="margin:4px 0 6px 0">%s units, '
+            "one for about %d people, plus one spare &middot; %s</div>"
+            '<ul class="en-note" style="margin:0 0 0 18px;padding:0">%s</ul>%s'
+            "</div>"
+            % (esc(r["room"]), _rs(r["over_rs"]), r["units"],
+               int(round(r["people_per_unit"])), _h(r["over_h"]) + " too many",
+               lines, ('<div class="en-note" style="margin-top:4px">and %d '
+                       "more stretch%s</div>" % (more, "" if more == 1
+                                                 else "es")) if more else ""))
+    return "".join([
+        ev.css(theme), '<div class="ec">',
+        '<div class="ec-h" style="margin-top:22px"><span class="t">More ACs '
+        'than people</span><span class="c">%s: units running beyond what '
+        "the people in needed</span></div>"
+        % ("today so far" if so_far else "that day"),
+        "".join(cards), "</div>"])
 
 
 SHOWN = 25          # rows listed before the rest are folded into one line

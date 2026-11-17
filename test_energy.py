@@ -179,6 +179,31 @@ def main():
           "Where to start" in page and "Marketing" in page)
     check("and counts bills, not months", "32 bills" in page)
 
+    # Units an hour, reading to reading (17 Nov): the weekend and Monday's
+    # day apart, both meters side by side.
+    t = lambda s: pd.Timestamp(s, tz="Asia/Karachi").tz_convert("UTC")  # noqa
+    rd = pd.DataFrame([
+        {"meter": m, "taken": t(w), "reading": v, "units": None,
+         "max_temp": None}
+        for m, w, v in (("gf", "2026-11-13 17:56", 51908),
+                        ("ff", "2026-11-13 17:56", 33513),
+                        ("gf", "2026-11-16 11:00", 52213),
+                        ("ff", "2026-11-16 11:00", 33868),
+                        ("gf", "2026-11-16 17:30", 52253),
+                        ("ff", "2026-11-16 17:30", 33985))])
+    ms = pd.DataFrame([{"code": "gf", "label": "Ground floor",
+                        "behind_solar": True},
+                       {"code": "ff", "label": "First floor",
+                        "behind_solar": False}])
+    spans = ev.pace(rd, ms)
+    check("pace: two stretches, both meters in each",
+          [sorted(s["units"].items()) for s in spans]
+          == [[("ff", 355.0), ("gf", 305.0)], [("ff", 117.0), ("gf", 40.0)]],
+          spans)
+    page = ev.pace_page("light", rd, ms, 67)
+    check("pace: the weekend and the day named",
+          "incl. weekend" in page and "daytime" in page)
+
     print()
     if FAILURES:
         print("%d FAILURE(S): %s" % (len(FAILURES), "; ".join(FAILURES)))

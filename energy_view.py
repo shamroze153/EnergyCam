@@ -494,6 +494,130 @@ def solar_block(table, gf, rate, sun_colour, grid_colour):
 
 # ===================================================================== pages
 
+def pace(readings, meters):
+    """Each stretch between two readings, both meters side by side:
+    [{from, to, hours, units: {code: units}, per_h: {code: units an hour}}],
+    oldest first. Readings taken together (within half an hour) share a
+    stretch."""
+    p = meters_view.daily_units(readings, every=True)
+    if p is None or p.empty:
+        return []
+    p = p.sort_values("to")
+    out = []
+    for _, r in p.iterrows():
+        hit = next((s for s in out
+                    if abs((s["to"] - r["to"]).total_seconds()) <= 1800
+                    and abs((s["from"] - r["from"]).total_seconds()) <= 1800),
+                   None)
+        if hit is None:
+            hit = {"from": r["from"], "to": r["to"], "hours": r["hours"],
+                   "units": {}, "per_h": {}}
+            out.append(hit)
+        hit["units"][r["meter"]] = float(r["units"])
+        hit["per_h"][r["meter"]] = (float(r["units"]) / r["hours"]
+                                    if r["hours"] else None)
+    return out
+
+
+def _span_kind(a, b):
+    """"night & weekend", "working day", "evening"...: what a stretch held,
+    for the label under its column."""
+    a = pd.Timestamp(a).tz_convert(LOCAL)
+    b = pd.Timestamp(b).tz_convert(LOCAL)
+    hours = (b - a).total_seconds() / 3600.0
+    if hours >= 40:
+        return "incl. weekend" if any(
+            (a + pd.Timedelta(days=k)).weekday() >= 5
+            for k in range(int(hours // 24) + 1)) else "%.0f days" % (hours / 24)
+    if a.date() == b.date() and 8 <= a.hour and b.hour <= 20:
+        return "daytime"
+    if hours >= 18:
+        return "a day and night"
+    return "night"
+
+
+def pace_page(theme, readings, meters, rate):
+    """Units an hour, reading to reading (Shamroze, 17 Nov: "a chart of how
+    many units are consumed -- the weekend, the day, all of it").
+
+    A reading taken at a different hour each time, or after a weekend, makes
+    a day-by-day figure an average of unlike stretches. Units an hour puts
+    them side by side: the weekend's idling, a working day, a night.
+    """
+    spans = pace(readings, meters)[-12:]
+    if not spans:
+        return ""
+    c = SERIES[theme]
+    by_code = {m["code"]: m for _, m in meters.iterrows()}
+    gf = next((k for k, m in by_code.items() if m.get("behind_solar")), None)
+    ff = next((k for k in by_code if k != gf), None)
+    codes = [k for k in (gf, ff) if k]
+    colours = [c["gf"] if k == gf else c["ff"] for k in codes]
+    labels, stacks, tips = [], [], []
+    for s in spans:
+        b = pd.Timestamp(s["to"]).tz_convert(LOCAL)
+        labels.append("%s %s" % (b.strftime("%a"), ov.clock(s["to"])
+                                 .replace(" morning", "a")
+                                 .replace(" afternoon", "p")
+                                 .replace(" evening", "p")
+                                 .replace(" night", "p")))
+        stacks.append([s["per_h"].get(k) for k in codes])
+        bits = ["%s to %s, %.1f h (%s)"
+                % (pd.Timestamp(s["from"]).tz_convert(LOCAL)
+                   .strftime("%a %d %H:%M"), b.strftime("%a %d %H:%M"),
+                   s["hours"], _span_kind(s["from"], s["to"]))]
+        for k in codes:
+            if k in s["units"]:
+                bits.append("%s: %s units, %.1f an hour"
+                            % (by_code[k]["label"],
+                               format(int(round(s["units"][k])), ","),
+                               s["per_h"][k] or 0))
+        tips.append(" · ".join(bits))
+    rows = []
+    for s in reversed(spans):
+        total = sum(s["units"].get(k, 0.0) for k in codes)
+        per = total / s["hours"] if s["hours"] else 0.0
+        rows.append(
+            '<tr style="border-top:1px solid var(--line)"><td style="padding:'
+            '6px 8px 6px 0">%s<br><span style="color:var(--t3);font-size:12px">'
+            "to %s</span></td><td>%s</td><td style=\"text-align:right\">%.1f h"
+            '</td>%s<td style="text-align:right;font-weight:700">%.1f</td><td '
+            'style="text-align:right">%s</td></tr>'
+            % (esc(pd.Timestamp(s["from"]).tz_convert(LOCAL)
+                   .strftime("%a %d, %H:%M")),
+               esc(pd.Timestamp(s["to"]).tz_convert(LOCAL)
+                   .strftime("%a %d, %H:%M")),
+               esc(_span_kind(s["from"], s["to"])), s["hours"],
+               "".join('<td style="text-align:right">%s</td>'
+                       % (format(int(round(s["units"][k])), ",")
+                          if k in s["units"] else "—") for k in codes),
+               per, "Rs %s" % format(int(round(per * 24 * rate)), ",")))
+    return "".join([
+        '<div class="ec-h"><span class="t">Units an hour, reading to '
+        'reading</span><span class="c">each column one stretch between two '
+        "readings, ending at its label · hover for the units</span>%s</div>"
+        % legend([(col, by_code[k]["label"])
+                  for k, col in zip(codes, colours)]),
+        '<div class="ec-card" style="padding:16px 18px 26px">',
+        columns(labels, stacks, colours, tips, height=200),
+        '<div style="overflow-x:auto;margin-top:12px"><table style="width:'
+        "100%%;border-collapse:collapse;font-size:13px;color:var(--t1);"
+        'white-space:nowrap;font-variant-numeric:tabular-nums"><tr style="'
+        'color:var(--t2);font-size:12px"><th style="text-align:left">From'
+        '</th><th style="text-align:left">Held</th><th style="text-align:'
+        'right">Hours</th>%s<th style="text-align:right">Units an hour</th>'
+        '<th style="text-align:right">A day at that pace</th></tr>%s</table>'
+        "</div>"
+        % ("".join('<th style="text-align:right">%s</th>'
+                   % esc(by_code[k]["label"]) for k in codes), "".join(rows)),
+        '<div class="en-note" style="margin-top:8px">A weekend or a night '
+        "column is what the building draws with few people in: the floor "
+        "nobody switches off. The gap between it and a working day is what "
+        "people and their ACs add. The ground floor meter is after the solar "
+        "panels, so its daytime pace reads low on a bright day.</div>",
+        "</div>"])
+
+
 def meters_page(theme, table, kind, meters, bills, cooled_hours, rate,
                 problems, campus_has_meters, campus, usage=None):
     """The Meters view below the form: days, then months."""

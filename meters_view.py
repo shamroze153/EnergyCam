@@ -88,25 +88,48 @@ def last_of_each_day(readings):
     return r.groupby(keys).tail(1)
 
 
-def daily_units(readings):
+def last_of_each_burst(readings, gap=pd.Timedelta(minutes=30)):
+    """Every reading, but one of a burst: the form's repeated presses seconds
+    apart are one reading, the last typed; a morning and an evening reading
+    of the same day are two (Shamroze, 17 Nov: Monday 11:00 after the
+    weekend, and Monday 17:30)."""
+    if readings is None or readings.empty:
+        return readings
+    r = readings.copy()
+    r["taken"] = pd.to_datetime(r["taken"], utc=True)
+    r = r.sort_values(["meter", "taken"])
+    nxt = r.groupby("meter")["taken"].shift(-1)
+    return r[nxt.isna() | (nxt - r["taken"] > gap)]
+
+
+def daily_units(readings, every=False):
     """Units per reading period, whichever way the number was given.
 
     A cumulative reading is differenced against the one before it; units
     given directly are taken as they are. A meter that went backwards is
     dropped rather than turned into a negative day: that is a replaced meter
     or a mistyped digit, and either way it is not consumption.
+
+    One reading a day (the last), or with every=True each reading.
     """
     if readings.empty:
         return pd.DataFrame(columns=["meter", "from", "to", "units",
                                      "hours", "max_temp"])
-    readings = last_of_each_day(readings)
+    readings = (last_of_each_burst(readings) if every
+                else last_of_each_day(readings))
     out = []
     for meter, rows in readings.groupby("meter"):
         rows = rows.sort_values("taken")
         prior_time = prior_reading = None
         for _, r in rows.iterrows():
             units = r["units"]
-            if units is None or pd.isna(units):
+            # The meter's face first: log_meter writes the units since ITS
+            # last reading beside it, which is not this period's when a
+            # reading between them was left out (17 Nov).
+            if (prior_reading is not None and pd.notna(prior_reading)
+                    and pd.notna(r["reading"])):
+                units = float(r["reading"]) - float(prior_reading)
+            elif units is None or pd.isna(units):
                 if prior_reading is None or pd.isna(r["reading"]):
                     prior_time, prior_reading = r["taken"], r["reading"]
                     continue

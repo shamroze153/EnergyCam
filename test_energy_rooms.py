@@ -106,6 +106,30 @@ def main():
           (w.index("Cafe") < w.index("HR"), "room=Cafe" in w), (True, True))
     check("rooms_week: a usual day, whole days only",
           "A usual day <b>Rs 675</b>" in w, True)
+    # More units than people: the cafe, one unit for five, four running
+    # for three people from 15:00 to 16:00 -- one for them, one spare, two
+    # too many; at 16:00 twelve people, four needed, none too many.
+    busy = events("Cafe", [(at(0), "empty", 0, "off", 0),
+                           (at(15), "occupied", 3, "on", 4),
+                           (at(16), "occupied", 12, "on", 4),
+                           (at(17), "empty", 0, "off", 0)])
+    row = room("Cafe", 6)
+    row["people_per_unit"] = 5
+    r = er.room_day(busy, row, START, END, ALIVE, 6, RATES, WINDOW, None)
+    check("too many: two units for an hour", round(r["over_kwh"], 2),
+          round(2 * 1.2, 2))
+    check("too many: one stretch, 4 for 3, 2 would do",
+          [(s["units"], s["people"], s["need"]) for s in r["over"]],
+          [(4, 3, 2)])
+    check("too many: the card says it",
+          "4 running for 3 people, 2 would do" in er.too_many("light", [r]),
+          True)
+    check("too many: a room without people_per_unit has none",
+          er.room_day(busy, room("Cafe", 6), START, END, ALIVE, 6, RATES,
+                      WINDOW, None)["over"], [])
+    check("units_needed: never more than the room has, one spare",
+          (er.units_needed(0, 5, 6), er.units_needed(13, 5, 6),
+           er.units_needed(40, 5, 6)), (1, 4, 6))
     check("rooms_week: nothing to show is empty", er.rooms_week("light", []),
           "")
 

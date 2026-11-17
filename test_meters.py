@@ -92,6 +92,21 @@ def main():
     check("a typo corrected the same day is the corrected number",
           [round(u) for u in meters_view.daily_units(fixed)["units"]], [120])
 
+    # 17 Nov: Friday evening, Monday 11:00 after the weekend, Monday 17:30.
+    # log_meter writes the units since its last reading beside each one; a
+    # day keeps only its last reading, so Monday 17:30's own "40 since
+    # 11:00" must not become Friday-to-Monday.
+    wk = readings([
+        {"meter": "gf", "taken": at(13, 13), "reading": 51908},
+        {"meter": "gf", "taken": at(16, 6), "reading": 52213, "units": 305},
+        {"meter": "gf", "taken": at(16, 12), "reading": 52253, "units": 40},
+    ])
+    check("a day's last reading, differenced against the face",
+          [round(u) for u in meters_view.daily_units(wk)["units"]], [345])
+    check("every reading: the weekend and Monday's day apart",
+          [round(u) for u in meters_view.daily_units(wk, every=True)["units"]],
+          [305, 40])
+
     # The derived figure is withheld until there is enough behind it.
     figure, days, why = meters_view.per_hour([100] * 10, [50] * 10)
     check("a fortnight gives no figure", figure, None)

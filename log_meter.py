@@ -66,6 +66,10 @@ def sane_range(cur, code):
                     (code,))
         row = cur.fetchone()
     except psycopg2.Error:
+        # The camera machine's role may not read the meters table; the
+        # failed query aborts the transaction, so undo it or the insert
+        # after it fails too (17 Nov).
+        cur.connection.rollback()
         return MINIMUM_UNITS, FALLBACK_MAXIMUM
     if not row or row[0] is None:
         return MINIMUM_UNITS, FALLBACK_MAXIMUM

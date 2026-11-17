@@ -777,3 +777,18 @@ Two or three lines a round; picture file names, never pictures.
   First Floor Lobby, P2 Parking -- empty, the loop a pass behind),
   0 MISSED. Nothing changed. (field_audit must run in the hfm_energy
   env; the base Python has no cv2.)
+* "Every room, every day" on each campus Overview and Energy (967bdf7):
+  each room's AC rupees a day and what could have been saved.
+* 16:57 round: 1 GHOST (141-C Corridor, no unit), 0 MISSED.
+* Shamroze: "few people, six towers on" -- more units running than the
+  people in need now counts as could-save: `people_per_unit` in
+  rooms.yaml (141-C Cafe 5, Prompt Cafe 6, Mosque 8, from each room's
+  busiest in a week), one spare allowed; a "More ACs than people" card.
+  Today the cafe ran 6 towers for 13 people 13:42-14:30 (4 would do).
+* Monday's meter readings (11:00 and 17:30) entered with log_meter,
+  which failed on the camera role (no read on `meters`, the aborted
+  transaction took the insert with it) -- fixed. daily_units now
+  differences the meter's face before trusting log_meter's own units
+  column. New on Energy: "Units an hour, reading to reading" --
+  the weekend ran at ~10 units an hour, a working day 19-21, Monday's
+  daytime 24. Readings form's Save button readable in light.

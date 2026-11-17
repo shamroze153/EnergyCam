@@ -1234,6 +1234,8 @@ rooms:
 
   - name: Mosque
     floor: Cafe
+    # 17 Nov: busiest in a week 16 people, two units -- one for eight.
+    people_per_unit: 8
     dept: Mosque
     # 7 Nov: this recorder's sub stream is 640x360, too small to read
     # a unit's display. Main stream for this room only.
@@ -1258,6 +1260,8 @@ rooms:
 
   - name: Prompt Cafe
     floor: Cafe
+    # 17 Nov: busiest in a week 29 people, five units -- one for six.
+    people_per_unit: 6
     # 12 Nov: sitting in it, Shamroze saw "Cafe & common" -- twelve rooms
     # added up, lobbies and pantry included -- where Prompt Cafe alone was
     # wanted. A name of its own keeps it one place.
@@ -2054,6 +2058,11 @@ rooms:
     floor: Ground floor
     ac_count: 6
     ac_tons: [2, 2, 2, 2, 2, 2]   # Haier towers
+    # 17 Nov (Shamroze: few people, and all six towers on): one tower for
+    # about five people -- the busiest the cameras saw in a week was 29,
+    # for six towers. More towers running than the people in need, plus
+    # one spare, is counted as could-have-been-off.
+    people_per_unit: 5
     empty_after_minutes: 60
     # 15 Nov night: the cafe read "1" on and off from 00:10 to 02:54 with
     # nobody in it (audit GHOST 02:47). On ch 14 a dark bag left on a table
