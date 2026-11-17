@@ -769,3 +769,6 @@ Two or three lines a round; picture file names, never pictures.
 * Energy tab, "Hour by hour for" (his ask, 16 Nov): the campus or any
   room, rupees each hour with the waste on top, the stretches it ran
   with nobody in as tips, a line a day for the week (59abacd).
+* 12:47 round (working hours, so no night check): 3 GHOST (141 Admin
+  Room -- the workmen gone, the loop a pass behind; 141 Lobby and Cafe
+  Stairs, no unit), 0 MISSED. Nothing changed.
