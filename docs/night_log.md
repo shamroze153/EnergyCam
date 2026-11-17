@@ -772,3 +772,8 @@ Two or three lines a round; picture file names, never pictures.
 * 12:47 round (working hours, so no night check): 3 GHOST (141 Admin
   Room -- the workmen gone, the loop a pass behind; 141 Lobby and Cafe
   Stairs, no unit), 0 MISSED. Nothing changed.
+* 14:47 round: 5 GHOST, each once and in a room with no unit (140-H
+  Lobby -- a passer-by beyond the glass; SoftFM Store, 141-D Genset,
+  First Floor Lobby, P2 Parking -- empty, the loop a pass behind),
+  0 MISSED. Nothing changed. (field_audit must run in the hfm_energy
+  env; the base Python has no cv2.)
