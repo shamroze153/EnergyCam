@@ -125,7 +125,11 @@ it here. Shamroze reads the morning summary in Roman Urdu.
       threshold raised (a6cbd92).
 - [x] Each room and campus, each day: AC cost, the waste, which hours,
       and a chart -- "Hour by hour for" on the Energy tab (59abacd).
-- [ ] Envoy's look (his screenshot, 17 Nov): light page, a left sidebar
+- [x] 07157bb: light by default, sidebar, today-at-a-glance cards and
+      a tip on each campus Overview (proposal canvas approved).
+      Still possible: the walk list as a tick-off checklist, a help
+      button in the corner.
+      Envoy's look (his screenshot, 17 Nov): light page, a left sidebar
       of sections with icons (Home, Schedule, Visitors, Workplace,
       Analytics...), a setup checklist card, a help card on the right,
       a red chat button in the corner -- "pyara sa khoobsurat sa". Study
