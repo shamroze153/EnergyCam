@@ -669,6 +669,52 @@ def hours_page(theme, rows, name, week=None, so_far=True):
     return "".join(out)
 
 
+def glance(theme, today, yesterday, read_units, all_units, base=None):
+    """The campus page's first row (17 Nov, Envoy's look): today's AC
+    rupees, the part with nobody in, yesterday, how many units a camera
+    reads -- and one tip, the costliest stretch with nobody in."""
+    t, y = totals(today), totals(yesterday)
+    share = (100.0 * t["waste_rs"] / t["rs"]) if t["rs"] else 0.0
+    runs = waste_stretches(hourly(today))
+    when = ("most at %s to %s" % (_hour_name(runs[0][0]),
+                                  _hour_name(runs[0][1] % 24))
+            if runs else "no hour mostly empty")
+    tiles = [
+        ev.tile("AC today so far", _rs(t["rs"]),
+                "every room with a unit, from midnight"),
+        ev.tile("With nobody in", _rs(t["waste_rs"]),
+                "%.0f%% of it · %s" % (share, when), "crit"),
+        ev.tile("Yesterday", _rs(y["rs"]),
+                "%s of it in empty rooms" % _rs(y["waste_rs"])),
+        ev.tile("Units a camera reads", "%d of %d" % (read_units, all_units),
+                "the rest are estimated from people"),
+    ]
+    if runs:
+        a, b, rs = runs[0]
+        tip = ("From <b>%s to %s</b> the ACs ran in empty rooms: <b style="
+               '"color:var(--crit)">%s</b>. Switch them off until people '
+               "settle." % (_hour_name(a), _hour_name(b % 24), _rs(rs)))
+    else:
+        tip = "No hour today with the ACs running mostly in empty rooms."
+    return "".join([
+        ev.css(theme), '<div class="ec">',
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,'
+        'minmax(190px,1fr));gap:14px;margin:6px 0 14px 0">',
+        "".join(tiles), "</div>",
+        '<div class="ec-card" style="padding:16px 18px;display:flex;gap:14px;'
+        'align-items:flex-start;margin-bottom:8px"><div aria-hidden="true" '
+        'style="flex:none;width:40px;height:40px;border-radius:50%%;'
+        'background:var(--s2);display:flex;align-items:center;'
+        'justify-content:center"><svg width="20" height="20" viewBox="0 0 24 '
+        '24" fill="none" stroke="currentColor" stroke-width="1.8" '
+        'stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 '
+        '21h4M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 '
+        '0 0 0 12 3z"/></svg></div><div><div style="font-weight:700;'
+        'font-size:16px;margin-bottom:4px">Today\'s tip</div><div '
+        'style="font-size:14px;line-height:1.5;color:var(--t2)">%s</div>'
+        "</div></div>" % tip, "</div>"])
+
+
 SHOWN = 25          # rows listed before the rest are folded into one line
 
 

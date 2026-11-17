@@ -81,6 +81,12 @@ def main():
           ("2 pm to 3 pm" in page, "Nobody in" in page), (True, True))
     check("hourly page: an unknown room draws nothing",
           er.hours_page("dark", [r], "Nowhere"), "")
+    g = er.glance("light", [r], [r], 10, 71)
+    check("glance: the four figures and the tip",
+          ("10 of 71" in g, "2 pm to 3 pm" in g, "Today&#x27;s tip" in g
+           or "Today's tip" in g), (True, True, True))
+    check("glance: a day with nothing says so, and does not fail",
+          "No hour today" in er.glance("light", [], [], 0, 0), True)
 
     # Peak minutes cost the peak rate: one unit on 18:00-19:00 is 30 off-peak
     # minutes and 30 peak ones.

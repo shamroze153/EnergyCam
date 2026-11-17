@@ -23,6 +23,7 @@ DASHBOARD_DATABASE_URL in .env. The camera machine's own credential will not
 work here by design: it is granted the timestamp column and nothing more.
 """
 import hmac
+import html
 import os
 import time
 import warnings
@@ -91,7 +92,7 @@ st.set_page_config(page_title="EnergyCam", layout="wide", page_icon="🏢")
 _BOOT = st.empty()
 if not st.session_state.get("_booted"):
     st.session_state["_booted"] = True
-    _BOOT.markdown(boot_screen(st.query_params.get("theme", "dark"),
+    _BOOT.markdown(boot_screen(st.query_params.get("theme", "light"),
                                st.query_params.get("campus")),
                    unsafe_allow_html=True)
 
@@ -2423,9 +2424,25 @@ def app_chrome(mode):
         " font-family: system-ui,-apple-system,'Segoe UI',Roboto,sans-serif; }"
         "header[data-testid='stHeader'], div[data-testid='stToolbar'],"
         " div[data-testid='stDecoration'] { background: transparent !important; }"
-        "section[data-testid='stSidebar'],"
-        " div[data-testid='stSidebarCollapsedControl'],"
-        " div[data-testid='collapsedControl'] { display: none !important; }"
+        # The sidebar is back (17 Nov, Envoy's look): every section down the
+        # left, in the page's own colours. On a phone it folds away and the
+        # row of tabs along the top is the way round.
+        "section[data-testid='stSidebar'] { background: %(surface)s;"
+        " border-right: 1px solid %(line)s; }"
+        "section[data-testid='stSidebar'] button { justify-content: flex-start;"
+        " border: none !important; font-size: 15px; box-shadow: none; }"
+        "section[data-testid='stSidebar'] button[kind='secondary'],"
+        " section[data-testid='stSidebar'] button[data-testid*='secondary']"
+        " { background: transparent !important; color: %(text)s !important; }"
+        "section[data-testid='stSidebar'] button[kind='secondary']:hover,"
+        " section[data-testid='stSidebar'] button[data-testid*='secondary']:hover"
+        " { background: %(sunken)s !important; }"
+        "section[data-testid='stSidebar'] button[kind='primary'],"
+        " section[data-testid='stSidebar'] button[data-testid*='primary']"
+        " { background: rgba(229,56,59,0.10) !important; color: #c42b2e"
+        " !important; font-weight: 700; }"
+        "section[data-testid='stSidebar'] button p { color: inherit !important;"
+        " text-align: left; }"
         "div[data-testid='stMainBlockContainer'], .block-container"
         " { max-width: 1260px; padding-top: 1.1rem; padding-bottom: 3rem; }"
         # Every text colour Streamlit sets, set to the palette's -- except
@@ -4434,8 +4451,10 @@ def show_numbers(df, cooled, recent, now):
 # and empty for the seconds the data took ("ajeeb sa loading"), because the
 # palette only arrived with the page. Now the palette and a small loading
 # line come first, and the line goes once the rooms are in.
-mode = st.query_params.get("theme", "dark")
-mode = mode if mode in THEMES else "dark"
+# Light by default since 17 Nov (Shamroze: Envoy's look, "pyara sa
+# khoobsurat sa"); ?theme=dark keeps the dark page.
+mode = st.query_params.get("theme", "light")
+mode = mode if mode in THEMES else "light"
 use_theme(mode)
 st.markdown(app_chrome(mode), unsafe_allow_html=True)
 
@@ -4477,7 +4496,9 @@ campus = st.query_params.get("campus")
 if campus not in campuses:
     campus = None
 LINK_BASE.clear()
-LINK_BASE.update({"campus": campus, "theme": None if mode == "dark" else mode,
+# The theme rides on every link, light or dark, so no view falls back to
+# the other one ("or 'dark'" in the views predates light being the default).
+LINK_BASE.update({"campus": campus, "theme": mode,
                   # the entry ticket rides on every link (see guard)
                   "k": current_ticket()})
 
@@ -4663,6 +4684,26 @@ with more_col:
             stretch(st.button, target, key="go_" + target, on_click=_go,
                     args=(target,),
                     type="primary" if target == current else "secondary")
+# A left sidebar of every section, Envoy's way (17 Nov). The tabs above
+# stay: on a phone the sidebar folds away and they are the way round.
+with st.sidebar:
+    st.markdown("**EnergyCam** · Disrupt")
+    st.caption("Campus")
+    st.markdown("".join(
+        '<a href="%s" target="_self" style="display:block;padding:8px 10px;'
+        'border-radius:8px;text-decoration:none;font-weight:%s;%s">%s</a>'
+        % (overview.link(dict(LINK_BASE, campus=name)),
+           700 if name == campus else 500,
+           "background:rgba(229,56,59,0.10)" if name == campus else "",
+           html.escape(name)) for name in campuses),
+        unsafe_allow_html=True)
+    st.caption("Sections")
+    for target in VIEWS:
+        stretch(st.button, target, key="side_" + target, on_click=_go,
+                args=(target,),
+                type="primary" if target == current else "secondary")
+    st.caption("Counts are what the cameras see. No picture leaves the "
+               "building.")
 view = st.session_state["view"]
 
 if view == "Overview":
@@ -4692,6 +4733,26 @@ if view == "Overview":
                     unsafe_allow_html=True)
         _BOOT.empty()
         st.stop()
+    # Today at a glance, and one tip (17 Nov, Envoy's look).
+    try:
+        import energy_rooms as er_g
+        midnight = local.normalize()
+
+        def _iso(t):
+            return pd.Timestamp(t).tz_convert("UTC").isoformat()
+
+        today_rows = cached_ledger(_iso(midnight), _iso(_to_5min(local)),
+                                   campus)
+        yday_rows = cached_ledger_past(
+            _iso(midnight - pd.Timedelta(days=1)), _iso(midnight), campus)
+        read_n = sum(n for room_name, n in
+                     campus_view.calibrated_counts().items()
+                     if room_name in set(df["room"]))
+        all_n = int(df.loc[df["has_unit"], "ac_count"].sum()) + unseen_units
+        st.markdown(er_g.glance(mode, today_rows, yday_rows, read_n, all_n),
+                    unsafe_allow_html=True)
+    except psycopg2.Error:
+        pass
     st.markdown(overview.walk_button(mode, len(walk), LINK_BASE),
                 unsafe_allow_html=True)
     st.markdown(live_ac.page(
