@@ -34,6 +34,7 @@ import overview as ov
 from overview import esc
 
 READ, PART, ASSUMED, ALWAYS = "read", "part", "assumed", "always"
+LOCAL_TZ = "Asia/Karachi"
 
 # A room nobody can read is taken to have its AC on from when somebody settles
 # to when the last of them leaves. Two stays this far apart or more are two
@@ -102,6 +103,10 @@ class _Sum:
     def __init__(self):
         self.kwh = self.rs = self.waste_kwh = self.waste_rs = 0.0
         self.measured_kwh = 0.0
+        # Rupees by the Karachi clock's hour, [all, with nobody in]: which
+        # hours the money went in (Shamroze, 16 Nov: "from which hour to
+        # which hour, and a chart to keep tracking it").
+        self.hours = [[0.0, 0.0] for _ in range(24)]
 
     def add(self, x, y, kw, status, rates, window, measured=False):
         m = (y - x).total_seconds() / 60.0
@@ -113,6 +118,17 @@ class _Sum:
         if status == "empty":
             self.waste_kwh += m / 60.0 * kw
             self.waste_rs += money
+        a = pd.Timestamp(x)
+        b = pd.Timestamp(y)
+        while a < b:
+            local = a.tz_convert(LOCAL_TZ) if a.tzinfo else a
+            nxt = min(b, a + (local.floor("h") + pd.Timedelta(hours=1)
+                              - local))
+            piece = _price(a, nxt, kw, rates, window)
+            self.hours[local.hour][0] += piece
+            if status == "empty":
+                self.hours[local.hour][1] += piece
+            a = nxt
         return m
 
 
@@ -192,7 +208,8 @@ def room_day(events, row, start, end, alive, read, rates, window, beats,
             "assumed_on_h": part_on_min / 60.0,
             "assumed_empty_on_h": part_empty_min / 60.0,
             "kwh": acc.kwh, "rs": acc.rs, "waste_kwh": acc.waste_kwh,
-            "waste_rs": acc.waste_rs, "measured_kwh": acc.measured_kwh}
+            "waste_rs": acc.waste_rs, "measured_kwh": acc.measured_kwh,
+            "hourly": acc.hours}
 
 
 # One room's day slot by slot, for the line under its people (Shamroze, 13
@@ -526,6 +543,130 @@ def trend(theme, days):
         'midnight to midnight, the same estimate as the rooms above; a day '
         'the cameras watched only part of counts only that part.</div>'
         % said, '</div></div>'])
+
+
+def _hour_name(h):
+    """0 -> "12 am", 13 -> "1 pm"."""
+    return "%d %s" % (h % 12 or 12, "am" if h < 12 else "pm")
+
+
+def hourly(rows):
+    """[[rupees, rupees with nobody in]] by hour, summed over `rows`."""
+    out = [[0.0, 0.0] for _ in range(24)]
+    for r in rows:
+        for h, (rs, waste) in enumerate(r.get("hourly") or []):
+            out[h][0] += rs
+            out[h][1] += waste
+    return out
+
+
+def waste_stretches(hours, least=1.0, share=1 / 3.0):
+    """The hours the AC ran mostly with nobody in -- at least `share` of that
+    hour's rupees -- joined into stretches, the costliest first:
+    [(from hour, to hour, rupees)]. A campus has a little waste in nearly
+    every hour; a tip of "12 am to 12 pm" helps nobody (17 Nov)."""
+    runs, cur = [], None
+    for h, (spent, waste) in enumerate(hours):
+        if waste >= least and waste >= share * spent:
+            if cur and cur[1] == h:
+                cur = (cur[0], h + 1, cur[2] + waste)
+            else:
+                if cur:
+                    runs.append(cur)
+                cur = (h, h + 1, waste)
+    if cur:
+        runs.append(cur)
+    return sorted(runs, key=lambda r: -r[2])
+
+
+def hours_page(theme, rows, name, week=None, so_far=True):
+    """One room's (or the campus's) AC day hour by hour, the stretches it
+    ran with nobody in as tips, and its last days one line each.
+
+    `rows` is the day's ledger; `name` a room in it, or None for every room.
+    `week` is [(date, ledger, so_far)] oldest first, as the trend draws.
+    Asked for by Shamroze, 16 Nov: for each room and each campus, what its
+    ACs cost that day, how much of it was waste, and from which hour to
+    which hour -- with a chart to track it.
+    """
+    mine = [r for r in rows if name is None or r["room"] == name]
+    if not mine:
+        return ""
+    hours = hourly(mine)
+    total = sum(h[0] for h in hours)
+    waste = sum(h[1] for h in hours)
+    waste_colour = "#e8a21a" if theme == "dark" else "#d18a00"
+    on_colour = "#2a9d63" if theme == "dark" else "#1f8a55"
+    labels = [("%d%s" % (h % 12 or 12, "a" if h < 12 else "p"))
+              if h % 3 == 0 else "" for h in range(24)]
+    stacks = [[max(0.0, a - w), w] for a, w in hours]
+    tips = ["%s-%s · AC %s · with nobody in %s" % (
+        _hour_name(h), _hour_name((h + 1) % 24), _rs(a), _rs(w))
+        for h, (a, w) in enumerate(hours)]
+    who = esc(name) if name else "every room with a unit"
+    basis = ""
+    if name and len(mine) == 1:
+        basis = " · %s" % badge(mine[0])
+    tips_html = []
+    for a, b, rs in waste_stretches(hours)[:3]:
+        tips_html.append(
+            '<li><b>%s to %s</b>: the AC ran with nobody in, <b style="color:'
+            'var(--crit)">%s</b>. Switch it off then.</li>'
+            % (_hour_name(a), _hour_name(b % 24), _rs(rs)))
+    busiest = max(range(24), key=lambda h: hours[h][0])
+    if hours[busiest][0] > 0:
+        tips_html.append('<li>Its dearest hour: <b>%s</b> (%s).</li>'
+                         % (_hour_name(busiest), _rs(hours[busiest][0])))
+    if not tips_html:
+        tips_html.append("<li>No hour with the AC on and nobody in.</li>")
+    out = [ev.css(theme), '<div class="ec">',
+           '<div class="ec-h" style="margin-top:22px"><span class="t">Hour by '
+           'hour</span><span class="c">%s%s · the ACs\' rupees each hour, '
+           'the part with nobody in on top · hover an hour</span></div>'
+           % (who, basis),
+           '<div class="ec-card" style="padding:14px 16px">',
+           '<div class="en-note" style="margin:0 0 8px 0">%s: <b>%s</b>, of '
+           'which <b style="color:var(--crit)">%s</b> with nobody in.</div>'
+           % ("So far today" if so_far else "That day", _rs(total),
+              _rs(waste)),
+           ev.legend([(on_colour, "with people in"),
+                      (waste_colour, "with nobody in")]),
+           ev.columns(labels, stacks, [on_colour, waste_colour], tips,
+                      height=170),
+           '<ul class="en-note" style="margin:10px 0 0 18px;padding:0">%s'
+           '</ul>' % "".join(tips_html), '</div>']
+    if week:
+        lines = []
+        for day, ledger, part in week:
+            got = [r for r in ledger if name is None or r["room"] == name]
+            if not got:
+                continue
+            t = totals(got)
+            lines.append(
+                '<tr style="border-top:1px solid var(--line)"><td style="'
+                'padding:5px 6px 5px 0">%s%s</td><td style="text-align:right">'
+                '%s</td><td style="text-align:right">%s</td><td style="'
+                'text-align:right">%s</td><td style="text-align:right;color:'
+                'var(--crit)">%s</td></tr>'
+                % (esc(pd.Timestamp(day).strftime("%a %d").replace(" 0", " ")),
+                   " so far" if part else "",
+                   "%.0f h" % sum(r["on_h"] for r in got),
+                   format(int(round(t["kwh"])), ","), _rs(t["rs"]),
+                   _rs(t["waste_rs"])))
+        if lines:
+            out.append(
+                '<div class="ec-card" style="padding:10px 16px;margin-top:10px;'
+                'overflow-x:auto"><table style="width:100%%;border-collapse:'
+                'collapse;font-size:13px;color:var(--t1);white-space:nowrap"><tr style="color:'
+                'var(--t2);font-size:12px"><th style="text-align:left">Day'
+                '</th><th style="text-align:right">%s</th><th style="'
+                'text-align:right">kWh</th><th style="text-align:right">Cost'
+                '</th><th style="text-align:right">Nobody in</th></tr>%s'
+                "</table></div>"
+                % ("AC hours" if name is None else "AC on",
+                   "".join(reversed(lines))))
+    out.append("</div>")
+    return "".join(out)
 
 
 SHOWN = 25          # rows listed before the rest are folded into one line

@@ -3202,7 +3202,7 @@ def show_room_energy(df, now):
                         duty), unsafe_allow_html=True)
 
     # The week, a column a day: is it getting better?
-    week = []
+    week, week_rows = [], []
     try:
         for back in range(6, -1, -1):
             d0 = midnight - back * day
@@ -3212,10 +3212,23 @@ def show_room_energy(df, now):
                 got = cached_ledger(iso(d0), iso(_to_5min(local)),
                                     campus_here)
             week.append((d0.date(), er.totals(got), back == 0))
+            week_rows.append((d0.date(), got, back == 0))
     except psycopg2.Error:
-        week = []
+        week, week_rows = [], []
     st.markdown(er.trend(LINK_BASE.get("theme") or "dark", week),
                 unsafe_allow_html=True)
+
+    # Hour by hour, for the campus or one room, with its last days
+    # (Shamroze, 16 Nov: what each room's ACs cost each day, how much was
+    # waste, from which hour to which -- and a chart to keep tracking it).
+    if rows:
+        everyone = "Every room on this campus"
+        names = [everyone] + [r["room"] for r in rows]
+        chosen = st.selectbox("Hour by hour for", names, key="energy_hours")
+        st.markdown(er.hours_page(
+            LINK_BASE.get("theme") or "dark", rows,
+            None if chosen == everyone else chosen, week_rows,
+            so_far=(pick == "Today so far")), unsafe_allow_html=True)
 
 
 def show_energy(df, recent, now):

@@ -61,6 +61,26 @@ def main():
     check("read: off-peak hours at the off-peak rate",
           round(r["rs"], 2), round((4 * 2 * 1.2 + 1.2) * 67, 2))
     check("read: badge", er.badge(r), "read")
+    # Hour by hour (Shamroze, 16 Nov): the same rupees, in the hours they
+    # went, the waste in the 2-3 pm hour only.
+    hours = r["hourly"]
+    check("hourly: the hours add up to the day",
+          round(sum(h[0] for h in hours), 2), round(r["rs"], 2))
+    check("hourly: 10 am to 2 pm hold the two units, 2-3 pm the one",
+          [round(hours[h][0], 2) for h in (9, 10, 13, 14, 15)],
+          [0.0, round(2 * 1.2 * 67, 2), round(2 * 1.2 * 67, 2),
+           round(1.2 * 67, 2), 0.0])
+    check("hourly: the waste is the 2-3 pm hour",
+          [h for h in range(24) if hours[h][1] > 0], [14])
+    check("hourly: the stretch with nobody in, as a tip",
+          [(a, b, round(rs, 2)) for a, b, rs in
+           er.waste_stretches(er.hourly([r]))], [(14, 15, round(1.2 * 67, 2))])
+    page = er.hours_page("dark", [r], "Cafe",
+                         [(START.date(), [r], False)])
+    check("hourly page: names the stretch and draws the days",
+          ("2 pm to 3 pm" in page, "Nobody in" in page), (True, True))
+    check("hourly page: an unknown room draws nothing",
+          er.hours_page("dark", [r], "Nowhere"), "")
 
     # Peak minutes cost the peak rate: one unit on 18:00-19:00 is 30 off-peak
     # minutes and 30 peak ones.
