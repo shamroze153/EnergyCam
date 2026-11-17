@@ -519,6 +519,99 @@ def pace(readings, meters):
     return out
 
 
+def month_estimate(readings, meters, rates, peak=(18.5, 22.5), days=7):
+    """Units a day on each meter over the last week of readings, and what a
+    month at that pace would bill (Shamroze, 17 Nov: "how many units a day,
+    so what will the month's bill be -- an average, with peak and
+    off-peak").
+
+    A week, reading to reading, holds a weekend and its working days in
+    their right share, so its average is the month's day. The peak share is
+    the peak hours' share of the day -- a rough guess, said so on the page.
+    None without two readings a day apart on any meter.
+    """
+    if readings is None or not len(readings):
+        return None
+    out = {"meters": {}, "per_day": 0.0}
+    spans = []
+    for code in meters["code"]:
+        r = readings[readings["meter"] == code].dropna(subset=["reading"]) \
+            .sort_values("taken")
+        if len(r) < 2:
+            continue
+        last = r.iloc[-1]
+        before = r[r["taken"] <= last["taken"] - pd.Timedelta(days=days)]
+        first = before.iloc[-1] if len(before) else r.iloc[0]
+        hours = (last["taken"] - first["taken"]).total_seconds() / 3600.0
+        units = float(last["reading"]) - float(first["reading"])
+        if hours < 20 or units < 0:
+            continue
+        out["meters"][code] = units / hours * 24
+        out["per_day"] += units / hours * 24
+        spans.append((first["taken"], last["taken"]))
+    if not out["meters"]:
+        return None
+    out["from"] = min(a for a, _ in spans)
+    out["to"] = max(b for _, b in spans)
+    out["days"] = (out["to"] - out["from"]).total_seconds() / 86400.0
+    off, on = rates
+    share = max(0.0, min(24.0, peak[1] - peak[0])) / 24.0
+    out["month"] = out["per_day"] * 30
+    out["peak_units"] = out["month"] * share
+    out["off_units"] = out["month"] - out["peak_units"]
+    out["peak_rs"] = out["peak_units"] * on
+    out["off_rs"] = out["off_units"] * off
+    out["rs"] = out["peak_rs"] + out["off_rs"]
+    out["peak_share"] = share
+    return out
+
+
+def month_page(theme, est, meters, rates, bills=None):
+    """The card for month_estimate: a day, a month, the bill."""
+    if not est:
+        return ""
+    by_code = {m["code"]: m for _, m in meters.iterrows()}
+    off, on = rates
+    a = pd.Timestamp(est["from"]).tz_convert(LOCAL).strftime("%a %d %b")
+    b = pd.Timestamp(est["to"]).tz_convert(LOCAL).strftime("%a %d %b")
+    each = " · ".join("%s %s" % (esc(by_code[k]["label"]), _n(v))
+                      for k, v in est["meters"].items())
+    last_bill = ""
+    if bills is not None and len(bills):
+        bl = bills[bills["meter"].isin(list(est["meters"]))].copy()
+        if len(bl):
+            bl["end"] = pd.to_datetime(bl["period_end"])
+            end = bl["end"].max()
+            m = bl[bl["end"].dt.to_period("M") == end.to_period("M")]
+            last_bill = ("<br>Last bill (%s, %d meter%s): %s units, Rs %s."
+                         % (end.strftime("%b %Y"), len(m),
+                            "" if len(m) == 1 else "s",
+                            _n(m["units"].astype(float).sum()),
+                            _n(m["amount_rs"].astype(float).sum())))
+    tiles = "".join([
+        tile("Units a day", _n(est["per_day"]),
+             "both meters together<br>" + each),
+        tile("A month at this pace", "%s units" % _n(est["month"]),
+             "30 days × %s a day" % _n(est["per_day"])),
+        tile("The month's bill, about", "Rs %s" % _n(est["rs"]),
+             "Off-peak %s units × Rs %s = Rs %s<br>Peak %s units × Rs %s = "
+             "Rs %s" % (_n(est["off_units"]), _n(off), _n(est["off_rs"]),
+                        _n(est["peak_units"]), _n(on), _n(est["peak_rs"]))),
+    ])
+    return "".join([
+        '<div class="ec-h"><span class="t">A day, and the month it makes'
+        '</span><span class="c">from the meter readings, %s to %s (%.1f days)'
+        "</span></div>" % (a, b, est["days"]),
+        '<div class="en-tiles">', tiles, "</div>",
+        '<div class="en-note" style="margin-top:6px">An average: the readings '
+        "a week apart hold the weekend and the working days in their right "
+        "share. Peak is the %s evening hours a day (%.0f%% of the day), "
+        "counted as if they draw like any other hour -- a rough split. The "
+        "ground floor meter is after the solar panels, so this is what the "
+        "grid will bill, not all the building uses.%s</div>"
+        % (_n(est["peak_share"] * 24), est["peak_share"] * 100, last_bill)])
+
+
 def _span_kind(a, b):
     """"night & weekend", "working day", "evening"...: what a stretch held,
     for the label under its column."""

@@ -2344,18 +2344,23 @@ def show_meters(df, recent, now):
                      >= 20 else None for u, al in zip(usage, alive)]
     else:
         usage = None
-    rate = float(load_assumptions().get("tariff_rs_per_kwh", 67))
+    a = load_assumptions()
+    rate = float(a.get("tariff_rs_per_kwh", 67) or 67)
+    rates = (rate, float(a.get("peak_rs_per_kwh", 81) or 81))
+    # Right under the form (Shamroze, 17 Nov): units a day, the month's
+    # bill at that pace, and units an hour reading to reading.
+    month = ev.month_page(mode, ev.month_estimate(
+        readings, mine, rates, av.peak_window(a)), mine, rates,
+        bills[bills["meter"].isin(codes)] if len(bills) else None)
+    paced = ev.pace_page(mode, readings, mine, rate)
+    if month or paced:
+        st.markdown(ev.css(mode) + '<div class="ec">' + month + paced
+                    + "</div>", unsafe_allow_html=True)
     st.markdown(ev.meters_page(
         mode, table, kind, mine, bills[bills["meter"].isin(codes)]
         if len(bills) else bills, cooled_hours, rate,
         ev.suspicious(readings, mine), True, LINK_BASE.get("campus") or "",
         usage), unsafe_allow_html=True)
-    # Units an hour between readings: the weekend, a working day, a night
-    # side by side (Shamroze, 17 Nov).
-    paced = ev.pace_page(mode, readings, mine, rate)
-    if paced:
-        st.markdown(ev.css(mode) + '<div class="ec">' + paced + "</div>",
-                    unsafe_allow_html=True)
     with st.expander("Every reading, as entered"):
         if len(readings):
             shown = readings.copy()

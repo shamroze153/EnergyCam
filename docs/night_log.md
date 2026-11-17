@@ -802,3 +802,12 @@ Two or three lines a round; picture file names, never pictures.
 * Three more rounds on Admin Room and SoftFM Store: neither came back.
   Nothing changed; no restart.
 
+
+## 17 Nov, evening
+
+* Readings 17:36 entered (52434 / 34168): 181 and 183 units in 24.1 h.
+* Energy: a new card under the readings form -- units a day over the last
+  week of readings (368), a month at that pace (~11,000 units) and the bill
+  split into off-peak and peak (~Rs 7.7 lakh at 67/81); the units-an-hour
+  chart moved up beside it. Supabase: 25 MB after 12 days.
+

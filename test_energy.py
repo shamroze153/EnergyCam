@@ -204,6 +204,24 @@ def main():
     check("pace: the weekend and the day named",
           "incl. weekend" in page and "daytime" in page)
 
+    # A day, and the month it makes (17 Nov).
+    est = ev.month_estimate(rd, ms, (67, 81), (18.5, 22.5))
+    hours = (t("2026-11-16 17:30") - t("2026-11-13 17:56")).total_seconds() \
+        / 3600
+    check("month: units a day from first to last reading, both meters",
+          est and abs(est["per_day"] - (345 + 472) / hours * 24) < 1e-6
+          and abs(est["month"] - est["per_day"] * 30) < 1e-6, est)
+    check("month: peak is the 4 evening hours' share, at the peak rate",
+          abs(est["peak_units"] - est["month"] / 6) < 1e-6
+          and abs(est["rs"] - (est["month"] * 5 / 6 * 67
+                               + est["month"] / 6 * 81)) < 1e-3, est)
+    page = ev.month_page("light", est, ms, (67, 81))
+    check("month: the card names the bill and the split",
+          "bill, about" in page and "Off-peak" in page
+          and not re.search(r">\s*(None|nan|NaT)\s*<", page))
+    check("month: one reading is no estimate",
+          ev.month_estimate(rd.iloc[:2], ms, (67, 81)) is None)
+
     print()
     if FAILURES:
         print("%d FAILURE(S): %s" % (len(FAILURES), "; ".join(FAILURES)))
