@@ -2699,10 +2699,27 @@ def cached_ledger(start_iso, end_iso, campus=None):
     return _ledger(start_iso, end_iso, campus)
 
 
-@st.cache_data(ttl=3600, show_spinner=False)
+@st.cache_data(ttl=6 * 3600, show_spinner=False)
 def cached_ledger_past(start_iso, end_iso, campus=None):
-    """The same, for a stretch that has ended: an hour, it will not move."""
+    """The same, for a stretch that has ended: six hours, it will not move."""
     return _ledger(start_iso, end_iso, campus)
+
+
+def week_ledgers(local, campus, days=7):
+    """[(date, ledger, so_far)] for the last `days` days, today last."""
+    midnight = local.normalize()
+    out = []
+    for back in range(days - 1, -1, -1):
+        d0 = midnight - pd.Timedelta(days=back)
+        a = pd.Timestamp(d0).tz_convert("UTC").isoformat()
+        if back:
+            b = pd.Timestamp(d0 + pd.Timedelta(days=1)).tz_convert(
+                "UTC").isoformat()
+            out.append((d0.date(), cached_ledger_past(a, b, campus), False))
+        else:
+            b = pd.Timestamp(_to_5min(local)).tz_convert("UTC").isoformat()
+            out.append((d0.date(), cached_ledger(a, b, campus), True))
+    return out
 
 
 def _ledger(start_iso, end_iso, campus=None):
@@ -3234,6 +3251,8 @@ def show_room_energy(df, now):
         week, week_rows = [], []
     st.markdown(er.trend(LINK_BASE.get("theme") or "dark", week),
                 unsafe_allow_html=True)
+    st.markdown(er.rooms_week(LINK_BASE.get("theme") or "dark", week_rows,
+                              LINK_BASE), unsafe_allow_html=True)
 
     # Hour by hour, for the campus or one room, with its last days
     # (Shamroze, 16 Nov: what each room's ACs cost each day, how much was
@@ -4760,6 +4779,14 @@ if view == "Overview":
         at_peak, int(df.loc[df["has_unit"], "ac_count"].sum()) + unseen_units,
         LINK_BASE, float(assumptions.get("unit_kw", 1.2) or 1.2)),
         unsafe_allow_html=True)
+    # Every room, every day: yesterday, the day before, a usual day, and
+    # what could have been saved (Shamroze, 17 Nov).
+    try:
+        import energy_rooms as er_w
+        st.markdown(er_w.rooms_week(mode, week_ledgers(local, campus),
+                                    LINK_BASE), unsafe_allow_html=True)
+    except psycopg2.Error:
+        pass
     # Then the building itself: every floor, every room drawn with its
     # people and its AC, and the hours it usually keeps.
     usual, days_used = load_usual(tuple(sorted(df["room"])),

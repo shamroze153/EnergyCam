@@ -715,6 +715,120 @@ def glance(theme, today, yesterday, read_units, all_units, base=None):
         "</div></div>" % tip, "</div>"])
 
 
+def rooms_week(theme, week, base=None, shown=12):
+    """Every room, every day: what its ACs cost each of the last days and how
+    much of it could have been saved (the part with nobody in).
+
+    `week` is [(date, ledger, so_far)] oldest first, as trend() takes.
+    Shamroze, 17 Nov: "kal kitne ka, parson kitne ka, roz kitne ka -- 141
+    Cafe pura din kitne rupay, kitne bach sakte the".
+    """
+    week = [w for w in week if w[1]]
+    if not week:
+        return ""
+    days = [pd.Timestamp(d) for d, _, _ in week]
+    names = {}
+    for i, (_, ledger, _) in enumerate(week):
+        for r in ledger:
+            cell = names.setdefault(r["room"], [None] * len(week))
+            cell[i] = (r["rs"], r["waste_rs"])
+    whole = [i for i, w in enumerate(week) if not w[2]]
+
+    def total(cells, k):
+        return sum(cells[i][k] for i in whole if cells[i])
+
+    order = sorted(names, key=lambda n: (-total(names[n], 0), n))
+    top = max([c[0] for n in order for c in names[n] if c] or [1]) or 1
+    rgb = "42,157,99" if theme == "dark" else "31,138,85"
+    link = None
+    if base is not None:
+        link = lambda n: ov.link(base, room=n) + "#roomdetail"  # noqa: E731
+
+    head = "".join(
+        '<th style="text-align:right;padding:6px 8px;font-weight:600">%s%s'
+        "</th>" % (esc(d.strftime("%a %d").replace(" 0", " ")),
+                   '<br><span style="font-weight:400;color:var(--t3)">so far'
+                   "</span>" if week[i][2] else "")
+        for i, d in reversed(list(enumerate(days))))
+    body = []
+    for n in order[:shown]:
+        cells = []
+        for c in reversed(names[n]):
+            if not c or c[0] < 0.5:
+                cells.append('<td style="text-align:right;padding:6px 8px;'
+                             'color:var(--t3)">&middot;</td>')
+                continue
+            cells.append(
+                '<td style="text-align:right;padding:6px 8px;background:'
+                'rgba(%s,%.2f)">%s%s</td>'
+                % (rgb, 0.06 + 0.30 * c[0] / top,
+                   format(int(round(c[0])), ","),
+                   '<div style="font-size:11px;color:var(--crit)">%s</div>'
+                   % format(int(round(c[1])), ",") if c[1] >= 0.5 else ""))
+        spent, saved = total(names[n], 0), total(names[n], 1)
+        label = esc(ov.short(n))
+        if link:
+            label = ('<a href="%s" target="_self" style="color:inherit;'
+                     'text-decoration:none">%s</a>' % (esc(link(n)), label))
+        body.append(
+            '<tr style="border-top:1px solid var(--line)"><td style="padding:'
+            '6px 10px 6px 0;position:sticky;left:0;background:var(--s1);'
+            'font-weight:600;white-space:normal;min-width:110px">%s</td><td '
+            'style="text-align:right;padding:6px 8px;font-weight:700">%s</td>'
+            '<td style="text-align:right;padding:6px 8px;font-weight:700;'
+            'color:var(--crit);border-right:1px solid var(--line)">%s</td>%s'
+            "</tr>" % (label, _rs(spent), _rs(saved), "".join(cells)))
+    rest = order[shown:]
+    if rest:
+        body.append(
+            '<tr style="border-top:1px solid var(--line);color:var(--t2)"><td '
+            'colspan="%d" style="padding:6px 0">%d more room%s, %s together'
+            "</td></tr>" % (len(days) + 3, len(rest),
+                            "" if len(rest) == 1 else "s",
+                            _rs(sum(total(names[n], 0) for n in rest))))
+
+    # The summary line: yesterday, the day before, a usual day.
+    sums = [(sum(r["rs"] for r in w[1]), sum(r["waste_rs"] for r in w[1]))
+            for w in week]
+    said = []
+    for back, word in ((1, "Yesterday"), (2, "The day before")):
+        i = len(week) - 1 - back if week[-1][2] else len(week) - back
+        if 0 <= i < len(week) and not week[i][2]:
+            said.append('%s (%s) <b>%s</b>, of which <b style="color:'
+                        'var(--crit)">%s</b> could have been saved'
+                        % (word, esc(days[i].strftime("%a")), _rs(sums[i][0]),
+                           _rs(sums[i][1])))
+    # A usual day: only days the cameras watched nearly whole.
+    full = [i for i in whole
+            if totals(week[i][1]).get("watched_h", 24) >= WHOLE_DAY_H]
+    if full:
+        said.append("a usual day <b>%s</b>, of which <b style=\"color:"
+                    "var(--crit)\">%s</b> could have been saved"
+                    % (_rs(sum(sums[i][0] for i in full) / len(full)),
+                       _rs(sum(sums[i][1] for i in full) / len(full))))
+    return "".join([
+        ev.css(theme), '<div class="ec">',
+        '<div class="ec-h" style="margin-top:22px"><span class="t">Every room,'
+        ' every day</span><span class="c">the ACs\' rupees each day; in red, '
+        "what ran with nobody in, which could have been saved</span></div>",
+        '<div class="ec-card" style="padding:14px 16px">',
+        '<div class="en-note" style="margin:0 0 10px 0;line-height:1.6">%s.'
+        "</div>" % ".<br>".join(s[0].upper() + s[1:] for s in said),
+        '<div style="overflow-x:auto"><table style="width:100%%;'
+        "border-collapse:collapse;font-size:13px;color:var(--t1);"
+        'white-space:nowrap;font-variant-numeric:tabular-nums"><tr style="'
+        'color:var(--t2);font-size:12px"><th style="text-align:left;'
+        'position:sticky;left:0;background:var(--s1)">Room</th><th style="'
+        'text-align:right;padding:6px 8px">%d days</th><th style="text-align:'
+        'right;padding:6px 8px;border-right:1px solid var(--line)">Could save'
+        "</th>%s</tr>%s</table></div>"
+        % (len(whole), head, "".join(body)),
+        '<div class="en-note" style="margin-top:8px">Rupees, midnight to '
+        "midnight, the same estimate as the rooms above. The totals leave out "
+        "today, which is not over. Darker green, a dearer day.</div>",
+        "</div></div>"])
+
+
 SHOWN = 25          # rows listed before the rest are folded into one line
 
 

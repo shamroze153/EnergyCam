@@ -88,6 +88,27 @@ def main():
     check("glance: a day with nothing says so, and does not fail",
           "No hour today" in er.glance("light", [], [], 0, 0), True)
 
+    # Every room, every day: yesterday, the day before, the week's totals
+    # leave out today.
+    def lr(name, rs, waste):
+        return {"room": name, "rs": rs, "waste_rs": waste, "watched_h": 24}
+    wk = [(pd.Timestamp("2026-11-15").date(), [lr("Cafe", 300, 40)], False),
+          (pd.Timestamp("2026-11-16").date(), [lr("Cafe", 1000, 100),
+                                               lr("HR", 50, 0)], False),
+          (pd.Timestamp("2026-11-17").date(), [lr("Cafe", 999, 9)], True)]
+    w = er.rooms_week("light", wk, {"campus": "141"})
+    check("rooms_week: yesterday and the day before, said",
+          ("Yesterday (Mon) <b>Rs 1,050</b>" in w,
+           "The day before (Sun) <b>Rs 300</b>" in w), (True, True))
+    check("rooms_week: the cafe's two whole days, today left out",
+          ("Rs 1,300" in w, "Rs 140" in w, "2 days" in w), (True, True, True))
+    check("rooms_week: the dearest room first, linked",
+          (w.index("Cafe") < w.index("HR"), "room=Cafe" in w), (True, True))
+    check("rooms_week: a usual day, whole days only",
+          "A usual day <b>Rs 675</b>" in w, True)
+    check("rooms_week: nothing to show is empty", er.rooms_week("light", []),
+          "")
+
     # Peak minutes cost the peak rate: one unit on 18:00-19:00 is 30 off-peak
     # minutes and 30 peak ones.
     eve = events("Admin", [(at(0), "empty", 0, "off", 0),
