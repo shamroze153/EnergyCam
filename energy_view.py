@@ -806,8 +806,9 @@ def meters_page(theme, table, kind, meters, bills, cooled_hours, rate,
         grid = sum(float(last[k]) for k in (gf, ff)
                    if k and pd.notna(last.get(k)))
         sun = float(last["solar"]) if pd.notna(last.get("solar")) else None
-        h.append('<div class="ec-h"><span class="t">%s</span><span class="c">'
-                 'the last full day between two readings</span></div>'
+        # "Tue 17" alone read as a heading of nothing (18 Nov).
+        h.append('<div class="ec-h"><span class="t">The last full day, %s'
+                 '</span><span class="c">between two readings</span></div>'
                  '<div class="en-tiles">' % day_label(last["day"]))
         if gf:
             h.append(tile(by_code[gf]["label"] + ", from the grid",

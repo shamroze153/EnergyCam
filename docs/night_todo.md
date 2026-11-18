@@ -184,7 +184,7 @@ browser on a phone and in dark before it is pushed:
       odd jump, solar and today's high optional, one big Save.
 - [x] 01:00 Front page: a "Savings & peak" door beside AC timings and Desks,
       carrying this week's "could have been saved".
-- [ ] Energy tab order: what somebody acts on first (today vs yesterday,
+- [x] 01:15 Energy tab order: what somebody acts on first (today vs yesterday,
       the month's bill), the long tables after; check its load time now.
 - [ ] Every tab once on a phone and in dark: nothing wider than the
       screen, no text in the series colour, numbers right-aligned.

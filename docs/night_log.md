@@ -922,3 +922,8 @@ Two or three lines a round; picture file names, never pictures.
 * 01:00 Front page: a "Savings & peak" door under AC timings and Desks,
   carrying last week's could-have-been-saved and the peak hours a day
   (Rs 43,648 for 12-18 Nov, peak Rs 11,183 a day); ?view= opens a tab.
+* 01:15 Energy tab in three parts behind a switch -- Meters & bill (the
+  form first), AC room by room, Where to start -- instead of fifteen
+  sections down one page (17 s); each draws only its own (meters ~13 s
+  with the page's first load, rooms 8 s, where to start at once). "Tue 17"
+  alone as a heading is now "The last full day, Tue 17".

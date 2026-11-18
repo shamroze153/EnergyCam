@@ -3503,10 +3503,28 @@ def show_energy(df, recent, now):
     """Meters and Analysis as one tab: the readings form first, as the daily
     job; the day-by-day meters; the AC electricity room by room; then the
     analysis of where the empty, cooled hours are (12 Nov: two tabs for one
-    question was one too many)."""
-    show_meters(df, recent, now)
-    show_room_energy(df, now)
-    show_analysis(df, recent, now)
+    question was one too many).
+
+    18 Nov: fifteen sections down one page, seventeen seconds to open. Now
+    three parts behind a switch at the top, each drawing only its own:
+    the meters and the bill (the readings form first, the daily job), the
+    AC room by room, and where to start.
+    """
+    parts = ["Meters & bill", "AC room by room", "Where to start"]
+    if hasattr(st, "segmented_control"):
+        pick = st.segmented_control("Part", parts, default=parts[0],
+                                    key="energy_part",
+                                    label_visibility="collapsed")
+        pick = pick if pick in parts else parts[0]
+    else:
+        pick = st.radio("Part", parts, horizontal=True, key="energy_part",
+                        label_visibility="collapsed")
+    if pick == parts[0]:
+        show_meters(df, recent, now)
+    elif pick == parts[1]:
+        show_room_energy(df, now)
+    else:
+        show_analysis(df, recent, now)
 
 
 def show_arrivals(df, now):
