@@ -893,3 +893,5 @@ Two or three lines a round; picture file names, never pictures.
   15:01 -- it had seen somebody at 14:48 and needs two empty passes to say
   so. Nothing changed; no restart. Savings & peak tab checked on a phone in
   dark: nothing wider than the screen.
+* Room 18 at night is the housekeeping staff (Shamroze, 18 Nov). Its five
+  units are in no camera, so whether they ran then is not known.
