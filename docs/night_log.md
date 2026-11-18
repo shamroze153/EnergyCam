@@ -818,3 +818,14 @@ Two or three lines a round; picture file names, never pictures.
   (frames/seats, never committed). Most seats used: 141-C Cafe 30, Room 18
   29, Marketing 24, Room 32 23, Prompt Cafe 22, Basement 21. Ticked.
 
+
+## 18 Nov, 10:31 round
+
+* The laptop slept from 17 Nov 19:56 to 18 Nov 10:30 (Windows: 'Sleep Reason:
+  Battery' -- the charger was off). No passes, audits or ac_keep frames
+  overnight; the loop carried on by itself on waking (first pass 10:33).
+  Shamroze put the charger back at 10:35.
+* field_audit: 86 of 86 cameras. 38 rooms looked wrong in round 1 (the page
+  was still last night's); after round 2, one MISSED and three GHOSTs, and
+  three more rounds each: all MATCH. Nothing changed; no restart.
+
