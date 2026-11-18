@@ -3279,6 +3279,42 @@ def seating_button(mode):
             '</a></div>' % (overview.esc(href), LINE, note))
 
 
+def savings_button(mode, campuses):
+    """On the front page, beside AC timings and Desks: the way in to the
+    savings scoreboard, carrying last week's "could have been saved"
+    (18 Nov). The finished days are kept on disk, so this costs the front
+    page nothing once they are worked out."""
+    import analysis_view as av
+    import savings
+    note = "this week against the last, and every room's peak hours"
+    try:
+        days = week_ledgers(now.tz_convert(PKT), None, days=8)
+        week = savings.weeks(days)[0]
+        window = av.peak_window(load_assumptions())
+        if week:
+            total = sum(savings.save_rs(er_totals(d[1])) for d in week)
+            peak = savings.per_day(week, "peak_rs",
+                                   lambda d: savings.peak_whole(d, window))
+            note = ("Rs %s could have been saved, %s%s" % (
+                format(int(round(total)), ","), savings.week_text(week),
+                (" &middot; peak hours Rs %s a day" % format(
+                    int(round(peak)), ",")) if peak else ""))
+    except Exception:                                       # noqa: BLE001
+        pass                     # the door still opens; it just says less
+    href = overview.link(dict(LINK_BASE, campus=campuses[0]),
+                         view="Savings & peak")
+    return ('<div class="ec"><a target="_self" class="ec-acbtn" href="%s" '
+            'style="margin-top:10px;border-color:#2a9d63;background:linear-'
+            'gradient(90deg,rgba(42,157,99,.12),rgba(229,72,77,.07))">'
+            '<i>&#128176;</i><b>Savings &amp; peak</b><span>%s &rarr;</span>'
+            '</a></div>' % (overview.esc(href), note))
+
+
+def er_totals(rows):
+    import energy_rooms as er
+    return er.totals(rows)
+
+
 def show_seating(mode, today, campus=None):
     """Desks against people (Shamroze, 13 Nov: the seating sheet, Envoy's
     workplace utilization from the cameras). Both campuses from the front
@@ -4827,6 +4863,8 @@ if campus is None:
     st.markdown(ac_timings_button(mode), unsafe_allow_html=True)
     # And the desks (13 Nov: the seating sheet against the cameras).
     st.markdown(seating_button(mode), unsafe_allow_html=True)
+    # And the savings (18 Nov).
+    st.markdown(savings_button(mode, campuses), unsafe_allow_html=True)
     _BOOT.empty()
     st.stop()
 
@@ -4857,6 +4895,15 @@ clicked = st.query_params.get("room")
 if clicked and st.session_state.get("_came_from") != clicked:
     st.session_state["_came_from"] = clicked
     st.session_state["view"] = "One room"
+# A door from the front page straight to a tab (18 Nov: "Savings & peak"):
+# ?view=..., taken once and then let go, so the tabs work as before.
+wanted_view = st.query_params.get("view")
+if wanted_view in VIEWS:
+    st.session_state["view"] = wanted_view
+    try:
+        del st.query_params["view"]
+    except Exception:                                       # noqa: BLE001
+        pass
 
 
 def _leave_walk_list():

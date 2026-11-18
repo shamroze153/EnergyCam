@@ -182,7 +182,7 @@ browser on a phone and in dark before it is pushed:
       meters side by side with the last reading, the units since then shown
       live as you type, a warning for a number lower than the last or an
       odd jump, solar and today's high optional, one big Save.
-- [ ] Front page: a "Savings & peak" door beside AC timings and Desks,
+- [x] 01:00 Front page: a "Savings & peak" door beside AC timings and Desks,
       carrying this week's "could have been saved".
 - [ ] Energy tab order: what somebody acts on first (today vs yesterday,
       the month's bill), the long tables after; check its load time now.

@@ -919,3 +919,6 @@ Two or three lines a round; picture file names, never pictures.
   For Shamroze: 141 Reception Meeting Room, dark and empty, chairs at
   0.40 (frames/141_Reception_Meeting_Room_cd_nvr2_ch09_boxes.jpg); seats,
   so no zone -- drop_still lets it go after 40 min. Nothing changed.
+* 01:00 Front page: a "Savings & peak" door under AC timings and Desks,
+  carrying last week's could-have-been-saved and the peak hours a day
+  (Rs 43,648 for 12-18 Nov, peak Rs 11,183 a day); ?view= opens a tab.
