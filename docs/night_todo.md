@@ -189,7 +189,8 @@ browser on a phone and in dark before it is pushed:
 - [x] 02:00 Energy > Meters & bill takes ~13 s on a first open: profile
       show_meters (load_history, cooled_in_windows, person_hours) and make
       it a few seconds, same figures.
-- [ ] "Look at the rooms" on a phone and in dark (not checked 19 Nov).
+- [x] 02:05 "Look at the rooms" on a phone and in dark (not checked 19 Nov):
+      fits; stills are off by design and it says how to turn them on.
 - [x] 01:20 Every tab once on a phone and in dark: nothing wider than the
       screen, no text in the series colour, numbers right-aligned.
 
