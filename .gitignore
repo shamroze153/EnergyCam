@@ -81,3 +81,7 @@ Claude support sheet*
 
 # this laptop's own Claude settings (paths with the user's name in them)
 .claude/
+# The weekly report's own record of the week it last sent, and its log (18 Nov).
+weekly_report_sent.json
+weekly_report.log
+weekly_preview*.html

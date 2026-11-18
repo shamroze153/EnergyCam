@@ -861,3 +861,18 @@ Two or three lines a round; picture file names, never pictures.
 * field_audit: 86 of 86 cameras; 14 rooms re-checked in round 2, none left --
   0 GHOST, 0 MISSED, no disagreement pictures. Nothing changed; no restart.
 
+
+## 18 Nov, 15:30 -- savings scoreboard, peak hours, weekly mail
+
+* New tab "Savings & peak": the scoreboard (140-H meters 368 units a day
+  against 615 on the Oct bill and 574 in Nov 2025 -- weather and solar
+  included, the page says so; Rs 44,977 could have been saved 11-17 Nov) and
+  every room's peak-hours cost (Rs ~10,600 a usual day, ~Rs 1,700 of it with
+  nobody in). A day whose peak hours were slept through (17 Nov, laptop
+  asleep 19:56) is left out of the usual peak day; the week before is
+  compared only on the rooms both weeks watched.
+* weekly_report.py mails it every Monday from 09:00 (the loop starts it);
+  the address is in .env only. ledger_data.py now holds the page's rooms
+  and ledger reading, shared with the mail.
+* For Shamroze: Room 18 shows 1-2 people off and on every night 12-5 am (all
+  7 nights). Somebody sleeping there, or a chair? Its AC is in no camera.

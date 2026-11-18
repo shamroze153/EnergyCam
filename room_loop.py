@@ -1643,6 +1643,41 @@ def stale_pass(seconds):
     return seconds > STALE_PASS_SECONDS
 
 
+# The weekly report (weekly_report.py, Shamroze 18 Nov): started from here
+# once a week, Monday from nine, in a process of its own -- two weeks of
+# rooms take a minute to add up, and a pass is not held up by it, nor the
+# loop taken down if it fails. [week, when started]; tried again after
+# WEEKLY_RETRY if the week's report still has not gone.
+WEEKLY_STARTED = [None, 0.0]
+WEEKLY_RETRY = 3 * 3600
+
+
+def weekly_mail(now, started=WEEKLY_STARTED, clock=time.time, start=None):
+    """Start this week's report if it is due. Returns the week started, or
+    None."""
+    import weekly_report
+    week = weekly_report.due(now)
+    if not week:
+        return None
+    if started[0] == week and clock() - started[1] < WEEKLY_RETRY:
+        return None
+    started[0], started[1] = week, clock()
+    if start is None:
+        import subprocess
+        here = os.path.dirname(os.path.abspath(__file__))
+
+        def start():
+            log = open(os.path.join(here, "weekly_report.log"), "a")
+            subprocess.Popen([sys.executable, "weekly_report.py", "--due"],
+                             cwd=here, stdout=log, stderr=log)
+    try:
+        start()
+        print(">> weekly report: started for %s" % week)
+    except OSError as e:
+        print(">> weekly report could not start: %s" % safe_error(e))
+    return week
+
+
 CYCLE_LOG = "cycles.csv"
 CYCLE_HEADER = ("time,cycle,seconds,rooms,occupied,empty,unknown,"
                 "waiting_s,counting_s")
@@ -1935,6 +1970,12 @@ def main():
                     print(">> would have sent: %s" % subject)
                     for line in body.splitlines()[2:2 + len(worth)]:
                         print("   %s" % line)
+
+            if not args.no_db:
+                try:
+                    weekly_mail(now)
+                except Exception as e:                      # noqa: BLE001
+                    print(">> weekly report: %s" % safe_error(e))
 
             if args.once:
                 return

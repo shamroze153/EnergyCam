@@ -47,7 +47,18 @@ Tests: `python test_room_loop.py`, `test_overview.py`, `test_energy.py`,
 `test_integration.py`, `test_audit.py`, `test_ac_detect.py`,
 `test_meters.py`, `test_analysis.py`, `test_alerts.py`, `test_empty.py`,
 `test_live_ac.py`, `test_floors.py`, `test_energy_rooms.py`, `test_seats.py`,
-`test_ac_plan.py`, `test_seating.py`.
+`test_ac_plan.py`, `test_seating.py`, `test_savings.py`.
+
+Savings & peak (18 Nov): the dashboard's "Savings & peak" tab is
+`savings.py` -- the scoreboard (meters against the last bill and the same
+month a year ago; what cooling empty rooms cost, this week against the
+last, on the rooms both weeks watched) and every room's peak-hours cost.
+`weekly_report.py` mails the same every Monday from 09:00 (the loop starts
+it, `room_loop.weekly_mail`) to `REPORT_TO` -- an address that lives only
+in `.env`, never in the repo -- from `SENDER_EMAIL`. By hand:
+`python weekly_report.py --preview x.html` (nothing sent) or `--send`.
+`ledger_data.py` is the page's reading of rooms.yaml and of the ledger,
+shared with the mail so both say the same figure.
 
 Desks (13 Nov): `seating.yaml` holds the admin team's seating sheet as
 counts only -- desks per room, how many given to somebody, by team -- and

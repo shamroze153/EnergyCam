@@ -109,6 +109,9 @@ class _Sum:
         # hours the money went in (Shamroze, 16 Nov: "from which hour to
         # which hour, and a chart to keep tracking it").
         self.hours = [[0.0, 0.0] for _ in range(24)]
+        # The peak tariff's hours on their own (Shamroze, 18 Nov: "every
+        # room's cost in the peak hours, in a tab of its own").
+        self.peak_kwh = self.peak_rs = self.peak_waste_rs = 0.0
 
     def add(self, x, y, kw, status, rates, window, measured=False):
         m = (y - x).total_seconds() / 60.0
@@ -120,6 +123,12 @@ class _Sum:
         if status == "empty":
             self.waste_kwh += m / 60.0 * kw
             self.waste_rs += money
+        _, peak = av.split_peak(x, y, window)
+        if peak:
+            self.peak_kwh += peak / 60.0 * kw
+            self.peak_rs += peak / 60.0 * kw * rates[1]
+            if status == "empty":
+                self.peak_waste_rs += peak / 60.0 * kw * rates[1]
         a = pd.Timestamp(x)
         b = pd.Timestamp(y)
         while a < b:
@@ -241,6 +250,8 @@ def room_day(events, row, start, end, alive, read, rates, window, beats,
             "assumed_empty_on_h": part_empty_min / 60.0,
             "kwh": acc.kwh, "rs": acc.rs, "waste_kwh": acc.waste_kwh,
             "waste_rs": acc.waste_rs, "measured_kwh": acc.measured_kwh,
+            "peak_kwh": acc.peak_kwh, "peak_rs": acc.peak_rs,
+            "peak_waste_rs": acc.peak_waste_rs,
             "hourly": acc.hours,
             "over_rs": over_rs, "over_kwh": over_kwh, "over_h": over_min / 60.0,
             "over": over, "people_per_unit": per}
@@ -423,6 +434,10 @@ def ledger(events, rooms, start, end, beats, read_rooms, rates, window,
     """
     alive = evw.watched(beats, start, end)
     watched_h = sum((b - a).total_seconds() for a, b in alive) / 3600.0
+    # The peak hours watched, apart: 17 Nov was watched twenty hours, but
+    # the laptop slept at 19:56 and saw an hour and a half of the peak.
+    watched_peak_h = sum(av.split_peak(a, b, window)[1]
+                         for a, b in alive) / 60.0
     split = {name: rows.sort_values("timestamp")
              for name, rows in events.groupby("room")}
     none = events.iloc[0:0]
@@ -436,6 +451,7 @@ def ledger(events, rooms, start, end, beats, read_rooms, rates, window,
                      duty)
         if r is not None:
             r["watched_h"] = watched_h
+            r["watched_peak_h"] = watched_peak_h
             out.append(r)
     out.sort(key=lambda r: (-r["rs"], r["room"]))
     return out
@@ -453,9 +469,12 @@ def average(days):
             k = keep.setdefault(r["room"], dict(r, on_h=0.0, empty_on_h=0.0,
                                                 kwh=0.0, rs=0.0,
                                                 waste_kwh=0.0, waste_rs=0.0,
-                                                measured_kwh=0.0))
+                                                measured_kwh=0.0,
+                                                peak_kwh=0.0, peak_rs=0.0,
+                                                peak_waste_rs=0.0))
             for f in ("on_h", "empty_on_h", "kwh", "rs", "waste_kwh",
-                      "waste_rs", "measured_kwh"):
+                      "waste_rs", "measured_kwh", "peak_kwh", "peak_rs",
+                      "peak_waste_rs"):
                 k[f] += r.get(f, 0.0) / n
     out = list(keep.values())
     out.sort(key=lambda r: (-r["rs"], r["room"]))
@@ -464,10 +483,14 @@ def average(days):
 
 def totals(rows):
     keys = ("kwh", "rs", "waste_kwh", "waste_rs", "measured_kwh",
-            "empty_on_h", "over_rs", "over_kwh")
+            "empty_on_h", "over_rs", "over_kwh", "peak_kwh", "peak_rs",
+            "peak_waste_rs")
     out = {k: sum(r.get(k, 0.0) for r in rows) for k in keys}
     # The same for every row of one ledger: how much of it was watched.
     out["watched_h"] = max([r.get("watched_h", 0.0) for r in rows] or [0.0])
+    # None for an older ledger that did not keep it: taken as whole.
+    peak = [r["watched_peak_h"] for r in rows if "watched_peak_h" in r]
+    out["watched_peak_h"] = max(peak) if peak else None
     return out
 
 

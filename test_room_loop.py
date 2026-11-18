@@ -1231,6 +1231,34 @@ def main():
     check("a pass the machine slept in is thrown away",
           rl.stale_pass(52775), True)
 
+    # The weekly report (18 Nov): started once a week, Monday from nine,
+    # and tried again three hours later if it still has not gone.
+    import os
+    import weekly_report as wr
+    saved = (os.environ.get("REPORT_TO"), wr.last_sent)
+    os.environ["REPORT_TO"] = "someone"
+    wr.last_sent = lambda path=None: None
+    try:
+        runs, box, clock = [], [None, 0.0], [1000.0]
+        monday = datetime.datetime(2026, 11, 23, 9, 30, tzinfo=PKT)
+        go = lambda: runs.append(1)                         # noqa: E731
+        check("Monday 9:30: the week's report is started",
+              rl.weekly_mail(monday, box, lambda: clock[0], go), "2026-W48")
+        check("and not again on the next pass",
+              rl.weekly_mail(monday, box, lambda: clock[0], go), None)
+        clock[0] += rl.WEEKLY_RETRY + 1
+        check("three hours on, still not sent: tried again",
+              rl.weekly_mail(monday, box, lambda: clock[0], go), "2026-W48")
+        check("Monday before nine: nothing", rl.weekly_mail(
+            monday.replace(hour=8), [None, 0.0], lambda: clock[0], go), None)
+        check("two starts in all", len(runs), 2)
+    finally:
+        if saved[0] is None:
+            os.environ.pop("REPORT_TO", None)
+        else:
+            os.environ["REPORT_TO"] = saved[0]
+        wr.last_sent = saved[1]
+
     print()
     if FAILURES:
         print("%d FAILURE(S):" % len(FAILURES))
