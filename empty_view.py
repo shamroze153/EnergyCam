@@ -22,6 +22,7 @@ Three rules keep the minutes honest:
 Like overview.py and energy_view.py it holds no Streamlit and no database:
 frames in, figures and HTML out.
 """
+from bisect import bisect_left, bisect_right
 from datetime import timedelta
 
 import pandas as pd
@@ -59,8 +60,15 @@ def watched(beats, start, end):
     """
     if beats is None:
         return [(start, end)]
-    spans = [(max(start, b - VOUCH), min(end, b + VOUCH)) for b in beats
-             if b + VOUCH > start and b - VOUCH < end]
+    low, high = start - VOUCH, end + VOUCH
+    # Beats come from the database in order: go straight to this window's
+    # rather than walk a fortnight of them for each day (18 Nov: a second
+    # of the Energy tab's meters, eight days at a time).
+    if all(beats[k] <= beats[k + 1] for k in range(len(beats) - 1)):
+        near = beats[bisect_right(beats, low):bisect_left(beats, high)]
+    else:
+        near = [b for b in beats if low < b < high]
+    spans = [(max(start, b - VOUCH), min(end, b + VOUCH)) for b in near]
     return [(a, b) for a, b in merge(spans) if b > a]
 
 

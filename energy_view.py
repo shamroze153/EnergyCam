@@ -19,6 +19,7 @@ What it fixed, 11 November, when the page "looked strange":
     drawn as a spike.
 """
 import statistics
+from bisect import bisect_right
 
 import pandas as pd
 
@@ -189,23 +190,36 @@ def person_hours_in_windows(history, rooms, windows, alive=None):
     """
     mine = history[history["room"].isin(set(rooms))].sort_values(
         ["room", "timestamp"])
+    # On seconds, and from each window's own rows: until 18 Nov every
+    # window walked a month of every room's rows in Timestamps (two
+    # seconds of the Energy tab's meters).
+    rooms_rows = []
+    for _, rows in mine.groupby("room"):
+        rooms_rows.append(([pd.Timestamp(t).value / 1e9
+                            for t in rows["timestamp"]],
+                           list(rows["status"]), list(rows["people"])))
     out = []
     for k, (start, end) in enumerate(windows):
         spans = alive[k] if alive is not None else [(start, end)]
+        s, e = pd.Timestamp(start).value / 1e9, pd.Timestamp(end).value / 1e9
+        spans = [(pd.Timestamp(a).value / 1e9, pd.Timestamp(b).value / 1e9)
+                 for a, b in spans]
         total = 0.0
-        for _, rows in mine.groupby("room"):
-            stamps = list(rows["timestamp"])
-            status, people = list(rows["status"]), list(rows["people"])
-            for i, a in enumerate(stamps):
+        for stamps, status, people in rooms_rows:
+            # The row the window opens in, and on until one starts after it.
+            for i in range(max(0, bisect_right(stamps, s) - 1), len(stamps)):
+                a = stamps[i]
+                if a >= e:
+                    break
                 if status[i] != "occupied":
                     continue
-                b = stamps[i + 1] if i + 1 < len(stamps) else end
+                b = stamps[i + 1] if i + 1 < len(stamps) else e
                 n = people[i] if people[i] == people[i] else 1
+                weight = max(1, int(n or 1))
                 for s0, s1 in spans:
-                    x, y = max(a, start, s0), min(b, end, s1)
+                    x, y = max(a, s, s0), min(b, e, s1)
                     if y > x:
-                        total += max(1, int(n or 1)) \
-                            * (y - x).total_seconds() / 3600.0
+                        total += weight * (y - x) / 3600.0
         out.append(total)
     return out
 

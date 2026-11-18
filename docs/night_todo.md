@@ -186,7 +186,7 @@ browser on a phone and in dark before it is pushed:
       carrying this week's "could have been saved".
 - [x] 01:15 Energy tab order: what somebody acts on first (today vs yesterday,
       the month's bill), the long tables after; check its load time now.
-- [ ] Energy > Meters & bill takes ~13 s on a first open: profile
+- [x] 02:00 Energy > Meters & bill takes ~13 s on a first open: profile
       show_meters (load_history, cooled_in_windows, person_hours) and make
       it a few seconds, same figures.
 - [ ] "Look at the rooms" on a phone and in dark (not checked 19 Nov).

@@ -751,19 +751,66 @@ def load_daily_coverage(days=28):
     return (frame.drop_duplicates().groupby("day").size() / 6.0).to_dict()
 
 
-@st.cache_data(ttl=60, show_spinner=False)
-def load_history(days=28):
+def _history_between(start, end):
+    """Every row in [start, end), as load_history gives them."""
     conn = psycopg2.connect(DATABASE_URL, sslmode=DB_SSLMODE, connect_timeout=10)
     try:
         df = pd.read_sql_query(
             "SELECT timestamp, room, status, people, ac_state, %s"
-            " FROM room_events"
-            " WHERE timestamp >= now() - interval '%d days'"
-            " ORDER BY room, timestamp" % (units_column(conn), days), conn)
+            " FROM room_events WHERE timestamp >= %%s AND timestamp < %%s"
+            " ORDER BY room, timestamp" % units_column(conn), conn,
+            params=(start.to_pydatetime(), end.to_pydatetime()))
     finally:
         conn.close()
     df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
     return df
+
+
+@st.cache_data(ttl=6 * 3600, show_spinner=False)
+def _history_past(start_iso, end_iso):
+    """The finished days' rows: they do not change, so six hours."""
+    return _history_between(pd.Timestamp(start_iso), pd.Timestamp(end_iso))
+
+
+@st.cache_data(ttl=60, show_spinner=False)
+def _history_recent(start_iso):
+    """Today's rows, a minute old at most."""
+    return _history_between(pd.Timestamp(start_iso),
+                            pd.Timestamp.now(tz="UTC") + pd.Timedelta(hours=1))
+
+
+# Where the kept days end and the minute-fresh part begins: ten minutes
+# before midnight, so a pass that ends just after midnight with a row
+# stamped just before it is still read.
+HISTORY_SPLIT = pd.Timedelta(minutes=10)
+
+
+def load_history(days=28):
+    """Every row of the last `days` days, ordered by room and time.
+
+    18 Nov: this read a month of rows -- 79,000, three seconds -- and read it
+    all again every minute, on every tab that asked. Now the finished days
+    are read once and kept, and only today's rows each minute.
+    """
+    now = pd.Timestamp.now(tz=PKT)
+    split = (now.normalize() - HISTORY_SPLIT).tz_convert("UTC")
+    first = (now - pd.Timedelta(days=days)).normalize().tz_convert("UTC")
+    parts = []
+    if first < split:
+        parts.append(_history_past(first.isoformat(), split.isoformat()))
+    parts.append(_history_recent(split.isoformat()))
+    df = pd.concat([p for p in parts if len(p)] or parts, ignore_index=True)
+    df = df[df["timestamp"] >= (now - pd.Timedelta(days=days)).tz_convert(
+        "UTC")]
+    # Rooms in the database's own order (its collation, not Python's), as
+    # the one query gave them; within a room, by time.
+    rank = {}
+    for name in df["room"]:
+        rank.setdefault(name, len(rank))
+    order = df["room"].map(rank)
+    return (df.assign(_r=order).sort_values(["_r", "timestamp"],
+                                             kind="stable")
+            .drop(columns="_r").reset_index(drop=True))
 
 
 # ------------------------------------------------------------------ wording
@@ -2348,7 +2395,9 @@ def show_analysis(df, recent, now):
     except psycopg2.Error:
         meters = bills = pd.DataFrame()
     try:
-        history = load_history()
+        # Eight days: the seven it counts and the row each room opened with
+        # -- not four weeks (18 Nov: three seconds of the twelve).
+        history = load_history(days=8)
     except psycopg2.Error:
         history = recent
     # Seven days of events, not the last day's: this said "last 7 days"
@@ -2421,7 +2470,9 @@ def show_meters(df, recent, now):
     if len(table):
         assumptions = load_assumptions()
         try:
-            history = load_history()
+            # Only the days the table shows, not four weeks of every room
+            # (18 Nov: 79,000 rows, three seconds, fetched again each minute).
+            history = load_history(days=min(28, len(table) + 2))
         except psycopg2.Error:
             history = recent
         on_meters = list(df[df["has_unit"] & df["alerts"]

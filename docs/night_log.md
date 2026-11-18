@@ -931,3 +931,9 @@ Two or three lines a round; picture file names, never pictures.
   Empty time, Energy's three parts, Savings & peak, One room, Camera
   health, Numbers & history): the page never wider than the screen, nothing
   sticking out of its box. The dashboard list in night_todo is done.
+* 02:00 Faster again, same figures: empty_view.watched goes straight to a
+  window's beats (1.0 -> 0.14 s), person_hours_in_windows on seconds and
+  each window's own rows (1.9 -> 0.18 s), and load_history keeps finished
+  days six hours and reads only today each minute (it was a month, 79,000
+  rows, again every minute; the split gives the same 70,156 rows in the
+  same order). Warm: Where to start 12 -> 4 s, AC room by room 2 s.
