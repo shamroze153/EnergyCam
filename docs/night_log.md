@@ -940,3 +940,5 @@ Two or three lines a round; picture file names, never pictures.
 * 01:55 Mobile + dark check of the front page: fits; it said "Good
   afternoon" at 1:50 in the night (midnight-5 fell into afternoon) -- now
   "Good night". Nothing else found.
+* 03:20 The 2-hour audit job had expired (session jobs last seven days):
+  no round after 23:58. Set again, every two hours at :17 (first 04:25).
