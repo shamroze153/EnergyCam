@@ -927,3 +927,7 @@ Two or three lines a round; picture file names, never pictures.
   sections down one page (17 s); each draws only its own (meters ~13 s
   with the page's first load, rooms 8 s, where to start at once). "Tue 17"
   alone as a heading is now "The last full day, Tue 17".
+* 01:20 Every tab at 375 px in dark (Overview, Who comes when, Rooms, Desks,
+  Empty time, Energy's three parts, Savings & peak, One room, Camera
+  health, Numbers & history): the page never wider than the screen, nothing
+  sticking out of its box. The dashboard list in night_todo is done.

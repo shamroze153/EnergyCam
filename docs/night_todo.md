@@ -186,7 +186,7 @@ browser on a phone and in dark before it is pushed:
       carrying this week's "could have been saved".
 - [x] 01:15 Energy tab order: what somebody acts on first (today vs yesterday,
       the month's bill), the long tables after; check its load time now.
-- [ ] Every tab once on a phone and in dark: nothing wider than the
+- [x] 01:20 Every tab once on a phone and in dark: nothing wider than the
       screen, no text in the series colour, numbers right-aligned.
 
 Rules that hold all night: the 141 gym's camera is never opened 15:00-20:00;
