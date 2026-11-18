@@ -855,3 +855,9 @@ Two or three lines a round; picture file names, never pictures.
   a stretch nobody watched (it showed '1 person' all night while the laptop
   slept).
 
+
+## 18 Nov, 12:47 round
+
+* field_audit: 86 of 86 cameras; 14 rooms re-checked in round 2, none left --
+  0 GHOST, 0 MISSED, no disagreement pictures. Nothing changed; no restart.
+
