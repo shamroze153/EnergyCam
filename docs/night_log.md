@@ -836,3 +836,9 @@ Two or three lines a round; picture file names, never pictures.
   waking. room_loop now throws away a pass longer than 30 min
   (stale_pass; the slowest real one in 1,684 took 15). Loop restarted.
 
+
+* 18 Nov 11:40: housekeeping. 64 old 'EnergyCam loop' windows (cmd /k, one
+  per restart since 11 Nov, their python long stopped) closed; the live loop
+  kept. restart_loop.bat now closes the old window when it stops the loop;
+  tried once -- 'closing 1 old loop window', one loop running after.
+

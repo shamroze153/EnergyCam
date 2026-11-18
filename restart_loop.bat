@@ -15,6 +15,10 @@ setlocal
 cd /d "%~dp0"
 
 powershell -NoProfile -Command "$p = Get-CimInstance Win32_Process | Where-Object { $_.Name -like 'python*' -and $_.CommandLine -like '*room_loop.py*' }; if ($p) { $p | ForEach-Object { Write-Host ('stopping the loop, process ' + $_.ProcessId); Stop-Process -Id $_.ProcessId -Force } } else { Write-Host 'no loop was running' }"
+rem And the window the old loop ran in. It is "cmd /k", so it stays open
+rem after its python is stopped: 18 Nov, seventy of them were sitting
+rem minimised on the taskbar, one per restart since 11 Nov.
+powershell -NoProfile -Command "$w = Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'cmd.exe' -and $_.CommandLine -like '*/k python room_loop.py*' }; if ($w) { Write-Host ('closing ' + @($w).Count + ' old loop window(s)'); $w | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue } }"
 rem Not "timeout /t 5": with no keyboard behind it (a window Claude runs
 rem commands in) it fails at once with "Input redirection is not supported"
 rem and the wait is skipped. ping waits the same five seconds anywhere.
