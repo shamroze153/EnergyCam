@@ -1632,6 +1632,17 @@ def load_state(rooms, path, max_gap_minutes):
     print(">> carried %d room(s) over from %.0f min ago" % (restored, gap))
 
 
+#: A pass takes 5-7 minutes, 15 at its slowest in 1,684 passes; one that
+#: took longer than this slept in the middle (the machine on battery) and
+#: holds pictures from before the sleep.
+STALE_PASS_SECONDS = 30 * 60
+
+
+def stale_pass(seconds):
+    """True for a pass too long to be anything but a sleep inside it."""
+    return seconds > STALE_PASS_SECONDS
+
+
 CYCLE_LOG = "cycles.csv"
 CYCLE_HEADER = ("time,cycle,seconds,rooms,occupied,empty,unknown,"
                 "waiting_s,counting_s")
@@ -1866,6 +1877,16 @@ def main():
                              args.timeout, ac_units, args.workers, keeper,
                              args.evidence, hours, on_batch=pulse)
             now = datetime.now(PKT)
+            if stale_pass(time.time() - started):
+                # The laptop slept in the middle of the pass (17-18 Nov:
+                # on battery, 19:54 to 10:33). Its pictures are from
+                # before the sleep; written now they would be last night's
+                # rooms and ACs under this morning's time. Throw it away
+                # and look again.
+                print(">> this pass took %.0f min -- the machine slept in"
+                      " it; its pictures are old, so nothing is written"
+                      % ((time.time() - started) / 60))
+                continue
             for room in rooms:
                 people, answered, ac, why = readings[room.name]
                 room.observe(people, answered, now, ac, why)

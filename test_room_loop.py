@@ -1221,6 +1221,16 @@ def main():
     check_units_count(check, room)
     check_furniture_at_night(check, room)
 
+    # 18 Nov: the laptop slept on battery mid-pass (19:54 to 10:33) and the
+    # pass, finished on waking, wrote last night's Mosque AC as this
+    # morning's. A pass that long is thrown away; the slowest real one
+    # took 15 minutes.
+    import room_loop as rl
+    check("a 6-minute pass is kept", rl.stale_pass(381), False)
+    check("the slowest real pass (15 min) is kept", rl.stale_pass(888), False)
+    check("a pass the machine slept in is thrown away",
+          rl.stale_pass(52775), True)
+
     print()
     if FAILURES:
         print("%d FAILURE(S):" % len(FAILURES))

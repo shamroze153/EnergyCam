@@ -829,3 +829,10 @@ Two or three lines a round; picture file names, never pictures.
   was still last night's); after round 2, one MISSED and three GHOSTs, and
   three more rounds each: all MATCH. Nothing changed; no restart.
 
+
+* 18 Nov ~11:00: the Mosque's top unit was on 19:17-19:54 last night with
+  nobody in (display lit, louvre open in ac_keep) and off at 10:31. The
+  'on' written at 10:33 was the pass the laptop slept in, finished on
+  waking. room_loop now throws away a pass longer than 30 min
+  (stale_pass; the slowest real one in 1,684 took 15). Loop restarted.
+
