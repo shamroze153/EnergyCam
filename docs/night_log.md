@@ -846,3 +846,12 @@ Two or three lines a round; picture file names, never pictures.
   folder and zip each, 853 MB of unblurred pictures) moved to the Recycle Bin;
   the 5 newest kept.
 
+
+* 18 Nov 12:20: One room -- 'ACs running' under the AC line: units seen
+  running slot by slot (each hour's most above), and every stretch of the day
+  in a scrolling list: from-to, how long, units running, people in, and 'N
+  would do' where people_per_unit says fewer. Cafe today: 3 running for 3-12
+  people 11:10-12:15. The people line no longer carries the last count through
+  a stretch nobody watched (it showed '1 person' all night while the laptop
+  slept).
+

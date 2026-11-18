@@ -228,6 +228,27 @@ def main():
           er.ac_slots(cafe, {"room": "Lobby", "has_unit": False}, 0, START,
                       at(16), END, 24, ALIVE), [])
 
+    # How many units ran, stretch by stretch (Shamroze, 18 Nov). Hourly
+    # slots: two units 10-14 with 8 people, one 14-15 with nobody in.
+    s = er.unit_slots(cafe, room("Cafe", 6), START, at(16), END, 24, ALIVE)
+    check("units: counted with the people in", s[10], (2, 8))
+    check("units: one running, nobody in", s[14], (1, 0))
+    check("units: still to come after now", s[16], "later")
+    spans = er.unit_spans(s, START, END)
+    check("units: stretches where the count holds",
+          [(sp["from"], sp["to"], sp["units"], sp["most"]) for sp in spans],
+          [(at(0), at(10), 0, 0), (at(10), at(14), 2, 8),
+           (at(14), at(15), 1, 0), (at(15), at(16), 0, 0)])
+    s = er.unit_slots(cafe, room("Cafe", 6), START, at(16), END, 24, gap)
+    spans = er.unit_spans(s, START, END)
+    check("units: a stretch nobody watched breaks it, never joined over",
+          [(sp["from"], sp["to"]) for sp in spans if sp["units"] == 2],
+          [(at(10), at(12))])
+    unread = events("Cafe", [(at(0), "empty", 0, None, None)])
+    check("units: no unit read is no stretch at all",
+          er.unit_spans(er.unit_slots(unread, room("Cafe"), START, at(16),
+                                      END, 24, ALIVE), START, END), [])
+
     # A server room: cooled all day on purpose.
     dc = events("DC", [(at(0), "empty", 0, None, None)])
     r = er.room_day(dc, room("DC", 1, alerts=False), START, END, ALIVE, 0,

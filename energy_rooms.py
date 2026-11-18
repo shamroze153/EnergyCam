@@ -324,6 +324,73 @@ def ac_slots(events, row, read, since, now, until, slots, alive, beats=None):
     return out
 
 
+def unit_slots(events, row, since, now, until, slots, alive):
+    """Units seen running and people in, slot by slot (Shamroze, 18 Nov:
+    "under the people line, a line of how many units were running").
+
+    Each slot is (units, people): units the cameras saw running (None where
+    no unit was read), people the loop counted (None where it could not
+    tell). None where the loop was not watching, "later" for a slot still
+    to come.
+    """
+    mine = events[events["room"] == row["room"]].sort_values("timestamp")
+    stamps = mine["timestamp"].tolist()
+    status = mine["status"].tolist()
+    people = (mine["people"].tolist() if "people" in mine
+              else [None] * len(stamps))
+    seen_on = (mine["ac_units_on"].tolist() if "ac_units_on" in mine
+               else [None] * len(stamps))
+    step = (until - since) / slots
+    out = []
+    for k in range(slots):
+        t = since + step * k
+        if t >= now:
+            out.append("later")
+            continue
+        i = bisect_right(stamps, t) - 1
+        if i < 0 or not any(a <= t < b for a, b in alive):
+            out.append(None)
+            continue
+        n = seen_on[i]
+        units = int(n) if n is not None and n == n else None
+        p = people[i]
+        if status[i] == "occupied":
+            folk = int(p) if p is not None and p == p and p > 0 else 1
+        elif status[i] == "empty":
+            folk = 0
+        else:
+            folk = None
+        out.append((units, folk))
+    return out
+
+
+def unit_spans(slots, since, until):
+    """unit_slots joined where the units running stay the same: [{from, to,
+    units, least, most}] -- least and most the people in it -- oldest first.
+    Not-watched and still-to-come slots are left out and break a span."""
+    if not slots:
+        return []
+    step = (until - since) / len(slots)
+    spans, cur = [], None
+    for k, s in enumerate(slots):
+        if s is None or s == "later" or s[0] is None:
+            cur = None
+            continue
+        units, folk = s
+        if cur is not None and cur["units"] == units and cur["end"] == k:
+            cur["end"] = k + 1
+        else:
+            cur = {"units": units, "start": k, "end": k + 1, "people": []}
+            spans.append(cur)
+        if folk is not None:
+            cur["people"].append(folk)
+    return [{"from": since + step * c["start"], "to": since + step * c["end"],
+             "units": c["units"],
+             "least": min(c["people"]) if c["people"] else None,
+             "most": max(c["people"]) if c["people"] else None}
+            for c in spans]
+
+
 def building(row):
     """140-H, or which of 141's three buildings: the CEO's first question."""
     name = str(row.get("room") or "")

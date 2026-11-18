@@ -1258,6 +1258,131 @@ def ac_strip(slots, since, mode, basis, read, count, height=16):
         % (t["text"], t["muted"], how, svg, t["muted"], key))
 
 
+def _clock12(ts):
+    return ts.tz_convert("Asia/Karachi").strftime("%I:%M %p").lstrip("0")
+
+
+def units_strip(slots, spans, since, mode, read, count, per=None,
+                height=16):
+    """How many units ran, under the people line (Shamroze, 18 Nov: "a line
+    of how many units are running, and when I click, from this time to this
+    time so many were on"). The strip, each hour's most units above it, and
+    every stretch of the day in a list that scrolls -- a phone shows no
+    hover, so the list is where the times are read."""
+    import energy_rooms as er
+    if not slots or not read or not spans:
+        return ""
+    t = THEMES.get(mode, THEMES["dark"])
+    cool, crit = t["ink"]["Cool"]["bar"], t["rank_bar"]
+    start = since.tz_convert("Asia/Karachi")
+    step = 5
+
+    def people_words(s):
+        if s["most"] is None:
+            return "people not known"
+        if s["most"] == 0:
+            return "nobody in"
+        if s["least"] == s["most"]:
+            return "%d %s" % (s["most"], "person" if s["most"] == 1
+                              else "people")
+        return "%d–%d people" % (max(1, s["least"]), s["most"])
+
+    def extra(s):
+        if not per or not s["units"] or s["most"] is None:
+            return 0
+        return max(0, s["units"] - er.units_needed(s["most"], per, count))
+
+    def said(s):
+        return "%s to %s · %d running · %s" % (
+            _clock12(s["from"]), _clock12(s["to"]), s["units"],
+            people_words(s))
+
+    which = {}
+    for s in spans:
+        a = int(round((s["from"] - since).total_seconds() / 60 / step))
+        b = int(round((s["to"] - since).total_seconds() / 60 / step))
+        for k in range(a, b):
+            which[k] = s
+    rects = []
+    for i, s in enumerate(slots):
+        if s == "later":
+            fill, op, what = t["page"], 1.0, "not yet"
+        elif s is None or s[0] is None:
+            fill, op, what = NO_DATA, 1.0, "not watched"
+        elif s[0] == 0:
+            fill, op, what = t["slot_empty"], 1.0, said(which[i]) \
+                if i in which else "none running"
+        else:
+            fill = crit if s[1] == 0 else cool
+            op = 0.35 + 0.65 * min(1.0, s[0] / float(read))
+            what = said(which[i]) if i in which else "%d running" % s[0]
+        rects.append('<rect x="%d" y="0" width="1.02" height="6" fill="%s" '
+                     'fill-opacity="%.2f"><title>%s</title></rect>'
+                     % (i, fill, op, html.escape(what)))
+    first_later = next((i for i, s in enumerate(slots) if s == "later"), None)
+    now_mark = ('<rect x="%.2f" y="0" width="0.6" height="6" fill="%s"/>'
+                % (first_later, t["text"]) if first_later else "")
+    svg = ('<svg viewBox="0 0 %d 6" preserveAspectRatio="none" style="width:'
+           '100%%;height:%dpx;border-radius:5px;display:block;border:1px solid '
+           '%s;box-sizing:border-box">%s%s</svg>'
+           % (len(slots), height, t["line"], "".join(rects), now_mark))
+    n = len(slots)
+    cells = []
+    for h in range(-(-n // 12)):
+        got = [s[0] for s in slots[h * 12:(h + 1) * 12]
+               if s not in (None, "later") and s[0] is not None]
+        most = max(got) if got else None
+        cells.append('<span style="width:%.4f%%;text-align:center;font-size:'
+                     '.72rem;font-weight:750;color:%s" title="most units '
+                     'running, %s to %s">%s</span>'
+                     % (min(12, n - h * 12) / n * 100,
+                        cool if most else t["faint"],
+                        _h12(start.hour + h), _h12(start.hour + h + 1),
+                        "" if most is None else most or "&middot;"))
+    # Every stretch, newest first, in a box that scrolls.
+    rows = []
+    for s in reversed(spans):
+        mins = int(round((s["to"] - s["from"]).total_seconds() / 60))
+        dots = "".join(
+            '<i style="display:inline-block;width:8px;height:8px;border-radius'
+            ':50%%;margin-right:3px;background:%s"></i>'
+            % (cool if k < s["units"] else t["line"]) for k in range(read))
+        over = extra(s)
+        rows.append(
+            '<div style="display:grid;grid-template-columns:minmax(0,1.5fr) '
+            'minmax(0,1fr) minmax(0,1.2fr);gap:8px;padding:7px 2px;border-top:'
+            '1px solid %s;font-size:.78rem;align-items:center"><span><b>%s'
+            '</b> to %s<br><span style="color:%s;font-size:.7rem">%s</span>'
+            '</span><span>%s<br><b>%d</b> running</span><span style="color:%s">'
+            '%s%s</span></div>'
+            % (t["line"], _clock12(s["from"]), _clock12(s["to"]), t["muted"],
+               spell(mins), dots, s["units"],
+               crit if s["units"] and s["most"] == 0 else t["text"],
+               people_words(s),
+               ('<br><span style="color:%s;font-size:.7rem">%d would do'
+                '</span>' % (crit, s["units"] - over)) if over else ""))
+    head = ("a camera reads %d of its %d units; these are theirs"
+            % (read, count) if read < count else "read off the units")
+    key = ('<span><i style="display:inline-block;width:12px;height:10px;'
+           'border-radius:2px;background:%s;opacity:.55"></i> fewer · '
+           '<i style="display:inline-block;width:12px;height:10px;border-radius:'
+           '2px;background:%s"></i> more running</span><span><i style="display:'
+           'inline-block;width:12px;height:10px;border-radius:2px;background:'
+           '%s"></i> running, nobody in</span><span>· numbers above: the most '
+           'running in that hour</span>' % (cool, cool, crit))
+    return (
+        '<div style="display:flex;align-items:baseline;gap:8px;margin:14px 0 '
+        '4px;font-size:.78rem"><b style="color:%s">ACs running</b><span '
+        'style="color:%s">%s</span></div><div style="display:flex">%s</div>%s'
+        '<div style="display:flex;flex-wrap:wrap;gap:14px;font-size:.7rem;'
+        'color:%s;margin-top:6px">%s</div>'
+        '<div style="font-size:.74rem;color:%s;margin:12px 0 2px">Stretch by '
+        'stretch today, latest first</div><div style="max-height:260px;'
+        'overflow-y:auto;color:%s">%s</div>'
+        % (t["text"], t["muted"], head, "".join(cells), svg, t["muted"], key,
+           t["muted"], t["text"], "".join(rows)))
+
+
 def ac_day_figures(r):
     """Today's AC in three cards: how long it ran, how long nobody was in,
     and what that cost -- the answer to "how long was power wasted"."""
@@ -1886,7 +2011,14 @@ def room_ac_today(row, chosen, midnight, now, mode):
                         float(a.get("ac_duty", 1.0) or 1.0))
     count = int(row.get("ac_count") or 1)
     basis = today["basis"] if today else er.ASSUMED
-    return (ac_strip(slots, midnight, mode, basis, read, count)
+    units = ""
+    if read and basis != er.ALWAYS:
+        until = midnight + pd.Timedelta(days=1)
+        each = er.unit_slots(events, row, midnight, now, until, 288, alive)
+        units = units_strip(each, er.unit_spans(each, midnight, until),
+                            midnight, mode, read, count,
+                            row.get("people_per_unit"))
+    return (ac_strip(slots, midnight, mode, basis, read, count) + units
             + ac_day_figures(today))
 
 
@@ -1953,12 +2085,24 @@ def show_room_day(df, recent, chosen, now):
     theme_now = LINK_BASE.get("theme") or "dark"
     # The whole day, midnight to midnight, whatever the hour (Shamroze, 12
     # Nov): what is still to come is drawn as not yet, after a "now" line.
+    people_now = slot_people(recent, chosen, now, 288, midnight,
+                             midnight + pd.Timedelta(days=1))
+    # Only while the loop was watching, as the AC line under it: on 18 Nov
+    # the laptop slept 19:56-10:30 and the line showed "1 person" all
+    # night -- the last count before the sleep, carried on.
+    import empty_view as evw
+    try:
+        alive = evw.watched(load_beats(midnight - evw.VOUCH,
+                                       now + evw.VOUCH), midnight, now)
+        people_now = [p if p == "later" or any(
+            a <= midnight + pd.Timedelta(minutes=5 * k) < b
+            for a, b in alive) else None for k, p in enumerate(people_now)]
+    except psycopg2.Error:
+        pass
     st.markdown(
         dtl.phase_lane(theme_now, 24.0, work_hours(),
                        av.peak_window(load_assumptions()))
-        + people_strip(slot_people(recent, chosen, now, 288, midnight,
-                                   midnight + pd.Timedelta(days=1)),
-                       midnight, theme_now)
+        + people_strip(people_now, midnight, theme_now)
         + room_ac_today(row, chosen, midnight, now, theme_now),
         unsafe_allow_html=True)
 
