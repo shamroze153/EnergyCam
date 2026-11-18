@@ -895,3 +895,15 @@ Two or three lines a round; picture file names, never pictures.
   dark: nothing wider than the screen.
 * Room 18 at night is the housekeeping staff (Shamroze, 18 Nov). Its five
   units are in no camera, so whether they ran then is not known.
+
+## 18 Nov, 18:30-23:55 -- dashboard: faster, honest last-out, readings form
+
+* 18:08 readings logged (gf 52630, first 34402: +196 and +234 since 17:36).
+* Ledger 6x faster, finished days kept on disk (Savings tab 30 s -> 2 s);
+  "Last out yesterday" no longer shows the moment the laptop slept.
+* New readings form: both meters side by side with the last reading; as
+  soon as a number is in, the units since then (a day's pace only from 12 h
+  up); red and not saved when lower than the last, amber when far from the
+  meter's usual day; when it was read can be set and follows the clock
+  until somebody sets it; solar and the high folded away; one Save. Checked
+  in light, dark and at phone width; nothing saved while testing.

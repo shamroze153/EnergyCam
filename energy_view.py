@@ -519,6 +519,66 @@ def pace(readings, meters):
     return out
 
 
+def last_reading(readings, code):
+    """(reading, taken) of a meter's latest reading, or None."""
+    if readings is None or not len(readings):
+        return None
+    r = readings[readings["meter"] == code].dropna(subset=["reading"])
+    if not len(r):
+        return None
+    row = r.sort_values("taken").iloc[-1]
+    return float(row["reading"]), pd.Timestamp(row["taken"])
+
+
+def reading_check(value, last, at, usual=None):
+    """What a number typed on the readings form says against the meter's
+    last reading, said before it is saved (Shamroze, 18 Nov: "the reading
+    entry, better, an easy way").
+
+    value: the number typed (None: nothing yet); last: (reading, taken) or
+    None; at: when it was read; usual: the meter's units a day, if known.
+    Returns {level, units, hours, per_day, text}: level "none" (nothing to
+    say), "ok", "odd" (save it if it is right) or "low" (a meter only goes
+    up: not saved).
+    """
+    out = {"level": "none", "units": None, "hours": None, "per_day": None,
+           "text": ""}
+    if value is None or last is None:
+        return out
+    before, when = last
+    units = float(value) - before
+    hours = (pd.Timestamp(at) - when).total_seconds() / 3600.0
+    out.update(units=units, hours=hours)
+    if units < 0:
+        out.update(level="low", text="Lower than the last reading (%s). A "
+                   "meter only goes up: check the digits." % _n(before))
+        return out
+    if hours <= 0:
+        out.update(level="odd", text="Earlier than the last reading, %s."
+                   % pd.Timestamp(when).tz_convert(LOCAL).strftime(
+                       "%a %d %b %H:%M"))
+        return out
+    # A day's pace only from half a day or more: an evening's two hours
+    # scaled up to a day said "about 2,231 a day" (18 Nov).
+    per_day = units / hours * 24 if hours >= 12 else None
+    out["per_day"] = per_day
+    span = (("%.1f" % hours).replace(".0", "") + " h") if hours < 48 \
+        else (("%.1f" % (hours / 24)).replace(".0", "") + " days")
+    since = "+%s units in %s" % (_n(units), span)
+    if per_day is not None:
+        since += " · about %s a day" % _n(per_day)
+    if units == 0 and hours >= 3:
+        out.update(level="odd", text="The same as the last reading: nothing "
+                   "used in %.0f hours?" % hours)
+    elif usual and per_day is not None and hours >= 6 and (
+            per_day > 3 * usual or per_day < usual / 4):
+        out.update(level="odd", text="%s, against a usual %s a day: check "
+                   "the digits." % (since, _n(usual)))
+    else:
+        out.update(level="ok", text=since)
+    return out
+
+
 def month_estimate(readings, meters, rates, peak=(18.5, 22.5), days=7):
     """Units a day on each meter over the last week of readings, and what a
     month at that pace would bill (Shamroze, 17 Nov: "how many units a day,

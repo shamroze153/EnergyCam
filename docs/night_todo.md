@@ -178,7 +178,7 @@ browser on a phone and in dark before it is pushed:
       dark (laptop asleep 19:56): now "not known · cameras off from ...".
 - [x] 18:30 The ledger 6x faster (same figures to the paisa, 114 room-days
       compared); finished days kept on disk: Savings tab 30 s -> 2 s.
-- [ ] The meter readings form (Energy tab): easier and nicer -- both
+- [x] 23:55 The meter readings form (Energy tab): easier and nicer -- both
       meters side by side with the last reading, the units since then shown
       live as you type, a warning for a number lower than the last or an
       odd jump, solar and today's high optional, one big Save.

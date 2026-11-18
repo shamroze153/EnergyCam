@@ -27,7 +27,7 @@ import html
 import os
 import time
 import warnings
-from datetime import timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from urllib.parse import quote
 
 import streamlit as st
@@ -2163,69 +2163,150 @@ def write_solar(taken, kwh, note):
         conn.close()
 
 
-def reading_form(now, meters, readings, solar):
-    """Three numbers, once a day, by whoever is in the building.
+METER_NAMES = {"gf_basement": ("Ground floor + basement", "TY75237"),
+               "first_cafe": ("First floor + cafe", "TU09825")}
+# The colour of what reading_check says: fine, worth a second look, wrong.
+READING_TONES = {"ok": "#2a9d63", "odd": "#c98500", "low": "#e5484d"}
+READING_KEYS = ("r_day", "r_time", "r_auto", "solar_units", "max_temp",
+                "r_note")
 
-    Each box says what to type and shows the last number typed into it, so
-    a slip of a digit is caught by the person typing rather than by a chart
-    a week later.
+
+def _reading_form(now, meters, readings, solar):
+    """Today's meter readings, the daily job (Shamroze, 18 Nov: "the reading
+    entry on the dashboard -- better, nicer, an easy way").
+
+    Both meters side by side, each with its last reading under it, and as
+    soon as a number is typed the units since then and the day's pace -- in
+    red, and not saved, when it is lower than the last (a meter only goes
+    up); in amber when the pace is far from the meter's usual day. When it
+    was read can be set (a reading taken at 6:08 and typed at 7); solar and
+    the day's high are optional and folded away. One Save.
     """
-    last = {}
-    for code in meters["code"]:
-        mine = readings[readings["meter"] == code].sort_values("taken")
-        if len(mine):
-            row = mine.iloc[-1]
-            last[code] = "last: %s, %s" % (
-                format(int(float(row["reading"])), ",")
-                if pd.notna(row["reading"]) else "\u2014",
-                row["taken"].tz_convert(PKT).strftime("%d %b %H:%M"))
-    if len(solar):
-        row = solar.sort_values("taken").iloc[-1]
-        last["solar"] = "last: %s, %s" % (
-            format(int(float(row["kwh"])), ","),
-            pd.Timestamp(row["taken"]).tz_convert(PKT).strftime(
-                "%d %b %H:%M"))
-    st.markdown(
-        '<div style="font-size:1.05rem;font-weight:700;margin:6px 0 2px;">'
-        'Today\u2019s readings</div>'
-        '<div style="font-size:.8rem;color:%s;margin-bottom:10px;">'
-        'Once a day, at about the same hour. Anybody can fill this in.</div>'
-        % MUTED, unsafe_allow_html=True)
-    labels = {"gf_basement": "Ground floor + basement meter (TY75237)",
-              "first_cafe": "First floor + cafe meter (TU09825)"}
-    with st.form("readings"):
-        cols = st.columns(len(meters) + 2)
-        typed = {}
-        for i, code in enumerate(meters["code"]):
-            typed[code] = cols[i].number_input(
-                labels.get(code, code), min_value=0.0, step=1.0,
-                format="%.0f", key="reading_" + code,
-                help="The number on the face of the meter, all of it.")
-            cols[i].caption(last.get(code, "no reading yet"))
-        solar_kwh = cols[-2].number_input(
-            "Solar made yesterday, kWh", min_value=0.0, step=1.0,
-            format="%.0f", key="solar_units",
-            help="The inverter's figure for yesterday -- a full day. Not"
-                 " today's so far, and not its lifetime total.")
-        cols[-2].caption(last.get("solar", "no solar figure yet"))
-        temp = cols[-1].number_input("Today\u2019s high, \u00b0C",
-                                     min_value=0.0, max_value=60.0, step=1.0,
-                                     format="%.0f", key="max_temp")
-        note = st.text_input("Anything worth noting (optional)", key="r_note")
-        sent = st.form_submit_button("Save today\u2019s readings")
+    import energy_view as ev
+
+    if st.session_state.pop("r_reset", False):
+        for key in READING_KEYS + tuple("reading_" + c
+                                        for c in meters["code"]):
+            st.session_state.pop(key, None)
+    local = pd.Timestamp.now(tz=PKT)
+    # "When was it read" says now, and keeps saying now while the page stays
+    # open -- until somebody sets it themselves (a 6:08 reading typed at 7).
+    auto = st.session_state.get("r_auto")
+    if "r_day" not in st.session_state or auto == (
+            st.session_state.get("r_day"), st.session_state.get("r_time")):
+        st.session_state["r_day"] = local.date()
+        st.session_state["r_time"] = local.floor("5min").time()
+        st.session_state["r_auto"] = (st.session_state["r_day"],
+                                      st.session_state["r_time"])
+    try:
+        est = ev.month_estimate(readings, meters, (67.0, 81.0))
+    except Exception:                                       # noqa: BLE001
+        est = None
+    usual = est["meters"] if est else {}
+    lasts = {code: ev.last_reading(readings, code) for code in meters["code"]}
+
+    def today(last):
+        return last is not None and \
+            last[1].tz_convert(PKT).date() == local.date()
+
+    done = sum(1 for v in lasts.values() if today(v))
+    if done == len(lasts):
+        chip = ("&#10003; Read today", "rgba(42,157,99,.14)", "#2a9d63")
+    elif done:
+        chip = ("%d of %d read today" % (done, len(lasts)),
+                "rgba(201,133,0,.14)", "#c98500")
+    else:
+        chip = ("Not read yet today", "rgba(201,133,0,.14)", "#c98500")
+    saved = st.session_state.pop("r_saved", None)
+    with st.container(border=True):
+        st.markdown(
+            '<div style="display:flex;align-items:center;gap:10px;flex-wrap:'
+            'wrap;margin:2px 0 2px"><span style="font-size:1.15rem;'
+            'font-weight:750">Today\u2019s meter readings</span><span style='
+            '"font-size:12px;font-weight:650;padding:3px 10px;border-radius:'
+            '99px;background:%s;color:%s">%s</span></div><div style="font-'
+            'size:.82rem;color:%s;margin-bottom:4px">Once a day, at about the '
+            'same hour. Type the whole number on each meter: the units since '
+            'the last reading show as soon as you press Enter.</div>'
+            % (chip[1], chip[2], chip[0], MUTED), unsafe_allow_html=True)
+        if saved:
+            st.success(saved)
+        when = st.columns(2)
+        day = when[0].date_input("Read on", key="r_day",
+                                 max_value=local.date(), format="DD/MM/YYYY")
+        clock = when[1].time_input("At", key="r_time", step=300)
+        at = pd.Timestamp(datetime.combine(day, clock)).tz_localize(PKT)
+        cols = st.columns(len(meters))
+        typed, checks = {}, {}
+        for col, (_, m) in zip(cols, meters.iterrows()):
+            code = m["code"]
+            name, serial = METER_NAMES.get(code, (m.get("label") or code, ""))
+            last = lasts[code]
+            with col:
+                value = st.number_input(
+                    "%s meter" % name, min_value=0.0, value=None, step=1.0,
+                    format="%.0f", key="reading_" + code,
+                    placeholder=("e.g. %s" % format(int(last[0]) + 200, ","))
+                    if last else "the number on the meter",
+                    help="The whole number on the meter's face%s." % (
+                        ", serial %s" % serial if serial else ""))
+                check = ev.reading_check(value, last, at, usual.get(code))
+                head = ("Last: <b>%s</b> \u00b7 %s" % (
+                    format(int(last[0]), ","),
+                    last[1].tz_convert(PKT).strftime("%a %d %b, %I:%M %p")
+                    .replace(" 0", " ").replace("AM", "am").replace("PM", "pm"))
+                    if last else "No reading yet")
+                said = ('<div style="font-size:13px;font-weight:650;color:%s;'
+                        'margin-top:2px">%s</div>'
+                        % (READING_TONES[check["level"]], html.escape(
+                            check["text"]))) if check["text"] else ""
+                st.markdown('<div style="font-size:12.5px;color:%s;margin-top:'
+                            '-6px">%s</div>%s' % (MUTED, head, said),
+                            unsafe_allow_html=True)
+            typed[code], checks[code] = value, check
+        last_sun = ""
+        if len(solar):
+            row = solar.sort_values("taken").iloc[-1]
+            last_sun = "Last: %s kWh, %s" % (
+                format(int(float(row["kwh"])), ","),
+                pd.Timestamp(row["taken"]).tz_convert(PKT).strftime("%a %d %b"))
+        with st.expander("Solar and today\u2019s high (optional)"):
+            extra = st.columns(2)
+            solar_kwh = extra[0].number_input(
+                "Solar made yesterday, kWh", min_value=0.0, value=None,
+                step=1.0, format="%.0f", key="solar_units",
+                help="The inverter's figure for yesterday -- a full day. Not"
+                     " today's so far, and not its lifetime total.")
+            if last_sun:
+                extra[0].caption(last_sun)
+            temp = extra[1].number_input(
+                "Today\u2019s high, \u00b0C", min_value=0.0, max_value=60.0,
+                value=None, step=1.0, format="%.0f", key="max_temp")
+            note = st.text_input("Anything worth noting", key="r_note")
+        wrong = [c for c, k in checks.items() if k["level"] == "low"]
+        anything = any(v is not None for v in typed.values()) or solar_kwh
+        sent = stretch(st.button, "Save readings", type="primary",
+                       key="r_save", disabled=not anything or bool(wrong))
+        if wrong:
+            st.caption("A reading lower than the last is not saved: check it "
+                       "on the meter.")
     if not sent:
         return
-    taken = now.tz_convert(PKT)
     wrote = []
     try:
         for code, value in typed.items():
-            if value:
-                write_reading(code, taken, value, None, temp or None,
-                              note or None)
-                wrote.append(labels.get(code, code))
+            if value is None:
+                continue
+            write_reading(code, at.to_pydatetime(), value, None, temp,
+                          note or None)
+            k = checks[code]
+            wrote.append("%s %s%s" % (
+                METER_NAMES.get(code, (code,))[0], format(int(value), ","),
+                (" (+%s units)" % format(int(round(k["units"])), ","))
+                if k["units"] is not None and k["units"] >= 0 else ""))
         if solar_kwh:
-            write_solar(taken, solar_kwh, note or None)
-            wrote.append("solar")
+            write_solar(at.to_pydatetime(), solar_kwh, note or None)
+            wrote.append("solar %s kWh" % format(int(solar_kwh), ","))
     except psycopg2.Error as e:
         if getattr(e, "pgcode", None) == "42501":
             st.error("This page is connected read-only. An administrator runs"
@@ -2234,12 +2315,18 @@ def reading_form(now, meters, readings, solar):
         else:
             st.error("Could not save (%s)." % type(e).__name__)
         return
-    if wrote:
-        load_meters.clear()
-        load_solar.clear()
-        st.success("Saved: %s." % ", ".join(wrote))
-    else:
-        st.info("Nothing entered, so nothing was saved.")
+    load_meters.clear()
+    load_solar.clear()
+    st.session_state["r_saved"] = "Saved: %s, read %s." % (
+        "; ".join(wrote), at.strftime("%a %d %b %H:%M"))
+    st.session_state["r_reset"] = True
+    st.rerun()        # the whole page, so the charts below take the reading
+
+
+# A fragment where Streamlit has them: typing a number reruns the form, not
+# the Energy tab under it.
+reading_form = (st.fragment(_reading_form) if hasattr(st, "fragment")
+                else _reading_form)
 
 
 def show_analysis(df, recent, now):
@@ -2519,6 +2606,17 @@ def app_chrome(mode):
         " border-radius: 10px !important; }"
         " div[data-testid='stFormSubmitButton'] button p { color: %(surface)s"
         " !important; font-weight: 650; }"
+        # The readings form's Save (18 Nov): white on blue, and when there
+        # is nothing to save still plainly a button, not loose grey text.
+        " div[data-testid='stMainBlockContainer'] button[kind='primary']"
+        " { border-radius: 10px !important; min-height: 44px; }"
+        " div[data-testid='stMainBlockContainer'] button[kind='primary'] p"
+        " { color: #ffffff !important; font-weight: 650; }"
+        " div[data-testid='stMainBlockContainer'] button[kind='primary']"
+        ":disabled { background: %(sunken)s !important;"
+        " border: 1px solid %(line)s !important; }"
+        " div[data-testid='stMainBlockContainer'] button[kind='primary']"
+        ":disabled p { color: %(muted)s !important; }"
         " div[data-testid='stPopover'] button { background: %(surface)s"
         " !important; border: 1px solid %(line)s !important;"
         " border-radius: 12px !important; min-height: 44px; }"

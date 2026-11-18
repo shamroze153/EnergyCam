@@ -37,7 +37,46 @@ METERS = pd.DataFrame([
 ])
 
 
+def check_reading_form():
+    """The readings form's word on a typed number (18 Nov)."""
+    last = (52434.0, pd.Timestamp("2026-11-17 17:36", tz="Asia/Karachi"))
+    at = pd.Timestamp("2026-11-18 18:08", tz="Asia/Karachi")
+    k = ev.reading_check(52630, last, at, usual=190)
+    got = (k["level"], int(k["units"]), round(k["per_day"]))
+    check("a day's reading: the units since and the day's pace",
+          got == ("ok", 196, 192), got)
+    check("  said plainly", k["text"].startswith("+196 units in 24.5 h"),
+          k["text"])
+    for value, usual, want, label in (
+            (52340, None, "low", "lower than the last: wrong"),
+            (54400, 190, "odd", "a slipped digit (ten times the usual): "
+                                "worth a second look"),
+            (52434, None, "odd", "the same number a day later: worth a "
+                                 "second look"),
+            (None, None, "none", "nothing typed: nothing said")):
+        got = ev.reading_check(value, last, at, usual)["level"]
+        check(label, got == want, got)
+    got = ev.reading_check(52630, None, at)["level"]
+    check("no reading before: nothing to compare", got == "none", got)
+    soon = ev.reading_check(34560, (34402.0, at), at + pd.Timedelta(hours=1.7))
+    check("an evening's two hours: the units, but no day's pace from them",
+          soon["per_day"] is None and "a day" not in soon["text"],
+          soon["text"])
+    r = pd.DataFrame([
+        {"meter": "a", "taken": pd.Timestamp("2026-11-16 12:00", tz="UTC"),
+         "reading": 10.0},
+        {"meter": "a", "taken": pd.Timestamp("2026-11-17 12:00", tz="UTC"),
+         "reading": 20.0},
+        {"meter": "b", "taken": pd.Timestamp("2026-11-17 12:00", tz="UTC"),
+         "reading": None}])
+    check("the last reading of a meter", ev.last_reading(r, "a")[0] == 20.0,
+          ev.last_reading(r, "a"))
+    check("a meter with no number yet has none",
+          ev.last_reading(r, "b") is None, ev.last_reading(r, "b"))
+
+
 def main():
+    check_reading_form()
     # ---- the panels -----------------------------------------------------
     daily = pd.DataFrame({"taken": [at(3), at(2), at(1)],
                           "kwh": [92.0, 31.0, 118.0]})
