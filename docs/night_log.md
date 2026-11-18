@@ -842,3 +842,7 @@ Two or three lines a round; picture file names, never pictures.
   kept. restart_loop.bat now closes the old window when it stops the loop;
   tried once -- 'closing 1 old loop window', one loop running after.
 
+* 18 Nov 11:55: on Shamroze's yes, the 44 audits older than 3 days (11-15 Nov,
+  folder and zip each, 853 MB of unblurred pictures) moved to the Recycle Bin;
+  the 5 newest kept.
+
