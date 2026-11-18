@@ -32,6 +32,42 @@ def peak_window(assumptions):
             parse(assumptions.get("peak_end"), 22.5))
 
 
+# Karachi keeps no daylight saving: its clock is UTC + 5 all year.
+PKT_SECONDS = PKT.utcoffset(None).total_seconds()
+DAY_SECONDS = 86400.0
+
+
+def local_seconds(t):
+    """A moment as seconds on Karachi's clock (seconds since 1 Jan 1970 as
+    the wall clock here reads). A time with no zone is taken as Karachi's
+    already, as split_peak always took it."""
+    t = pd.Timestamp(t)
+    if t.tzinfo is not None:
+        return t.value / 1e9 + PKT_SECONDS
+    return t.value / 1e9
+
+
+def split_seconds(s, e, window):
+    """split_peak on Karachi-clock seconds: (minutes off-peak, minutes peak).
+
+    Plain arithmetic: the ledger asks this some thirteen thousand times a
+    day of rooms, and with Timestamps it was half of a page's load (18 Nov,
+    2.6 of 5.8 seconds a day)."""
+    if e <= s:
+        return 0.0, 0.0
+    lo, hi = window[0] * 3600.0, window[1] * 3600.0
+    day = (s // DAY_SECONDS) * DAY_SECONDS
+    peak = 0.0
+    while day < e:
+        overlap = min(e, day + hi) - max(s, day + lo)
+        if overlap > 0:
+            peak += overlap
+        day += DAY_SECONDS
+    total = (e - s) / 60.0
+    peak /= 60.0
+    return max(0.0, total - peak), min(peak, total)
+
+
 def split_peak(start, end, window):
     """Minutes of one interval inside and outside the peak window.
 
@@ -39,25 +75,12 @@ def split_peak(start, end, window):
     cooled from Friday evening to Monday morning is one interval -- so this
     walks it a day at a time rather than assuming it fits in one.
     """
-    low, high = window
     if end <= start:
         return 0.0, 0.0
     # The window is Karachi's clock. The events arrive in UTC, and a UTC
     # midnight plus 18.5 hours is 23:30 here: until 11 Nov the "peak"
     # hours counted were half past eleven at night to half past three.
-    if getattr(start, "tzinfo", None) is not None:
-        start, end = start.tz_convert(PKT), end.tz_convert(PKT)
-    peak = 0.0
-    day = start.normalize()
-    while day < end:
-        a = day + pd.Timedelta(hours=low)
-        b = day + pd.Timedelta(hours=high)
-        overlap = (min(end, b) - max(start, a)).total_seconds() / 60.0
-        if overlap > 0:
-            peak += overlap
-        day += pd.Timedelta(days=1)
-    total = (end - start).total_seconds() / 60.0
-    return max(0.0, total - peak), min(peak, total)
+    return split_seconds(local_seconds(start), local_seconds(end), window)
 
 
 def by_hours(start, end, hours):

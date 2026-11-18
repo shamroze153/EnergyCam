@@ -2719,20 +2719,77 @@ def cached_ledger_past(start_iso, end_iso, campus=None):
     return _ledger(start_iso, end_iso, campus)
 
 
+def _ledger_version():
+    """A short hash of everything a finished day's ledger is made from but
+    its rows: the code and rooms.yaml / ac_units.yaml. Part of the key of
+    the days kept on disk, so a change to any of them works them out anew."""
+    import hashlib
+    h = hashlib.sha1()
+    for name in ("energy_rooms.py", "ledger_data.py", "analysis_view.py",
+                 "day_story.py", "empty_view.py", "campus_view.py",
+                 "floors_view.py", "rooms.yaml", "ac_units.yaml"):
+        try:
+            with open(name, "rb") as f:
+                h.update(f.read())
+        except OSError:
+            pass
+    return h.hexdigest()[:12]
+
+
+LEDGER_VERSION = _ledger_version()
+
+
+@st.cache_data(show_spinner=False, persist="disk", max_entries=48)
+def cached_past_days(first_iso, n, campus, version):
+    """The ledgers of n finished days from the local midnight first_iso,
+    as a tuple, oldest first.
+
+    18 Nov: a page asking for a week or two of days asked the database twice
+    a day and worked each day out on its own -- half a minute for the
+    Savings tab. Now one read for the whole stretch, and kept on disk: a
+    finished day does not change, so it is worked out once, and again only
+    when `version` (_ledger_version) says the code or the rooms changed.
+    """
+    first = pd.Timestamp(first_iso)
+    start = first.tz_convert("UTC")
+    end = (first + pd.Timedelta(days=n)).tz_convert("UTC")
+    events = load_events_between(start, end)
+    beats = load_beats(start - pd.Timedelta(minutes=10),
+                       end + pd.Timedelta(minutes=10))
+    rooms, a = load_rooms_config(), load_assumptions()
+    out = []
+    for i in range(n):
+        d0 = (first + pd.Timedelta(days=i)).tz_convert("UTC")
+        d1 = (first + pd.Timedelta(days=i + 1)).tz_convert("UTC")
+        out.append(ledger_data.ledger_for(rooms, events, beats, a, d0, d1,
+                                          campus))
+    return tuple(out)
+
+
+# A day is finished, for keeping, once its last beats are in: the loop's
+# heartbeat a few minutes past midnight still vouches for its last minutes.
+SETTLED = pd.Timedelta(minutes=20)
+
+
 def week_ledgers(local, campus, days=7):
     """[(date, ledger, so_far)] for the last `days` days, today last."""
     midnight = local.normalize()
-    out = []
-    for back in range(days - 1, -1, -1):
-        d0 = midnight - pd.Timedelta(days=back)
-        a = pd.Timestamp(d0).tz_convert("UTC").isoformat()
-        if back:
-            b = pd.Timestamp(d0 + pd.Timedelta(days=1)).tz_convert(
-                "UTC").isoformat()
-            out.append((d0.date(), cached_ledger_past(a, b, campus), False))
-        else:
-            b = pd.Timestamp(_to_5min(local)).tz_convert("UTC").isoformat()
-            out.append((d0.date(), cached_ledger(a, b, campus), True))
+    first = midnight - pd.Timedelta(days=days - 1)
+    settled = local >= midnight + SETTLED
+    n_past = days - 1 if settled else days - 2
+    past = cached_past_days(first.isoformat(), n_past, campus,
+                            LEDGER_VERSION) if n_past > 0 else ()
+    out = [((first + pd.Timedelta(days=i)).date(), list(led), False)
+           for i, led in enumerate(past)]
+    if not settled and days >= 2:
+        # Yesterday, just after midnight: not yet kept, worked out afresh.
+        y0 = midnight - pd.Timedelta(days=1)
+        out.append((y0.date(), cached_ledger(
+            y0.tz_convert("UTC").isoformat(),
+            midnight.tz_convert("UTC").isoformat(), campus), False))
+    a = midnight.tz_convert("UTC").isoformat()
+    b = pd.Timestamp(_to_5min(local)).tz_convert("UTC").isoformat()
+    out.append((midnight.date(), cached_ledger(a, b, campus), True))
     return out
 
 
@@ -3236,17 +3293,9 @@ def show_room_energy(df, now):
                         duty), unsafe_allow_html=True)
 
     # The week, a column a day: is it getting better?
-    week, week_rows = [], []
     try:
-        for back in range(6, -1, -1):
-            d0 = midnight - back * day
-            if back:
-                got = cached_ledger_past(iso(d0), iso(d0 + day), campus_here)
-            else:
-                got = cached_ledger(iso(d0), iso(_to_5min(local)),
-                                    campus_here)
-            week.append((d0.date(), er.totals(got), back == 0))
-            week_rows.append((d0.date(), got, back == 0))
+        week_rows = week_ledgers(local, campus_here)
+        week = [(d, er.totals(got), so_far) for d, got, so_far in week_rows]
     except psycopg2.Error:
         week, week_rows = [], []
     st.markdown(er.trend(LINK_BASE.get("theme") or "dark", week),

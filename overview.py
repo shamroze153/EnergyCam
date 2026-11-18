@@ -266,6 +266,19 @@ def campus_summary(name, rooms, history, beats, now, stake=0.0,
         else:
             lefts.append(story["last_out"])
 
+    # A last-out that is only where the watching stopped is not a last-out.
+    # 17 Nov: the laptop slept at 19:56 with rooms still in use, and both
+    # campuses said "last out yesterday 8:00 evening" -- the cameras going
+    # dark, not the building emptying. If the loop's beats stop before the
+    # day's end and the last room "left" within a pass of that, nobody knows
+    # when the day ended; the page says when the watching stopped instead.
+    watch_ended = None
+    if beats is not None:
+        seen = [b for b in beats if yday <= b < today]
+        if seen and max(seen) < today - pd.Timedelta(minutes=20) and lefts \
+                and max(lefts) >= max(seen) - pd.Timedelta(minutes=10):
+            watch_ended, lefts = max(seen), []
+
     rank = {"Red": 0, "Amber": 1}
     walk = sorted((e for e in inside if e["level"] in rank),
                   key=lambda e: (rank[e["level"]], -(e["since"] or 0)))
@@ -284,6 +297,7 @@ def campus_summary(name, rooms, history, beats, now, stake=0.0,
         "first_who": first["name"] if first else None,
         "last_out_yday": max(lefts) if lefts else None,
         "overnight": overnight,
+        "watch_ended": watch_ended,
         "stake": stake, "stake_note": stake_note,
         "walk": walk, "silent": silent,
         "depts": depts,
@@ -301,6 +315,16 @@ def esc(text):
 def clock(ts):
     """9:06 morning -- the way the rest of the dashboard says a time."""
     return "—" if ts is None or pd.isna(ts) else ds.clock(ts)
+
+
+def last_out_text(s, note="last room emptied"):
+    """(value, note) for "Last out yesterday": a time, "stayed overnight",
+    or -- when the cameras went dark before the rooms did -- not known."""
+    if s.get("watch_ended") is not None:
+        return "not known", "cameras off from %s" % clock(s["watch_ended"])
+    if s["last_out_yday"] is not None:
+        return clock(s["last_out_yday"]), note
+    return ("stayed overnight" if s["overnight"] else "—"), note
 
 
 def ago(minutes):
@@ -774,8 +798,7 @@ def welcome(summaries, theme, mark, live_text, healthy, when, base):
     h.append('<div class="ec-sub">%s</div><div class="ec-camps">'
              % " · ".join(bits))
     for s in summaries:
-        last = (clock(s["last_out_yday"]) if s["last_out_yday"] is not None
-                else "stayed overnight" if s["overnight"] else "—")
+        last, last_note = last_out_text(s)
         h.append('<div class="ec-campwrap">')
         h.append(
             '<a target="_self" class="ec-card ec-camp" href="%s"><div class="head"><span '
@@ -790,7 +813,7 @@ def welcome(summaries, theme, mark, live_text, healthy, when, base):
             '<div class="ec-stat"><div class="k">Busiest today</div><div '
             'class="v">%s</div><div class="s">%s</div></div>'
             '<div class="ec-stat"><div class="k">Last out yesterday</div><div '
-            'class="v">%s</div><div class="s">last room emptied</div></div>'
+            'class="v">%s</div><div class="s">%s</div></div>'
             '<div class="ec-stat"><div class="k">Rooms in use</div><div '
             'class="v">%d<small> / %d</small></div>%s</div></div>'
             '<div class="ec-foot">%s<span class="sp"></span><span>%s at stake '
@@ -802,7 +825,7 @@ def welcome(summaries, theme, mark, live_text, healthy, when, base):
                clock(s["first_in"]), esc(s["first_who"] or "nobody yet"),
                s["peak"] or "—",
                ("at " + clock(s["peak_at"])) if s["peak_at"] is not None
-               else "nobody yet", last,
+               else "nobody yet", last, esc(last_note),
                s["rooms_busy"], s["rooms_total"],
                meter(s["rooms_busy"], s["rooms_total"]),
                ('<span class="ec-flag">%s%d room%s worth a walk</span>'
@@ -1024,8 +1047,7 @@ def campus_body(summary, theme, base, tariff=(18.5, 22.5)):
     s = summary
     now = now_slot(s)
     band = (int(round(tariff[0] * 4)), int(round(tariff[1] * 4)))
-    last = (clock(s["last_out_yday"]) if s["last_out_yday"] is not None
-            else "stayed overnight" if s["overnight"] else "—")
+    last, last_note = last_out_text(s, "when the last working room emptied")
     quiet = len(s["silent"])
     h = [css(theme), '<div class="ec">']
     h.append(
@@ -1038,8 +1060,7 @@ def campus_body(summary, theme, base, tariff=(18.5, 22.5)):
         '<div class="ec-card ec-kpi"><div class="k">Busiest so far</div>'
         '<div class="v">%s</div><div class="s">%s</div></div>'
         '<div class="ec-card ec-kpi"><div class="k">Last out yesterday</div>'
-        '<div class="v">%s</div><div class="s">when the last working room '
-        'emptied</div></div>'
+        '<div class="v">%s</div><div class="s">%s</div></div>'
         '<div class="ec-card ec-kpi"><div class="k">At stake today</div>'
         '<div class="v">%s</div><div class="s">%s</div></div></div></div>'
         % ("now" if s["live"] else "when last seen",
@@ -1054,7 +1075,7 @@ def campus_body(summary, theme, base, tariff=(18.5, 22.5)):
            if s["first_who"] else "nobody has started a day yet",
            ("%d people" % s["peak"]) if s["peak"] else "—",
            ("at " + clock(s["peak_at"])) if s["peak_at"] is not None else "",
-           last, rupees(s["stake"]),
+           last, esc(last_note), rupees(s["stake"]),
            esc(s["stake_note"] or "upper bound · empty rooms with a unit")))
 
     h.append('<div class="ec-h"><span class="t">People through the day</span>'

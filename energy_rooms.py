@@ -114,8 +114,12 @@ class _Sum:
         self.peak_kwh = self.peak_rs = self.peak_waste_rs = 0.0
 
     def add(self, x, y, kw, status, rates, window, measured=False):
-        m = (y - x).total_seconds() / 60.0
-        money = _price(x, y, kw, rates, window)
+        # On Karachi-clock seconds, not Timestamps: this runs thousands of
+        # times a day of rooms (18 Nov: the same figures, twice as fast).
+        sx, sy = av.local_seconds(x), av.local_seconds(y)
+        m = (sy - sx) / 60.0
+        off, peak = av.split_seconds(sx, sy, window)
+        money = kw * (off / 60.0 * rates[0] + peak / 60.0 * rates[1])
         self.kwh += m / 60.0 * kw
         self.rs += money
         if measured:
@@ -123,22 +127,20 @@ class _Sum:
         if status == "empty":
             self.waste_kwh += m / 60.0 * kw
             self.waste_rs += money
-        _, peak = av.split_peak(x, y, window)
         if peak:
             self.peak_kwh += peak / 60.0 * kw
             self.peak_rs += peak / 60.0 * kw * rates[1]
             if status == "empty":
                 self.peak_waste_rs += peak / 60.0 * kw * rates[1]
-        a = pd.Timestamp(x)
-        b = pd.Timestamp(y)
-        while a < b:
-            local = a.tz_convert(LOCAL_TZ) if a.tzinfo else a
-            nxt = min(b, a + (local.floor("h") + pd.Timedelta(hours=1)
-                              - local))
-            piece = _price(a, nxt, kw, rates, window)
-            self.hours[local.hour][0] += piece
+        a = sx
+        while a < sy:
+            nxt = min(sy, (a // 3600.0 + 1) * 3600.0)
+            o, p = av.split_seconds(a, nxt, window)
+            piece = kw * (o / 60.0 * rates[0] + p / 60.0 * rates[1])
+            hour = int((a % av.DAY_SECONDS) // 3600)
+            self.hours[hour][0] += piece
             if status == "empty":
-                self.hours[local.hour][1] += piece
+                self.hours[hour][1] += piece
             a = nxt
         return m
 

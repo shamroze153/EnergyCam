@@ -171,6 +171,24 @@ it here. Shamroze reads the morning summary in Roman Urdu.
 - [ ] 140-H rooms on the sheet with no camera room yet: R4, R11, R12,
       R14, R15, 19A/19B (asked Shamroze).
 
+Dashboard, best it can be (Shamroze, 18 Nov evening: "UI/UX behtar, fast,
+order, jo missing hai poora karo"). One at a time, each checked in the
+browser on a phone and in dark before it is pushed:
+- [x] 18:30 Last out yesterday said "8:00 evening" where the cameras went
+      dark (laptop asleep 19:56): now "not known · cameras off from ...".
+- [x] 18:30 The ledger 6x faster (same figures to the paisa, 114 room-days
+      compared); finished days kept on disk: Savings tab 30 s -> 2 s.
+- [ ] The meter readings form (Energy tab): easier and nicer -- both
+      meters side by side with the last reading, the units since then shown
+      live as you type, a warning for a number lower than the last or an
+      odd jump, solar and today's high optional, one big Save.
+- [ ] Front page: a "Savings & peak" door beside AC timings and Desks,
+      carrying this week's "could have been saved".
+- [ ] Energy tab order: what somebody acts on first (today vs yesterday,
+      the month's bill), the long tables after; check its load time now.
+- [ ] Every tab once on a phone and in dark: nothing wider than the
+      screen, no text in the series colour, numbers right-aligned.
+
 Rules that hold all night: the 141 gym's camera is never opened 15:00-20:00;
 no picture into git; no recorder settings; no retried logins (XVR 2 and 4
 are IP conflicts, the DVR is on another network -- leave them).

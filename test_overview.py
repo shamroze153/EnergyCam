@@ -147,6 +147,28 @@ def main():
     check("the walk list is the rooms the grader flagged",
           [e["name"] for e in s["walk"]] == ["SW Room 0"])
 
+    # ---- the cameras went dark before the rooms did (17 Nov) ---------------
+    def every5(a, b):
+        out, t = [], a
+        while t < b:
+            out.append(t)
+            t += pd.Timedelta(minutes=5)
+        return out
+    whole = every5(at(0, 0, -1), NOW)
+    w = ov.campus_summary("Test", rooms(), events(), whole, NOW)
+    check("watched all evening: the last-out stands",
+          (w["last_out_yday"], w["watch_ended"]), (at(21, 40, -1), None))
+    dark = every5(at(0, 0, -1), at(21, 35, -1)) + every5(at(9), NOW)
+    d = ov.campus_summary("Test", rooms(), events(), dark, NOW)
+    check("the laptop slept at 21:35: last out is not known",
+          (d["last_out_yday"], d["watch_ended"] is not None), (None, True))
+    check("and the page says when the cameras went off",
+          ov.last_out_text(d)[0] == "not known"
+          and ov.last_out_text(d)[1].startswith("cameras off from"),
+          ov.last_out_text(d))
+    check("an ordinary evening still reads as a time",
+          ov.last_out_text(w)[1], "last room emptied")
+
     # ---- the night that did not end ----------------------------------------
     late = events()
     late = pd.concat([late, pd.DataFrame([
