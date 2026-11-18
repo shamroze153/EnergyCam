@@ -53,24 +53,53 @@ def week_id(now):
     return "%d-W%02d" % (y, w)
 
 
-def last_sent(path=None):
+# Tries a week before giving up until the next: a login Gmail refuses,
+# repeated every few hours, is how an account gets flagged (18 Nov: this
+# laptop's Kaspersky sits inside the mail connection and it drops at login).
+MAX_TRIES = 2
+
+
+def _state(path=None):
     try:
         with open(path or os.path.join(here(), STATE), encoding="utf-8") as f:
-            return json.load(f).get("week")
+            return json.load(f)
     except (OSError, ValueError):
-        return None
+        return {}
+
+
+def _save(state, path=None):
+    with open(path or os.path.join(here(), STATE), "w",
+              encoding="utf-8") as f:
+        json.dump(state, f)
+
+
+def last_sent(path=None):
+    s = _state(path)
+    return s.get("week") if s.get("sent") else None
+
+
+def failures(week, path=None):
+    s = _state(path)
+    return int(s.get("failed", 0)) if s.get("failed_week") == week else 0
 
 
 def mark_sent(now, path=None):
-    with open(path or os.path.join(here(), STATE), "w",
-              encoding="utf-8") as f:
-        json.dump({"week": week_id(now), "sent": now.isoformat()}, f)
+    s = _state(path)
+    s.update(week=week_id(now), sent=now.isoformat())
+    _save(s, path)
 
 
-def due(now, sent=None, to=None):
+def mark_failed(now, path=None):
+    s, week = _state(path), week_id(now)
+    s["failed"] = failures(week, path) + 1
+    s["failed_week"] = week
+    _save(s, path)
+
+
+def due(now, sent=None, to=None, tries=None):
     """The week to send for, if this week's report has not gone yet and it
     is Monday nine o'clock or later; else None. A laptop off on Monday sends
-    it when it is next on, that week."""
+    it when it is next on, that week -- but not after MAX_TRIES failures."""
     to = recipients() if to is None else to
     if not to:
         return None
@@ -81,7 +110,8 @@ def due(now, sent=None, to=None):
         return None
     week = week_id(local)
     sent = last_sent() if sent is None else sent
-    return None if sent == week else week
+    tries = failures(week) if tries is None else tries
+    return None if sent == week or tries >= MAX_TRIES else week
 
 
 # ===================================================================== data
@@ -512,7 +542,8 @@ def main(argv=None):
     if args.due and not due(now):
         print("weekly report: not due (%s)" % (
             "no REPORT_TO in .env" if not recipients() else
-            "already sent for %s, or before Monday 9:00" % week_id(now)))
+            "already sent for %s, tried %d times, or before Monday 9:00"
+            % (week_id(now), MAX_TRIES)))
         return 0
     if not (args.preview or args.send or args.due):
         parser.print_help()
@@ -531,8 +562,11 @@ def main(argv=None):
         try:
             deliver(subject, html_, text, to)
         except Exception as e:                              # noqa: BLE001
-            # Never the password: the error's kind and the server's words.
-            print("weekly report: could not send (%s)" % type(e).__name__)
+            # Never the password: only the kind of error.
+            mark_failed(now)
+            print("weekly report: could not send (%s); %d of %d tries this "
+                  "week" % (type(e).__name__, failures(week_id(now)),
+                            MAX_TRIES))
             return 1
         mark_sent(now)
         print("weekly report sent to %d address(es): %s" % (len(to), subject))

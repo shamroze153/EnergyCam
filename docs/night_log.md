@@ -862,7 +862,7 @@ Two or three lines a round; picture file names, never pictures.
   0 GHOST, 0 MISSED, no disagreement pictures. Nothing changed; no restart.
 
 
-## 18 Nov, 15:30 -- savings scoreboard, peak hours, weekly mail
+## 18 Nov, 14:45 -- savings scoreboard, peak hours, weekly mail
 
 * New tab "Savings & peak": the scoreboard (140-H meters 368 units a day
   against 615 on the Oct bill and 574 in Nov 2025 -- weather and solar
@@ -876,3 +876,10 @@ Two or three lines a round; picture file names, never pictures.
   and ledger reading, shared with the mail.
 * For Shamroze: Room 18 shows 1-2 people off and on every night 12-5 am (all
   7 nights). Somebody sleeping there, or a chair? Its AC is in no camera.
+* The first mail did not go: Gmail drops the connection at login, on 465
+  and 587 alike. This laptop's Kaspersky Endpoint Security sits inside the
+  connection (the certificate smtp.gmail.com shows is Kaspersky's). Not
+  changed from here -- an antivirus setting is for Shamroze or IT: exclude
+  python.exe from mail / encrypted-connection scanning, or a fresh app
+  password for SENDER_EMAIL. Tries are capped at two a week so a refused
+  login is not repeated every three hours. Loop restarted 14:43.

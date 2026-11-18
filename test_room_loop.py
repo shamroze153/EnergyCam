@@ -1235,9 +1235,10 @@ def main():
     # and tried again three hours later if it still has not gone.
     import os
     import weekly_report as wr
-    saved = (os.environ.get("REPORT_TO"), wr.last_sent)
+    saved = (os.environ.get("REPORT_TO"), wr.last_sent, wr.failures)
     os.environ["REPORT_TO"] = "someone"
     wr.last_sent = lambda path=None: None
+    wr.failures = lambda week, path=None: 0
     try:
         runs, box, clock = [], [None, 0.0], [1000.0]
         monday = datetime.datetime(2026, 11, 23, 9, 30, tzinfo=PKT)
@@ -1257,7 +1258,7 @@ def main():
             os.environ.pop("REPORT_TO", None)
         else:
             os.environ["REPORT_TO"] = saved[0]
-        wr.last_sent = saved[1]
+        wr.last_sent, wr.failures = saved[1], saved[2]
 
     print()
     if FAILURES:

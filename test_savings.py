@@ -169,17 +169,31 @@ def main():
 
     # ---- the weekly mail ------------------------------------------------
     mon = datetime(2026, 11, 23, 9, 5, tzinfo=PKT)
-    check("due on Monday after nine", wr.due(mon, sent=None, to=["x"]),
-          "2026-W48")
+    check("due on Monday after nine",
+          wr.due(mon, sent=None, to=["x"], tries=0), "2026-W48")
     check("not before nine", wr.due(mon.replace(hour=8), sent=None,
-                                    to=["x"]), None)
-    check("nor once sent that week", wr.due(mon, sent="2026-W48", to=["x"]),
-          None)
+                                    to=["x"], tries=0), None)
+    check("nor once sent that week",
+          wr.due(mon, sent="2026-W48", to=["x"], tries=0), None)
     check("a laptop off on Monday sends it on Wednesday",
-          wr.due(mon + timedelta(days=2), sent="2026-W47", to=["x"]),
-          "2026-W48")
-    check("nobody to send to, nothing due", wr.due(mon, sent=None, to=[]),
-          None)
+          wr.due(mon + timedelta(days=2), sent="2026-W47", to=["x"],
+                 tries=0), "2026-W48")
+    check("nobody to send to, nothing due",
+          wr.due(mon, sent=None, to=[], tries=0), None)
+    check("two failed tries in a week, and no more that week",
+          (wr.due(mon, sent=None, to=["x"], tries=1),
+           wr.due(mon, sent=None, to=["x"], tries=2)), ("2026-W48", None))
+    import os
+    import tempfile
+    path = os.path.join(tempfile.mkdtemp(), "state.json")
+    wr.mark_failed(mon, path)
+    wr.mark_failed(mon, path)
+    check("failures are counted per week",
+          (wr.failures("2026-W48", path), wr.failures("2026-W49", path)),
+          (2, 0))
+    wr.mark_sent(mon, path)
+    check("and a send is remembered beside them",
+          wr.last_sent(path), "2026-W48")
     meters = pd.DataFrame([{"code": "a", "label": "First"},
                            {"code": "b", "label": "Ground"}])
     est.update({"from": pd.Timestamp("2026-11-10 12:00", tz="UTC"),
