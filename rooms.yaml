@@ -1332,6 +1332,13 @@ rooms:
     zone: Basement
     recorder: nvr4
     channels: [22]
+    # 19 Nov 04:34 (night check): the plant in the bottom-left corner read
+    # as a person at 0.34, nine times in the night with the room empty --
+    # leaves the AC moves are never still, so drop_still cannot let it go.
+    # Nobody sits in that corner; a person standing there is bigger than it.
+    ignore:
+      22:
+        - [0, 850, 175, 1080]   # the plant, bottom-left corner
     ac: hidden
     ac_tons: [2]   # survey 12 Nov: the basement's 2 ton unit, Shamroze 12 Nov
     empty_after_minutes: 30

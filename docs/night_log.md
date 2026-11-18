@@ -942,3 +942,12 @@ Two or three lines a round; picture file names, never pictures.
   "Good night". Nothing else found.
 * 03:20 The 2-hour audit job had expired (session jobs last seven days):
   no round after 23:58. Set again, every two hours at :17 (first 04:25).
+
+## 19 Nov, 04:25 round (field_audit_20261119_0425)
+
+* 86 of 86 cameras; 10 rooms re-checked; 0 MISSED, 1 GHOST: H Street
+  (outside, parked cars; not counted indoors).
+* Night pictures: 141 Room 28's black chairs at 0.52-0.71 (seats: no zone,
+  drop_still); Basement Meeting Room -- the plant in the bottom-left corner
+  at 0.34, nine times tonight with the room empty: an ignore box on ch22
+  (rooms.yaml), the plant only; nobody sits there. Loop restarted.
