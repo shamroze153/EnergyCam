@@ -937,3 +937,6 @@ Two or three lines a round; picture file names, never pictures.
   days six hours and reads only today each minute (it was a month, 79,000
   rows, again every minute; the split gives the same 70,156 rows in the
   same order). Warm: Where to start 12 -> 4 s, AC room by room 2 s.
+* 01:55 Mobile + dark check of the front page: fits; it said "Good
+  afternoon" at 1:50 in the night (midnight-5 fell into afternoon) -- now
+  "Good night". Nothing else found.

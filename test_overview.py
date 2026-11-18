@@ -147,6 +147,14 @@ def main():
     check("the walk list is the rooms the grader flagged",
           [e["name"] for e in s["walk"]] == ["SW Room 0"])
 
+    # ---- the greeting by the Karachi clock (19 Nov: "Good afternoon" at
+    # 1:50 in the night) --------------------------------------------------
+    said = [ov.greeting(pd.Timestamp("2026-11-19 %02d:30" % h, tz=ov.LOCAL))
+            for h in (1, 4, 6, 13, 18, 22)]
+    check("night, morning, afternoon, evening, night by the clock",
+          said == ["Good night", "Good night", "Good morning",
+                   "Good afternoon", "Good evening", "Good night"], said)
+
     # ---- the cameras went dark before the rooms did (17 Nov) ---------------
     def every5(a, b):
         out, t = [], a

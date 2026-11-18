@@ -768,8 +768,9 @@ def topbar(mark, live_text, healthy, when, base, theme, extra=""):
 
 def greeting(now):
     h = now.tz_convert(LOCAL).hour
-    return ("Good morning" if 5 <= h < 12 else "Good afternoon" if h < 17
-            else "Good evening" if h < 21 else "Good night")
+    # Midnight to five is night: it said "Good afternoon" at 1:50 (19 Nov).
+    return ("Good morning" if 5 <= h < 12 else "Good afternoon" if 12 <= h < 17
+            else "Good evening" if 17 <= h < 21 else "Good night")
 
 
 def welcome(summaries, theme, mark, live_text, healthy, when, base):
