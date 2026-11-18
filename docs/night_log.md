@@ -907,3 +907,15 @@ Two or three lines a round; picture file names, never pictures.
   meter's usual day; when it was read can be set and follows the clock
   until somebody sets it; solar and the high folded away; one Save. Checked
   in light, dark and at phone width; nothing saved while testing.
+
+## 18 Nov, 23:58 round (field_audit_20261118_2358)
+
+* 86 of 86 cameras; 18 rooms re-checked; 0 MISSED, 3 GHOST: Marketing (the
+  loop held 1 person 23:23-00:14, then let it go -- drop_still), Pantry
+  (23:48-00:10, gone by itself) and H Basement Parking (no unit; ch10's left
+  edge cuts somebody standing outside the frame). Nothing to zone.
+* Night pictures: Board Room 3, 141 Room 7 2, 141 Admin Room 6-7 packing,
+  Wellows 1, 141 First Aid a guard -- all real people at midnight.
+  For Shamroze: 141 Reception Meeting Room, dark and empty, chairs at
+  0.40 (frames/141_Reception_Meeting_Room_cd_nvr2_ch09_boxes.jpg); seats,
+  so no zone -- drop_still lets it go after 40 min. Nothing changed.
