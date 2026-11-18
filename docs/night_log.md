@@ -883,3 +883,13 @@ Two or three lines a round; picture file names, never pictures.
   python.exe from mail / encrypted-connection scanning, or a fresh app
   password for SENDER_EMAIL. Tries are capped at two a week so a refused
   login is not repeated every three hours. Loop restarted 14:43.
+
+## 18 Nov, 14:49 round
+
+* field_audit: 86 of 86 cameras; 22 rooms re-checked in round 2; 0 MISSED,
+  1 GHOST -- Admin Room (page 1 person, nobody in frame), still a GHOST on
+  three rounds alone. Not an object: check_room at 0.15 found nothing (the
+  CCTV monitors on its wall included), and the loop wrote the room empty at
+  15:01 -- it had seen somebody at 14:48 and needs two empty passes to say
+  so. Nothing changed; no restart. Savings & peak tab checked on a phone in
+  dark: nothing wider than the screen.
