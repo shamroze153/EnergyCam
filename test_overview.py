@@ -256,6 +256,36 @@ def main():
     check("and dark, the default, drops out of the address",
           ov.link({"campus": "141-C/D", "theme": "light"}, theme=None)
           == "?campus=141-C%2FD")
+    # 19 Nov: from Savings on 140-H, the 141-C/D pill (and Light/Dark)
+    # landed on 141's Overview -- the tab open is carried across now.
+    head = ov.campus_head({"name": "140-H"}, ["140-H", "141-C/D"], "light",
+                          "M", "Live", True, "now",
+                          {"campus": "140-H", "theme": "light"},
+                          {"view": "Savings & peak"})
+    hrefs = re.findall(r'href="([^"]*)"', head)
+    check("a switch of campus keeps the tab open",
+          "?campus=141-C%2FD&theme=light&view=Savings+%26+peak" in hrefs,
+          hrefs)
+    check("and so does Light/Dark",
+          "?campus=140-H&theme=dark&view=Savings+%26+peak" in hrefs, hrefs)
+    # Light is the default (17 Nov): "Dark" must say dark, and "Light" may
+    # drop the theme. It sent theme=None and the page stayed light.
+    dark = ov.campus_head({"name": "140-H"}, ["140-H"], "dark", "M", "Live",
+                          True, "now", {"campus": "140-H", "theme": "dark"})
+    check("the Dark button opens the dark page",
+          'href="?campus=140-H&theme=dark">Dark<' in head.replace(
+              "&view=Savings+%26+peak", ""), hrefs)
+    check("and the Light button the light one",
+          'href="?campus=140-H">Light<' in dark)
+    check("All campuses goes to the front page, not a tab",
+          "?theme=light&view=Savings+%26+peak" not in hrefs
+          and any(h.startswith("?theme=light") for h in hrefs), hrefs)
+    plain = ov.campus_head({"name": "140-H"}, ["140-H", "141-C/D"], "light",
+                           "M", "Live", True, "now",
+                           {"campus": "140-H", "theme": "light"})
+    check("with no tab to keep, the links are as before",
+          "?campus=141-C%2FD&theme=light"
+          in re.findall(r'href="([^"]*)"', plain))
 
     print()
     if FAILURES:

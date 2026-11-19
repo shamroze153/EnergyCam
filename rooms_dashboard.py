@@ -500,7 +500,9 @@ def guard():
 
     _BOOT.empty()                     # the curtain must not hide the door
     st.markdown("### EnergyCam")
-    st.caption("140-H · Disrupt")
+    # Both campuses' door (19 Nov: "whatever I open says 140-H" -- this
+    # was the first thing every phone saw, whichever campus it opened).
+    st.caption("Disrupt · 140-H and 141-C/D")
     typed = st.text_input("Password", type="password",
                           label_visibility="collapsed",
                           placeholder="password")
@@ -3353,7 +3355,7 @@ def savings_button(mode, campuses):
     except Exception:                                       # noqa: BLE001
         pass                     # the door still opens; it just says less
     href = overview.link(dict(LINK_BASE, campus=campuses[0]),
-                         view="Savings & peak")
+                         view="Savings & peak", scope="both")
     return ('<div class="ec"><a target="_self" class="ec-acbtn" href="%s" '
             'style="margin-top:10px;border-color:#2a9d63;background:linear-'
             'gradient(90deg,rgba(42,157,99,.12),rgba(229,72,77,.07))">'
@@ -3518,9 +3520,24 @@ def show_savings(now):
     mode = LINK_BASE.get("theme") or "dark"
     names = ["Both campuses"] + sorted(set(load_rooms_config()["campus"])
                                        - {"unknown"})
+    # The campus the page is on, as every other tab (19 Nov, Shamroze: on
+    # 141-C/D this tab opened on both campuses, 140-H's meters and rooms
+    # first -- "whatever I open says 140-H"). Both campuses only from the
+    # front page's door (?scope=both), or when picked here.
+    here = LINK_BASE.get("campus")
+    if st.query_params.get("scope") == "both":
+        st.session_state["savings_campus"] = names[0]
+        try:
+            del st.query_params["scope"]
+        except Exception:                                   # noqa: BLE001
+            pass
+    elif st.session_state.get("savings_for") != here:
+        # A campus switched in the bar above brings this tab with it.
+        st.session_state["savings_campus"] = here if here in names \
+            else names[0]
+    st.session_state["savings_for"] = here
     if hasattr(st, "segmented_control"):
-        pick = st.segmented_control("Campus", names, default=names[0],
-                                    key="savings_campus",
+        pick = st.segmented_control("Campus", names, key="savings_campus",
                                     label_visibility="collapsed")
         pick = pick if pick in names else names[0]
     else:
@@ -3562,13 +3579,18 @@ def show_energy(df, recent, now):
     AC room by room, and where to start.
     """
     parts = ["Meters & bill", "AC room by room", "Where to start"]
+    # A campus with no meter recorded (141-C/D, 19 Nov) opened on a single
+    # line about 140-H's meters: it opens on its own rooms instead.
+    has_meters = "meter" in df.columns and bool(df["meter"].notna().any())
+    first = parts[0] if has_meters else parts[1]
     if hasattr(st, "segmented_control"):
-        pick = st.segmented_control("Part", parts, default=parts[0],
+        pick = st.segmented_control("Part", parts, default=first,
                                     key="energy_part",
                                     label_visibility="collapsed")
-        pick = pick if pick in parts else parts[0]
+        pick = pick if pick in parts else first
     else:
-        pick = st.radio("Part", parts, horizontal=True, key="energy_part",
+        pick = st.radio("Part", parts, index=parts.index(first),
+                        horizontal=True, key="energy_part",
                         label_visibility="collapsed")
     if pick == parts[0]:
         show_meters(df, recent, now)
@@ -4938,9 +4960,17 @@ if campus is None:
     st.stop()
 
 df = everything[everything["campus"] == campus].copy()
+# A switch of campus keeps the tab that is open; One room is a room of this
+# campus, so the other campus opens on its Overview.
+# On the load a link opened, the tab is still in the address (?view=,
+# taken below), not yet in the session.
+_open_view = st.query_params.get("view") or st.session_state.get("view")
+KEEP_VIEW = ({"view": _open_view}
+             if _open_view and _open_view not in ("Overview", "One room")
+             else {})
 st.markdown(overview.campus_head({"name": campus}, campuses, mode,
                                  wordmark(mode), live_text, healthy, when,
-                                 LINK_BASE), unsafe_allow_html=True)
+                                 LINK_BASE, KEEP_VIEW), unsafe_allow_html=True)
 
 # ---- the views -------------------------------------------------------------
 #
@@ -5024,7 +5054,7 @@ with st.sidebar:
     st.markdown("".join(
         '<a href="%s" target="_self" style="display:block;padding:8px 10px;'
         'border-radius:8px;text-decoration:none;font-weight:%s;%s">%s</a>'
-        % (overview.link(dict(LINK_BASE, campus=name)),
+        % (overview.link(dict(LINK_BASE, campus=name), **KEEP_VIEW),
            700 if name == campus else 500,
            "background:rgba(229,56,59,0.10)" if name == campus else "",
            html.escape(name)) for name in campuses),

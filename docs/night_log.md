@@ -1012,3 +1012,9 @@ Two or three lines a round; picture file names, never pictures.
   partly, 1 in no camera. Ground floor 23 units: 6 readable, about 4 partly,
   12-13 in no camera. AutoOS set ac: visible (a split on ch 10). Loop
   restarted.
+* 12:15 Dashboard, "whatever I open says 140-H" (Shamroze): the password
+  page said "140-H · Disrupt" on every phone -- now both campuses; Savings
+  opened on both campuses, 140-H first -- now on the campus open; a switch
+  of campus, or Light/Dark, landed on Overview -- now keeps the tab;
+  "Dark" did nothing since light became the default -- fixed; 141's Energy
+  opened on a line about 140-H's meters -- now on its own rooms. Tests green.

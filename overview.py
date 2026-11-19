@@ -756,13 +756,16 @@ margin-right:4px;vertical-align:middle}
 
 def topbar(mark, live_text, healthy, when, base, theme, extra=""):
     other = "light" if theme == "dark" else "dark"
+    # Light is the default since 17 Nov, so it is light that drops out of
+    # the address: "Dark" sent theme=None, the default, and the page stayed
+    # light (found 19 Nov).
     return ('<div class="ec-top"><div class="ec-brand"><span class="mark">%s'
             '</span><span class="prod">ENERGYCAM</span></div>%s'
             '<span class="sp"></span><span class="ec-live%s"><span class="d">'
             '</span>%s</span><span class="ec-when">%s</span>'
             '<a target="_self" class="ec-theme" href="%s">%s</a></div>'
             % (mark, extra, "" if healthy else " off", esc(live_text),
-               esc(when), link(base, theme=None if other == "dark" else other),
+               esc(when), link(base, theme=None if other == "light" else other),
                "Light" if other == "light" else "Dark"))
 
 
@@ -953,14 +956,21 @@ background:#e8a21a}
 </style>""".replace("\n", "")
 
 
-def campus_head(summary, names, theme, mark, live_text, healthy, when, base):
-    """The bar above every view of one campus: back, switch, live."""
+def campus_head(summary, names, theme, mark, live_text, healthy, when, base,
+                keep=None):
+    """The bar above every view of one campus: back, switch, live.
+
+    `keep` is what a switch of campus or of theme carries across -- the tab
+    open (19 Nov: switching to 141-C/D from Savings landed on its Overview,
+    and Light/Dark did the same)."""
+    keep = keep or {}
     switch = "".join('<a target="_self" class="%s" href="%s">%s</a>'
                      % ("on" if n == summary["name"] else "",
-                        link(base, campus=n), esc(n)) for n in names)
+                        link(base, campus=n, **keep), esc(n))
+                     for n in names)
     return "".join([
         css(theme), '<div class="ec">',
-        topbar(mark, live_text, healthy, when, base, theme),
+        topbar(mark, live_text, healthy, when, dict(base, **keep), theme),
         '<div class="ec-title"><a target="_self" class="ec-back" href="%s">← All '
         'campuses</a><div class="ec-switch">%s</div></div></div>'
         % (link(base, campus=None), switch)])
