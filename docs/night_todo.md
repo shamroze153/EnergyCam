@@ -227,7 +227,7 @@ browser on a phone and in dark before it is pushed:
 - [x] 01:20 Every tab once on a phone and in dark: nothing wider than the
       screen, no text in the series colour, numbers right-aligned.
 
-## Added 19 Nov 13:00 (Shamroze: "calibrate it yourself from the data")
+## Added 19 Nov 12:55 (Shamroze: "calibrate it yourself from the data")
 
 - [ ] After this evening's switch-off, from frames/ac_keep -- only frames
       from 19 Nov 09:54 on count for the cameras moved this morning:

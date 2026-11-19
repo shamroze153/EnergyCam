@@ -1025,7 +1025,7 @@ Two or three lines a round; picture file names, never pictures.
   ch3 and the Kenwood, all 5 Marketing units in camera. Ground floor now
   11 of 23 in camera (10 readable), 11 in none, HR unsure. xvr3 ch4
   (140-H Lobby Area) black. docs/ac_camera_audit.md rewritten.
-* 13:05 Round: field_audit 12:31 -- MISSED 0, GHOST 0, 95 match, doctor
+* 12:55 Round: field_audit 12:31 -- MISSED 0, GHOST 0, 95 match, doctor
   ok, no disagreement pictures; nothing to fix. Calibrated from
   frames/ac_keep, nobody switching (Shamroze: "calibrate it yourself from
   the data"): 140-H Reception's split (nvr1 ch11, louvre, dark_max 0.46)
@@ -1034,4 +1034,6 @@ Two or three lines a round; picture file names, never pictures.
   period; the split misses its narrowest swing (17 Nov 09:45-14:00) on
   purpose. Marketing, Wellows ch16, AutoOS, Basement and DL were moved or
   marked this morning: their frames start today, calibrate after this
-  evening's switch-off (night_todo). Loop restarted.
+  evening's switch-off (night_todo). Loop restarted 12:57; its first pass
+  (13:01) wrote Reception on, 1 unit running -- by eye the split's louvre
+  open, the tower shut.

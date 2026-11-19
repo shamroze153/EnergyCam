@@ -72,7 +72,7 @@ IT Head, Board, Cyber, Old Finance, UPS. (First pass: 6 readable, about
 
 ## Next
 
-* Calibrated from the data (19 Nov 13:00, nobody switching): Reception's
+* Calibrated from the data (19 Nov 12:55, nobody switching): Reception's
   split and tower, from the frames kept 17-19 Nov. The cameras the team
   moved this morning -- Marketing ch3 and ch13, Wellows ch16 (09:40-09:54),
   AutoOS, Basement and DL (marked visible 10:53-11:45) -- have frames from
