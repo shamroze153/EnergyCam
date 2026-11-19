@@ -165,11 +165,18 @@ def calibrated_counts(path="ac_units.yaml"):
         return {}
     import yaml
     data = (yaml.safe_load(open(path, encoding="utf-8")) or {}).get("rooms", {})
+
+    # A unit set `unread: true` is in the file but never read (19 Nov: the
+    # Prompt Cafe Kenwood on ch 20). Counted as read, the page showed it
+    # "off" -- a guess -- whenever the cafe's other two were not running.
+    def read(units):
+        return sum(1 for u in units or [] if not u.get("unread"))
+
     # Every camera's units: the cafe's sixth tower is read on ch 2 (an
     # `also:` block). Counted here, not through ac_detect: that brings in
     # OpenCV, which the hosted dashboard does not have.
-    return {name: len(cfg.get("units") or [])
-            + sum(len(b.get("units") or []) for b in cfg.get("also") or [])
+    return {name: read(cfg.get("units"))
+            + sum(read(b.get("units")) for b in cfg.get("also") or [])
             for name, cfg in (data or {}).items()}
 
 

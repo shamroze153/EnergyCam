@@ -217,10 +217,26 @@ def campus_summary(name, rooms, history, beats, now, stake=0.0,
         day = ds.combine([m["day"] for m in members])
         story = ds.story(day, today)
         busy = sum(1 for m in members if m["status"] == "occupied")
+        starts, night = story["starts"], None
+        # The front page's rule for the department's own day too: a stay
+        # that starts before DAY_OPENS_AT is the night, not the day starting
+        # (19 Nov: Disrupt Labs "In 1:06 night" -- one person seen for ten
+        # minutes at a time, every twenty, until half past four: the rounds,
+        # merged into one stay). Its day is its first stay from then on; the
+        # night visits are still said, apart.
+        if starts is not None and not story["carried"] and \
+                pd.Timestamp(starts).tz_convert(LOCAL).hour < DAY_OPENS_AT:
+            night = starts
+            found = ds.visits(day)
+            brief, _ = ds.kinds(found)
+            later = [v for v in found if v not in brief and
+                     pd.Timestamp(v[0]).tz_convert(LOCAL).hour >= DAY_OPENS_AT]
+            starts = later[0][0] if later else None
         depts.append({
             "name": dept, "rooms": len(members), "busy": busy,
             "people": sum(m["people"] for m in members),
-            "starts": story["starts"], "first_in": story["first_in"],
+            "starts": starts, "first_in": story["first_in"],
+            "night": night,
             "carried": story["carried"],
             "last_out": None if busy else story["last_out"],
             "still_in": bool(busy),
@@ -1017,6 +1033,8 @@ def _dept_card(d, t, now):
         came = 'In <b>since last night</b>'
     elif d["starts"] is not None:
         came = "In <b>%s</b>" % clock(d["starts"])
+    elif d.get("night") is not None:
+        came = "Night visits only, from <b>%s</b>" % clock(d["night"])
     elif d["first_in"] is not None:
         came = "Brief visits only, first <b>%s</b>" % clock(d["first_in"])
     else:
@@ -1029,6 +1047,8 @@ def _dept_card(d, t, now):
         went = ""
     quiet = "" if d["people"] or d["first_in"] is not None else " quiet"
     foot = []
+    if d.get("night") is not None and d["starts"] is not None:
+        foot.append("night visits from %s" % clock(d["night"]))
     if d["peak"]:
         foot.append("busiest %d at %s" % (d["peak"], clock(d["peak_at"])))
     if d["walk"]:

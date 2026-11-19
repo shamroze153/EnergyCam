@@ -81,6 +81,33 @@ def main():
     check("a campus nobody calibrated says so",
           "No unit on this campus can be read" in empty, True)
 
+    # 19 Nov: Prompt Cafe's ch 20 Kenwood is `unread: true`. Counted as read,
+    # the panel said "1 off" for a unit nobody reads -- a guess.
+    import os
+    import tempfile
+    import campus_view
+    with tempfile.TemporaryDirectory() as tmp:
+        path = os.path.join(tmp, "ac_units.yaml")
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write("rooms:\n"
+                     "  Cafe:\n"
+                     "    units:\n"
+                     "      - {label: one, led_roi: [1, 1, 5, 5]}\n"
+                     "      - {label: two, led_roi: [9, 9, 15, 15]}\n"
+                     "    also:\n"
+                     "      - units:\n"
+                     "          - {label: three, led_roi: [1, 1, 5, 5],"
+                     " unread: true}\n"
+                     "          - {label: four, led_roi: [9, 9, 15, 15]}\n")
+        counts = campus_view.calibrated_counts(path)
+    check("a unit set unread is not counted as read", counts.get("Cafe"), 3)
+    cafe5 = live_ac.rows(pd.DataFrame([room("Cafe", ac_count=5,
+                                            ac_state="on", ac_units_on=2)]),
+                         {"Cafe": 2})[0]
+    check("  so the cafe's third is not readable, never off",
+          live_ac.status_text(cafe5)[0],
+          "<b>2 running</b> &middot; 3 not readable")
+
     print("\n%s" % ("all checks passed" if not FAILURES
                     else "%d FAILED" % len(FAILURES)))
     return 1 if FAILURES else 0
