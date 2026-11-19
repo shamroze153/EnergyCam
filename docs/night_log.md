@@ -1162,7 +1162,7 @@ Two or three lines a round; picture file names, never pictures.
   units read on both campuses. DL, the First Floor Lobby Kenwood and the
   eleven 141 cameras: no clean switch. Tests green, pushed 74a2867 and
   52f228a, loop restarted 02:48 (one loop).
-* 04:50 Round: field_audit 04:25 -- MISSED 0, GHOST 2, FAINT 2, DRIFT 1
+* 04:45 Round: field_audit 04:25 -- MISSED 0, GHOST 2, FAINT 2, DRIFT 1
   (people outside), FOLLOWING 13 (people moving before fajr), 102 match.
   Both ghosts objects, both zoned: Prompt Cafe Gate ch11 counts a chair
   inside the cafe through the gate's glass (0.25-0.62; 49 passes on 13
@@ -1173,4 +1173,4 @@ Two or three lines a round; picture file names, never pictures.
   left. No unit is running at night where a camera can read it (no
   infrared 'on' frame yet). Basement ch23 still tilting: 13.5 px more
   since 22:33, ~41 px since 12:09 (ch21 still) -- on the team's list.
-  Tests green, pushed, loop restarted.
+  Tests green, pushed 9f51b08, loop restarted 04:45 (one loop).
