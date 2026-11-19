@@ -130,6 +130,10 @@ it here. Shamroze reads the morning summary in Roman Urdu.
       a new box that mostly overlaps a spot already set aside keeps that
       spot's clock; it is checked for movement again from the next pass,
       so somebody who sits down at dawn is counted one pass late at most.
+      19 Nov, again: 06:27-06:40 nine rooms came back "occupied" together
+      (Marketing, Room 17, 141 Rooms 24/27/29, 141-C Room 3, H First Floor
+      Lobby, Wellows, Data Centre Ops) -- Marketing's at 06:34 is a chair at
+      0.47 in a dawn picture (frames/Marketing_dvr2_ch13_boxes.jpg).
 
 ## Added 17 Nov (Shamroze)
 

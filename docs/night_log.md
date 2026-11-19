@@ -954,3 +954,11 @@ Two or three lines a round; picture file names, never pictures.
 * 06:00 ac_keep 17-19 Nov in infrared: no clean switch to calibrate from.
   Room 32's flap seems to open at 07:30 on 17 Nov but with the dawn light
   rising at the same time -- left (frames/room32_ir_step_17nov.jpg).
+
+## 19 Nov, 06:25 round (field_audit_20261119_0625)
+
+* 86 of 86 cameras; 16 rooms re-checked; 0 MISSED, 0 GHOST. Basement
+  Meeting Room empty since its plant zone (04:49 restart).
+* Dawn again: 06:27-06:40 nine rooms came back "occupied" together --
+  chairs in the changing light (Marketing 0.47 at 06:34). Added to the
+  15 Nov proposal, which waits for Shamroze's yes. Nothing changed.
