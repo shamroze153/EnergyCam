@@ -965,3 +965,12 @@ Two or three lines a round; picture file names, never pictures.
 * 07:50 Room 32's 07:30 infrared "step" came again today at the same
   minute with the light: it is the sunrise on the unit, not a switch. Noted
   in night_todo (an infrared on would have to sit above ~16).
+
+## 19 Nov, 08:25 round (field_audit_20261119_0825)
+
+* 86 of 86 cameras; 20 rooms re-checked; 1 MISSED, 1 GHOST, neither a
+  fault: Gaming Area's "missed person" on ch12 is the pool table's corner
+  leg at 0.70, once (0 detections a minute later; the page said empty,
+  rightly); RO Plant (no unit) somebody at the frame's edge.
+  Morning: eight rooms with a unit came in 08:09-08:35 -- arrivals and the
+  cleaners. Nothing changed.
