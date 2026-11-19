@@ -1700,9 +1700,12 @@ rooms:
     # (frames/verify/ghost_141_Room_21__1st_floor__ch23_cd_nvr1_1531.jpg).
     # The floor under a counter: nobody sits there, and a person at that
     # desk is a far bigger box and is still counted.
+    # 19 Nov 10:35: the bin has moved a little -- the loop's box is now
+    # 592-640 x 365-451, 77% inside the old zone, under the 80% that
+    # ignores it, and the room read "1 person" from 08:24 on. Widened.
     ignore:
       23:
-        - [598, 340, 656, 438]   # the bin, 0.29-0.64
+        - [585, 330, 660, 460]   # the bin, 0.29-0.64
     ac: hidden
     empty_after_minutes: 45
 

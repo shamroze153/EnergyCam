@@ -974,3 +974,13 @@ Two or three lines a round; picture file names, never pictures.
   rightly); RO Plant (no unit) somebody at the frame's edge.
   Morning: eight rooms with a unit came in 08:09-08:35 -- arrivals and the
   cleaners. Nothing changed.
+
+## 19 Nov, 10:25 round (field_audit_20261119_1025)
+
+* 86 of 86 cameras; 26 rooms re-checked; 0 MISSED, 5 GHOST. Three outside
+  (no unit). 141 Room 5: a real person cut by ch11's bottom edge -- the
+  page is right. 141 Room 21: the bin under the counter (13 Nov's zone)
+  has moved; the loop's box (seats/2026-11-19.csv) sat 74-80% inside the
+  zone, under the 80% that ignores it, so the room read "1 person" from
+  08:24 on. Zone widened to [585,330,660,460] (the bin 100% in, a seated
+  person 19%). Loop restarted.
