@@ -1056,3 +1056,11 @@ Two or three lines a round; picture file names, never pictures.
   Finance's floor unit: its grille never changes -- unseen_units: 1, so
   an "off" there is unknown. Count now 131 units / 49 in camera / 18
   calibrated. Loop restarted.
+* 14:45 Round: field_audit 14:25 -- MISSED 0, GHOST 3 (141 Lobby 2nd
+  floor, 141 SoftFM Store, Cafe Stairs), 86 match. Not objects:
+  check_room at 14:38 found no detection at all on their four cameras,
+  and all three went empty at 14:42 -- people passing between samples,
+  held by CONFIRM_EMPTY. Nothing changed. The cameras moved this morning
+  (Marketing, Wellows, AutoOS) show no clean switch yet; Wellows W1's
+  louvre moved a few pixels at 10:30, not enough to calibrate on --
+  tonight's switch-off. Doctor: 19 of about 101 units measured.
