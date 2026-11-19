@@ -848,10 +848,12 @@ def welcome(summaries, theme, mark, live_text, healthy, when, base):
                else "nobody yet", last, esc(last_note),
                s["rooms_busy"], s["rooms_total"],
                meter(s["rooms_busy"], s["rooms_total"]),
-               ('<span class="ec-flag">%s%d room%s worth a walk</span>'
+               # One word for it everywhere (19 Nov: the card said "worth a
+               # walk" over a link saying "worth a look").
+               ('<span class="ec-flag">%s%d room%s worth a look</span>'
                 % (WARN, len(s["walk"]), "" if len(s["walk"]) == 1 else "s"))
                if s["walk"] else
-               '<span class="ec-flag">%sNothing to walk to</span>' % TICK,
+               '<span class="ec-flag">%sNothing worth a look</span>' % TICK,
                rupees(s["stake"])))
         # 12 Nov, Shamroze: "worth a walk" should open just those rooms.
         # Its own link under the card -- a link inside the card's link is
@@ -1120,7 +1122,7 @@ def campus_body(summary, theme, base, tariff=(18.5, 22.5)):
              % area_chart(s, t, height=250, tariff=band))
 
     if s["walk"]:
-        h.append('<div class="ec-h"><span class="t">Worth a walk</span><span '
+        h.append('<div class="ec-h"><span class="t">Worth a look</span><span '
                  'class="c">empty past its own wait, with an air conditioner'
                  '</span></div><div class="ec-walks">')
         for e in s["walk"]:
@@ -1134,8 +1136,8 @@ def campus_body(summary, theme, base, tariff=(18.5, 22.5)):
                         WARN, esc(e["headline"]), unit))
         h.append("</div>")
     else:
-        h.append('<div class="ec-h"><span class="t">Worth a walk</span></div>'
-                 '<div class="ec-card ec-calm">%sNothing to walk to: every '
+        h.append('<div class="ec-h"><span class="t">Worth a look</span></div>'
+                 '<div class="ec-card ec-calm">%sNothing worth a look: every '
                  'air-conditioned room is in use or was left only a little '
                  'while ago.</div>' % TICK)
 

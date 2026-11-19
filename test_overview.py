@@ -126,6 +126,49 @@ def main():
     check("the gate is a line of its own",
           s["curve_out"][10 * 4] == 2, s["curve_out"][10 * 4])
 
+    # ---- night rounds are not a department's day (19 Nov) -------------------
+    # Disrupt Labs read "In 1:06 night": one person seen for ten minutes at a
+    # time, every twenty, merged into one stay. Its day is its first stay
+    # from DAY_OPENS_AT; the night is said apart.
+    def room_row(name, dept, status, people):
+        return {"room": name, "zone": "Offices", "dept": dept,
+                "status": status, "people": people, "level": "Green",
+                "headline": "", "sub": "", "ac": "hidden", "has_unit": True,
+                "alerts": True, "empty_since": at(12), "occupied_since": at(9)}
+    night_rooms = pd.DataFrame([room_row("Labs A", "Labs", "occupied", 2),
+                                room_row("Store", "Night Only", "empty", 0)])
+    night_events = pd.DataFrame([
+        (at(0, 0, -2), "Labs A", "empty", 0),
+        # As in the Basement that night: blips under ten minutes apart,
+        # one merged stay of 56 minutes -- longer than an "early visit".
+        (at(1, 6), "Labs A", "occupied", 1), (at(1, 23), "Labs A", "empty", 0),
+        (at(1, 32), "Labs A", "occupied", 1), (at(1, 45), "Labs A", "empty", 0),
+        (at(1, 53), "Labs A", "occupied", 1), (at(2, 2), "Labs A", "empty", 0),
+        (at(9, 30), "Labs A", "occupied", 2),
+        (at(0, 0, -2), "Store", "empty", 0),
+        (at(2, 0), "Store", "occupied", 1), (at(2, 40), "Store", "empty", 0),
+    ], columns=["timestamp", "room", "status", "people"])
+    ns = ov.campus_summary("Test", night_rooms, night_events, None, NOW)
+    nd = {d["name"]: d for d in ns["depts"]}
+    labs = nd["Labs"]
+    check("night rounds: the department's day starts with its morning",
+          (labs["starts"], labs["night"]) == (at(9, 30), at(1, 6)),
+          (labs["starts"], labs["night"]))
+    card = ov._dept_card(labs, ov.TOKENS["light"], ov.now_slot(ns))
+    check("  and the card says the morning, and the night apart",
+          ("In <b>%s</b>" % ov.clock(at(9, 30))) in card
+          and "night visits from" in card, card[:200])
+    check("  so the campus opened with it",
+          (ns["first_in"], ns["first_who"]) == (at(9, 30), "Labs"),
+          (ns["first_in"], ns["first_who"]))
+    only = nd["Night Only"]
+    check("a department seen only at night has no day yet",
+          (only["starts"], only["night"]) == (None, at(2, 0)),
+          (only["starts"], only["night"]))
+    check("  and says so",
+          "Night visits only" in ov._dept_card(only, ov.TOKENS["light"],
+                                               ov.now_slot(ns)))
+
     # ---- departments -------------------------------------------------------
     depts = {d["name"]: d for d in s["depts"]}
     sw = depts.get("Squat Wolf")
@@ -209,7 +252,12 @@ def main():
         check("%s: outside is folded away, and says it is not counted"
               % theme, "<details" in body and "never counted" in body)
         check("%s: the walk card says what to check" % theme,
-              "Worth a walk" in body and "SW Room 0" in body)
+              "Worth a look" in body and "SW Room 0" in body)
+        # 19 Nov: one word for it -- the card said "worth a walk" over a
+        # link saying "worth a look".
+        check("%s: never 'worth a walk' on the front page or the campus"
+              % theme, "worth a walk" not in (page + body).lower(),
+              re.findall(r".{20}worth a walk.{10}", (page + body).lower())[:1])
         # 12 Nov, Shamroze: one click to only the rooms worth a look.
         items = ov.walk_items(s, [{"room": "SW Room 1", "waste": True}],
                               {"SW Room 0": "Ground floor"})

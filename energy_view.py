@@ -423,7 +423,10 @@ overflow:hidden;margin:0 0 7px;display:flex}
 .en-sun-share .bar i{display:block;height:100%%}
 @media (max-width:760px){.en-ranked .row{grid-template-columns:minmax(0,1fr) 96px}
 .en-ranked .row>*{min-width:0}.en-ranked .v span{overflow-wrap:anywhere}
-.en-ranked .tr{grid-column:1/-1;order:3}.en-sun{grid-template-columns:1fr}}
+.en-ranked .tr{grid-column:1/-1;order:3}.en-sun{grid-template-columns:1fr}
+.en-tiles{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.en-tiles>.ec-kpi{padding:14px 14px 15px;min-width:0}
+.en-tiles>.ec-kpi .v{font-size:20px;overflow-wrap:anywhere}}
 </style>""".replace("\n", "")
 
 

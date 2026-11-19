@@ -835,8 +835,9 @@ def glance(theme, today, yesterday, read_units, all_units, base=None):
         tip = "No hour today with the ACs running mostly in empty rooms."
     return "".join([
         ev.css(theme), '<div class="ec">',
-        '<div style="display:grid;grid-template-columns:repeat(auto-fit,'
-        'minmax(190px,1fr));gap:14px;margin:6px 0 14px 0">',
+        # en-tiles, not a grid of its own: on a phone the four go two by
+        # two (19 Nov: one a row, they filled the first screen and a half).
+        '<div class="en-tiles" style="margin:6px 0 14px 0">',
         "".join(tiles), "</div>",
         '<div class="ec-card" style="padding:16px 18px;display:flex;gap:14px;'
         'align-items:flex-start;margin-bottom:8px"><div aria-hidden="true" '

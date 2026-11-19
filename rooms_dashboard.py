@@ -2618,6 +2618,15 @@ def app_chrome(mode):
         " text-align: left; }"
         "div[data-testid='stMainBlockContainer'], .block-container"
         " { max-width: 1260px; padding-top: 1.1rem; padding-bottom: 3rem; }"
+        # Nothing to see takes no room (19 Nov: on a phone the campus page
+        # began 90 px down). An empty placeholder, the half-minute refresh's
+        # iframe and a markdown carrying only a <style> -- whose rules apply
+        # out of the layout just the same -- each cost a 16 px gap.
+        "div[data-testid='stElementContainer']:has(> div[data-testid='stEmpty']),"
+        " div[data-testid='stElementContainer']:has(div[data-testid="
+        "'stMarkdownContainer'] > style:only-child) { display: none !important; }"
+        ".st-key-rooms_refresh { position: absolute !important; width: 0"
+        " !important; height: 0 !important; overflow: hidden !important; }"
         # Every text colour Streamlit sets, set to the palette's -- except
         # inside the front pages (.ec), which carry their own greys and lose
         # them to a rule this broad.
