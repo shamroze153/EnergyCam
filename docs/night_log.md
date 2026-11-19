@@ -1146,3 +1146,19 @@ Two or three lines a round; picture file names, never pictures.
   campuses, was 18. Marketing M2 waits for a second day; Wellows W1 too
   faint; AutoOS unclear at night. Tests green, pushed 3ae2936, loop
   restarted 00:54 (one loop).
+* 02:50 Round: field_audit 02:25 -- MISSED 1, GHOST 7, FAINT 6, 103 match.
+  Six ghosts were people a pass ahead of the page: Mosque (three passes
+  0.75-0.92 at 02:17-02:25, people at prayer), Cafe Shoe Rack and Prompt
+  Cafe on the way, H Backside Street, the outside areas (guards). 141
+  Outside (NVR 4) ch7 also has debris on the ground, 10x10 at 0.25-0.43,
+  new tonight -- left. 140-H Lobby Area: a small box on the wall, 0.26-
+  0.36 on the nights of 13, 15 and 20 Nov -- zoned. Room 17's MISSED is
+  the empty chair at ch3's top edge, which drop_still had set aside (the
+  page right; the camera tilt is on the team's list).
+  Found: from the 00:54 restart the loop kept only a calibrated room's
+  calibrated cameras (Basement ch 21/23/24 stopped; Room 32's ch 26 never
+  kept) -- ac_cameras now keeps all while in_view outnumbers the units
+  read. Calibrated the Basement's ch24 Haier (display, off 22:01); 22
+  units read on both campuses. DL, the First Floor Lobby Kenwood and the
+  eleven 141 cameras: no clean switch. Tests green, pushed 74a2867 and
+  52f228a, loop restarted 02:48 (one loop).
