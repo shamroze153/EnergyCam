@@ -991,7 +991,7 @@ Two or three lines a round; picture file names, never pictures.
   Basement: units now in frame on ch 24/25 (Haier displays) and ch 23 (cut
   at the top); Basement and DL Department set ac: visible so their frames
   are kept for calibration. Loop restarted.
-* 12:30 Accuracy of the AC readings (Shamroze: "100% exact -- at night I
+* 11:30 Accuracy of the AC readings (Shamroze: "100% exact -- at night I
   send the team when it says on"). Every calibrated unit checked against
   every kept frame 17-19 Nov:
   - Louvres and flaps now read by their darkness (the box's darkest tenth
@@ -1006,3 +1006,4 @@ Two or three lines a round; picture file names, never pictures.
     "on" with no flap in view -- unread until re-measured (room unknown,
     never a guessed on).
   - Displays (Admin, Finance, Room 27, Mosque x2) sit in clean gaps.
+  Live, 11:30 after the restart: towers 2 and 3 open and read running, 1, 4, 5 and 6 shut and read off -- all six right by eye.

@@ -95,7 +95,7 @@ it here. Shamroze reads the morning summary in Roman Urdu.
       hours; now on the floor unit's lower body. Only the Kenwood is
       left. For Shamroze: Finance also has a floor-standing unit on the
       right wall, in camera, while the survey says one AC.
-- [x] 12:30 Done: louvres and flaps read by darkness (ac_detect.darkness,
+- [x] 11:30 Done: louvres and flaps read by darkness (ac_detect.darkness,
       `dark_max` per unit), checked against every kept frame 17-19 Nov.
 - [ ] Prompt Cafe's ch 20 Kenwood is `unread: true` until measured again
       with somebody switching it (no gap between open and shut).
