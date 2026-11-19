@@ -5138,11 +5138,18 @@ if view == "Overview":
                                    campus)
         yday_rows = cached_ledger_past(
             _iso(midnight - pd.Timedelta(days=1)), _iso(midnight), campus)
-        read_n = sum(n for room_name, n in
-                     campus_view.calibrated_counts().items()
+        read_by_room = campus_view.calibrated_counts()
+        read_n = sum(n for room_name, n in read_by_room.items()
                      if room_name in set(df["room"]))
         all_n = int(df.loc[df["has_unit"], "ac_count"].sum()) + unseen_units
-        st.markdown(er_g.glance(mode, today_rows, yday_rows, read_n, all_n),
+        # In camera, read or not: rooms.yaml's in_view, never less than
+        # what is already read (19 Nov, the follow-up Shamroze asked for).
+        view_n = sum(max(int(r.get("in_view") or 0),
+                         int(read_by_room.get(r["room"], 0)))
+                     for _, r in df[df["has_unit"]].iterrows()) \
+            if "in_view" in df.columns else None
+        st.markdown(er_g.glance(mode, today_rows, yday_rows, read_n, all_n,
+                                in_view=view_n),
                     unsafe_allow_html=True)
     except psycopg2.Error:
         pass

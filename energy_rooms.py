@@ -806,10 +806,15 @@ def hours_page(theme, rows, name, week=None, so_far=True):
     return "".join(out)
 
 
-def glance(theme, today, yesterday, read_units, all_units, base=None):
+def glance(theme, today, yesterday, read_units, all_units, base=None,
+           in_view=None):
     """The campus page's first row (17 Nov, Envoy's look): today's AC
     rupees, the part with nobody in, yesterday, how many units a camera
-    reads -- and one tip, the costliest stretch with nobody in."""
+    reads -- and one tip, the costliest stretch with nobody in.
+
+    `in_view`: units some camera shows, read or not (rooms.yaml's
+    `in_view`). Shamroze, 19 Nov, to follow up: how many are in camera,
+    how many calibrated -- the tile says both."""
     t, y = totals(today), totals(yesterday)
     share = (100.0 * t["waste_rs"] / t["rs"]) if t["rs"] else 0.0
     runs = waste_stretches(hourly(today))
@@ -824,7 +829,10 @@ def glance(theme, today, yesterday, read_units, all_units, base=None):
         ev.tile("Yesterday", _rs(y["rs"]),
                 "%s of it in empty rooms" % _rs(y["waste_rs"])),
         ev.tile("Units a camera reads", "%d of %d" % (read_units, all_units),
-                "the rest are estimated from people"),
+                ("%d more in camera, waiting to be calibrated; the rest "
+                 "estimated from people" % (in_view - read_units))
+                if in_view is not None and in_view > read_units
+                else "the rest are estimated from people"),
     ]
     if runs:
         a, b, rs = runs[0]

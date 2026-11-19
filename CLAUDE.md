@@ -158,7 +158,9 @@ tower's top. Before restarting, replay a new block over every kept frame
 against periods checked by eye: a "running" in an off period must be
 zero. docs/ac_camera_audit.md has every camera of both campuses and the
 units it sees, and at its top the follow-up table (units / in camera /
-calibrated) -- keep it current after each calibration.
+calibrated) -- keep it current after each calibration. "In camera" per
+room is rooms.yaml's `in_view:`; the campus page's "Units a camera reads"
+tile counts it live against what is calibrated.
 
 141 Finance Room, 141 Learning Center, 141 Room 32 and 141-C Cafe are done
 (12 Nov, on site with Shamroze). Learning Center and Room 32 have three

@@ -87,6 +87,13 @@ def main():
            or "Today's tip" in g), (True, True, True))
     check("glance: a day with nothing says so, and does not fail",
           "No hour today" in er.glance("light", [], [], 0, 0), True)
+    # 19 Nov, Shamroze: follow up how many are in camera, how many read.
+    check("glance: units in camera but not yet read are counted apart",
+          "16 more in camera, waiting to be calibrated"
+          in er.glance("light", [r], [r], 10, 71, in_view=26), True)
+    check("  and with none waiting, the old note",
+          "the rest are estimated from people"
+          in er.glance("light", [r], [r], 10, 71, in_view=10), True)
 
     # Every room, every day: yesterday, the day before, the week's totals
     # leave out today.

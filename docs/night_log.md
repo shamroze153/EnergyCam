@@ -1081,7 +1081,7 @@ Two or three lines a round; picture file names, never pictures.
   this morning (Basement ch23's "change" was the recorder's clock beside
   the box). The new 141 rooms on cd_nvr2 / cd_nvr1 are kept at 640x360 /
   720x576 -- see night_todo before calibrating them. Nothing changed.
-* 19:50 Dashboard, the tabs left from the afternoon. Rooms: "2 of 21 units
+* 19:30 Dashboard, the tabs left from the afternoon. Rooms: "2 of 21 units
   are calibrated" was 2 rooms reading on/off of 21 with a unit -- now "a
   camera reads 7 of the 46 units; 2 rooms show on or off". Who comes when:
   on 18 Nov every department "arrived at 10:25" -- the loop coming back
@@ -1089,3 +1089,9 @@ Two or three lines a round; picture file names, never pictures.
   is now marked unseen (day_story), kept out of the usual day and the
   first-to-arrive; the page says "before 10:25, the cameras came on then".
   No switch-off yet on the units waiting for calibration.
+* 19:35 The follow-up count on the dashboard: rooms.yaml's new `in_view:`
+  (units a camera shows, read or not; 27 rooms, 48 units from the 19 Nov
+  audit) and the campus tile "Units a camera reads" now says "7 of 58 --
+  15 more in camera, waiting to be calibrated" (141: 11 of 73, 15 more).
+  It moves by itself as calibrations land. The loop does not read
+  in_view; restarted anyway, as rooms.yaml changed.

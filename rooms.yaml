@@ -503,6 +503,7 @@ rooms:
     # edge, side on and cut (10:32 frame). Visible, so its frames are kept
     # and it can be seen whether its flap reads.
     ac: visible
+    in_view: 1              # units a camera shows, read or not (audit 19 Nov)
     ac_tons: [1]   # survey 12 Nov: the basement's fourth Haier 1 ton
     empty_after_minutes: 45
     # 12 Nov 00:15 night check: two empty chairs in the dark read as people
@@ -569,6 +570,7 @@ rooms:
     # what is not honest until all five are is the money, which assumes a
     # room's worth of cooling from whichever units have been measured.
     ac: visible
+    in_view: 5              # units a camera shows, read or not (audit 19 Nov)
     ac_tons: [1, 1, 1, 1, 1]   # survey 12 Nov: Room 8 (several depts), Kenwood x3 + TCL x2, 1 ton
     empty_after_minutes: 45
     note: >
@@ -622,6 +624,7 @@ rooms:
     recorder: dvr2
     channels: [9]
     ac: visible
+    in_view: 1              # units a camera shows, read or not (audit 19 Nov)
     ac_tons: [1]   # survey 12 Nov: Admin room, 1 ton Kenwood
     empty_after_minutes: 45
 
@@ -655,6 +658,7 @@ rooms:
     # of ch 10 (11:34 frame). Visible, so its frames are kept for
     # calibration (docs/ac_camera_audit.md).
     ac: visible
+    in_view: 1              # units a camera shows, read or not (audit 19 Nov)
     ac_tons: [1, 1]   # survey 12 Nov: Room 6, 1 ton Haier + 1 ton TCL
     empty_after_minutes: 45
     note: Two cameras assumed to be one room, as with Marketing.
@@ -690,6 +694,7 @@ rooms:
     # 7 Nov: the unit is on ch15, top left, vent slats clearly in frame.
     # ch16 sees none of it. Calibrate on ch15. docs/camera_survey.md.
     ac: visible
+    in_view: 2              # units a camera shows, read or not (audit 19 Nov)
     ac_tons: [1, 1]   # survey 12 Nov: Room 10, 1 ton TCL + 1 ton Daikin
     empty_after_minutes: 45
     note: Two cameras assumed to be one room, as with Marketing.
@@ -747,6 +752,7 @@ rooms:
     # floor-standing unit or may be a cupboard. Confirm on site before
     # calibrating; ch11 may want tilting down. docs/camera_survey.md.
     ac: visible
+    in_view: 2              # units a camera shows, read or not (audit 19 Nov)
     ac_tons: [2, 2, 2]   # survey 12 Nov: Reception, 3 x 2 ton Kenwood
     empty_after_minutes: 45
     note: >
@@ -1117,6 +1123,7 @@ rooms:
       "xvr3:16":
         - [1615, 480, 1720, 620]
     ac: visible
+    in_view: 1              # units a camera shows, read or not (audit 19 Nov)
     ac_tons: [1]   # survey 12 Nov: first-floor sitting area, 1 ton Kenwood
     empty_after_minutes: 45
     note: >
@@ -1256,6 +1263,7 @@ rooms:
     # 7 Nov: a white unit at the extreme left edge of ch6, partly out of
     # frame. Confirm on site. docs/camera_survey.md.
     ac: visible
+    in_view: 2              # units a camera shows, read or not (audit 19 Nov)
     ac_tons: [1, 1]   # survey 12 Nov: mosque, 2 x 1 ton Kenwood
     empty_after_minutes: 20
     note: >
@@ -1283,6 +1291,7 @@ rooms:
     recorder: nvr4
     channels: [13, 14, 15, 20]
     ac: visible
+    in_view: 3              # units a camera shows, read or not (audit 19 Nov)
     ac_tons: [2.5, 2.5, 2, 2, 2]   # survey 12 Nov: cafeteria, 2 x 2.5 ton General + 3 x 2 ton Kenwood
     empty_after_minutes: 45
     # 12 Nov night checks: an orange-and-blue chair on ch14 at 0.41 (02:15)
@@ -1316,6 +1325,7 @@ rooms:
     # (frames/ac_keep) and they are calibrated from the first clean
     # switch, as the rest were.
     ac: visible
+    in_view: 4              # units a camera shows, read or not (audit 19 Nov)
     ac_tons: [1, 1, 1, 2]   # survey 12 Nov: basement floor: Haier 1 t x3 + 2 t
     empty_after_minutes: 45
     # 13 Nov 22:47 night check: an empty white chair cut off by ch 25's left
@@ -1660,6 +1670,7 @@ rooms:
     conf_after_hours:
       27: 0.55
     ac: visible
+    in_view: 2              # units a camera shows, read or not (audit 19 Nov)
     # Two units (Shamroze, 19 Nov): the split above the window, read by its
     # display on ch 30, and the floor unit beside ch 30's camera (asset no.
     # 48), whose top grille shows no change on or off. Sizes not surveyed.
@@ -1683,6 +1694,7 @@ rooms:
     # Main stream: ch 25 has a split unit with a lit display, top right.
     stream: main
     ac: visible
+    in_view: 2              # units a camera shows, read or not (audit 19 Nov)
     # Three units, counted on site by Shamroze, 12 Nov.
     ac_count: 3
     empty_after_minutes: 45
@@ -1704,6 +1716,7 @@ rooms:
     # ch 16, a split cut by the top edge. Visible so the loop keeps a frame every ten
     # minutes to calibrate it from; unread (unknown) until then.
     ac: visible
+    in_view: 1              # units a camera shows, read or not (audit 19 Nov)
     empty_after_minutes: 30
 
   - name: 141 Room 21 (1st floor)
@@ -1730,6 +1743,7 @@ rooms:
     # ch 24, the split right over the camera, under the recorder's date. Visible so the loop keeps a frame every ten
     # minutes to calibrate it from; unread (unknown) until then.
     ac: visible
+    in_view: 1              # units a camera shows, read or not (audit 19 Nov)
     empty_after_minutes: 45
 
   - name: 141 Room 20 (1st floor)
@@ -1804,6 +1818,7 @@ rooms:
     channels: [10, 15]
     # visible: the floor unit on ch 10, for the evening calibration frames.
     ac: visible
+    in_view: 1              # units a camera shows, read or not (audit 19 Nov)
     empty_after_minutes: 45
 
   - name: 141 Room 27 (2nd floor)
@@ -1816,6 +1831,7 @@ rooms:
     channels: [7]
     # visible: a split unit high on the wall, top left of ch 7.
     ac: visible
+    in_view: 2              # units a camera shows, read or not (audit 19 Nov)
     # Two units (Shamroze, 19 Nov): the split at the top left of ch 7 and a
     # second at the top centre, both read by their displays. Sizes not
     # surveyed.
@@ -1845,6 +1861,7 @@ rooms:
     # ch 13, a split at the left edge, end-on. Visible so the loop keeps a frame every ten
     # minutes to calibrate it from; unread (unknown) until then.
     ac: visible
+    in_view: 1              # units a camera shows, read or not (audit 19 Nov)
     empty_after_minutes: 45
 
   - name: 141 Pantry (2nd floor)
@@ -1937,6 +1954,7 @@ rooms:
     # ch 2, one split (asset no. 16) at the top left, close; the other three in no camera. Visible so the loop keeps a frame every ten
     # minutes to calibrate it from; unread (unknown) until then.
     ac: visible
+    in_view: 1              # units a camera shows, read or not (audit 19 Nov)
     # Survey 13 Nov (Shamroze): 141-D ground floor, "R6".
     building: 141-D
     ac_tons: [1, 1, 1, 1]        # Kenwood x2 + TCL x2
@@ -1951,6 +1969,7 @@ rooms:
     # ch 1, one split (asset no. 21) at the top right, close; the other in no camera. Visible so the loop keeps a frame every ten
     # minutes to calibrate it from; unread (unknown) until then.
     ac: visible
+    in_view: 1              # units a camera shows, read or not (audit 19 Nov)
     # Survey 13 Nov (Shamroze): 141-D ground floor, "R7".
     building: 141-D
     ac_tons: [1, 1]              # Kenwood 1 + Haier 1
@@ -1963,6 +1982,7 @@ rooms:
     channels: [4, 13]
     # visible: a split unit at the top right of ch 13.
     ac: visible
+    in_view: 1              # units a camera shows, read or not (audit 19 Nov)
     # Survey 13 Nov (Shamroze): 141-D ground floor, "R8": two units, so
     # the one on ch 13 is half the room until the other is found.
     building: 141-D
@@ -2027,6 +2047,7 @@ rooms:
     # ch 9, the split at the right edge, end-on and close. Visible so the loop keeps a frame every ten
     # minutes to calibrate it from; unread (unknown) until then.
     ac: visible
+    in_view: 1              # units a camera shows, read or not (audit 19 Nov)
     empty_after_minutes: 30
     # 12 Nov night: something left in the middle of the table read as a
     # person at 0.27-0.42 in the 23:54, 00:07 and 00:25 evidence frames,
@@ -2046,6 +2067,7 @@ rooms:
     # ch 22, the split at the right edge, end-on and close. Visible so the loop keeps a frame every ten
     # minutes to calibrate it from; unread (unknown) until then.
     ac: visible
+    in_view: 1              # units a camera shows, read or not (audit 19 Nov)
     empty_after_minutes: 30
 
   - name: 141 First Aid Room
@@ -2103,6 +2125,7 @@ rooms:
     recorder: cd_nvr1
     channels: [2, 14]
     ac: visible
+    in_view: 6              # units a camera shows, read or not (audit 19 Nov)
     # Six tower units, 2 ton each -- 12 ton in all -- counted on site by
     # Shamroze, 12 Nov. The biggest cooling load on this campus.
     # Survey 13 Nov (Shamroze): 141-C ground floor, 6 Haier, 2 ton.
@@ -2298,6 +2321,7 @@ rooms:
       "cd_nvr2:2":
         - [370, 0, 750, 190]     # the next office, through the glass doors
     ac: visible
+    in_view: 2              # units a camera shows, read or not (audit 19 Nov)
     # Three units, counted on site by Shamroze, 12 Nov.
     ac_count: 3
     empty_after_minutes: 45
@@ -2352,6 +2376,7 @@ rooms:
     # ch 9 and ch 10, the split at the top left, seen from below. Visible so the loop keeps a frame every ten
     # minutes to calibrate it from; unread (unknown) until then.
     ac: visible
+    in_view: 1              # units a camera shows, read or not (audit 19 Nov)
     # Survey 13 Nov: 141-C ground floor has "Reception Meeting room 1" and
     # "2", a TCL 1 ton each. ch 9 and ch 10 have been read as one room;
     # the second is under unwatched_units until Shamroze says whether one
@@ -2383,6 +2408,7 @@ rooms:
     # ch 15, the split at the top left, from below; its louvre shows at the lower end. Visible so the loop keeps a frame every ten
     # minutes to calibrate it from; unread (unknown) until then.
     ac: visible
+    in_view: 1              # units a camera shows, read or not (audit 19 Nov)
     empty_after_minutes: 30
     # 13 Nov 22:47 night check, and the seat notes: ch 15 looks through the
     # glass door (top right) into the next office, and a chair there read
@@ -2405,6 +2431,7 @@ rooms:
     # ch 16, the Kenwood at the top right, end-on; its louvre at the lower end. Visible so the loop keeps a frame every ten
     # minutes to calibrate it from; unread (unknown) until then.
     ac: visible
+    in_view: 1              # units a camera shows, read or not (audit 19 Nov)
     empty_after_minutes: 30
 
   - name: 141 Assembly Corridor

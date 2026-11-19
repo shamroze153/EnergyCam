@@ -3,8 +3,10 @@
 ## Where it stands (19 Nov 2026, 13:30) -- the follow-up table
 
 Units from rooms.yaml (Shamroze's surveys, with `unwatched_units`). **In
-camera** = some camera shows the unit well enough to try a calibration;
-**calibrated** = read on or off by the loop now.
+camera** = some camera shows the unit well enough to try a calibration
+(rooms.yaml's `in_view`, per room); **calibrated** = read on or off by the
+loop now. Each campus page's "Units a camera reads" tile shows the same
+live: "7 of 58 -- 15 more in camera, waiting to be calibrated".
 
 | Campus | Part | Units | In camera | Calibrated |
 |---|---|---|---|---|

@@ -107,6 +107,9 @@ def rooms_frame(path="rooms.yaml"):
             "cameras": len(cameras),
             "ac": room["ac"],
             "ac_count": 0 if not has_unit else unit_count(room),
+            # How many of them some camera shows, read yet or not (`in_view`,
+            # 19 Nov audit): the follow-up of in camera -> calibrated.
+            "in_view": 0 if not has_unit else int(room.get("in_view") or 0),
             # One unit's size where they are all alike; the room's total
             # where they differ is in tons_total.
             "ac_tons": (None if isinstance(room.get("ac_tons"), list)
