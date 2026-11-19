@@ -1100,3 +1100,16 @@ Two or three lines a round; picture file names, never pictures.
   page's CSS (a bare .ec-back rule) rode in with the button. Scoped to the
   walk page's own heading. Stopping here; the calibrations wait for the
   switch-off.
+* 21:14 Round: field_audit 20:25 -- MISSED 0, GHOST 4 (141 Rooms 27, 28,
+  141-D MR02, H Backside Street): people coming and going (Room 27 had a
+  man at his desk at 20:55). night_check at 20:36, with the office still
+  in use, showed one real fault: HR Room's camera (dvr2 ch2) looks through
+  the glass into the next room's open office, and counted its people as
+  HR's -- seat notes 17-19 Nov: 625 of 1,015 boxes over there, and on 170
+  passes (~3.8 h a day) they were all HR counted. Four zones beyond the
+  glass, every HR seat below them; verify_live and check_room agree.
+  Loop restarted. Left as they are: Board Room ch24's white chair (0.40-
+  0.55 empty, but people sit in it -- a seat; drop_still takes it at
+  night) and Lobby 1 ch8's dark trunk at the top edge (0.25-0.91, people
+  do stand there; no unit) -- frames/140-H_Board_Room_nvr1_ch24_boxes.jpg,
+  frames/Lobby_1_dvr2_ch08_boxes.jpg. Still no AC switch-off to calibrate.

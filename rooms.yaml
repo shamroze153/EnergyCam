@@ -528,9 +528,21 @@ rooms:
     # read as a person at 0.29 (seat notes: that spot 16 night passes,
     # never over 0.38). A seat, so no zone: a stricter bar at night only.
     conf_after_hours: 0.40
+    # 19 Nov 21:00 audit: the top right of ch 2, above the frosted glass and
+    # the lattice, is the next room's open office -- desks, monitors and its
+    # people, real ones (0.25-0.77). The seat notes of 17-19 Nov: of 1,015
+    # boxes HR counted, 625 were over there, and on 170 passes they were all
+    # it counted -- HR "in use" ~3.8 h a day for people in another room, and
+    # those people counted twice in the campus total. Zoned in four steps
+    # down the glass's top edge; every HR seat, the walkway and the desk row
+    # lie below them (frames/cal19/hr_zone3.jpg, local).
     ignore:
       2:
         - [1390, 21, 1425, 122]  # door frame beyond the glass, 0.25
+        - [1060, 0, 1330, 200]   # the next room, beyond the glass
+        - [1290, 0, 1520, 290]   # the next room, beyond the glass
+        - [1400, 0, 1600, 330]   # the next room, through the frosted glass
+        - [1480, 0, 1920, 400]   # the next room, above the lattice
     # 7 Nov: no unit in any of this room's frames, read at full width
     # across the upper part of the picture, where a split unit is
     # mounted. It was labelled visible from the survey contact sheet,
