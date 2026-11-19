@@ -1,6 +1,6 @@
 # AC units and cameras -- both campuses
 
-## Where it stands (19 Nov 2026, 13:45) -- the follow-up table
+## Where it stands (19 Nov 2026, 13:30) -- the follow-up table
 
 Units from rooms.yaml (Shamroze's surveys, with `unwatched_units`). **In
 camera** = some camera shows the unit well enough to try a calibration;

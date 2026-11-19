@@ -1037,7 +1037,7 @@ Two or three lines a round; picture file names, never pictures.
   evening's switch-off (night_todo). Loop restarted 12:57; its first pass
   (13:01) wrote Reception on, 1 unit running -- by eye the split's louvre
   open, the tower shut.
-* 13:50 Follow-up count (Shamroze: "how many in camera, how many
+* 13:30 Follow-up count (Shamroze: "how many in camera, how many
   calibrated") and 141's cameras, all 103 that answered, each looked at.
   140-H 58 units / 23 in camera / 7 calibrated; 141-C/D 71 / 24 / 10;
   both 129 / 47 / 17 -- the table at the top of docs/ac_camera_audit.md.
@@ -1046,4 +1046,5 @@ Two or three lines a round; picture file names, never pictures.
   141-D MR01/02), set ac: visible so their frames are kept. Room 26, Room 8
   and Learning Center's second unit: three days of frames, no change at
   the unit -- not readable from those angles. Finance and Room 27 each
-  show a second unit the survey lacks. Loop restarted.
+  show a second unit the survey lacks. Loop restarted 13:30; the ten
+  rooms' frames kept from 13:33.
