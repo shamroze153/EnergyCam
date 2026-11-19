@@ -6,7 +6,11 @@ Units from rooms.yaml (Shamroze's surveys, with `unwatched_units`). **In
 camera** = some camera shows the unit well enough to try a calibration
 (rooms.yaml's `in_view`, per room); **calibrated** = read on or off by the
 loop now. Each campus page's "Units a camera reads" tile shows the same
-live: "11 of 58 -- 12 more in camera, waiting to be calibrated".
+live: "11 of 58 -- 11 more in camera, waiting to be calibrated". (The
+table's 23 in camera for 140-H counts one more: a DR room's split seen
+partly at the edge of nvr1 ch23, the DR Rooms Lobby. The DR rooms are
+`unwatched_units`, no camera room, so no `in_view` counts it and the tile
+says 22.)
 
 | Campus | Part | Units | In camera | Calibrated |
 |---|---|---|---|---|

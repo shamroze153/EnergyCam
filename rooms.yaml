@@ -1203,6 +1203,14 @@ rooms:
     zone: H common
     recorder: xvr3
     channels: [4]
+    # 20 Nov 02:26 audit GHOST: a small dark box on the right-hand wall
+    # read as a person in infrared, 0.26-0.36 (a 44-69 x 61-66 box at
+    # x 1652-1664, y 350), the only box on the camera -- on the nights of
+    # 13, 15 and 20 Nov. On the wall, where nobody stands inside it: a
+    # person there is several times this zone's size.
+    ignore:
+      4:
+        - [1605, 305, 1715, 400]   # small box on the right wall, 0.26-0.36
     ac: none
     empty_after_minutes: null
 
