@@ -248,7 +248,7 @@ browser on a phone and in dark before it is pushed:
       `dark_max` for a louvre; then replay the block over every kept frame
       against the eye: a "running" in an off period must be zero. Restart
       the loop.
-      20 Nov 01:15, done: Marketing M1 (ch3, white light, on 10:00 / off
+      20 Nov 00:50, done: Marketing M1 (ch3, white light, on 10:00 / off
       15:42) and the ch13 Kenwood (display, on 10:48 / off 22:01, `also:`,
       view check on its "2 years" badge -- the default region matched the
       pre-move wall at 0.57-0.79); Basement ch25 Haier (display, off 22:01,

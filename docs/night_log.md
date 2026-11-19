@@ -1127,3 +1127,22 @@ Two or three lines a round; picture file names, never pictures.
   loose mount since the morning's adjustment; in camera_work_list for the
   team. Its split D's louvre shut at ~22:00, the first switch seen there,
   but nothing on a moving camera can be calibrated. No other switch yet.
+
+* 00:55 Round: field_audit 00:25 -- GHOST 1, DRIFT 1, MISSED 0, the rest
+  match. The ghost: H Basement Parking ch13, a thing at the far pillar's
+  foot counted 0.25-0.62 every day and night since 12 Nov (253 passes the
+  only box on the camera) -- zoned. night_check 00:36: 141 IT Sub Store
+  ch20's fan and bags below the mirror, 0.25-0.54 all day in the dark
+  store -- zoned; Data Centre Operations ch6, a 30x50 shape among the
+  racks at 0.36-0.41 since 19 Nov 22:42 -- zoned (too small a zone to
+  hold a person). Room 22's 0.86 is a man working at the far desk;
+  Marketing ch13's at 00:30 the cleaner; the Creative Room's bottom-edge
+  object is set aside by drop_still (not counted since midnight).
+  Calibrated from ac_keep, nobody switching: Marketing M1 (ch3, its white
+  light, on 10:00 / off 15:42), Marketing's Kenwood by ch13's camera
+  (display, on 10:48 / off 22:01; view check moved to its badge -- the
+  default passed the pre-move wall), Basement ch25 Haier (display, off
+  22:01, lights unchanged). Replays: no false ON. 21 units read on both
+  campuses, was 18. Marketing M2 waits for a second day; Wellows W1 too
+  faint; AutoOS unclear at night. Tests green, pushed 3ae2936, loop
+  restarted 00:54 (one loop).
