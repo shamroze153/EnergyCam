@@ -162,6 +162,14 @@ calibrated) -- keep it current after each calibration. "In camera" per
 room is rooms.yaml's `in_view:`; the campus page's "Units a camera reads"
 tile counts it live against what is calibrated.
 
+20 Nov, same way: Marketing M1 and the ch13 Kenwood, Basement ch25 Haier.
+One more lesson: a view check over a plain white face can pass a wrong
+view -- the Kenwood's default region matched the wall the camera saw
+before it was moved, 0.57-0.79 in the evening light. Score every new
+block's view check against frames from before the camera's last move
+too, and if one passes, give the unit an `anchor_roi` on something with
+shape (its badge, logo or edge), clear of the louvre and the clock.
+
 141 Finance Room, 141 Learning Center, 141 Room 32 and 141-C Cafe are done
 (12 Nov, on site with Shamroze). Learning Center and Room 32 have three
 units each and one readable (the floor unit's louvres; the flap of the unit

@@ -480,6 +480,15 @@ rooms:
     zone: Server rooms
     recorder: dvr2
     channels: [6]
+    # 20 Nov 00:33 night check: a small grey shape among the racks, mid
+    # frame, read as a person 0.36-0.41 every night pass since 19 Nov 22:42
+    # (a 28-31 x 33-68 box at x 970-973, y 338-351), the only box on the
+    # camera. People here are 300-500 px tall (the desk, 19 Nov evening);
+    # one among the racks would be 200 or more, so this zone, 60x95, can
+    # never hold 0.8 of a person's box.
+    ignore:
+      6:
+        - [945, 305, 1005, 400]  # small shape among the racks, 0.36-0.41
     ac: visible
     ac_tons: [1, 1]   # survey 12 Nov: Room 13, 1 ton TCL inverter + 1 ton Kenwood
     alert: never
@@ -978,9 +987,17 @@ rooms:
     # written where nobody sits and nobody walks through; chairs and
     # benches were left alone on purpose, because a zone on a chair
     # also hides the person sitting in it.
+    # 20 Nov 00:26 audit GHOST (the page said 1, the cameras none), and the
+    # 18 Nov 23:58 one: a dark thing leaning at the foot of the far pillar
+    # on ch 13 (there by day on 7 Nov too), an 11x24 box at x 269, y 60,
+    # 0.25-0.62. The seat notes have it every day and night since 12 Nov,
+    # weekends round the clock -- 335 passes, 253 of them the only box on
+    # the camera, the parking "occupied" for nobody. drop_still misses it:
+    # it flickers under the bar. The motorbikes park further right.
     ignore:
       13:
         - [499, 95, 640, 353]    # stacked boxes and a dispenser, 0.41
+        - [258, 42, 284, 80]     # the thing at the far pillar's foot, 0.25-0.62
     ac: none
     empty_after_minutes: null
 
@@ -2049,6 +2066,18 @@ rooms:
     # People here by day scored 0.60-0.86 on ch 13. A stricter bar at
     # night only, for the room.
     conf_after_hours: 0.45
+    # 20 Nov 00:37 night check: the 0.45 bar does not cover the day. On
+    # ch 20 the round fan and the bags heaped on the floor below the
+    # mirror, bottom left (seen with the light on at 19:01, nobody there),
+    # read as a person 0.25-0.54 at the same place (x 118-140, y 425-439,
+    # 133-179 x 248-284) all through 19 Nov in the dark, 10:24-15:10 and
+    # 19:55-20:33 -- the only box on the camera, the store "occupied" with
+    # nobody in. Floor where nobody sits; somebody standing right there is
+    # hidden on ch 20 only, and three more cameras watch the store. In the
+    # loop's own 704x576 frame.
+    ignore:
+      20:
+        - [30, 285, 215, 585]    # fan and bags below the mirror, 0.25-0.54
 
   - name: 141 MR 01 (1st floor)
     dept: Meeting rooms

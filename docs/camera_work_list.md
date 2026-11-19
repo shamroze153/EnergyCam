@@ -23,7 +23,7 @@ Shamroze, 14 Nov: the camera team starts Monday -- 141-C first, then 141-D, then
 | Room | Cameras | Units (tons) | Read | To do | Notes |
 |---|---|---|---|---|---|
 | 141 Data Centre | cd_nvr1:11 cd_nvr1:19 | 1 (?) | 0 | bring a unit into frame |  |
-| 141 Finance Room | cd_nvr1:7 cd_nvr1:27 cd_nvr1:30 | 1 (?) | 1 | done |  |
+| 141 Finance Room | cd_nvr1:7 cd_nvr1:27 cd_nvr1:30 | 2 (?) | 1 | 1 of 2 read | the floor unit beside ch30's camera (asset no. 48) shows no change at its grille |
 | 141 Room 20 (1st floor) | cd_nvr1:29 | 1 (?) | 0 | bring a unit into frame |  |
 | 141 Room 21 (1st floor) | cd_nvr1:23 cd_nvr1:24 | 1 (?) | 0 | bring a unit into frame |  |
 | 141-D Squat Wolf Room 0 | cd_nvr3:4 | 1 (?) | 0 | bring a unit into frame |  |
@@ -52,7 +52,7 @@ Shamroze, 14 Nov: the camera team starts Monday -- 141-C first, then 141-D, then
 | 141 Room 24 (2nd floor) | cd_xvr1:11 | 1 (?) | 0 | bring a unit into frame |  |
 | 141 Room 25 (2nd floor) | cd_xvr1:8 | 1 (?) | 0 | bring a unit into frame | alcove chair reads as a person at night: angle, or a second camera |
 | 141 Room 26 (2nd floor) | cd_xvr1:10 cd_xvr1:15 | 1 (?) | 0 | unit in view: calibrate |  |
-| 141 Room 27 (2nd floor) | cd_xvr1:7 | 1 (?) | 1 | done |  |
+| 141 Room 27 (2nd floor) | cd_xvr1:7 | 2 (?) | 2 | done |  |
 | 141 Room 28 (2nd floor) | cd_xvr1:2 | 1 (?) | 0 | bring a unit into frame |  |
 | 141 Room 29 (2nd floor) | cd_xvr1:13 | 1 (?) | 0 | bring a unit into frame |  |
 | 141 Room 32 (2nd floor) | cd_nvr1:25 cd_nvr1:26 | 3 (?) | 1 | 1 of 3 read |  |
@@ -78,7 +78,7 @@ Shamroze, 14 Nov: the camera team starts Monday -- 141-C first, then 141-D, then
 
 | Room | Cameras | Units (tons) | Read | To do | Notes |
 |---|---|---|---|---|---|
-| Basement | nvr4:21 nvr4:23 nvr4:24 nvr4:25 | 4 (1+1+1+2) | 0 | **tighten nvr4:23's mount** | 19 Nov: nvr4:23 tilts down by itself -- its picture rose 26 px from 12:20 to 22:20, steadily, ~2.6 px an hour (ch 21, 24, 25 held still). Loose since the morning's adjustment? Its units cannot be calibrated until it holds still. Then, if it can, a little more down: two splits are cut by the top edge |
+| Basement | nvr4:21 nvr4:23 nvr4:24 nvr4:25 | 4 (1+1+1+2) | 1 | **tighten nvr4:23's mount** | 19 Nov: nvr4:23 tilts down by itself -- its picture rose 26 px from 12:20 to 22:20, steadily, ~2.6 px an hour (ch 21, 24, 25 held still). Loose since the morning's adjustment? Its units cannot be calibrated until it holds still. Then, if it can, a little more down: two splits are cut by the top edge |
 | Basement Meeting Room | nvr4:22 | 1 (2) | 0 | bring a unit into frame |  |
 | DL Department | dvr2:1 | 1 (1) | 0 | bring a unit into frame |  |
 
@@ -103,14 +103,14 @@ Shamroze, 14 Nov: the camera team starts Monday -- 141-C first, then 141-D, then
 | Room | Cameras | Units (tons) | Read | To do | Notes |
 |---|---|---|---|---|---|
 | 140-H Board Room | nvr1:24 | 1 (2) | 0 | bring a unit into frame |  |
-| 140-H Reception | nvr1:11 nvr1:16 | 3 (2+2+2) | 0 | bring a unit into frame (none in view 14 Nov) |  |
+| 140-H Reception | nvr1:11 nvr1:16 | 3 (2+2+2) | 2 | 2 of 3 read | the split on ch11 and the tower on ch16, calibrated 19 Nov; the third in no camera |
 | Admin Room | dvr2:9 | 1 (1) | 1 | done |  |
 | AutoOS | dvr2:10 dvr2:14 | 2 (1+1) | 0 | bring a unit into frame |  |
 | Creative Room | dvr2:4 | 2 (1+1) | 0 | bring a unit into frame |  |
 | Cyber Security Room | xvr3:2 | 1 (1) | 0 | bring a unit into frame (none in view 14 Nov) |  |
 | HR Room | dvr2:2 | 1 (2) | 0 | bring a unit into frame | a unit top right of ch2, maybe the next room's through the glass: check |
 | IT Head Room | dvr2:11 | 1 (1.5) | 0 | bring a unit into frame |  |
-| Marketing | dvr2:3 dvr2:13 | 5 (1+1+1+1+1) | 0 | unit in view: calibrate | unit above the green door is in ch13: calibrate (on/off); the other 4 out of frame |
+| Marketing | dvr2:3 dvr2:13 | 5 (1+1+1+1+1) | 2 | 2 of 5 read | all 5 in camera (ch3 and ch13); M1 (ch3) and the Kenwood by ch13's camera calibrated 20 Nov; M2 waits for a second day; the row of four on ch13 end-on |
 | Old Finance Room | xvr3:7 | 1 (1) | 0 | bring a unit into frame |  |
 | UPS Room | dvr2:5 | 1 (1) | 0 | bring a unit into frame (none in view 14 Nov) |  |
 | Wellows | dvr2:15 dvr2:16 | 2 (1+1) | 0 | unit in view: calibrate | one unit top left of ch15: calibrate (on/off); the other out of frame |
@@ -137,6 +137,6 @@ Shamroze, 14 Nov: the camera team starts Monday -- 141-C first, then 141-D, then
 | 141-C/D | 141-D Waiting area (ground floor) | 1 (1) |
 | 141-C/D | 141-D Tree room, meeting room (ground floor) | 1 (2) |
 
-Units in rooms with a camera: 103; read by a camera today: 16.
+Units in rooms with a camera: 105; read by a camera today: 21 (20 Nov).
 
 Channels with no room name yet: cd_nvr4 ch17 (a corridor), ch26 (the outside lane with a guard), ch31 (a pantry/kitchen); cd_nvr4 ch30 shows the same as cd_nvr1 ch14 (141-C Cafe).

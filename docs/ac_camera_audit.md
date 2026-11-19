@@ -1,25 +1,34 @@
 # AC units and cameras -- both campuses
 
-## Where it stands (19 Nov 2026, 13:30) -- the follow-up table
+## Where it stands (20 Nov 2026, 01:15) -- the follow-up table
 
 Units from rooms.yaml (Shamroze's surveys, with `unwatched_units`). **In
 camera** = some camera shows the unit well enough to try a calibration
 (rooms.yaml's `in_view`, per room); **calibrated** = read on or off by the
 loop now. Each campus page's "Units a camera reads" tile shows the same
-live: "7 of 58 -- 15 more in camera, waiting to be calibrated".
+live: "10 of 58 -- 13 more in camera, waiting to be calibrated".
 
 | Campus | Part | Units | In camera | Calibrated |
 |---|---|---|---|---|
-| 140-H | Basement | 6 | 5 | 0 |
-| 140-H | Ground floor | 23 | 11 | 3 |
+| 140-H | Basement | 6 | 5 | 1 |
+| 140-H | Ground floor | 23 | 11 | 5 |
 | 140-H | First floor (Saturday) | 22 | 2 so far | 0 |
 | 140-H | Cafe and mosque | 7 | 5 | 4 |
-| **140-H** | | **58** | **23** | **7** |
+| **140-H** | | **58** | **23** | **10** |
 | 141-C/D | Ground floors | 45 | 12 | 7 |
 | 141-C/D | First floors | 14 | 5 | 1 |
 | 141-C/D | Second floors | 14 | 9 | 3 |
 | **141-C/D** | | **73** | **26** | **11** |
-| **Both** | | **131** | **49** | **18** |
+| **Both** | | **131** | **49** | **21** |
+
+20 Nov, night, from the kept frames with nobody switching: Marketing's M1
+(ch 3, its white light and louvre: on 10:00, off 15:42) and the Kenwood
+by ch 13's camera (its display: on 10:48, off 22:01, in `also:`), and the
+Basement's Haier on ch 25 (its display: off 22:01, the lights unchanged).
+Each replayed over every kept frame, no "running" in an off period.
+Marketing's M2 switched with M1 and reads by its louvre's darkness, but
+on one day only -- it waits for a second. Wellows W1's louvre changes too
+faintly to read; AutoOS's split is clear by day and unclear at night.
 
 (141: Learning Center is counted with the ground floors and First Aid with
 the first; the survey does not give their floors.)

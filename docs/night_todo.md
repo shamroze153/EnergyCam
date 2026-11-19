@@ -248,6 +248,20 @@ browser on a phone and in dark before it is pushed:
       `dark_max` for a louvre; then replay the block over every kept frame
       against the eye: a "running" in an off period must be zero. Restart
       the loop.
+      20 Nov 01:15, done: Marketing M1 (ch3, white light, on 10:00 / off
+      15:42) and the ch13 Kenwood (display, on 10:48 / off 22:01, `also:`,
+      view check on its "2 years" badge -- the default region matched the
+      pre-move wall at 0.57-0.79); Basement ch25 Haier (display, off 22:01,
+      view check above the louvre). Left: Marketing M2 -- clean by its
+      louvre's darkness (open 0.47-0.63, shut 0.76-0.98, line 0.70) but one
+      day only, so it waits for 20 Nov's switch (calibrate_room refuses its
+      contrast gap of 6.7; write the block by hand with `dark_max`); M3
+      and the row; Wellows W1 (louvre changes too faintly, darkness
+      overlaps); AutoOS (clear by day -- louvre open 13:00-20:55, shut
+      11:45 -- unclear at night: a blue light and a red reflection stay on);
+      ch24 Haier, DL, H First Floor Lobby: not looked at yet. Ch23: never
+      until its mount holds. Tools: scratchpad spotline.py / darkline.py /
+      timesheet.py / gridview.py / replay_unit.py / replay_also.py.
 - [ ] Same for 141, from frames kept since 19 Nov 13:33 (the ten rooms set
       visible then): Reception Meeting Room (cd_nvr2 ch9/10), 141-D MR01
       (ch15) and MR02 (ch16) -- their louvres show; Rooms 6, 7, 21, 29,
