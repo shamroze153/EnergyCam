@@ -156,7 +156,9 @@ slides open changes the view round its own box, so every running frame
 read as "the camera has moved" until it got an `anchor_roi` on the
 tower's top. Before restarting, replay a new block over every kept frame
 against periods checked by eye: a "running" in an off period must be
-zero. docs/ac_camera_audit.md has every 140-H camera and the units it sees.
+zero. docs/ac_camera_audit.md has every camera of both campuses and the
+units it sees, and at its top the follow-up table (units / in camera /
+calibrated) -- keep it current after each calibration.
 
 141 Finance Room, 141 Learning Center, 141 Room 32 and 141-C Cafe are done
 (12 Nov, on site with Shamroze). Learning Center and Room 32 have three

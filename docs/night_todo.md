@@ -240,6 +240,13 @@ browser on a phone and in dark before it is pushed:
       `dark_max` for a louvre; then replay the block over every kept frame
       against the eye: a "running" in an off period must be zero. Restart
       the loop.
+- [ ] Same for 141, from frames kept since 19 Nov 13:50 (the ten rooms set
+      visible then): Reception Meeting Room (cd_nvr2 ch9/10), 141-D MR01
+      (ch15) and MR02 (ch16) -- their louvres show; Rooms 6, 7, 21, 29,
+      Room 32 Meeting Room, MR 01 and MR 02 (1st floor). Each: does its
+      louvre or display change at the switch-off? Calibrate only a clean
+      change; an end-on unit that never changes stays unread. Then the
+      follow-up table at the top of docs/ac_camera_audit.md.
 
 Rules that hold all night: the 141 gym's camera is never opened 15:00-20:00;
 no picture into git; no recorder settings; no retried logins (XVR 2 and 4
