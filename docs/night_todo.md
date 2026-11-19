@@ -247,6 +247,12 @@ browser on a phone and in dark before it is pushed:
       louvre or display change at the switch-off? Calibrate only a clean
       change; an end-on unit that never changes stays unread. Then the
       follow-up table at the top of docs/ac_camera_audit.md.
+      Note (18:30): seven of them are kept at the sub stream -- cd_nvr2's
+      at 640x360 (Reception MR, 141-D MR01, MR02), cd_nvr1's at 720x576
+      (MR 01, MR 02, Room 21, Room 32 MR). If a louvre is too small to read
+      there, set the room to `stream: main` -- and first rescale its
+      `ignore:` boxes to 1920x1080 (Reception MR ch10, 141-D MR01 ch15,
+      MR 01 ch9, Room 21 ch23), then verify_live it, by day.
 
 Rules that hold all night: the 141 gym's camera is never opened 15:00-20:00;
 no picture into git; no recorder settings; no retried logins (XVR 2 and 4

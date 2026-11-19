@@ -1074,3 +1074,10 @@ Two or three lines a round; picture file names, never pictures.
   (pushed): an unread unit no longer shown "off"; night rounds no longer
   start a department's day; phone page without the empty top band, tiles
   two by two; "worth a look" everywhere.
+* 18:40 Round: field_audit 18:25 -- MISSED 0, GHOST 2 (141-C Genset, Old
+  Finance Room), 99 match; both empty at 18:33 and nothing detected on
+  their cameras at 18:35: people leaving. Lobby (dvr2 ch12) is a match
+  now -- it was the evening rush. No switch-off yet on the cameras moved
+  this morning (Basement ch23's "change" was the recorder's clock beside
+  the box). The new 141 rooms on cd_nvr2 / cd_nvr1 are kept at 640x360 /
+  720x576 -- see night_todo before calibrating them. Nothing changed.
