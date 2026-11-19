@@ -1018,3 +1018,10 @@ Two or three lines a round; picture file names, never pictures.
   of campus, or Light/Dark, landed on Overview -- now keeps the tab;
   "Dark" did nothing since light became the default -- fixed; 141's Energy
   opened on a line about 140-H's meters -- now on its own rooms. Tests green.
+* 12:45 Second camera audit, 140-H (Shamroze: "more cameras see the ACs,
+  each room has several"): a full-size frame of all 96 channels, each
+  looked at. Found: Reception's wall split (nvr1 ch11) and its whole floor
+  tower (ch16); Marketing ch13's row of four along the far wall -- with
+  ch3 and the Kenwood, all 5 Marketing units in camera. Ground floor now
+  11 of 23 in camera (10 readable), 11 in none, HR unsure. xvr3 ch4
+  (140-H Lobby Area) black. docs/ac_camera_audit.md rewritten.
