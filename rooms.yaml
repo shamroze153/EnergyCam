@@ -1660,6 +1660,10 @@ rooms:
     conf_after_hours:
       27: 0.55
     ac: visible
+    # Two units (Shamroze, 19 Nov): the split above the window, read by its
+    # display on ch 30, and the floor unit beside ch 30's camera (asset no.
+    # 48), whose top grille shows no change on or off. Sizes not surveyed.
+    ac_count: 2
     empty_after_minutes: 45
     # Shamroze, 13 Nov: Room 19 on 141-D's first floor (the seating sheet's
     # C2-FF-R19; Rooms 17 and 18 beside it are HR).
@@ -1812,6 +1816,10 @@ rooms:
     channels: [7]
     # visible: a split unit high on the wall, top left of ch 7.
     ac: visible
+    # Two units (Shamroze, 19 Nov): the split at the top left of ch 7 and a
+    # second at the top centre, both read by their displays. Sizes not
+    # surveyed.
+    ac_count: 2
     empty_after_minutes: 45
 
   - name: 141 Room 28 (2nd floor)

@@ -1048,3 +1048,11 @@ Two or three lines a round; picture file names, never pictures.
   the unit -- not readable from those angles. Finance and Room 27 each
   show a second unit the survey lacks. Loop restarted 13:30; the ten
   rooms' frames kept from 13:33.
+* 13:50 Shamroze: 141 Finance Room and Room 27 have two units each --
+  ac_count: 2 for both. Room 27's second split calibrated by its display
+  from its switch-off of 18 Nov 13:50-14:03; replayed over every kept
+  frame: no "running" in an off period (the bright evening lights wash
+  its dot out, so there it reads "not running", never the reverse).
+  Finance's floor unit: its grille never changes -- unseen_units: 1, so
+  an "off" there is unknown. Count now 131 units / 49 in camera / 18
+  calibrated. Loop restarted.

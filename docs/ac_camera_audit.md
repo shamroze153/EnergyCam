@@ -14,18 +14,19 @@ camera** = some camera shows the unit well enough to try a calibration;
 | 140-H | Cafe and mosque | 7 | 5 | 4 |
 | **140-H** | | **58** | **23** | **7** |
 | 141-C/D | Ground floors | 45 | 12 | 7 |
-| 141-C/D | First floors | 13 | 4 | 1 |
-| 141-C/D | Second floors | 13 | 8 | 2 |
-| **141-C/D** | | **71** | **24** | **10** |
-| **Both** | | **129** | **47** | **17** |
+| 141-C/D | First floors | 14 | 5 | 1 |
+| 141-C/D | Second floors | 14 | 9 | 3 |
+| **141-C/D** | | **73** | **26** | **11** |
+| **Both** | | **131** | **49** | **18** |
 
 (141: Learning Center is counted with the ground floors and First Aid with
 the first; the survey does not give their floors.)
 
-Also seen at 141, not in the survey: a second unit in 141 Finance Room
-(cd_nvr1 ch30, beside the camera, asset no. 48) and a second split in 141
-Room 27 (cd_xvr1 ch7, top centre, with a display). If each room has two,
-the counts go up by one each -- Shamroze to confirm.
+Found by the cameras, confirmed by Shamroze (19 Nov): 141 Finance Room and
+141 Room 27 have two units each (`ac_count: 2`). Room 27's second split
+(cd_xvr1 ch7, top centre) is calibrated by its display; Finance's second,
+the floor unit beside ch30's camera (asset no. 48), shows no change at its
+grille and stays unread (`unseen_units: 1`).
 
 Units in camera but not calibrated wait for a switch: the loop keeps a
 frame of each every ten minutes, and each is calibrated from the frames
@@ -150,14 +151,14 @@ showing when it opens -- tonight's switch-off decides each one.
 | 141 Room 7 (ground) | 2 | cd_xvr3 ch1 | one split (asset no. 21) at the top right, close; one in none |
 | 141 Room 8 (ground) | 2 | cd_xvr3 ch4 | one split at the top left, end-on. Its kept frames, 18-19 Nov: no change day or night (contrast 17-20) -- not readable from this angle so far |
 | 141 Reception Meeting Room | 1 | cd_nvr2 ch9, ch10 | the split at the top left, from below |
-| 141 Finance Room | 1 (+1?) | cd_nvr1 ch30 | the split above the window, calibrated; **a second unit beside the camera** (asset no. 48), not in the survey |
+| 141 Finance Room | 2 | cd_nvr1 ch30 | the split above the window, calibrated; the floor unit beside the camera (asset no. 48): its top grille never changes, on or off -- unread |
 | 141 MR 01 (1st floor) | 1 | cd_nvr1 ch9 | the split at the right edge, end-on, close |
 | 141 MR 02 (1st floor) | 1 | cd_nvr1 ch22 | the split at the right edge, end-on, close |
 | 141 Room 21 (1st floor) | 1 | cd_nvr1 ch24 | the split right over the camera, under the date |
 | 141 Room 32 (2nd floor) | 3 | cd_nvr1 ch25, ch26 | the unit above the TV (ch25), calibrated; a second split at ch26's top left, under the date; the third in none |
 | 141 Room 32 Meeting Room | 1 | cd_nvr1 ch16 | a split cut by the top edge |
 | 141 Room 26 (2nd floor) | 1 | cd_xvr1 ch10 | the split on the right wall, edge-on from below. Kept frames 17-19 Nov: the unit's picture did not change between morning and midday -- not readable from this angle |
-| 141 Room 27 (2nd floor) | 1 (+1?) | cd_xvr1 ch7 | the split on the left wall, calibrated by its display; **a second split at the top centre, with a display**, not in the survey |
+| 141 Room 27 (2nd floor) | 2 | cd_xvr1 ch7 | the split on the left wall and the second at the top centre, both calibrated by their displays (the second 19 Nov, from its switch-off of 18 Nov 13:50-14:03) |
 | 141 Room 29 (2nd floor) | 1 | cd_xvr1 ch13 | a split at the left edge, end-on |
 | 141-D MR01 (2nd floor) | 1 | cd_nvr2 ch15 | the split at the top left, from below; its louvre shows at the lower end |
 | 141-D MR02 (2nd floor) | 1 | cd_nvr2 ch16 | the Kenwood at the top right, end-on; its louvre at the lower end |
@@ -178,10 +179,10 @@ reads at 12:31 were whole); cd_nvr3 ch2 and ch3 (outside) no stream.
   `ac: visible`, so the loop keeps a frame of each every ten minutes:
   Reception Meeting Room, Rooms 6, 7, 21, 29, Room 32 Meeting Room, MR 01,
   MR 02 (1st floor), 141-D MR01 and MR02. Restarted the loop.
-* Nothing at 141 calibrated today: the units with three days of kept
-  frames (Room 26, Room 8, Learning Center's second) showed no change at
-  the unit; Finance's and Room 27's second units are not in the survey,
-  so they wait for Shamroze's word on how many each room has.
+* Calibrated at 141 today: Room 27's second split (13:47, after Shamroze
+  confirmed two units). The units with three days of kept frames and no
+  change at the unit -- Room 26, Room 8, Learning Center's second,
+  Finance's floor unit -- stay unread.
 * Room 32's second split is on ch26, and the loop keeps frames only of
   ch25 (the camera its calibration names): it needs ch26 added to the
   frames kept before it can be calibrated.

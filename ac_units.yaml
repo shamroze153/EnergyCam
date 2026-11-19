@@ -105,6 +105,13 @@ rooms:
   141 Finance Room:
     recorder: cd_nvr1
     channel: 30
+    # Two units (Shamroze, 19 Nov). The second, the floor unit beside the
+    # camera (asset no. 48), cannot be read: its top grille measured the
+    # same running or not over every colour frame kept 17-19 Nov (dark
+    # share 0.16-0.27, steps only where the room's light changed), and did
+    # not move when the split went off at 21:45 on 18 Nov. So an "off" here
+    # is unknown; the split seen running is still a real "on".
+    unseen_units: 1
     # The lighting the measurement was taken in. The contrast inside a box
     # depends on it, so a reading under the other kind is refused rather
     # than guessed at.
@@ -435,6 +442,26 @@ rooms:
           # lighting up, and the reading is taken that way round: the
           # direction is read back off these two numbers, not stored
           # separately, so they cannot disagree with each other.
+      - label: second split, top centre, its display
+        led_roi: [728, 43, 740, 53]
+        # 19 Nov, from the kept frames, nobody switching (Shamroze: the room
+        # has two). Measured on its switch-off of 18 Nov 13:50 -> 14:03 (on
+        # again 14:45). By eye: ran 17 Nov 09:46-17:22, 18 Nov 10:31-13:50
+        # and 14:45-17:12; off at night and 19 Nov 13:12-13:32. Lit 23-42 in
+        # the room's normal light; off 0-2. Under the bright evening lights
+        # (17:35-19:44, 17:25-20:49) no dot shows and the box reads 1-7,
+        # so the line sits well above that band: there a running unit may
+        # read "not running", never the other way round. Replayed over every
+        # kept frame: no "running" in an off period.
+        led_std_threshold: 17.0
+        anchor: aWxpZWJfX1tYVFFNTU1NSkpKSkpGQ0NDQ0pNUVRUWFhfYmVscHd+gYSIi4+Li4uLYlhRTU1KSkpGRkZGRkZGRkpKSkpKRkZGRk1NUVRUWFtfYmVscHd+gYSIi4+Li4uLSkNDQEBAQ0NGSkpGRkZGRkpKSkpKSkpKSk1NUVRUW19iZWlscHd+gYSIi4+Li4uLPEBAQEBAQEBDQ0ZGRkZGSkpKSkpGRkZGRk1NUVRUW19iZWlscHd+gYSIi4+Li4uLRkBAQENDRkZGRkNAQEBAQ0pKSkpGQ0NDQ0pNUVRUW19iaWlscHd6gYSIi4+Li4uLRkZGRkZGRkZDQ0NDQ0NDQ0NDRkZGRkZGRkpKTU1NVFhbYmVpbHN6gYSIi4uLi4+SRkZGRkZGRkNDQEBAQEBAQ0NGRkZKSkpKSkNDRkZKRkpNUVRfYmlzeoGIiIuPko+PQ0ZGRkZGQ0NAQEBDQ0NDQENDQ0ZGRkZGRkZGRkpKRkZGRkZNUVtlcHqIkpKSlpmZQEBAQEBAQEBAPDw8PDw8PDk8PEBAQEBAQEBDQ0NGRkZDQEBAQEZRW2x+j5KWmZaZQDw8PDk5PDw8OTkyMjIyNTU1OTk5OTU5OTw5OTk5PDw5MjIyMjU5PEZUYmxscHNzOTk5OTU1OTk5NTUyMjIyNTU1NTk1Mi4uLi4uKyQhFhodHR0WDAgMDyEuQ1tlW3CINTk1NTUyNTU1MjIyMjIyMjIyMjIuLi4uKyQhGhMMDAwMCAUMGi5GX3qIlpl3MjVwMi4uLisrKysrJycrKysrJyEhHRodGhYTDwgFAAAADCRGZXeLpLW4sa6noIg5AAAAKyckJCQhISEhHR0aGhoaFg8MCAUAAAAIHSs1TWVzi5akrrGqp6CWkpmSmYs8AQwFISEdGhYTEx0dExMTCAEAAAAABRYkOVFsfpadoKeqmZmZlpaZlpaZnZ2ZmZaIQAUAFhMPDw8TDAgAAAAAARYnQGJ3kqCnqqqklpmdnZ2dmZmZmZmZmZmZmZaWoKqxPAAACAUAAAAAAAAIJEBYc4+krrW4saegnZmZmZaWlpaWmZmZmZmZmZmZmZaWoLWnJwAAAAAACCQ1YnqSp7G1sa6nnZaPj4+WlpKSlpaWlpaWmZmZmZmZmZmZnZ2ZnaqPCAAAWHqPpLGxp6qnpKSZlpaZmZmWkpaSj5KWlpmZmZmZmZmZmZmZmZmZmZmZnaSPQy5btbWup6SZmZmSkpKSkpKWlpaWlpaWlpaWmZmZmZmZmZmZmZmZmZmZmZaZnaCnoKSnoKSdmZmWlpaWkpKSkpaWlpaWlpaWlpaZmZmZmZmZmZmZmZmZmZmZmZaZnaCkp6SgX4+Pi4+SlpaWlpaSlpaZmZaWlpaWlpaWlpaWlpmZmZmZmZmZmZmZmZaZmZ2dnZ2ZUZKZko+SlpaZmZmWlpmZmZaWlpaWlpaWlpaWlpmZmZmZmZmZmZmZmZmZmZmZmZmZaaeqnZKWlpaZnZ2WmZmdmZaWlpaWlpaWlpaWlpmZmZmZmZmZmZmZmZmWlpaZmZ2dZa64mZmWmZmZmZmZmZmZmZmZmZmWlpaWlpaWlpmZmZmZmZmWmZmZnZmZnZ2ZmZmdNZ21nZ2WmZmZmZmZmZmZmZmZmZmWlpaWlpaWlpmZmZmZmZmZmZmdnZmdnaCdnZ2dFo+xnZ2ZmZmZmZmZmZmZmZmZmZmWlpaWlpaWlpmZmZmZmZmZnZ2dnZ2doKCkpKCdLpKumZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmdnZ2goKCgoKSnpKCgX52qlpaZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmdnaCgoKCgpKSkpKSgYpmknZKWnZ2dnZ2ZmZmZmZmZmZmZmZmZmZ2dnZmZmZ2dnaCgpKSkpKCkpKSkpKSkW5mknZaZnZ2dnZ2ZmZmZmZmZmZmZmZmZmZ2dnZ2doKCgpKSkpKSnp6Skp6enp6enfpmgnZaZnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2doKCkpKSkp6ekp6eqp6eqqqqqqqqqp52gnZmdnZ2dnZ2goKCgoKCgoKCgoKCgoKCkoKCgoKCkpKenp6qqqqqurq6urq6up52dnZmdnZ2dnZ2goKCgoKCgoKSnqqqklo+Bc3qImZ2gpKenp6qqqq6urrG1tbGxpKCgoKCgoKCgoKCgoKCgoKSgoJ2ZhGVKOTxASl9znaCnqqqurq6urrGxsbi8vLi1pKSkpKSkpKSkpKSkpKSkpKSnoJZsQzI8W3qElqexsbW1sbG1tbW1tbWxtbW4tbGqoKSkpKSkpKSkpKSkpKSkoKCnp6SkpKqxuL+8uLy/v7+/vLW1tbGurqekoKCgnZmWoKCgoKCgp6enp6enp6enpKSnqq61vLy/v7i8w8O/v8O/uLWuqqekpJ2Wj4uPj4+PoJ2goKCkpKeqp6Snp6qurq6usbW4uLzDzc3Jw7+8tbGup6SdmZKPi4uIiISLj4+Slp2kpKenp6qusa6usbGxtbi/w8bNzc3Jxry1qqCdj4uIhISEhISBgYSEhIiLj5KSpK6urrGxtbGurq6xtbzDw8PDv7+8uLGqpJmWj4iEgYGBgYF+gYGEhIiIiIuPkpKWrrGxrq6uqq6xuLzGw8O/vLGupJ2WkpKPj4iIiIiIhISEiIiEiIuLi4uLj4+SkpaWuLy8uLi1vMPGw7+8saedko+LiISEhISEhIuPi4+PiIiIiIiLi4uLj4+Pj5KWlpaZv8O/v7y8v7iupJ2Wj4iBgYGEhISIiISEhIuLi4uLj4+Pj4+Pj4+Pj4+PkpKWlpaZsbWxrq6qpJmPiIR+foGBgYGBhISEiIiLi4uPj4+Pj4+Pj4+Pj4+Pj4+SkpKWlpaZoJ2Zko+LiIF6d3d6fn6BgYGBhISEiIuPko+Pj4+Pj4+Pj4+Pj4+Pj4+SkpKWlpaZkouIhIF+gX56foGEhISBhIiIi4uLj4+SkpKSkpKSj4+Pj4+Pj4+Pj4+SkpKWlpaZgYGBfn5+fn5+hIiBgYSEiI+PkpKSkpKSkpKSkpKSj4+Pj4+Pj4+Pj4+SkpKWlpaZ
+        measured:
+          on_std: 33.68          # display lit
+          off_std: 0.41          # display blank
+          on_peak: 206
+          off_peak: 110
+          taken: 2026-11-19T13:47+0500
+          # A gap of 33.3 between the two states.
 
   Prompt Cafe:
     recorder: nvr4
