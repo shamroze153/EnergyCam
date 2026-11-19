@@ -155,6 +155,38 @@ def contrast(frame, box):
     return float(patch.std())
 
 
+# The ring round a box that darkness() measures the box against, in pixels.
+DARK_RING = 5
+
+
+def darkness(frame, box, ring=DARK_RING):
+    """The box's darkest tenth against the median of the ring round it.
+
+    A louvre that opens shows the dark inside of the unit between its slats:
+    near 0.1-0.5 against the tower round it. Shut, the box is the tower's own
+    face: about 1. Unlike contrast() it does not rise when the light changes
+    -- light falls on the box and its ring alike. 19 Nov: the 141-C Cafe's
+    far tower read "running" 07:05-08:09 with its louvre shut, the ceiling
+    lights off and the pink wash of the neon wall on its edge lifting the
+    box's contrast into the range of a real open louvre (25-36 against
+    31-39); its darkness was 0.86-0.91, open louvres' 0.13-0.47.
+    """
+    x1, y1, x2, y2 = box
+    if frame.ndim == 3:
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    patch = frame[y1:y2, x1:x2].astype(np.float32)
+    if patch.size == 0:
+        return None
+    ox1, oy1 = max(0, x1 - ring), max(0, y1 - ring)
+    outer = frame[oy1:y2 + ring, ox1:x2 + ring].astype(np.float32)
+    keep = np.ones(outer.shape, dtype=bool)
+    keep[y1 - oy1:y2 - oy1, x1 - ox1:x2 - ox1] = False
+    if not keep.any():
+        return None
+    return float(np.percentile(patch, 10)
+                 / max(1.0, float(np.median(outer[keep]))))
+
+
 def read_room(frame, room, units=None):
     """Is this room's unit running? Returns (state, why).
 
@@ -281,6 +313,14 @@ def _read_block(frame, config):
     # A camera that really moved fails every unit, and is still refused.
     astray = []
     for unit in config.get("units", []):
+        # A unit that cannot be read reliably is not read at all (19 Nov:
+        # Prompt Cafe's Kenwood on ch 20, side on, no gap between its open
+        # and shut readings, "running" a whole night it may not have run).
+        # Its camera's frames are still kept for a new calibration, and the
+        # room counts it among its unseen units, so it is unknown -- never
+        # a guessed on, never an off it did not see.
+        if unit.get("unread"):
+            continue
         box = unit.get("led_roi")
         threshold = unit.get("led_std_threshold")
         if not box or threshold is None:
@@ -320,6 +360,17 @@ def _read_block(frame, config):
         on_std, off_std = measured.get("on_std"), measured.get("off_std")
         higher_is_on = (on_std is None or off_std is None
                         or on_std >= off_std)
+        # A louvre read by its darkness (19 Nov, `dark_max` in
+        # ac_units.yaml): running only when the inside shows dark between
+        # the slats -- a change of light lifts contrast but not darkness --
+        # and the box is not one flat shade (half the contrast threshold at
+        # least: a shadow over the whole box is dark too, but even).
+        dark_max = unit.get("dark_max")
+        if dark_max is not None and higher_is_on:
+            dark = darkness(frame, box)
+            lit.append(dark is not None and dark <= float(dark_max)
+                       and value >= threshold / 2.0)
+            continue
         lit.append(value >= threshold if higher_is_on
                    else value <= threshold)
     return lit, astray, None

@@ -991,3 +991,18 @@ Two or three lines a round; picture file names, never pictures.
   Basement: units now in frame on ch 24/25 (Haier displays) and ch 23 (cut
   at the top); Basement and DL Department set ac: visible so their frames
   are kept for calibration. Loop restarted.
+* 12:30 Accuracy of the AC readings (Shamroze: "100% exact -- at night I
+  send the team when it says on"). Every calibrated unit checked against
+  every kept frame 17-19 Nov:
+  - Louvres and flaps now read by their darkness (the box's darkest tenth
+    against the ring round it) -- a change of light lifts contrast, not
+    darkness. 141-C Cafe towers 1-6, Learning Center, Room 32, Prompt Cafe
+    Generals. Readings that change: cafe tower 5 this morning (5, were a
+    false on), Prompt Cafe General 1 (23 false ons: all night 18 Nov 22:32
+    - 01:45, and this morning), cafe tower 1 (13 false offs, 17 Nov
+    afternoon) -- each checked by eye. One frame (cafe tower 6, 17 Nov
+    11:33) unclear.
+  - Prompt Cafe's ch 20 Kenwood: no gap between open and shut, a night of
+    "on" with no flap in view -- unread until re-measured (room unknown,
+    never a guessed on).
+  - Displays (Admin, Finance, Room 27, Mosque x2) sit in clean gaps.

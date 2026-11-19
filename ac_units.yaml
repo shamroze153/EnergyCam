@@ -173,6 +173,10 @@ rooms:
         # read as off: a unit running at four in the morning in an empty
         # room, unflagged. The line is now the middle of that gap.
         led_std_threshold: 27.2
+        # 19 Nov, darkness (ac_detect.darkness), kept frames 17-19 Nov:
+        # open 0.07-0.59 (vanes plainly open), shut 0.94+. Agrees with the
+        # contrast on every frame; here so a change of light cannot read on.
+        dark_max: 0.77
         # A thumbnail of the unit and the wall round the box, levelled for
         # brightness, compared before every reading. Nudge the camera and the
         # box lands on blank wall, where it reads low contrast for ever and
@@ -212,6 +216,9 @@ rooms:
       - label: split unit above the TV, its flap
         led_roi: [1583, 25, 1665, 64]
         led_std_threshold: 43.3
+        # 19 Nov, darkness: flap open 0.31-0.52, shut 0.63+ (17-19 Nov);
+        # agrees with the contrast on every frame.
+        dark_max: 0.58
         # A thumbnail of the unit and the wall round the box, levelled for
         # brightness, compared before every reading. Nudge the camera and the
         # box lands on blank wall, where it reads low contrast for ever and
@@ -254,6 +261,11 @@ rooms:
       - label: tower unit 1, front left, its louvre
         led_roi: [90, 280, 106, 306]
         led_std_threshold: 31.3
+        # 19 Nov: read by darkness (ac_detect.darkness), not contrast alone.
+        # Every kept frame 17-19 Nov: open 0.12-0.31, shut 0.96+; the
+        # contrast had read 17 Nov 13:45-16:21 "off" with the slats plainly
+        # open (std 27-30, under 31.3).
+        dark_max: 0.63
         # A thumbnail of the unit and the wall round the box, levelled for
         # brightness, compared before every reading. Nudge the camera and the
         # box lands on blank wall, where it reads low contrast for ever and
@@ -275,6 +287,8 @@ rooms:
       - label: tower unit 2, its louvre
         led_roi: [231, 215, 250, 249]
         led_std_threshold: 33.3
+        # 19 Nov, darkness: open 0.08-0.32, shut 0.84+ (17-19 Nov).
+        dark_max: 0.58
         # 17 Nov: view check moved to the wall above the people (Shamroze, 16 Nov 16:42: four running, page said two or three).
         # Every kept frame 0.82+ (the old view check failed 151); a 50 px nudge 0.23.
         anchor_roi: [60, 140, 220, 260]
@@ -293,6 +307,8 @@ rooms:
         # the night cluster and flipped all night once the view check
         # stopped hiding those frames. The line is now above it.
         led_std_threshold: 42.0
+        # 19 Nov, darkness: open 0.05-0.31, shut 0.73+ (17-19 Nov).
+        dark_max: 0.52
         # 17 Nov: view check moved to the wall above the people (Shamroze, 16 Nov 16:42: four running, page said two or three).
         # Every kept frame 0.82+ (the old view check failed 165); a 50 px nudge 0.23.
         anchor_roi: [60, 140, 220, 260]
@@ -307,6 +323,10 @@ rooms:
       - label: tower unit 4, its louvre
         led_roi: [391, 168, 402, 186]
         led_std_threshold: 25.4
+        # 19 Nov, darkness: open 0.19-0.70 (the light slats of a bright
+        # afternoon, 17 Nov 15:56-16:21, plainly open), shut 0.78+. The
+        # narrowest of the six; it agrees with the contrast on every frame.
+        dark_max: 0.74
         # 17 Nov: view check moved to the wall above the people (Shamroze, 16 Nov 16:42: four running, page said two or three).
         # Every kept frame 0.82+ (the old view check failed 8); a 50 px nudge 0.23.
         anchor_roi: [60, 140, 220, 260]
@@ -321,6 +341,11 @@ rooms:
       - label: tower unit 5, far end, its louvre
         led_roi: [446, 153, 458, 168]
         led_std_threshold: 22.5
+        # 19 Nov: read "running" 07:05-08:09 with its louvre shut -- the
+        # ceiling lights off and the neon wall's pink on its edge (contrast
+        # 25-36, darkness 0.86-0.91; frames/cafe141_unit5_compare.jpg).
+        # Darkness: open 0.13-0.47, shut 0.85+ (17-19 Nov).
+        dark_max: 0.66
         anchor: y5j1/v/////+/fD29v/////z29C9tratrKurqKalpaOjo6Ojo6OkpaanqKmpqampvpT///////////L/+P/5/+nXw66vraWQpaalpKWmpaOhoaGho6OkpKWmp6ioqKiov5j///////////7//f//7eKrsq2NipBzmp+goaapp6OhoaGhoaGho6SkpaWlpaWmyqb/////////+djg2//42+qOp6OCpK2coKOho6anpaGhoKChoaGhoaGjo6Ojo6Ojzab////kro6CgcW6mdXfrqOIgYeEo6isqaampaOhoKCgoJ+goKGhoaOjo6Sjo6OhloComouZmqOappeapaSprrSpd5Kao6ipp6WlpKCenp+fn5+en6CeoKespKipqKinoaOenp2kpaWjqa2vsLSzra6repedoaSmpaSjoZ6dnp6enp6en6Cemp+pu8XLysa/l5yhpKGkpKSkqK2vsq+1l7CuhpaeoKSlpKOjoZ+enp6enZ2dnp6clUo2PURMWnSOl5eSo6OjpaSgp6Cnr7TBhrWtiZedoKOkpKGhoJ6enZ2dnZyampmWkTwyLy4vLSoplo+JoaCarKSfppCgr7S7g7eui5aeoKGjo6Ggn5+fnZycmpmYmZiYgTUuLy4yMDAwkIuOn52Os6OjqJqepay2lrWsjZedn6GhoaCgn5+enZ2amZiXmZeYfDhBOzQtLSsvl5WGn52KrqOonZ+ll6OyrLWtkZaanqCgoJ+gn5+enZyamJeWmJaXeD9scGFZWzg9mZCNo52ai6erlZ6slo23rLW1kpianp+fn5+fnp6enZyZmJaWl5aVcC83Xml6c2ZpnHmgoZ+Ygqarkp2tnKSyo62rjZWZnZ6dnp+enp2cnJqYmJaVlpaUay0tLzE2NDs9mIKcoaCaj6ernaSsp6+vo5GdiJWanZydnZ6enpyamZiYl5aVlJWRaC0uMDIuNDEykoOdo5+jlaipqKurrLC0oIOWgpWanp+foJ+enZqYl5aXl5aUkpKOZi4wMDExMTExlYCkoaCjnaioqamprLC2nImYfJaYnJmZmpydnJqXlZWVlZaUkpCNZi0xMTExMjIyl5ihoaSho6apqKioqbO4pY+deJiXnJ2enJycmpiVlJSVlZWUkZCLZi0xMTExMTExmJmhn6ShpKaoqKaop7O0kIegdJaUmZqZmpycmpeVlJSUkpKRjo6JZC0xMTExMDExmZqfoKakpqWnnoayq7K0iImWf46RkY+PlJaWl5aUkZKRkZKQjouGXy0xMTEwMTEwnJqciaunpaSllX+2qa2fnpqRiYqOi4uLi4uLkZaSkJGQkJCPjoiCWy4xMTExMTEwmpiSeauspqSmnIO1q6mIoJ6QiYmKi4uLi4uLj5SRkZCPkJCPjoiBUy0xMTExMTExmJaVfqWmoKGlp4Gpq6iAiZaSiIiLi4uLi4uLj5KQj4+Pj4+OjYiCSy0wMTAxMTQ1mJWofJ2UmKGloXuer6R0hJSQhIaKi4uLi4uLjo+Ojo6Ojo6Ni4iCRi8xMTAxMTU7l5+KqJyUnqGro5GsrKeei46CgXuHi4uLi4uLjY6LjY6Ojo2LioeJMTEyMTAxMjY9nJFzpZmNo6Gno5aWl5qHeYSBf3qHi4uLi4uLjY2KiouNjYuLiYaJMTExMTExMTQ9mI53rZ2GpKejoYqDnJx+cHl/f3+Ji4uLi4uLi42JiYqNjYuKiYaJMjExMTExMDI9lZeEkoGljayWgneKjZmZeWl4foGKi4uLi4uLi42JiYqLi4qJiYaJMTAxMTExMTI8mH6ed3iUgamLgI2YnoR+ZGJven6IjY6OjY2NjY2JiIuKiYmIiISJMDAyMTExMTE8mHmEgYR0fKWckY+Vjn54VlVfeHiCkJaVkZKQjY2KiYmJiIiIiISHLy8yMTExMTI8koGBfHyfe52Vgnx+j3h4V1NbdXeAkpeWkpKPjY2KiYiIiIeIh4SBLi8xMTExMTE7knCkhJGEhouScoKJlIGGXFRadHR+kpeVkpGOjY2KiYiIh4eIhoR8Ly8xMTExMTE8mHSDg4qDb5aLfJGHkIaEXlJXcnJ8kpeVkpKOioqJiIeGhoaHhIN1MC8wMTExMTE7h3d8Y4d8nIuZlIFUZnl8X1JTbHB8kpaVkpKNiImHhoSEg4SEgoFtMDAwMDExMTA5mYBli4iNknmdilAfI05/aFJSanB8kpWUkpSLhIaGhIOCgoKCgX9mMjEwMDAxMTA3lYt4lH6lfHWHayolJjx6YVNSaG98kZSSkZSJgoSGhIGBgYGBf3xiMjExMDAxMjA1lHWZd354d4CejkEpKDRrX1RQaG18kZKSkZSIgYSDgYCAgICAf3tcMjEyMTAxMTE1kICChnySe1ptbUMwKi1wV01NaW98kJGRkJKHgYOCgYCAgYGAfnpWMTExMDExMTE0ekdXfnCah0FENj5ANTh7UkhMbXF7j5CQkJGHgIGAgYCAgYGAfnhPMDExMTExMTAyOSEic4J8e3EtVkctODE9TUZObHNykI+PjpCGfoGAgICAgIGAfnhMMDExMjAxMTExHiMnS3t5iYYrlVwmKzItUzcuP2lpj4+OjY+EfoB/f4CAgIGAfHdIMTAxMTAwMDEwIS0oTHx7lnRDkV8rN0BBVzQqJ2RjkI+OjY6DfH9/f3+AgYGAfHdEMTAwMS8wLjEwLTgxaXWdcW81jWUxRz9ATkA4J2lcjo6Li42Cen5+fn+AgIB8e3dBMC8wMTAxLjAwKjc7em16anErmU0xMS82PDg8NmtWiY2LiYl+eHx/f4B/f398endBMC8vMDAwLS8yLS4xaXlyc28we0E4LyowNDI1SHFMiouKiId7d3p+f4B+fn57eXVBLi8wMC8uKy8xNTAvPWSPe4crQDc8NDE0OzwxRlRZioqJh4R5dXl8f39+fnx6eHNBLS8vLy8uKi4xNTY5PUpxbXcvKi4vNDc5Q0UqOztsjomIhoN4dHl7fHx8fHt6d3E/LS4vLy8tKi4xNTlDP0FwcYMyMikpMDc5QEUpNTteiIiHhIJ1c3d6e3p6enp5dW08LS4vLy8tKy4x
         measured:
           on_std: 36.95          # display lit
@@ -348,6 +373,8 @@ rooms:
           - label: tower unit 6, at the back by the coffee machine, its louvre
             led_roi: [392, 30, 401, 51]
             led_std_threshold: 30.5
+            # 19 Nov, darkness: open 0.19-0.53, shut 0.67+ (17-19 Nov).
+            dark_max: 0.60
             # 17 Nov: view check moved to the left wall below the window; the old one failed on two frames in three by day.
             # Every kept frame 0.89+ (the old view check failed 182); a 50 px nudge 0.07.
             anchor_roi: [40, 240, 200, 400]
@@ -417,7 +444,8 @@ rooms:
     # one Kenwood on ch 20. The other two Kenwoods need a camera moved
     # ("we will decide later"), so an "off" for the cafe stays unknown
     # until they are read; any of the three seen running is a real "on".
-    unseen_units: 2
+    # 19 Nov: the ch 20 Kenwood is set unread below, so three are unseen.
+    unseen_units: 3
     # The lighting the measurement was taken in. The contrast inside a box
     # depends on it, so a reading under the other kind is refused rather
     # than guessed at.
@@ -437,6 +465,11 @@ rooms:
         # from 17:08 to 21:10. Closed it reads 19-25 by day, 14-17 at
         # night; open, 36.0 at the least. The line is the middle of that.
         led_std_threshold: 30.4
+        # 19 Nov: read "running" all of 18 Nov 22:32 - 19 Nov 01:45 and
+        # 07:32-08:10 with its louvre shut (contrast 31-37, a thin line under
+        # the night lamps and the morning light; frames/prompt_g1_check2.jpg).
+        # Darkness: open 0.07-0.25, shut 0.71+ (17-19 Nov).
+        dark_max: 0.50
         # A thumbnail of the unit and the wall round the box, levelled for
         # brightness, compared before every reading. Nudge the camera and the
         # box lands on blank wall, where it reads low contrast for ever and
@@ -458,6 +491,9 @@ rooms:
       - label: General 2.5 ton 2, behind the light, its louvre (in the gap of the date)
         led_roi: [238, 62, 262, 75]
         led_std_threshold: 63.7
+        # 19 Nov, darkness: open 0.01-0.09, shut 0.32+ (17-19 Nov); agrees
+        # with the contrast on every frame.
+        dark_max: 0.20
         # The view check is the unit's body and the wall above
         # the recorder's date, not round the box: the box sits
         # in a gap of that date, whose day name changes every
@@ -481,6 +517,12 @@ rooms:
           - label: Kenwood 2 ton 1, top right of ch20, seen side on, its flap
             led_roi: [1788, 183, 1806, 195]
             led_std_threshold: 24.6
+            # 19 Nov: not read until it is measured again with somebody
+            # switching it. Every kept frame 17-19 Nov: no gap between open
+            # and shut (62 of 208 within 15% of the line), and 18 Nov
+            # 19:31 - 19 Nov 01:45 it read "running" at 26-32 with no flap
+            # in view (frames/kenwood20_check.jpg). Its frames are still kept.
+            unread: true
             anchor: YWFeXFxeXldeeXdtcjNL/86nv8K/v7+9vb26v729s3JXb9X////////QmK6srrOxYWFeXFxeXllcb3lydzVh/8azuMS9v7+/v7+/v7+/ur22sYVqZoCdy//Goq6urrGxYWFeXF5eXFlcZndyeTOM/8a9uMK/v7+/v7+/v7+/v6dZmLHCvamPjIqlrrGxsbGxYWFeXF5hXllcYW93eS62/8nLs73EwsK/v7+/v7+/08YrDiIOXrqzrK6xrq6xrq6uYWFeXF5hXllcXmh0eyvE/8bQsbrEwr+/v7+/v7+/ydBjWVwwXsa9urixsa6urq6uYWFeXl5hXlxeXmFqezPQ/8LLs7/Cv7+/v7+/vb29vdXTy72YoLjGrK6srq6usbGuYWFhXmFhYV5eYV5oezPT/72/usK9urq9vb29vb26uL+6uMLQvb22uLGzs7OzsbGxYWFhYWFhYWFhYV5hcjzT/7asv8K/vb29vb29vb26uLa6urjCsbq6urO2tra2s7OxYWFhYWFhYWFhYV5XZkSU/8msvb+/vb29vb26urq6urq6urq4v73Luri6tra2s7OzYWFhYWFhYWFhYWFeYVcw6Mm4yb+9ur29vb26urq6urq6uL2/ztz+8M6/tra2s7OzYWFhYWFhYWFhYWFeY1Id/trCxr2/vb29vb26urq6urq6urrOtgc8TdXJuLa2trazY2FhYWFhYWFhYV5eZlUi99rExrq/v729vb29urq6urq6urrQ0DVtH+bGrra2tra2Y2NhYWFhYWFhYV5hYUsf8sS4zsu/v7+9v729vbq6urq6urrEpRYkJ8bCsbGzuLa2Y2NhYWFhYWFhYWFeZksp98K6y8S/wsK/vb29vb26urq6urrE39W2mL22sbOztra2Y2NhYWFhYWFhYWFcZlxJ4cS2072/ycLCur29vb29urq6urq9xtPV8MuurrOztrazY2NjYWFhYWFhYWFcY1lVJzip2r3GycLEzsS9vb29vb26uri9uLG6s7Osqa6ztraxY2NjYWFhYWFhYWFhYV5eUDgkjL/X08K9ycbCvb29ur29urq6trO6s7Gup6yztri2Y2NjY2FhYWFhYWFhYV5hYVc6J0Gd18m9usLGwr2zur29uri4tra4trGxrrG2ur22Y2NjY2NjY2FhYWFhYWFhYV5jVTgTVbHtzsLCxL24uL29urq4uLa2trixqaezurOxY2NjY2NjY2FhYWFjYWFhXlxhYV5JKSdv2r/JxL2/vb29ur24uLa2traxs6yzuK6xY2NjY2NjY2NjY2NjY2FhXl5cXmNjYVA8hZiRjIiuxr+9urq4uLi6trGxurOztrGuY2NjY2NjY2NjY2NjY2FhYWFhYWNjY2NjY2NjY2OWtr+/uL29urq4urqxuLOutq6sY2NjY2NjY2NjY2NjY2FhYWFhYWNjY2NjY2NjY2Oxzr3Owsm/urq6urixurqzs7GzY2NjY2NjY2NjY2NjY2NhYWFhYWNjY2NjY2NjY2NttsS9v8S/vbq6uri2uLi2trG4ZmZjY2NjY2NjY2NjY2NjYWFhYWNjY2NjY2NjY2MpMIC9usvCvbq6urq4rKy2urG4ZmZmZmZmY2NjY2NjY2NjYWFhYWNjY2NjY2NjY2NjPDU8qb2/vbq/v7i4sbG6urO2ZmZmZmZmZmNjY2FhYWFhYWFhYWNjY2NjY2NjY2NeXFc6HYXc3Ma4xLq6uLq4uLq9ZmZmZmZmZmNjYWFhYWFhYWFhYWNhYWFhYWFhYWFeXFxVUCkdot/Cv7q9vbq9urizZmZmZmZmZmNjYWFhYWFhYWFhYWFeXlxcXFxcXFxcXFxXWVwfAGady722sbq/uri4ZmZmZmZmZmNhYWFhYWFhYWFhYWFeXlxcXFxcXFxcXF5mXGNZLgcwg5uxxLi2s7GuZmZmZmZmZmNhYWFhYWFhYWFhYWFhXlxcXFxcXlxcXFdhV141VUlEWVxmhYqYoKegZmZmZmZmZmNhYWFhYWFhYWFhYWFeXlxcXFxcXFxcXFleYVxESUZQaGhhXGFteYWRZmZmZmZjY2NjY2FhYWFhYWFhXl5eXFxcXFxcXFxcWVlcYVxGRkZSaHd7eXR0b293ZmZmY2NjY2NjY2FhYWFhYV5eXl5eXFxcXFxcXFxcXFleY1xGRktSZm9ydHJyeYODZmZjY2NjY2NjY2NhYWFhXl5eXl5eXFxcXFxcXFxcXFdcXldJSUlXanJ0dHd+g4N7ZmZjY2NjY2NjY2NjYWFeXF5eXl5eXlxcXFxcXFxcXFlcXldJRkZXam9vdHR0gIODZmZjY2NjY2NjY2NjY2FeXl5eXl5eXlxcXFxcXFxcXFlcXldJRkZZbW9tcnR0gIOAZmZjY2NjY2NjY2NjYWFeXl5eXl5eXlxcXFxcXFxcXFlcXlVJSUlZbW9vcnd3gIOAZmZjY2NjY2NjY2NhYWFhXl5eXl5eXl5cXFxcXFxcXFlcXldJSUlZbXJvcnd5gICAZmZjY2NjY2NjY2FhYWFhYV5eXl5eXl5cXFxcXFxcXFdcXlVLS0tcbW9tcnd7foCAZmZjY2NjY2NjY2FhYWFhYWFeXl5cXl5eXFxcXFxcXFlcXlVLS0tcbW9vcnd7gIB+ZmZjY2NjY2NjY2FhYWFhYWFhXl5eXl5eXlxcXFxcXFlcXlJNTUtcbW9ycnd7foB+ZmZjY2NjY2NjYWFhYWFhYWFhYV5eXl5eXl5cXFxcXFlcXlJNTU1ebXJydHl7e4CAZmZjY2NjY2NhYWFhYWFhYWFhYWFeXl5eXl5cXFxcXFlZXlJNTVBhb3Jyd3l7foB+ZmZjY2NjY2NjY2NhYWFhYWFhYWFeYV5eXl5eXFxcXFlZXFJNUFJhcnJ0d3l7foB+ZmZmZmZmY2NjY2NjYWFhYWFhYWFeXl5eXl5eXFxcXFlZWVBNS1Bjb3R3eXuAfoCAZmZmZmZmY2NjY2NjYWFhYWFhYWFeXl5eXl5eXFxcXFdZWU1NS1Jmcnd3eXt+foCAZmZmZmZmY2NjY2NjYWFhYWFhYWFcXl5eXl5eXFxcXFdZV01NS1JmdHd5eXt+foCA
             measured:
               on_std: 33.42          # display lit

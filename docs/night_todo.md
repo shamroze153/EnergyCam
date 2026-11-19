@@ -95,7 +95,11 @@ it here. Shamroze reads the morning summary in Roman Urdu.
       hours; now on the floor unit's lower body. Only the Kenwood is
       left. For Shamroze: Finance also has a floor-standing unit on the
       right wall, in camera, while the survey says one AC.
-- [ ] 141-C Cafe tower 5 (far end, by the neon wall) read "on" 07:05-08:09
+- [x] 12:30 Done: louvres and flaps read by darkness (ac_detect.darkness,
+      `dark_max` per unit), checked against every kept frame 17-19 Nov.
+- [ ] Prompt Cafe's ch 20 Kenwood is `unread: true` until measured again
+      with somebody switching it (no gap between open and shut).
+- [x] 141-C Cafe tower 5 (far end, by the neon wall) read "on" 07:05-08:09
       on 19 Nov with its louvre shut: the ceiling lights off and the pink
       wash on the tower's edge lift its box to 25-36, inside the 31-39 it
       reads when truly open by day (18 Nov 11:33-14:05, slats plain), so no

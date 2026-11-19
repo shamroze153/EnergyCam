@@ -245,7 +245,63 @@ def check_several_units(ok):
 
 
 
+def check_louvre_darkness(ok):
+    """A louvre read by its darkness (19 Nov): open is dark between the
+    slats, and a change of light that lifts the contrast is not."""
+    print("-- a louvre is running only when its inside shows dark")
+    box = [100, 100, 112, 115]
+    unit = {"label": "louvre", "led_roi": box, "led_std_threshold": 22.5,
+            "dark_max": 0.66,
+            "measured": {"on_std": 36.95, "off_std": 8.04}}
+    units = {"Cafe": {"frame_size": [300, 300], "units": [unit]}}
+    x1, y1, x2, y2 = box
+
+    def tower():
+        return np.full((300, 300, 3), 180, dtype=np.uint8)
+
+    shut = tower()
+    opened = tower()
+    opened[y1:y2:3, x1:x2] = 25          # dark slats every third row
+    opened[y1 + 1:y2:3, x1:x2] = 25
+    # 19 Nov 07:09: the ceiling lights off, the neon's pink on the edge of
+    # the tower -- a bright gradient across the box, contrast like an open
+    # louvre, nothing dark in it.
+    lit = tower()
+    for i in range(x2 - x1):
+        lit[y1 - 5:y2 + 5, x1 + i] = 150 + 8 * i
+    ok("open slats: dark (%.2f)" % ac_detect.darkness(opened, box),
+       ac_detect.darkness(opened, box) < 0.3)
+    ok("a shut louvre: about 1 (%.2f)" % ac_detect.darkness(shut, box),
+       abs(ac_detect.darkness(shut, box) - 1) < 0.05)
+    ok("a gradient of light has contrast above the threshold (%.0f)"
+       % ac_detect.contrast(lit, box), ac_detect.contrast(lit, box) > 22.5)
+    ok("  but is not dark (%.2f)" % ac_detect.darkness(lit, box),
+       ac_detect.darkness(lit, box) > 0.66)
+    ok("open reads on", ac_detect.read_room(opened, "Cafe", units)[0] == "on")
+    ok("shut reads off", ac_detect.read_room(shut, "Cafe", units)[0] == "off")
+    ok("the light on the tower reads off, not on",
+       ac_detect.read_room(lit, "Cafe", units)[0] == "off")
+    flat = tower()
+    flat[y1:y2, x1:x2] = 40               # a shadow over the whole box
+    ok("an even shadow over the box is not an open louvre",
+       ac_detect.read_room(flat, "Cafe", units)[0] == "off")
+    plain = {"Cafe": {"frame_size": [300, 300],
+                      "units": [dict(unit, dark_max=None)]}}
+    ok("without dark_max the contrast alone reads it, as before (on)",
+       ac_detect.read_room(lit, "Cafe", plain)[0] == "on")
+    # A unit set unread is not read at all; the room counts it unseen.
+    two = {"Cafe": {"frame_size": [300, 300], "unseen_units": 1,
+                    "units": [unit, dict(unit, unread=True)]}}
+    state, why, running = ac_detect.read_units(opened, "Cafe", two)
+    ok("an unread unit is left out: one read, running (%s)" % why,
+       state == "on" and running == 1)
+    state, why, _ = ac_detect.read_units(shut, "Cafe", two)
+    ok("and with it unseen, a shut louvre beside it is not an 'off' room",
+       state is None)
+
+
 def main():
+    check_louvre_darkness(ok)
     room = "Admin Room"
     cfg = UNITS[room]
     box = cfg["units"][0]["led_roi"]
