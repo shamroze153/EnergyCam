@@ -112,6 +112,14 @@ it here. Shamroze reads the morning summary in Roman Urdu.
       frames: calibrate each from its first clean off/on. Ask the camera
       team to tilt ch 23 down a little; Basement Meeting Room's unit is in
       no camera yet.
+      19 Nov 22:30: ch 23 is moving -- tilting down by itself, its picture
+      26 px higher at 22:20 than at 12:20, ~2.6 px an hour without a break
+      (phase correlation; ch 21, 24, 25 and DL held within 1 px). A box on
+      it would slide off within hours: none of ch 23's units is calibrated
+      until it holds still (camera_work_list: tighten the mount). Its split
+      D (top centre) switched off at ~22:00 -- the slot under its flap,
+      open all day, shut at 22:07 -- the first clean switch seen there.
+      ch 24, ch 25 and DL: no switch yet.
 - [ ] Names for cd_nvr4:17 (corridor), :26 (outside lane, guard), :31
       (pantry/kitchen); :30 duplicates the cafe's cd_nvr1:14. Asked.
 

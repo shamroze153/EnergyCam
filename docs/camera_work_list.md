@@ -78,7 +78,7 @@ Shamroze, 14 Nov: the camera team starts Monday -- 141-C first, then 141-D, then
 
 | Room | Cameras | Units (tons) | Read | To do | Notes |
 |---|---|---|---|---|---|
-| Basement | nvr4:21 nvr4:23 nvr4:24 nvr4:25 | 4 (1+1+1+2) | 0 | bring a unit into frame |  |
+| Basement | nvr4:21 nvr4:23 nvr4:24 nvr4:25 | 4 (1+1+1+2) | 0 | **tighten nvr4:23's mount** | 19 Nov: nvr4:23 tilts down by itself -- its picture rose 26 px from 12:20 to 22:20, steadily, ~2.6 px an hour (ch 21, 24, 25 held still). Loose since the morning's adjustment? Its units cannot be calibrated until it holds still. Then, if it can, a little more down: two splits are cut by the top edge |
 | Basement Meeting Room | nvr4:22 | 1 (2) | 0 | bring a unit into frame |  |
 | DL Department | dvr2:1 | 1 (1) | 0 | bring a unit into frame |  |
 

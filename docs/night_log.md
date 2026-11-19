@@ -1113,3 +1113,17 @@ Two or three lines a round; picture file names, never pictures.
   night) and Lobby 1 ch8's dark trunk at the top edge (0.25-0.91, people
   do stand there; no unit) -- frames/140-H_Board_Room_nvr1_ch24_boxes.jpg,
   frames/Lobby_1_dvr2_ch08_boxes.jpg. Still no AC switch-off to calibrate.
+* 22:48 Round: field_audit 22:25 -- MISSED 1, GHOST 2, 104 match: people
+  leaving (Basement empty at 22:37, 141 Lobby 1st floor at 22:37) and two
+  men walking through 141's lobby door between passes. HR Room, zoned at
+  21:00, reads right (empty, match). night_check 22:40: Reception MR's
+  five are a real meeting; Room 7's and Room 27's are black chairs the
+  loop does not count (Room 27's AC is off anyway); Room 11's is a man
+  beyond its glass door (2 passes a day alone -- a doorway, left); the
+  Creative Room's bottom-edge object is new tonight (6 hits) -- drop_still
+  should take it; look again at 00:25.
+  Found: Basement ch23 is tilting down by itself, its picture 26 px
+  higher at 22:20 than at 12:20, steadily (ch 21, 24, 25, DL still) -- a
+  loose mount since the morning's adjustment; in camera_work_list for the
+  team. Its split D's louvre shut at ~22:00, the first switch seen there,
+  but nothing on a moving camera can be calibrated. No other switch yet.
