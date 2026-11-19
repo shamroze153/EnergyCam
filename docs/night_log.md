@@ -962,3 +962,6 @@ Two or three lines a round; picture file names, never pictures.
 * Dawn again: 06:27-06:40 nine rooms came back "occupied" together --
   chairs in the changing light (Marketing 0.47 at 06:34). Added to the
   15 Nov proposal, which waits for Shamroze's yes. Nothing changed.
+* 07:50 Room 32's 07:30 infrared "step" came again today at the same
+  minute with the light: it is the sunrise on the unit, not a switch. Noted
+  in night_todo (an infrared on would have to sit above ~16).

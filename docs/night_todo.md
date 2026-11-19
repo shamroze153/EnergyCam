@@ -77,6 +77,10 @@ it here. Shamroze reads the morning summary in Roman Urdu.
       so not a clean step (frames/room32_ir_step_17nov.jpg). Wait for a
       morning where it switches with the light steady before an infrared
       block.
+      19 Nov 07:50: the same step at the same minute (07:19 9.2 -> 07:32
+      15.3, light 78 -> 91; frames/room32_ir_step_19nov.jpg): it is the
+      dawn on the unit, not the unit. An infrared "on" for Room 32 must sit
+      above ~16, or every sunrise reads as switched on.
 - [ ] Still to look at (scratchpad units_audit.py, unit_values.py):
       Prompt Cafe's Kenwood on ch 20 reads 21-29 around its 24.6 on the
       afternoon of 13 Nov (on or off not known) and its view check fails
