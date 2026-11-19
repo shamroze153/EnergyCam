@@ -40,7 +40,7 @@ partly; the meeting room in none.
 | Wellows | 2 (1 t) | dvr2 ch15, ch16 | ch16: W1 whole -- readable; W2 far left, above the green door -- partly. ch15: a unit at its left edge (likely W2, close) -- partly. **2 of 2** |
 | Admin Room | 1 (1 t) | dvr2 ch9 | calibrated |
 | AutoOS | 2 (1 t) | dvr2 ch10, ch14 | ch10: one split -- readable; ch14 none. 1 of 2 |
-| 140-H Reception | 3 (2 t) | nvr1 ch11, ch16 | **New**: ch11, a wall split above the bookshelves, whole -- readable; ch16, the floor tower beside the disrupt.com wall, whole, not only its top -- readable. 2 of 3. The dark box over the glass door in both is an air curtain. |
+| 140-H Reception | 3 (2 t) | nvr1 ch11, ch16 | **New**: ch11, a wall split above the bookshelves, whole -- readable; ch16, the floor tower beside the disrupt.com wall, whole, not only its top -- readable. 2 of 3. The dark box over the glass door in both is an air curtain. **Both calibrated 19 Nov from the kept frames** (the split by its louvre, the tower by its front outlet). |
 | HR Room | 1 (2 t) | dvr2 ch2 | a grey box at the right edge, past the glass -- not sure it is a unit |
 | Creative Room | 2 (1 t) | dvr2 ch4 | no |
 | IT Head Room | 1 (1.5 t) | dvr2 ch11 | no |
@@ -72,6 +72,13 @@ IT Head, Board, Cyber, Old Finance, UPS. (First pass: 6 readable, about
 
 ## Next
 
+* Calibrated from the data (19 Nov 13:00, nobody switching): Reception's
+  split and tower, from the frames kept 17-19 Nov. The cameras the team
+  moved this morning -- Marketing ch3 and ch13, Wellows ch16 (09:40-09:54),
+  AutoOS, Basement and DL (marked visible 10:53-11:45) -- have frames from
+  then only; their first switch-off is this evening, and they are
+  calibrated from it. Wellows ch15's "edge" object did not change once in
+  three days: no signal, left alone.
 * The technician switches each readable or partly unit off for five
   minutes and on again, one at a time, and notes the times: each is then
   calibrated from the frames either side. Order: Marketing's five (settles

@@ -581,3 +581,94 @@ rooms:
           taken: 2026-11-14T11:45+0500
           # A gap of 55.4 between the two states.
 
+  140-H Reception:
+    recorder: nvr1
+    channel: 11
+    # Three 2-ton units. Calibrated 19 Nov from frames/ac_keep, nobody
+    # switching anything (Shamroze: "calibrate it yourself from the
+    # data"): the split above the bookshelves on ch 11, by its louvre, and
+    # the floor tower on ch 16, by its front outlet, every switch checked
+    # by eye. The third is in no camera, so an "off" stays unknown; either
+    # of these two seen running is a real "on".
+    unseen_units: 1
+    # The lighting the measurement was taken in. The contrast inside a box
+    # depends on it, so a reading under the other kind is refused rather
+    # than guessed at.
+    expect: colour
+    # The frame this box was drawn on. A box is a position in pixels, so it
+    # means nothing on a picture of a different size: switch the stream from
+    # main to sub and these numbers land somewhere else entirely while still
+    # producing a confident answer. Checked before every reading.
+    frame_size: [2560, 1440]
+    units:
+      - label: Split above the bookshelves, its louvre
+        led_roi: [1458, 71, 1512, 81]
+        led_std_threshold: 28.4
+        # Measured on the switch-on of 19 Nov 09:40 -> 09:52. By eye it ran
+        # 17 Nov 09:18-19:17, 18 Nov to 19:31 and 19 Nov from 09:52; off in
+        # between. Contrast alone cannot tell (the evening lights give a
+        # shut louvre 44-47); darkness can: open 0.03-0.42, shut 0.54-0.89.
+        # The louvre swings, and at its narrowest (17 Nov 09:45-14:00) it
+        # reads 0.50-0.60 -- as dark as shut -- so the line sits under
+        # every shut frame: a narrow swing reads "not seen running", never
+        # an off frame "running".
+        dark_max: 0.46
+        # A thumbnail of the unit and the wall round the box, levelled for
+        # brightness, compared before every reading. Nudge the camera and the
+        # box lands on blank wall, where it reads low contrast for ever and
+        # calls a running unit off -- silently, and in the direction nobody
+        # notices, because a unit never reported as on sends nobody anywhere.
+        anchor: Qz05OTY8WlteX2Jarqysr3hubm5voaKenJ6blZeamJeUh3iKio2Kenl5fHp4eHV4Qzw5OjY8Xl1eX2Jbr66usHhubm5ypKSfnJ6cl5iampiVh3+Kio2KfHp5fXp4eXZ4Qzw6Ojg4Xl9fYmRfr6+vs3hvcG9ypqWhnp6cmpqbnJqXioSLi42KfHp8fXp5eXZ5Qz08Ojk/Xl9fYWVmsK+vtnZvc29yqKWin5+cnJucnpuXioaLjZCHfXp8fXx6eXV5Q0A9PDpAXl9fYWVrsrCvtnVwc29zqaaloaGenpyen5yXiYeLjZB/eXp6enp6eXZ5Q0A8PTpBYWFhYmRvsrKwuHNwdW91q6impKKfn56fn5yXhomNjpR8dnZ5fH18enl6RD86PD1HX2FiZGZ2s7OvuXJydW92rKmopqKfn5+hn5yXhIqNjpN2c3h4enx/fX18Q0A9PEBJXmFkZmV6srKyuXB2dW96rqiopqWhoaGhoZyaho6NjpFwaXZ/eXN4eX1/QUFAQD9NX19iaGV/s7KyuG94dW98r6mppqWhoaGhoZ6biZSOjZBzX0thZXB4dnx/RkZDQT1LYWJiaGWDs7Kytm95eHCAsKysqKWhoaGhoZ6bh5eOi45/aatocFpfbHNyR0dEQT9LYmVkaGaJs7OyuG94eXODs6+uqKWhoaGhoZ6bhJOQjY2DadE6TmRuZmhrRkBAQDlOYmlmaGaLtbOyuHB2enOGtbCvqKWhoaGhoZ6bh5STjo2BdaghKUBhXmhpR0dGSkpYYWhoaGaRtbaws3B4enKJtrCwqaWfn6GhoZ+ciZiTkYqDfIoRCxUuPEdYR0dGREZRZGZoaWWUtbiysnJ4enKLuLKwq6WfoaGhoZ+ch5eTkY2BgXwNczUXGCJDRklGPz1RZGZpaWWXtbizrnN5fG+OuLKwq6afoaGhoZ+ehpWUk46BhmQJvLo9DQ4aR0ZEQTxbYmZra2Scs7m1rHV6fWuRubOyrKihn6GhoZ+fh5eVlI6EjlUKc5g8l0tpR0dEQT1fZWZrbGSis7m1rHV6f2mTubOyrKahoaGhop+fiZqXlY6GkUcLW5dKol52R0dHQz1iaGhrbmWrs7q4q3h8gWiUubO1rqWipaKkpKKkiZuXlZGHkEANYl5ek0AsSUlJQ0BkaGhsbmWutr25qHl9f3OXuri2rKmopqSkpqSii5uYl5GKkDYQhiJLEQkRSUlHREFmaGlsbmWuusC8onx/fHCQv7y4sK6rpqampqikjZyamJONkSgJHQkNR1QNSklERERoaGlsbmSwvcG9n3x/fH+iv7+6tbauqKilpaKHip6bmpSQkx0EJD0RnFsmSkdDRkRpaWtub2W1wMO8n3x9g4ODg4ODg4ODg4ODjnVfiaGcm5WRkxcGUU4JVyEYSUdDSURrbGxvcGi6w8PAl3l/g4ODg4ODg4ODg4ODdW9ulKGenpqVkBAJWxsfEBELSUdESkZsbm5wcGu/xsHDk4OYg4ODg4ODg4ODg4ODc31znqKfnp6UiwsOWzouL00wSkdHS0pub29wcG7Ax8HAl56eg4ODg4ODg4ODg4ODeXxzoaShn56BeQoHTlUaHVVGS0lJS01vcHBwcHPDxsPDh5R5g4ODg4ODg4ODg4ODf3x1pKWioZ+LixcEK008KyYzSUlLTU5wcHBycHbGxMPJfYqig4ODg4ODg4ODg4ODgIB1qKiloqKYn4YXBxtTQUMsSUlLTU5wcHBycHrHxsTJiYuTl2uQqXOYsH9Yg32Ag4NzqaumpKWLlZufHwsvLlpQS0pLTU1wcHJzcH/Hx8bKoWyYtoGbxLKTsKZdgX+BhIR2rKyppaWBlXWBIhEoIVNTTUpKTk5ycHJzcoPGycfQroupy8qRrMtpmo1dgYGEhoZ4r66rqJ99mn9bGwMGIlRaTkpKUFNycHN1c4nJycnUpM6Dmrpuh5hvkJBygYOGhod5sq+sqZeDk4lvGAQdKyRVTktKUFNzc3V2do3NycvUirNyjZ6DhpOuf6F8h4aHh4l9s6+uqZCGkIFvGwc4NQQLUVFQUVRzc3Z2eZDOycvQf46cg5q9gJOhgJd2ioeJh4qAta+uq5SLjo5iGAo4QwYEU1ROUVd1c3h2fJTOysvLeqG5hI6kk5umnrN5jYmLiouDtrCvrpOLmJVdEAkiFAYHU1NKTlt1cnh4fJjQy8vLfJehnpiyqbyim7J6jYuNi46EtrKvr4d1g5RkEAk4CgQTVFNLTV51cnh5epzQzcvOh56/r7mvnK58q5p/jY2OjZCHubKwsIBvl5tiGBE8IQYiVVRNTl9zdXl5fJ/R0MvRkcOhsKuJsp6QqJqAkZCRkZGJurWwsHaOpYZkGxQyHQQEVVROTmF1dnl5eqTT0c3Hl6iLup6asK6vqKyAkZGTkZOOvbiys2yJm1VVGxQrFwMRV1VQTWV1dnl6eqzU083EoqSRuqu4uL+TsIGAkZOTk5GTv7q2uGSLlW9lGxQpFQQrV1VRSmt1dnl8ebXV1c7Nn6yzx7CNuIrDs6mDkZOUk5GYvbq5vFqNl5h9HxcbCQYXWFdRS2t4eHp8drrX19DTtq6Tw47Atr3EoaF/kZOUlJGfv7y6vVSOoolyHxgaCwcJWlhQSm55eXx9c8HX2NPYtprDusfGq7mri5iKlJWVlJCmwL25vEeOpHVmIiEkCQckWlhQSnV8eXx9cMfY2tTasMm9sseUmqS/iayTmJeXl46uwL+6vzyLqIdmHx8rEAkpW1VRRnl8fX1/b9Da29XaqLyipKy5nLiymoORmJeYmI6zwMG9xC6Uq6F8LBUYCgcOW1VRQXx8f39/b9Xb3NXYl6K5mMO1mpO8pZyOmJiampC5wcO/xh+UnJeGQxMRBgQDWlVTQX1/fX9/ctjc39fOkMq2kaG4wKS4s6aVmpqbmpC9w8S/uhuXrodvNgYJHh8LWFVUQ31/fYGAedve4ti4k6S5uaWzvce5xouXm5ucm5HBxMbDjiJ2oq98MyUzMCwhV1dURH9/f4SEfd/f5NjLq5+pusC9zrikuI2hnJyenJHExsfEaCsUEUl6NUBLMCIz
+        measured:
+          on_std: 34.58          # display lit
+          off_std: 22.27          # display blank
+          on_peak: 156
+          off_peak: 150
+          taken: 2026-11-19T12:49+0500
+          # A gap of 12.3 between the two states. The threshold is the
+          # midpoint, so anything inside that gap would read the same.
+          # Negative means this unit goes DARK when it runs rather than
+          # lighting up, and the reading is taken that way round: the
+          # direction is read back off these two numbers, not stored
+          # separately, so they cannot disagree with each other.
+
+    also:
+      - recorder: nvr1
+        channel: 16
+        expect: colour
+        frame_size: [2560, 1440]
+        units:
+          - label: Floor tower beside the disrupt.com wall, its front outlet
+            led_roi: [1250, 165, 1268, 193]
+            led_std_threshold: 49.9
+            # Measured on the switch-off of 18 Nov 18:01 -> 18:14. Running,
+            # the front panel slides open on a black outlet; off, it is shut
+            # and white. By eye: ran 17 Nov 10:52-17:15 and 18 Nov to 18:01,
+            # off overnight and all of 19 Nov to 12:34. Contrast running
+            # 61-97, off 2-13; darkness running 0.00-0.33, off 0.81-1.01.
+            # Both must agree for a "running".
+            dark_max: 0.57
+            # A thumbnail of the unit and the wall round the box, levelled for
+            # brightness, compared before every reading. Nudge the camera and the
+            # box lands on blank wall, where it reads low contrast for ever and
+            # calls a running unit off -- silently, and in the direction nobody
+            # notices, because a unit never reported as on sends nobody anywhere.
+            # The view check is the top of the tower and the corner of the
+            # red and white walls above it: round the box itself the panel
+            # slides open when the unit runs, and every running frame read
+            # as "the camera has moved" (64 of 66, 17-19 Nov). This region
+            # matched 0.84-0.90 running and off alike.
+            anchor_roi: [1214, 100, 1340, 160]
+            anchor: UktQT09NTU1NTEtKSkpJSEZGRkZGRkVERERFRTN9foCKjpKXmp2goqSmqKmrqqzCUkxQT1BOTU5NTEtKSktJSEdHR0ZGRkVERERFRTR7foCKjpKXmp6go6WnqKqrq6vDUkxQT1BOTk5NTUtKSktJSEdHR0ZGRkZFRUVFRjZ4f3+KjpKXmp6go6Wnqaurq6vCU05QUFBOTU1NTEtLS0pJSUdGRkdGRkZFRkZGRjd0f4CLjpKYmp6go6WoqautrKzBU05QUVFOTU1NTEtLS0pJSUdGRkdGRkZFRkZGRjhvf4GLjpKYm56go6aoqautra29U05QUVBOTk1NTEtLS0pJSUdHRkZGRkZFRkZGRjtpgIGKjpKYm56go6aoqautra27U05QUVBPTk1NTEtLS0pJSUhHRkZGRkZFRkZGRj5kgYGKj5KYm56gpKeoqqutrq24U05QUlBQTk1NTEtLS0pJSUhHR0ZGRUZFRkZGRkBegoCJj5KYm56gpKeoqqutrq60U09QUlBQT01NTEtLS0pJSUhIR0ZGRUZFRkZGRkNZg4CIj5KYm56gpaioqqutr7CwVU9PUVBQT05OTEtLS0pJSEhIR0ZGRkZFRUZGRkNWg4GHj5KYm52gpaipq6utr7CwVE9OUVFQT05OTEtLS0lJR0dHR0hHRkVEREZFRENShIGFjpKXm52gpKeqrK2usLCwU09NUVFQT05OS0tLSklJSUdHR0ZGRUZERkVEREJNhYCFjZKXm52gpKeqra2vsLCwUlBNUVFQT05OS0tLSklJSUdHR0ZGRUZGRkVFRUNFhn+DjJKXm52gpKirra6wsrGyU1FMUVFQT05OS0tKSklJSUdHR0dGRkVGQ0RFRkZBh3+Ci5CVmp2gpKirrbCys7OzU1FMUFFQT05NS0pKSUlJSEdHR0ZGRUNDQD4/QEE+h3+Cio+VmJygpKirrrCztLO0U1FMUFFQT05NS0pKSUlIRkdHR0ZFRDs1NDU1Njg7hX6Cio6TmJygpKirr7GztbW1UlJJUE9QT05NS0tISUZFQT44MC0uMDEzNzk4NjU1d3eCio2Sl5qgpKisrrG0tLa2UlJJUFBPTktLS0tLQz44MzEzP1FfbnqEkJKPjYJwenh/i42SmJugpKisr7K1tra4UlNJUFBPTk1KTElDMzI3R2J/laOoq66urayqq6ifj4R8io2SmJugpKitsLO2tri4UlNJT09PTUpMPDMwNFaDpa+ysq2trKqqq6ajpqmnqpZ8h4uSmpygpKmtsLS4uLm9UlNJTk5NTEg7Lj5voLu8tbezsbO0tba2tbWysq2xr5J+hIaPmZygpKmtsba5ubzDUlNJTk1KRTE8Z5q7w76+wL6+vL2+vr7AwcC/vriwknV+g4CLl5ygpKmusra6u77EUlNJTk1KNkaUtsnJyMbIyMnIx8fJycnJycW1po13YlV3goGHlpqgo6mtsbe7u76nU1JJTk1JZ7HHysvLy8vKycnKy8rIw62ghntqXllfam5+fICHkpqgo6mtsLe7ur+UU1JJTU1GeL67u7u7u7eqnZKKf3RwZ2dgWlthc4mXoJqFaV19j5meoaitsLa6u7+YU1FJTk5GToB1d3R0c3R1d3Z0cnZ0bmZhbo6rrKGYkI2BV0VjjJieoaitsba5u8GZU1FKTE5JR3GDhYeHh4uOkJCNjo6FdGyQsMOtlIqIh4d/UURRiJeeoaitsba4u8GYU1FLS05FZ3qVlpaXmJqbnJqZmo6Dd7DFt42Eh4WHh4h9UUZRg5eeoaitsba4u7+aU1FLTUw3j3ORkpianJydnZ2dmZKQv76Pd3uBiIiHiId5VEtQcZieoqitsra3u8GdU1FMS007lW+NlZqbnZ6gn5+dmprBtod0f4eKioqJiYlwTUtTZJmdoqiusra3u8OYU1FMS00+fZSFlZydoKGioqGfmri9iYGNioqLi4qJiYlqR0xUW5ebo6iusra4vsd2UlFNS01EVrGHmp+go6WmpqOkpcOej5edkI2NioqJiYlkRktTU5Kao6eusra4wL9AU1JOS05MOLSPlqGjpaiqqaqju7OboKCbmpWSjYqKiopTRkZQU4icpKausba4wZcfU1JOS09OMpOmkqSmqqytra2twqihpKWgmpmVkIyKio1IRURLVn+co6WusbW4v4QgU1JOS05KOXq5kKqssLGzsrG0vqimqaShmpqWkI2LjI1HQkNJVniaoqausbW5v4MmU1JQSU5JQmPElbKws7a3t7i/ua6rq6ajnZyWko6MjI9GQEFGWG2ZoKWusra4wIMlUlJRSU5JQk7GnbW1t7i7u7zCuLCtq6iloZ+YlI+NjJFFQEFFWWSYoKausra3wIwjVlVVTFBLRT7Gq7O3uLq9vr/BuLOwrKuopaKalpCNjZJEP0BEWV2XoKiusra3wJQhWV1eVVFLSTXEs663uLu9vr6+ubazrqyqqKOcl5KOjZJFPkBDWVmWoKiusra2v6ghaV5MQFJLSTS9sau4ubu9vr27ubi2sa2rqKWdmJKPjZNIPEBCVliToKiusra2vbksJhoYJVJLSTO2sqe4ubu9vb27ubm4tK+sqaaemJSQjpRMO0BAVFiNoaivsra3u8NeFRYXI1NLSS6us6W3uLu8vb27ubq5trCtqaagmZSSjpNROT5AUVmIoqivsra4usKPFRoZIlNLSi+ntqO2uLy8vb68u7u5t7OuqKWhmZWTj5JYOD4/TVuFo6ivsra4u7u7FRcaIlBNSjGduJ60tru9vr++u7u5t7OvqaeimpaUkJFaODw+SlqBo6evsra4usDJFRoYI0tPSzWUu521t7u8vr68uru5t7Ovqqejm5iVkZBfNjw+R1l6o6ausra6urjIOVUwHUZQSziOvaC4u72+vr++u7u4trOwq6ijnZmVkY9jNTw+RVl1o6Wus7a6u7zEpL1sGkFPSzmHvqS8v8DAwMC+vLm4tbOwrKijn5qVkY9nNDs+QldxoaWus7a6u7vDxseJFj5OSziCvqe/wsHAv7y7ubi3tLOwrKejoJqVkI5pMzs9P1ZwoKWus7a5u7zC
+            measured:
+              on_std: 97.23          # display lit
+              off_std: 2.59          # display blank
+              on_peak: 255
+              off_peak: 240
+              taken: 2026-11-19T12:50+0500
+              # A gap of 94.6 between the two states. The threshold is the
+              # midpoint, so anything inside that gap would read the same.
+              # Negative means this unit goes DARK when it runs rather than
+              # lighting up, and the reading is taken that way round: the
+              # direction is read back off these two numbers, not stored
+              # separately, so they cannot disagree with each other.

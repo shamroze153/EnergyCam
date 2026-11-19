@@ -146,6 +146,18 @@ unit's view check (anchor) must not take in the recorder's clock or date
 mosque's top unit). `docs/camera_work_list.md` is the list for the camera
 team, building by building, from Monday 16 Nov.
 
+19 Nov, from the kept frames with nobody switching (Shamroze: "calibrate
+it yourself"): 140-H Reception's split (nvr1 ch11, by its louvre) and
+floor tower (ch16, in `also:`, by its front outlet). Two more lessons: a
+louvre that swings reads, at its narrowest, as dark as a shut one -- put
+`dark_max` under every shut frame, so a narrow swing is "not seen
+running" and never the other way round; and a tower whose front panel
+slides open changes the view round its own box, so every running frame
+read as "the camera has moved" until it got an `anchor_roi` on the
+tower's top. Before restarting, replay a new block over every kept frame
+against periods checked by eye: a "running" in an off period must be
+zero. docs/ac_camera_audit.md has every 140-H camera and the units it sees.
+
 141 Finance Room, 141 Learning Center, 141 Room 32 and 141-C Cafe are done
 (12 Nov, on site with Shamroze). Learning Center and Room 32 have three
 units each and one readable (the floor unit's louvres; the flap of the unit

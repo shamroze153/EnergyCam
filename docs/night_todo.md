@@ -227,6 +227,20 @@ browser on a phone and in dark before it is pushed:
 - [x] 01:20 Every tab once on a phone and in dark: nothing wider than the
       screen, no text in the series colour, numbers right-aligned.
 
+## Added 19 Nov 13:00 (Shamroze: "calibrate it yourself from the data")
+
+- [ ] After this evening's switch-off, from frames/ac_keep -- only frames
+      from 19 Nov 09:54 on count for the cameras moved this morning:
+      Marketing (ch3 M1 and M2 by their displays, M3; ch13 the Kenwood and
+      the row's nearest unit), Wellows W1 (ch16), AutoOS (ch10), Basement
+      (ch23 Kenwood and the two louvres, ch24 and ch25 Haiers), DL (ch1),
+      H First Floor Lobby (nvr1 ch22). Each: find the switch by eye, pick
+      the box on the frames either side, a second camera in `also:`,
+      `anchor_roi` where the unit's own change reaches round the box,
+      `dark_max` for a louvre; then replay the block over every kept frame
+      against the eye: a "running" in an off period must be zero. Restart
+      the loop.
+
 Rules that hold all night: the 141 gym's camera is never opened 15:00-20:00;
 no picture into git; no recorder settings; no retried logins (XVR 2 and 4
 are IP conflicts, the DVR is on another network -- leave them).
