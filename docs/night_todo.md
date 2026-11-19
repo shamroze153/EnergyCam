@@ -262,6 +262,15 @@ browser on a phone and in dark before it is pushed:
       ch24 Haier, DL, H First Floor Lobby: not looked at yet. Ch23: never
       until its mount holds. Tools: scratchpad spotline.py / darkline.py /
       timesheet.py / gridview.py / replay_unit.py / replay_also.py.
+      20 Nov 02:40: ch24 Haier calibrated (display, off 22:01 with ch25's;
+      `also:`, view check above the louvre). DL: side on at the edge, never
+      changes. H First Floor Lobby Kenwood: its three rings change with the
+      light (steps at 17:20, 19:03, 20:18, 22:49), no clean switch -- wait
+      for a day with lights steady. Found and fixed: from the 00:54
+      restart the loop kept only a calibrated room's calibrated cameras, so
+      the Basement's ch 21/23/24 stopped being kept (Room 32's ch 26 never
+      was); `ac_cameras` now keeps all of a room's cameras while `in_view`
+      outnumbers the units read.
 - [ ] Same for 141, from frames kept since 19 Nov 13:33 (the ten rooms set
       visible then): Reception Meeting Room (cd_nvr2 ch9/10), 141-D MR01
       (ch15) and MR02 (ch16) -- their louvres show; Rooms 6, 7, 21, 29,
@@ -269,6 +278,13 @@ browser on a phone and in dark before it is pushed:
       louvre or display change at the switch-off? Calibrate only a clean
       change; an end-on unit that never changes stays unread. Then the
       follow-up table at the top of docs/ac_camera_audit.md.
+      20 Nov 02:40, all eleven cameras looked at, 14:00-02:00: no clean
+      switch. Rooms 6, 7, 29, MR 01, MR 02 (1st floor) and Reception MR
+      show their units close and end-on (a side panel, an underside) that
+      does not change; Room 21 and Room 32 MR are dark (infrared) or cut
+      by the edge. 141-D MR02's Kenwood shows a small flap open at 14:06-
+      19:02 and shut from 20:55 -- but ~10 px on the 640x360 sub stream:
+      a candidate for `stream: main` (first rescale its ignore boxes).
       Note (18:30): seven of them are kept at the sub stream -- cd_nvr2's
       at 640x360 (Reception MR, 141-D MR01, MR02), cd_nvr1's at 720x576
       (MR 01, MR 02, Room 21, Room 32 MR). If a louvre is too small to read

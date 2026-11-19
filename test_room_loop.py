@@ -1102,6 +1102,24 @@ def main():
           room_loop.ac_cameras(cafe, {}), cafe.cameras)
     check("a room with no unit in view keeps none",
           room_loop.ac_cameras(room(ac="hidden"), {}), [])
+    # 20 Nov: the Basement, one unit of four calibrated, kept ch 25 alone.
+    base = room(name="Basement", recorder="nvr4", channels=[21, 23, 24, 25],
+                in_view=4)
+    one = {"Basement": {"recorder": "nvr4", "channel": 25, "units": [{}]}}
+    check("a room part calibrated keeps all its cameras, the calibrated first",
+          room_loop.ac_cameras(base, one),
+          [("nvr4", 25), ("nvr4", 21), ("nvr4", 23), ("nvr4", 24)])
+    check("  until every unit in view is read",
+          room_loop.ac_cameras(room(name="Basement", recorder="nvr4",
+                                    channels=[21, 23, 24, 25], in_view=1),
+                               one), [("nvr4", 25)])
+    unread = {"Basement": {"recorder": "nvr4", "channel": 25,
+                           "units": [{}, {"unread": True}]}}
+    check("  a unit marked unread is not read",
+          room_loop.ac_cameras(room(name="Basement", recorder="nvr4",
+                                    channels=[21, 23, 24, 25], in_view=2),
+                               unread),
+          [("nvr4", 25), ("nvr4", 21), ("nvr4", 23), ("nvr4", 24)])
     pic = _np.zeros((576, 704, 3), _np.uint8)
     shots = {("cd_nvr1", 14): pic, ("cd_nvr1", 2): pic, ("cd_nvr1", 9): pic}
     check("a pass keeps one frame per AC camera",

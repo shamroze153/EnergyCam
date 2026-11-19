@@ -1,34 +1,44 @@
 # AC units and cameras -- both campuses
 
-## Where it stands (20 Nov 2026, 00:50) -- the follow-up table
+## Where it stands (20 Nov 2026, 02:40) -- the follow-up table
 
 Units from rooms.yaml (Shamroze's surveys, with `unwatched_units`). **In
 camera** = some camera shows the unit well enough to try a calibration
 (rooms.yaml's `in_view`, per room); **calibrated** = read on or off by the
 loop now. Each campus page's "Units a camera reads" tile shows the same
-live: "10 of 58 -- 13 more in camera, waiting to be calibrated".
+live: "11 of 58 -- 12 more in camera, waiting to be calibrated".
 
 | Campus | Part | Units | In camera | Calibrated |
 |---|---|---|---|---|
-| 140-H | Basement | 6 | 5 | 1 |
+| 140-H | Basement | 6 | 5 | 2 |
 | 140-H | Ground floor | 23 | 11 | 5 |
 | 140-H | First floor (Saturday) | 22 | 2 so far | 0 |
 | 140-H | Cafe and mosque | 7 | 5 | 4 |
-| **140-H** | | **58** | **23** | **10** |
+| **140-H** | | **58** | **23** | **11** |
 | 141-C/D | Ground floors | 45 | 12 | 7 |
 | 141-C/D | First floors | 14 | 5 | 1 |
 | 141-C/D | Second floors | 14 | 9 | 3 |
 | **141-C/D** | | **73** | **26** | **11** |
-| **Both** | | **131** | **49** | **21** |
+| **Both** | | **131** | **49** | **22** |
 
 20 Nov, night, from the kept frames with nobody switching: Marketing's M1
 (ch 3, its white light and louvre: on 10:00, off 15:42) and the Kenwood
 by ch 13's camera (its display: on 10:48, off 22:01, in `also:`), and the
-Basement's Haier on ch 25 (its display: off 22:01, the lights unchanged).
+Basement's Haiers on ch 25 and ch 24 (their displays: both off at 22:01).
 Each replayed over every kept frame, no "running" in an off period.
 Marketing's M2 switched with M1 and reads by its louvre's darkness, but
 on one day only -- it waits for a second. Wellows W1's louvre changes too
-faintly to read; AutoOS's split is clear by day and unclear at night.
+faintly to read; AutoOS's split is clear by day and unclear at night;
+H First Floor Lobby's Kenwood shows rings that change with the light, no
+clean switch; DL's unit is side on at the edge and never changes. Of the
+141 rooms set visible on 19 Nov, none showed a clean switch: most units
+are close and end-on (Rooms 6, 7), and 141-D MR02's louvre flap is ~10 px
+on its 640x360 sub stream -- it would need `stream: main`.
+
+From 20 Nov 02:40 the loop keeps frames of all of a room's cameras while
+its `in_view` units outnumber those read (it had kept only the
+calibrated cameras: the Basement's ch 23 and 24 stopped at 00:54, and
+141 Room 32's ch 26 was never kept).
 
 (141: Learning Center is counted with the ground floors and First Aid with
 the first; the survey does not give their floors.)

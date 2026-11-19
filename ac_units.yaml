@@ -784,11 +784,13 @@ rooms:
     recorder: nvr4
     channel: 25
     # Four units (1+1+1+2 t). Calibrated 20 Nov from frames/ac_keep, nobody
-    # switching anything: the Haier high on the right of ch 25, by its
-    # display. Ch 23's Kenwood and two splits wait until that camera's mount
-    # is tightened (it tilts by itself, 19 Nov); ch 24's Haier until it is
-    # seen switching. So an "off" here stays unknown.
-    unseen_units: 3
+    # switching anything: the Haier high on the right of ch 25 and the one
+    # at the top left of ch 24 (in `also:`), each by its display; both went
+    # off at 22:01 on 19 Nov. Ch 23's Kenwood and two splits wait until that
+    # camera's mount is tightened (it tilts by itself, 19 Nov) -- and they
+    # may be these two seen again ("five views of four units"). Until then
+    # an "off" here stays unknown.
+    unseen_units: 2
     # The lighting the measurement was taken in. The contrast inside a box
     # depends on it, so a reading under the other kind is refused rather
     # than guessed at.
@@ -824,3 +826,30 @@ rooms:
           # lighting up, and the reading is taken that way round: the
           # direction is read back off these two numbers, not stored
           # separately, so they cannot disagree with each other.
+
+    also:
+      - recorder: nvr4
+        channel: 24
+        expect: colour
+        frame_size: [1920, 1080]
+        units:
+          - label: Haier on ch 24, its display
+            led_roi: [268, 184, 297, 203]
+            led_std_threshold: 19.4
+            # Measured on the switch-off of 19 Nov 21:54 -> 22:33 (the room's
+            # lights changed at 22:07 too; the display going dark does not
+            # depend on them). By eye it ran 10:53-21:54 showing 21, its
+            # louvre open, and was off from 22:07, louvre shut -- the same
+            # minute as ch 25's Haier. This camera stays in colour at night.
+            # Replayed over every kept frame: no "running" in an off period,
+            # every running frame read. The view check is the face above the
+            # louvre: with the louvre in it, running frames scored down to
+            # 0.52.
+            anchor_roi: [190, 150, 350, 205]
+            anchor: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAyLx9Hp/+3JvKd4em1zfHp+gomLi5ONAAAAAAAAAAAAAAAAAAAAAAAAAAAGF2a+ydjn1sKpopOJhIBmgnyJiIiJi4aGhImGAAAAAAAAAAAAAAAAAAAAAAomL5rR1N7xxKeYhnV+cXeAhIZrhISGhoiJi4mGiY2JAAAAAAAAAAAAAAAAACRIjcvay9TFqZeLhHh+hnqCen6AhIhvhoSGhoiIiIiJi4uIAAAAAAAAAAAAADtaiNPFy8nAmImAgn5xenx+hoCAfICAhIlvhoSGhIiIiIiLi4iGAAAAAAAAAEB+r+PLtraLgnd3dW9xenx6eHh6goJ+foCChIhthICChIiIiIiLiY2NAAAAAE+CmN7Nq6CEb21xbWtoeHN6enh1eHx+gIJ+gIKCgohtgoCChomIiIiJiY+RAEaevOfUtYJtYGBiWWttaXN3dXN3gHx3fn56gIKCgoSCgolvhoSGiYuJiYuJjZOPAMmxno11ZlliZGhtaW1mb3NvdXh6fHx8fH6CgoKCgIKCgotziIiJiYuLi42LjZeTKqlvXlxeYmRmaGhpa2lmcXNzd3h4en5+fn6AgoKCgoKCgot8iImJiYmLjY2Li5WTSndaYGBgYmRoaGlrbW1tc3N1d3p4en5+fn6AgoSEhISGho1+iYuLiYmLi4uLi5WVYG9cZGZiZGZoaWtrbW9zc3V3eHp6fH5+foCAgoaIiIiJiY2Ai42Ni4uNjY2NjZOVWm9cZmhiZGhpa2ttb3F1dXd3enp8foCAgICCgoaJiYmJiY9+jY2PkZGRkZGRjZOVS2ZiaGhmZmlrbW1vb3F1d3d6enp+foCAgICChIiJiYmIiI16j42PkZGTk5OTj5OTSGhmaGhmaGlrbW9vcXN1d3h6fHx+gICAgIKEiIiIiIiJiY13j4uNj4+RkZGVj5ORSGtiaGZmaGltb29xc3V3eHp8fnx+gICAgIKEiIiIiImLi413kY2NjY2PkZGVkZORQm9maGZma2tvcW9xc3d3enx+fn6AgoCCgoSIiIiIhomLjY94k4+PjY2PkZOXlZeVQm9maGZma21vcW9xdXd4enx+fn6AgoKChISIiIiIhomLjY96k4+Pj5GRk5WXlZeVPHFoZmZmbW1vcXFzd3d4enx+fn6AgoKEhIaIiIiIiImLjZF6lZGRkZOTlZeYl5iXMXFoZmhobW9xc3N1d3h4fHx+gICChISGhoaIiIiJiIuNj5F8l5OTkZOVl5eYl5iYKnFpaGtrb3Fxc3N3eHh6fH6AgICChIaIiIiIiIiJiYuNj5N+l5OTk5WXmJqYmJqYJnNpa21tcXFxc3V3eHh6fH6AgICChIaIiYiIiIiJiYuNj5N+mJWVl5eYmpqamJqaLHNpa29tb3FzdXV3eHp6fH6AgICChIiIiIiIiYmJiY2PkZWCmJWVmpqanJycmpycMXdpbW1rbXF1d3V1eHx8foCAgoKChIiIiImNk42Li4+Rk5WImJeXnJycnqCgoKCgMXhpbW1tb3F1d3V3eHx+foCAgoSEhIiIiI+rs6SVkZGRk5WImJiYmpyenqCioqKiMXhpbW1tb3N1d3d3enx+foCChIaEhoiJiI+XmIKPk5GTlZWImJqampyeoKKkpKKkM3hrb29vcXV3eHh4en5+gIKEhoaGiImJi4sTDiiVk5GVlZeJmpyenJ6eoqKkpKSmM3prb29xc3V3eHh6fH6AgIKEhoiIiYmJiZEAACiak5GVl5eJmpygnqCioqSmpqakM3prb29xc3d3eHp6fH6AgIKGiImIiYuLiJFikaKYk5WXmJeJnJ6ioKKipKampqakMXprb29xdXd4enp8foCAgoSIiYmJi4uLiYmktauNkZGXmJiLnp6koKKkpKanp6ekL3xrcXFxd3d6fHx+foKChIiJiYuLi42JiIiIiIiIiIiXmJqPoKCknqCipKanp6enLXxtcXFxd3h8fn5+gIKEhIiJi4uPj4+JiIiIiIiIiIiXmpqPoKCkoKCipKapqampLXxtc3NzeHh8fn6AgoKEhoiJi42RkY+JiIiIiIiIiIiYmpqPoKCkpKampqepqampLHxvc3N1eHp+foCCgoSGhomLi42RkY+LiIiIiIiIiIiYnJyRoKCkpKamp6epqampLH5xc3N1enx+gIKChISGhomLjY2RkZGLiIiIiIiIiIianpyRoKCkoqSmp6mrq6urKn5xdXV3fHx+gIKEhISGiImLjY+Pj5GLiIiIiIiIiIicnp6RoqCkpqenqaurq6urLHxzdXd3fH5+gIKEhoaGiIuLjY+Pj5GLiIiIiIiIiIicoJyToqKkq6urqaurq6utMXpxc3h4fH6AgoKChIaIiYuNj4+Pj5GLiIiIiIiIiIieopyTp6amq6urq62tra2xNXpxdXh4fH6AgoCChIaGiYuNj5GPj5OLiIiIiIiIiIiepJ6Rq6mpq6urq62xsa+vPHpvd3h6fn6AgoKChIaIi42Nj5GRkZOLiIiIiIiIiIigpJ6Tq6mpq6urra+vr6+tRnpveHh6foCChIaGiImLjY2PkZGRkZONiIiIiIiIiIigpJ6Yq6mpra2tsbGvr6+tUXpvenh8gICChIiJiYuNjY+PkZORkZWNiIiIiIiIiIiipp6aq6mpra2vsbOxsbOzWnxxenh8gICChIaIiYuNj5GRkZOTk5WNiIiIiIiIiIiipqCaraurra2tra+vr6+vYnxvfHh+gIKChIaGiImLj5GRk5OTk5WNiIiIiIiIiIiipqKYsa+tr62rq62nqaupZHxvfnqAgISEgoaIiYuNj5OTk5OTk5eNiIiIiIiIiIiipKacramrqaartq+vs7O1aHxxfnyAgISEhIiJi4+RkZOTk5OVl5ePiIiIiIiIiIigoqaeqaCgp62zvLrAwsDJbXxzfn6AgoSEhImLjY+Rk5WVlZWYmJqYlZeampyenpygoKCapqenp7bAwrzL1M26dXx3foCCgoSEhomJi42Pk5eVlZWYmqCgnqenpqampqKiopWXp7XAxM3H08S2mIiN
+            measured:
+              on_std: 35.52          # display lit
+              off_std: 3.20          # display blank
+              on_peak: 253
+              off_peak: 133
+              taken: 2026-11-20T02:28+0500

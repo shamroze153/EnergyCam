@@ -65,6 +65,7 @@ from dotenv import load_dotenv
 
 from ac_detect import load_units, read_room, read_units  # noqa: F401
 from ac_detect import blocks as camera_blocks, read_cameras  # noqa: E402
+from ac_detect import all_units  # noqa: E402
 from alerts import Alerter, compose, configured, deliver, why_not_configured
 from concurrent.futures import ThreadPoolExecutor, as_completed  # noqa: E402
 
@@ -551,6 +552,11 @@ class Room:
         self.channels = [ch for _, ch in self.cameras]
         self.ac = cfg["ac"]
         self.alerts = cfg.get("alert") != "never"
+        # How many of the room's units some camera shows, read or not (the
+        # 19 Nov audit). While it is more than the calibration reads, the
+        # loop keeps frames of all the room's cameras, so the rest can be
+        # calibrated from them (ac_cameras).
+        self.in_view = int(cfg.get("in_view") or 0)
         # A room may need a stricter confidence than the rest of the building:
         # one camera's angle, lighting or clutter can produce a person out of
         # a coat on a chair while every other camera is fine. Raising it for
@@ -1262,13 +1268,22 @@ _last_ac_keep = {}
 def ac_cameras(room, ac_units):
     """The cameras a room's units are seen on: every camera its calibration
     names, or for a unit marked visible and not calibrated yet, all of the
-    room's cameras (which one shows the unit is what is being found out)."""
+    room's cameras (which one shows the unit is what is being found out).
+
+    A room part calibrated keeps all its cameras too, while it has more
+    units in view (rooms.yaml's `in_view`) than its calibration reads. 20
+    Nov: the Basement's first unit was calibrated on ch 25, and from the
+    restart the loop kept ch 25 alone -- not ch 23 and 24, where its other
+    three units were waiting to be seen switching. Room 32's second split,
+    on ch 26, had never been kept for the same reason."""
     cfg = (ac_units or {}).get(room.name)
-    if cfg:
-        return [k for k, _ in camera_blocks(cfg, room.recorder)]
+    keys = [k for k, _ in camera_blocks(cfg, room.recorder)] if cfg else []
     if room.ac == "visible" and room.alerts:
-        return list(room.cameras)
-    return []
+        read = (sum(1 for u in all_units(cfg) if not u.get("unread"))
+                if cfg else 0)
+        if not cfg or getattr(room, "in_view", 0) > read:
+            keys += [k for k in room.cameras if k not in keys]
+    return keys
 
 
 def keep_ac_frames(room, frames, ac_units, folder=None, now=None):
