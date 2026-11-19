@@ -1064,3 +1064,13 @@ Two or three lines a round; picture file names, never pictures.
   (Marketing, Wellows, AutoOS) show no clean switch yet; Wellows W1's
   louvre moved a few pixels at 10:30, not enough to calibrate on --
   tonight's switch-off. Doctor: 19 of about 101 units measured.
+* 17:30 Round: field_audit 17:13 -- MISSED 1 (Cafe Stairs, caught on the
+  loop's next pass, 17:20), GHOST 6 (141 Assembly MR, SoftFM Store, Squat
+  Wolf 0, Cafe Shoe Rack, H Ground Floor Lobby, Lobby), 93 match. Not
+  objects: check_room at 17:23 found no detection on any of their nine
+  cameras; five went empty at 17:20 -- people leaving, held two passes.
+  Lobby (dvr2 ch12) held 1 from 17:08 past 17:25 with nothing detected at
+  17:23: the evening rush through it; look again next round. Dashboard
+  (pushed): an unread unit no longer shown "off"; night rounds no longer
+  start a department's day; phone page without the empty top band, tiles
+  two by two; "worth a look" everywhere.
