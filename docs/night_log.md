@@ -951,3 +951,6 @@ Two or three lines a round; picture file names, never pictures.
   drop_still); Basement Meeting Room -- the plant in the bottom-left corner
   at 0.34, nine times tonight with the room empty: an ignore box on ch22
   (rooms.yaml), the plant only; nobody sits there. Loop restarted.
+* 06:00 ac_keep 17-19 Nov in infrared: no clean switch to calibrate from.
+  Room 32's flap seems to open at 07:30 on 17 Nov but with the dawn light
+  rising at the same time -- left (frames/room32_ir_step_17nov.jpg).

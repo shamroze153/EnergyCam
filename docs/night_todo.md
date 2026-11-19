@@ -69,6 +69,14 @@ it here. Shamroze reads the morning summary in Roman Urdu.
       running unit as off -- Room 27 by day (28.2 -> 12.4), Learning
       Center (36.1 -> 27.2: running at 04:22 on 14 Nov, unflagged),
       Prompt Cafe General 1 in the evening (38.7 -> 30.4).
+      19 Nov 06:00, ac_keep 17-19 Nov: Finance flat in infrared (~2),
+      Learning Center no longer goes infrared, Admin Room's infrared reads
+      its unit on from 02:13 (a person in). Room 32: 17 Nov 07:17 -> 07:30
+      its flap seems to open in infrared (contrast 8.7 -> 15.4) -- but the
+      dawn lifted the room's light at the same moment (upper right 73 -> 91),
+      so not a clean step (frames/room32_ir_step_17nov.jpg). Wait for a
+      morning where it switches with the light steady before an infrared
+      block.
 - [ ] Still to look at (scratchpad units_audit.py, unit_values.py):
       Prompt Cafe's Kenwood on ch 20 reads 21-29 around its 24.6 on the
       afternoon of 13 Nov (on or off not known) and its view check fails
