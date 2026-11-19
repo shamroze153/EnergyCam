@@ -651,7 +651,10 @@ rooms:
     # across the upper part of the picture, where a split unit is
     # mounted. It was labelled visible from the survey contact sheet,
     # where a wall unit is a few pixels across. docs/camera_survey.md.
-    ac: hidden
+    # 19 Nov, after the camera team's adjustment: a split unit at the top
+    # of ch 10 (11:34 frame). Visible, so its frames are kept for
+    # calibration (docs/ac_camera_audit.md).
+    ac: visible
     ac_tons: [1, 1]   # survey 12 Nov: Room 6, 1 ton Haier + 1 ton TCL
     empty_after_minutes: 45
     note: Two cameras assumed to be one room, as with Marketing.

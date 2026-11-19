@@ -1007,3 +1007,8 @@ Two or three lines a round; picture file names, never pictures.
     never a guessed on).
   - Displays (Admin, Finance, Room 27, Mosque x2) sit in clean gaps.
   Live, 11:30 after the restart: towers 2 and 3 open and read running, 1, 4, 5 and 6 shut and read off -- all six right by eye.
+* 11:45 Camera audit, 140-H basement and ground floor (docs/ac_camera_audit.md),
+  after the camera team's adjustment. Basement 6 units: 3 readable, 2-3
+  partly, 1 in no camera. Ground floor 23 units: 6 readable, about 4 partly,
+  12-13 in no camera. AutoOS set ac: visible (a split on ch 10). Loop
+  restarted.
