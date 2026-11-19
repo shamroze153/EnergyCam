@@ -120,6 +120,12 @@ it here. Shamroze reads the morning summary in Roman Urdu.
       D (top centre) switched off at ~22:00 -- the slot under its flap,
       open all day, shut at 22:07 -- the first clean switch seen there.
       ch 24, ch 25 and DL: no switch yet.
+      20 Nov: ch 25 and ch 24 Haiers calibrated (displays, both off at
+      22:01). DL's unit is side on at the edge and never changes. Ch 23 is
+      still tilting at 04:20 -- 13.5 px more in infrared since 22:33, ~41 px
+      since 12:09 (ch 21 within 0.5 px all night); its frames are kept again
+      since 02:53, so once the mount is fixed its units can be calibrated
+      from the switch after.
 - [ ] Names for cd_nvr4:17 (corridor), :26 (outside lane, guard), :31
       (pantry/kitchen); :30 duplicates the cafe's cd_nvr1:14. Asked.
 

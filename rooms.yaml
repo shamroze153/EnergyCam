@@ -970,6 +970,14 @@ rooms:
     zone: H perimeter
     recorder: nvr1
     channels: [32]
+    # 20 Nov 04:25 audit GHOST: the potted plant at the left edge, bottom,
+    # read as a person in infrared, 0.26-0.36 (a 25 x 83-95 box at x 12,
+    # y 304-308), the only box on the camera -- on 13, 19 and 20 Nov. In
+    # the loop's 640x360 frame; somebody walking past the edge there is
+    # hidden only while nearly all of them is inside it.
+    ignore:
+      32:
+        - [0, 250, 45, 360]      # the potted plant at the left edge
     ac: none
     empty_after_minutes: null
 
@@ -1551,6 +1559,15 @@ rooms:
     zone: Cafe & common
     recorder: nvr4
     channels: [11]
+    # 20 Nov 04:25 audit GHOST: a chair inside Prompt Cafe, seen through
+    # the gate's glass, read as a person at 0.25-0.62 (a 12-21 x 32-43 box
+    # at x 196-204, y 81-90) -- 49 passes on the night of 13 Nov, 29 on 20
+    # Nov, mostly the only box. That is the next room: anybody sitting
+    # there is in the cafe, which its own cameras count; a person at the
+    # gate is many times this zone's size. In the loop's 640x360 frame.
+    ignore:
+      11:
+        - [180, 55, 222, 115]    # a chair in the cafe, beyond the glass
     ac: none
     empty_after_minutes: null
 
