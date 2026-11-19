@@ -1095,3 +1095,8 @@ Two or three lines a round; picture file names, never pictures.
   15 more in camera, waiting to be calibrated" (141: 11 of 73, 15 more).
   It moves by itself as calibrations land. The loop does not read
   in_view; restarted anyway, as rooms.yaml changed.
+* 19:38 Last look, phone and dark: whenever a campus had rooms worth a look,
+  its header's "All campuses" went blue and jumped right -- the walk
+  page's CSS (a bare .ec-back rule) rode in with the button. Scoped to the
+  walk page's own heading. Stopping here; the calibrations wait for the
+  switch-off.

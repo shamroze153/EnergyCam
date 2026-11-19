@@ -954,7 +954,7 @@ padding:14px 18px;border-radius:14px;border:1.5px solid var(--crit-line);
 background:var(--crit-bg);color:var(--t1)!important;margin:6px 0 4px;
 font-size:15px}
 .ec-walkbtn span{margin-left:auto;color:var(--crit);font-weight:650}
-.ec-back{margin-left:auto;font-size:13px;color:var(--accent)!important}
+.ec-h .ec-back{margin-left:auto;font-size:13px;color:var(--accent)!important}
 .ec-walklist{display:flex;flex-direction:column;gap:10px;margin-top:10px}
 .ec-walkcard{display:flex;align-items:center;gap:14px;padding:14px 16px;
 border-radius:14px;border:1px solid var(--line2);border-left:5px solid #e8a21a;

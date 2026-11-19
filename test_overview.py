@@ -273,6 +273,11 @@ def main():
               "only=walk" in page and "worth a look" in page)
         check("%s: no rooms, no button" % theme,
               ov.walk_button(theme, 0, {"campus": "Test"}) == "")
+        # 19 Nov: the walk list's CSS rode in with the button and turned the
+        # campus header's "All campuses" blue and pushed it right.
+        check("%s: the walk CSS styles only its own back link" % theme,
+              re.search(r"(^|\})\s*\.ec-back\{", ov.WALK_CSS, re.M) is None
+              and ".ec-h .ec-back{" in ov.WALK_CSS)
         just = ov.walk_page(theme, items, {"campus": "Test"})
         check("%s: the list has the rooms, their floor and a way back"
               % theme, "SW Room 0" in just and "Ground floor" in just
