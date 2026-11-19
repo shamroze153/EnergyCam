@@ -95,6 +95,19 @@ it here. Shamroze reads the morning summary in Roman Urdu.
       hours; now on the floor unit's lower body. Only the Kenwood is
       left. For Shamroze: Finance also has a floor-standing unit on the
       right wall, in camera, while the survey says one AC.
+- [ ] 141-C Cafe tower 5 (far end, by the neon wall) read "on" 07:05-08:09
+      on 19 Nov with its louvre shut: the ceiling lights off and the pink
+      wash on the tower's edge lift its box to 25-36, inside the 31-39 it
+      reads when truly open by day (18 Nov 11:33-14:05, slats plain), so no
+      threshold separates them (frames/cafe141_unit5_compare.jpg). Needs a
+      read of the slats themselves (stripes), or a box clear of the edge.
+- [ ] Basement (140-H): units in frame since the camera team's 19 Nov
+      adjustment -- ch 25 Haier display ("24"), ch 24 Haier whole, ch 23 a
+      Kenwood and two splits cut by the top edge; DL Department's unit at
+      ch 1's right edge. ac: visible from 19 Nov, so ac_keep holds their
+      frames: calibrate each from its first clean off/on. Ask the camera
+      team to tilt ch 23 down a little; Basement Meeting Room's unit is in
+      no camera yet.
 - [ ] Names for cd_nvr4:17 (corridor), :26 (outside lane, guard), :31
       (pantry/kitchen); :30 duplicates the cafe's cd_nvr1:14. Asked.
 

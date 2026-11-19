@@ -499,7 +499,10 @@ rooms:
     # across the upper part of the picture, where a split unit is
     # mounted. It was labelled visible from the survey contact sheet,
     # where a wall unit is a few pixels across. docs/camera_survey.md.
-    ac: hidden
+    # 19 Nov: after the camera team's adjustment a unit shows at the right
+    # edge, side on and cut (10:32 frame). Visible, so its frames are kept
+    # and it can be seen whether its flap reads.
+    ac: visible
     ac_tons: [1]   # survey 12 Nov: the basement's fourth Haier 1 ton
     empty_after_minutes: 45
     # 12 Nov 00:15 night check: two empty chairs in the dark read as people
@@ -1302,7 +1305,14 @@ rooms:
     zone: Basement
     recorder: nvr4
     channels: [21, 23, 24, 25]
-    ac: hidden
+    # 19 Nov: the camera team brought units into frame (Shamroze). In the
+    # 10:33 frames: ch 25 a Haier, top right, its display plainly lit
+    # ("24"); ch 24 a Haier, top left, whole, display showing; ch 23 a
+    # Kenwood and two splits along the top edge, cut by it; ch 21 none.
+    # Visible now, so the loop keeps their frames every ten minutes
+    # (frames/ac_keep) and they are calibrated from the first clean
+    # switch, as the rest were.
+    ac: visible
     ac_tons: [1, 1, 1, 2]   # survey 12 Nov: basement floor: Haier 1 t x3 + 2 t
     empty_after_minutes: 45
     # 13 Nov 22:47 night check: an empty white chair cut off by ch 25's left

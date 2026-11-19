@@ -984,3 +984,10 @@ Two or three lines a round; picture file names, never pictures.
   zone, under the 80% that ignores it, so the room read "1 person" from
   08:24 on. Zone widened to [585,330,660,460] (the bin 100% in, a seated
   person 19%). Loop restarted.
+* 11:00 For Shamroze: 141-C Cafe. Night -- tower 2 ran until 00:18-00:31
+  with the cafe empty 00:01-00:27; its louvre plainly open in the kept
+  frames (confirmed). Morning 07:05-08:09 the page said tower 5 ran -- its
+  louvre was shut; the lighting fooled it (noted in night_todo).
+  Basement: units now in frame on ch 24/25 (Haier displays) and ch 23 (cut
+  at the top); Basement and DL Department set ac: visible so their frames
+  are kept for calibration. Loop restarted.
