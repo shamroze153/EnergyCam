@@ -4087,23 +4087,40 @@ def show_arrivals(df, now):
     # Nor is the night: AutoOS "first to arrive at 2:38 night" on 12 Nov.
     stayed = [(room, s) for room, _, _, (_, _, _, s) in rows
               if s["starts"] is not None and not s["carried"]
+              and not s.get("unseen")
               and room.get("work", True)
               and pd.Timestamp(s["starts"]).tz_convert(PKT).hour
               >= overview.DAY_OPENS_AT]
+    # Rooms already in use when the cameras came on (18 Nov: the loop back
+    # at 10:25, and every room "arrived" then): the first arrival was
+    # before that, and the page says so rather than naming the restart.
+    came_on = [s["first_in"] for room, _, _, (_, _, _, s) in rows
+               if s.get("unseen") and room.get("work", True)]
     totals = []
     for i in range(24):
         hour = [ds.hourly(day, st_)[i] for _, _, _, (st_, _, day, _) in rows]
         hour = [h for h in hour if h is not None]
         totals.append(sum(hour) if hour else None)
     busiest = max(range(24), key=lambda i: totals[i] or 0)
+    if came_on:
+        first_tile = ("First to arrive", "before %s" % ds.clock(min(came_on)),
+                      "the cameras came on then, %d room%s in use"
+                      % (len(came_on), "" if len(came_on) == 1 else "s"))
+    else:
+        first_tile = (
+            "First to arrive",
+            ds.clock(min(s["starts"] for _, s in stayed)) if stayed
+            else "\u2014",
+            min(stayed, key=lambda r: r[1]["starts"])[0]["room"] if stayed
+            else "")
     tiles = [
-        ("First to arrive",
-         ds.clock(min(s["starts"] for _, s in stayed)) if stayed else "\u2014",
-         min(stayed, key=lambda r: r[1]["starts"])[0]["room"] if stayed else ""),
+        first_tile,
         ("The day started",
          ds.clock_minutes(sorted(ds.minute_of_day(s["starts"])
                                  for _, s in stayed)[len(stayed) // 2])
-         if stayed else "\u2014", "median across rooms"),
+         if stayed else "\u2014",
+         "median of the rooms seen arriving" if came_on
+         else "median across rooms"),
         ("Busiest hour",
          "~%d people" % round(totals[busiest]) if totals[busiest] else "\u2014",
          "around %s" % ds.clock(day_starts[0] + pd.Timedelta(hours=busiest))
@@ -4180,6 +4197,9 @@ def show_arrivals(df, now):
                              else "not watched")
         elif s["carried"]:
             first_in = muted("from last night")
+        elif s.get("unseen"):
+            first_in = muted("in before the cameras came on, %s"
+                             % ds.clock(s["first_in"]))
         else:
             first_in = ds.clock(s["first_in"]) + (
                 '<br><span style="color:%s;font-size:.7rem">brief visits'
@@ -4218,6 +4238,8 @@ def show_arrivals(df, now):
         body.append((s["starts"] is None, s["starts"] or start, [
             room["room"], first_in, early,
             muted("from last night") if s["carried"] else
+            muted("before %s" % ds.clock(s["starts"]))
+            if s.get("unseen") and s["starts"] == s["first_in"] else
             "<b>%s</b>" % ds.clock(s["starts"]) if s["starts"] else dash,
             "%d %s" % (s["peak"], muted("at %s" % ds.clock(s["peak_at"])))
             if s["peak_at"] is not None else dash,
@@ -5230,16 +5252,26 @@ if view == "Rooms":
     # been calibrated, which stayed on the page after the first one was --
     # so the page was telling the reader to disregard the very badge it had
     # just started filling in.
+    # 19 Nov: it said "2 of 21 units are calibrated" -- 2 rooms reading on
+    # or off at that moment, of 21 rooms with a unit, while 7 units were
+    # calibrated. Units read and rooms showing a state are said apart.
+    import campus_view
+    read = campus_view.calibrated_counts()
+    units_all = int(cooled["ac_count"].fillna(1).sum()) if len(cooled) else 0
+    units_read = int(sum(min(int(read.get(r, 0)), int(c or 1)) for r, c in
+                         zip(cooled["room"], cooled["ac_count"].fillna(1))))
     known = int(cooled["ac_state"].notna().sum()) if len(cooled) else 0
-    if known == 0:
+    if units_read == 0:
         units = ("Every AC badge reads “?” because no unit has been"
                  " calibrated yet — that is unknown, not off.")
     elif known < len(cooled):
-        units = ("%d of %d units are calibrated and read on or off; the rest"
-                 " show “?”, which is unknown, not off."
-                 % (known, len(cooled)))
+        units = ("A camera reads %d of the %d units in these rooms; %d"
+                 " room%s show%s on or off right now, the rest “?”, which is"
+                 " unknown, not off."
+                 % (units_read, units_all, known, "" if known == 1 else "s",
+                    "s" if known == 1 else ""))
     else:
-        units = "Every unit is calibrated, so each badge is a reading."
+        units = "Every room shows on or off, so each badge is a reading."
     st.caption("The bar on each row is the last %d hours: blue where people"
                " were seen, grey where the room was empty, pale where nothing"
                " was recorded. %s Rooms with no unit show a dash, because"

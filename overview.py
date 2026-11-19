@@ -238,6 +238,8 @@ def campus_summary(name, rooms, history, beats, now, stake=0.0,
             "starts": starts, "first_in": story["first_in"],
             "night": night,
             "carried": story["carried"],
+            # In already when the cameras came on: not an arrival (18 Nov).
+            "unseen": bool(story.get("unseen")) and starts == story["first_in"],
             "last_out": None if busy else story["last_out"],
             "still_in": bool(busy),
             "peak": story["peak"], "peak_at": story["peak_at"],
@@ -262,7 +264,7 @@ def campus_summary(name, rooms, history, beats, now, stake=0.0,
     # night shift or a coat the detector took for one, it is not the day
     # starting; the night audit's pictures say which.
     opened = [d for d in depts if d["work"] and d["starts"] is not None
-              and not d["carried"]
+              and not d["carried"] and not d["unseen"]
               and pd.Timestamp(d["starts"]).tz_convert(LOCAL).hour
               >= DAY_OPENS_AT]
     first = min(opened, key=lambda d: d["starts"]) if opened else None
@@ -1033,6 +1035,8 @@ def theme_is_dark(t):
 def _dept_card(d, t, now):
     if d["carried"]:
         came = 'In <b>since last night</b>'
+    elif d.get("unseen"):
+        came = 'In before <b>%s</b>, when the cameras came on' % clock(d["starts"])
     elif d["starts"] is not None:
         came = "In <b>%s</b>" % clock(d["starts"])
     elif d.get("night") is not None:

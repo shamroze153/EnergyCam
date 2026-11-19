@@ -85,6 +85,9 @@ def summary(story, left):
         bits.append("from last night")
     elif story["starts"] is None:
         bits.append("brief visits only")
+    elif story.get("unseen") and story["starts"] == story["first_in"]:
+        # In before the cameras came on: when, nobody saw (18 Nov).
+        bits.append("in when the cameras came on, %s" % ds.clock(story["starts"]))
     else:
         bits.append(ds.clock(story["starts"]))
     if story["last_out"] is not None and left:

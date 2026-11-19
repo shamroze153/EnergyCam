@@ -213,7 +213,7 @@ def story(day, start):
     result = {
         "watched_min": seen.total_seconds() / 60,
         "busy_pct": (100.0 * busy / seen) if seen else None,
-        "first_in": None, "carried": False, "early": None,
+        "first_in": None, "carried": False, "unseen": False, "early": None,
         "starts": None, "peak": 0, "peak_at": None, "last_out": None,
         "visits": len(found),
     }
@@ -222,6 +222,13 @@ def story(day, start):
 
     result["first_in"] = found[0][0]
     result["carried"] = found[0][0] <= start + CARRY_GRACE
+    # Already in when the cameras came on: the arrival was not seen. 18 Nov:
+    # the laptop was off until the loop started again at 10:25, and every
+    # department "arrived at 10:25". Like a carried start, it is not an
+    # arrival -- the time is when the watching began.
+    if not result["carried"]:
+        before = [s for s, _, a, b in day if b == found[0][0]]
+        result["unseen"] = bool(before) and before[-1] == "unknown"
     result["last_out"] = found[-1][1]
     most = max(found, key=lambda v: (v[2], -v[3].timestamp()))
     result["peak"], result["peak_at"] = most[2], most[3]
@@ -459,13 +466,16 @@ def average_days(stories, windows=None):
     """
     days = len(stories)
     used = [s for s in stories if s["first_in"] is not None]
-    arrived = [s for s in used if not s["carried"]]
+    # An arrival the cameras did not see (they came on with people in) is
+    # not averaged in, as a carried one is not.
+    arrived = [s for s in used if not s["carried"] and not s.get("unseen")]
     out = {
         "days": days,
         "days_used": len(used),
         "first_in": _mean([minute_of_day(s["first_in"]) for s in arrived]),
         "starts": _mean([minute_of_day(s["starts"]) for s in used
-                         if s["starts"] is not None and not s["carried"]]),
+                         if s["starts"] is not None and not s["carried"]
+                         and not s.get("unseen")]),
         "early_days": sum(1 for s in used if s["early"]),
         "early_empty": _mean([s["early"]["empty_after_min"] for s in used
                               if s["early"]]),

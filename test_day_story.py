@@ -244,6 +244,26 @@ def main():
     check("a watched empty hour reads nought", hours[9] == 0, hours[9])
     check("a watched busy hour reads its people", hours[11] == 2, hours[11])
 
+    # 18 Nov: the loop came back at 10:25 after the laptop was off, with
+    # people already in -- every department "arrived at 10:25".
+    back = [at(10, 25) + timedelta(minutes=m) for m in range(0, 9 * 60, 2)]
+    was_in = ds.story(ds.spells(events([(at(-3), "empty", 0),
+                                        (at(8, 40), "occupied", 3),
+                                        (at(19, 0), "empty", 0)]),
+                                DAY, END, back), DAY)
+    check("already in when the cameras came on: the arrival was not seen",
+          was_in["unseen"] and not was_in["carried"], was_in)
+    came_later = ds.story(ds.spells(events([(at(-3), "empty", 0),
+                                            (at(11, 15), "occupied", 2),
+                                            (at(19, 0), "empty", 0)]),
+                                    DAY, END, back), DAY)
+    check("empty when they came on, in at 11:15: an arrival, seen",
+          not came_later["unseen"] and came_later["starts"] == at(11, 15),
+          came_later)
+    usual = ds.average_days([was_in, came_later])
+    check("and only the seen arrival goes into the usual day",
+          usual["first_in"] == 11 * 60 + 15, usual["first_in"])
+
     # A room nobody entered all day.
     s = ds.story(ds.spells(events([(at(-3), "empty", 0)]), DAY, END), DAY)
     check("an empty day has no first in", s["first_in"] is None)
