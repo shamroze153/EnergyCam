@@ -546,7 +546,7 @@ def solar_block(table, gf, rate, sun_colour, grid_colour):
     return "".join(out)
 
 
-def solar_effect(bills, table, meters, since=None):
+def solar_effect(bills, table, meters, since=None, full_from=None, kw=None):
     """Units a day on each meter before the panels and after (20 Nov,
     Shamroze: "show the difference since the solar went up").
 
@@ -555,8 +555,12 @@ def solar_effect(bills, table, meters, since=None):
     metered days since, from the readings. The first-floor meter has no
     panels behind it, so its own change over the same two stretches is the
     weather and the work; the ground floor's change beyond that is the
-    panels. `since` is rooms.yaml's `solar_since`; until somebody writes it
-    down, the first day the inverter's figure was typed in.
+    panels. `since` is rooms.yaml's `solar_since`, the day the panels went
+    up; until somebody writes it down, the first day the inverter's figure
+    was typed in. `full_from` (`solar_full_from`) is when they worked in
+    full: 140-H's went up on 1 Oct and spent October on test, so October
+    is neither before nor after -- it is drawn, marked "test". `kw`, the
+    array's size, gives what each kW made a day.
 
     Returns None when either side is missing, else a dict.
     """
@@ -575,10 +579,12 @@ def solar_effect(bills, table, meters, since=None):
             return None
         since = sun["day"].iloc[0]
     since = pd.Timestamp(since)
+    full = pd.Timestamp(full_from) if full_from else since
     days = pd.to_datetime(table["day"])
-    if since.tzinfo is None and days.dt.tz is not None:
-        since = since.tz_localize(days.dt.tz)
-    after = table[(days >= since) & table[gf].notna()]
+    if days.dt.tz is not None:
+        since = since if since.tzinfo else since.tz_localize(days.dt.tz)
+        full = full if full.tzinfo else full.tz_localize(days.dt.tz)
+    after = table[(days >= max(since, full)) & table[gf].notna()]
     if ff and ff in table.columns:
         after = after[after[ff].notna()]
     b = month_bills(bills, meters)
@@ -595,14 +601,20 @@ def solar_effect(bills, table, meters, since=None):
         return float(row["units"]) / max(1, n)
 
     out = {"gf": gf, "ff": ff, "since": since, "assumed": assumed,
+           "first": pd.Timestamp(after["day"].iloc[0]), "test_until": full,
            "month": pd.Timestamp(last["period_start"]),
            "gf_bill": float(last["units"]), "gf_before": per_day(last),
            "gf_after": float(after[gf].mean()), "days": len(after),
            "ff_before": None, "ff_after": None, "expected": None,
-           "saved": None, "solar": None}
+           "saved": None, "solar": None, "kw": float(kw) if kw else None,
+           "yield": None}
     if "solar" in table.columns:
-        sun = table[(days >= since) & table["solar"].notna()]["solar"]
+        # The days the meters were read too: the first figure typed in can
+        # be a part day, before the readings began.
+        sun = after["solar"].dropna()
         out["solar"] = float(sun.mean()) if len(sun) else None
+        if out["solar"] and out["kw"]:
+            out["yield"] = out["solar"] / out["kw"]
     if ff:
         same = b[(b["meter"] == ff)
                  & (b["period_start"] == last["period_start"])]
@@ -628,7 +640,8 @@ def solar_before_after(theme, eff, bills, meters, rate):
         return ""
     c = SERIES[theme]
     codes = {m["code"]: m for _, m in meters.iterrows()}
-    since = eff["since"].strftime("%d %b").lstrip("0")
+    since = eff["first"].strftime("%d %b").lstrip("0")
+    went = eff["since"].strftime("%d %B").lstrip("0")
     month = eff["month"].strftime("%B %Y")
     h = ['<div class="ec-h"><span class="t">Solar: before and after</span>'
          '<span class="c">units a day from the grid · the ground floor meter '
@@ -652,7 +665,19 @@ def solar_before_after(theme, eff, bills, meters, rate):
                       "about Rs %s a day, Rs %s a month at Rs %.0f"
                       % (_n(eff["saved"] * rate), _n(eff["saved"] * rate * 30),
                          rate)))
+    if eff["yield"]:
+        # What each kW of panels made: the one figure that says whether the
+        # array is working, whatever the building did.
+        h.append(tile("Each kW of panels",
+                      "%.1f kWh a day" % eff["yield"],
+                      "%s kW made %s kWh a day; about 4 is usual for "
+                      "Karachi in November" % (format(eff["kw"], "g"),
+                                               _n(eff["solar"]))))
     h.append("</div>")
+    start = eff["since"].tz_localize(None) if eff["since"].tzinfo \
+        else eff["since"]
+    end = eff["test_until"].tz_localize(None) if eff["test_until"].tzinfo \
+        else eff["test_until"]
 
     months = month_bills(bills, meters)
     rows = {}
@@ -662,16 +687,18 @@ def solar_before_after(theme, eff, bills, meters, rate):
         m = months[months["meter"] == code].sort_values("period_start")
         bars = []
         for _, r in m.iterrows():
-            n = (pd.Timestamp(r["period_end"])
-                 - pd.Timestamp(r["period_start"])).days + 1
-            bars.append((pd.Timestamp(r["period_start"]).strftime("%b %y"),
+            a = pd.Timestamp(r["period_start"])
+            n = (pd.Timestamp(r["period_end"]) - a).days + 1
+            test = start <= a < end
+            bars.append((a.strftime("%b %y"),
                          float(r["units"]) / max(1, n), bool(r["impossible"]),
-                         "%s · %s units a day (%s on the bill)"
-                         % (pd.Timestamp(r["period_start"]).strftime("%B %Y"),
+                         "%s · %s units a day (%s on the bill)%s"
+                         % (a.strftime("%B %Y"),
                             _n(float(r["units"]) / max(1, n)),
-                            _n(r["units"]))))
+                            _n(r["units"]),
+                            " · the panels on test" if test else ""), test))
         rows[code] = bars
-    normal = [v for bars in rows.values() for _, v, bad, _ in bars if not bad]
+    normal = [b[1] for bars in rows.values() for b in bars if not b[2]]
     normal += [eff["gf_after"] + (eff["solar"] or 0)]
     if eff["ff_after"]:
         normal.append(eff["ff_after"])
@@ -682,7 +709,7 @@ def solar_before_after(theme, eff, bills, meters, rate):
         bars = rows[code]
         labels = [b[0] for b in bars] + ["Since " + since]
         if code == eff["gf"]:
-            stacks = [[v, None] for _, v, _, _ in bars] + \
+            stacks = [[b[1], None] for b in bars] + \
                 [[eff["gf_after"], eff["solar"]]]
             colours = [c["gf"], c["solar"]]
             last_tip = ("Since %s · %s units a day from the grid%s"
@@ -691,13 +718,15 @@ def solar_before_after(theme, eff, bills, meters, rate):
                            if eff["solar"] else ""))
             caption = legend([(c["gf"], "grid"), (c["solar"], "solar")])
         else:
-            stacks = [[v] for _, v, _, _ in bars] + [[eff["ff_after"]]]
+            stacks = [[b[1]] for b in bars] + [[eff["ff_after"]]]
             colours = [c["ff"]]
             last_tip = "Since %s · %s units a day" % (since,
                                                       _n(eff["ff_after"]))
             caption = legend([(c["ff"], "grid")])
-        marks = [None] * len(bars) + (["after solar"] if code == eff["gf"]
-                                      else [None])
+        # Only the test month is worded: "after solar" over the last column
+        # ran into it on a phone, and the yellow and "Since" say it already.
+        marks = [("test" if code == eff["gf"] and b[4] else None)
+                 for b in bars] + [None]
         h.append('<div class="ec-h"><span class="t">%s</span><span class="c">'
                  'units a day, month by month</span>%s</div>'
                  '<div class="ec-card" style="padding:16px 18px 26px">%s</div>'
@@ -706,13 +735,18 @@ def solar_before_after(theme, eff, bills, meters, rate):
                     columns(labels, stacks, colours,
                             [b[3] for b in bars] + [last_tip], height=190,
                             cap=top / 1.08, marks=marks, top=top)))
+    tested = end > start and eff["test_until"] != eff["since"]
     h.append('<div class="en-note">A bill is a month, so each is shared out '
              'over its days; the last column is the readings since %s. '
-             'The first floor meter has no panels behind it, so its change is '
-             'what the weather and the work did; the ground floor\'s fall '
+             '%sThe first floor meter has no panels behind it, so its change '
+             'is what the weather and the work did; the ground floor\'s fall '
              'beyond it is the panels. The estimate takes %s as the month '
              'before them.%s</div>'
-             % (since, esc(month),
+             % (since, "" if eff["assumed"] else
+                "The panels went up on %s%s. " % (
+                    went, " and were on test until %s (marked \"test\")"
+                    % (end - pd.Timedelta(days=1)).strftime("%d %B")
+                    .lstrip("0") if tested else ""), esc(month),
                 " The day the panels went up is not written down yet, so "
                 "\"after\" starts at the first solar figure typed in; the "
                 "date goes in rooms.yaml as solar_since."
@@ -854,6 +888,62 @@ def month_estimate(readings, meters, rates, peak=(18.5, 22.5), days=7):
     return out
 
 
+def bill_rates(bills, meters, n=3):
+    """Rs a unit on each meter's last n bills, everything in (fixed charges,
+    adders, taxes): {code: (rate, bills used, the last bill's row)}."""
+    out = {}
+    if bills is None or not len(bills):
+        return out
+    b = month_bills(bills, meters)
+    b = b[~b["impossible"]]
+    for code, g in b.groupby("meter"):
+        g = g.sort_values("period_start").tail(n)
+        units = g["units"].astype(float).sum()
+        if units > 0:
+            out[code] = (float(g["amount_rs"].astype(float).sum()) / units,
+                         len(g), g.iloc[-1])
+    return out
+
+
+def month_bill_page(est, meters, bills):
+    """This month's bill on each meter at the pace of the readings (20 Nov,
+    Shamroze: "from the daily units, what bill to expect this month"),
+    against the last bill. Each meter at its own last three bills' rate,
+    since the two are billed differently."""
+    rates = bill_rates(bills, meters)
+    if not est or not rates:
+        return ""
+    by_code = {m["code"]: m for _, m in meters.iterrows()}
+    end = pd.Timestamp(est["to"]).tz_convert(LOCAL)
+    days = end.days_in_month
+    tiles = []
+    for code, per_day in est["meters"].items():
+        if code not in rates:
+            continue
+        rate, used, last = rates[code]
+        units = per_day * days
+        was = float(last["units"])
+        tiles.append(tile(
+            "%s, %s" % (by_code[code]["label"] if code in by_code else code,
+                        end.strftime("%B")),
+            "Rs %s" % _n(units * rate),
+            "about %s units (%s a day × %d) at Rs %.0f a unit, its last %d "
+            "bills<br>%s: %s units, Rs %s · <b>%s</b>"
+            % (_n(units), _n(per_day), days, rate, used,
+               esc(pd.Timestamp(last["period_start"]).strftime("%B")),
+               _n(was), _n(last["amount_rs"]), _pct(was, units))))
+    if not tiles:
+        return ""
+    return ('<div class="ec-h"><span class="t">This month\'s bill, meter by '
+            'meter</span><span class="c">what to expect at the pace of the '
+            'readings</span></div><div class="en-tiles">%s</div>'
+            '<div class="en-note" style="margin-top:6px">Each meter at what '
+            'its own last bills came to a unit, fixed charges and taxes in. '
+            'Fixed charges do not fall with the units, so a month with far '
+            'fewer units comes out a little above this.</div>'
+            % "".join(tiles))
+
+
 def month_page(theme, est, meters, rates, bills=None):
     """The card for month_estimate: a day, a month, the bill."""
     if not est:
@@ -876,15 +966,28 @@ def month_page(theme, est, meters, rates, bills=None):
                             "" if len(m) == 1 else "s",
                             _n(m["units"].astype(float).sum()),
                             _n(m["amount_rs"].astype(float).sum())))
+    # One figure for the month's bill, not two: each meter at what its own
+    # bills came to a unit when there are bills (the card below breaks it
+    # down), the tariff's peak and off-peak rates when there are none.
+    known = bill_rates(bills, meters)
+    if known and all(k in known for k in est["meters"]):
+        days = pd.Timestamp(est["to"]).tz_convert(LOCAL).days_in_month
+        rs = sum(v * days * known[k][0] for k, v in est["meters"].items())
+        bill = tile("The month's bill, about", "Rs %s" % _n(rs),
+                    "each meter at what its last bills came to a unit; "
+                    "meter by meter below")
+    else:
+        bill = tile("The month's bill, about", "Rs %s" % _n(est["rs"]),
+                    "Off-peak %s units × Rs %s = Rs %s<br>Peak %s units × Rs "
+                    "%s = Rs %s" % (_n(est["off_units"]), _n(off),
+                                    _n(est["off_rs"]), _n(est["peak_units"]),
+                                    _n(on), _n(est["peak_rs"])))
     tiles = "".join([
         tile("Units a day", _n(est["per_day"]),
              "both meters together<br>" + each),
         tile("A month at this pace", "%s units" % _n(est["month"]),
              "30 days × %s a day" % _n(est["per_day"])),
-        tile("The month's bill, about", "Rs %s" % _n(est["rs"]),
-             "Off-peak %s units × Rs %s = Rs %s<br>Peak %s units × Rs %s = "
-             "Rs %s" % (_n(est["off_units"]), _n(off), _n(est["off_rs"]),
-                        _n(est["peak_units"]), _n(on), _n(est["peak_rs"]))),
+        bill,
     ])
     return "".join([
         '<div class="ec-h"><span class="t">A day, and the month it makes'
@@ -893,11 +996,14 @@ def month_page(theme, est, meters, rates, bills=None):
         '<div class="en-tiles">', tiles, "</div>",
         '<div class="en-note" style="margin-top:6px">An average: the readings '
         "a week apart hold the weekend and the working days in their right "
-        "share. Peak is the %s evening hours a day (%.0f%% of the day), "
-        "counted as if they draw like any other hour -- a rough split. The "
-        "ground floor meter is after the solar panels, so this is what the "
-        "grid will bill, not all the building uses.%s</div>"
-        % (_n(est["peak_share"] * 24), est["peak_share"] * 100, last_bill)])
+        "share. %sThe ground floor meter is after the solar panels, so this "
+        "is what the grid will bill, not all the building uses.%s</div>"
+        % ("" if known and all(k in known for k in est["meters"]) else
+           "Peak is the %s evening hours a day (%.0f%% of the day), counted "
+           "as if they draw like any other hour -- a rough split. "
+           % (_n(est["peak_share"] * 24), est["peak_share"] * 100),
+           last_bill),
+        month_bill_page(est, meters, bills)])
 
 
 def _span_kind(a, b):
@@ -1001,8 +1107,9 @@ def pace_page(theme, readings, meters, rate):
 
 def meters_page(theme, table, kind, meters, bills, cooled_hours, rate,
                 problems, campus_has_meters, campus, usage=None,
-                solar_since=None):
-    """The Meters view below the form: days, then months."""
+                solar=None):
+    """The Meters view below the form: days, then months. `solar`: the
+    array as rooms.yaml has it -- {since, full_from, kw}."""
     t = TOKENS[theme]
     c = SERIES[theme]
     h = [css(theme), '<div class="ec">']
@@ -1059,9 +1166,11 @@ def meters_page(theme, table, kind, meters, bills, cooled_hours, rate,
                                                rate)))
         h.append("</div>")
         h.append(solar_block(table, gf, rate, c["solar"], c["gf"]))
+        solar = solar or {}
         h.append(solar_before_after(
-            theme, solar_effect(bills, table, meters, solar_since), bills,
-            meters, rate))
+            theme, solar_effect(bills, table, meters, solar.get("since"),
+                                solar.get("full_from"), solar.get("kw")),
+            bills, meters, rate))
 
         labels = [day_label(d) for d in table["day"]]
         stacks, tips, marks = [], [], []

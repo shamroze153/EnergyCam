@@ -60,6 +60,15 @@ in `.env`, never in the repo -- from `SENDER_EMAIL`. By hand:
 `ledger_data.py` is the page's reading of rooms.yaml and of the ledger,
 shared with the mail so both say the same figure.
 
+Solar (20 Nov): 140-H's array, 63.85 kW, behind the ground floor +
+basement meter, went up 1 Oct 2026 and was on test all October (a neutral
+fault); it works in full from November. rooms.yaml `assumptions:` holds
+`solar_kw`, `solar_since`, `solar_full_from`; the Energy page's "Solar:
+before and after" compares the last bill before it (September) with the
+readings since, the first floor meter (no panels) as the control, and
+"This month's bill, meter by meter" puts each meter's pace at its own last
+three bills' rupees a unit.
+
 Desks (13 Nov): `seating.yaml` holds the admin team's seating sheet as
 counts only -- desks per room, how many given to somebody, by team -- and
 which camera rooms see them (`rooms:`). The sheet itself has people's

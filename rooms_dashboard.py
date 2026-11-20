@@ -2518,7 +2518,9 @@ def show_meters(df, recent, now):
         mode, table, kind, mine, bills[bills["meter"].isin(codes)]
         if len(bills) else bills, cooled_hours, rate,
         ev.suspicious(readings, mine), True, LINK_BASE.get("campus") or "",
-        usage, a.get("solar_since")), unsafe_allow_html=True)
+        usage, {"since": a.get("solar_since"),
+                "full_from": a.get("solar_full_from"),
+                "kw": a.get("solar_kw")}), unsafe_allow_html=True)
     with st.expander("Every reading, as entered"):
         if len(readings):
             shown = readings.copy()

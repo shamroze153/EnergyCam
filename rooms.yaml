@@ -185,6 +185,14 @@ assumptions:
   # Shamroze reported and matches the winter window.        # replace with the effective rate off the bill
   co2_kg_per_kwh: 0.45         # grid average; the national figure moves
   co2_kg_per_tree_year: 21     # what one mature tree takes up in a year
+  # The solar array behind the ground floor + basement meter (Shamroze, 20
+  # Nov): 63.85 kW, switched on 1 Oct 2026, but on test all October (a
+  # neutral fault, little difference), working fully from November. The
+  # Energy page's "before" is the last bill before it went up; "after" is
+  # the readings from solar_full_from; October is marked as the test.
+  solar_kw: 63.85
+  solar_since: "2026-10-01"
+  solar_full_from: "2026-11-01"
 
 # Units in places no camera watches. They are never read and never alerted
 # on, but they are on the bill, so the campus totals count them. 140-H's

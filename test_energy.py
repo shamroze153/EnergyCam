@@ -221,6 +221,24 @@ def main():
           later and later["days"] == 6 and not later["assumed"], later)
     check("no bill before the panels, no card",
           ev.solar_effect(sb.iloc[0:0], st, METERS) is None)
+    # 140-H's: up on 1 Oct, on test all October, 63.85 kW.
+    sep = pd.concat([sb.assign(period_start="2026-09-01",
+                               period_end="2026-09-30",
+                               units=[10430, 5986]), sb])
+    real = ev.solar_effect(sep, st, METERS, "2026-10-01", "2026-11-01", 63.85)
+    check("with a test month, before is the month before the panels",
+          real and real["month"].month == 9 and not real["assumed"], real)
+    check("and each kW's day is the array's day over its size",
+          real and abs(real["yield"] - 240 / 63.85) < 0.01, real)
+    page = ev.solar_before_after("dark", real, sep, METERS, 67.0)
+    check("October is drawn, marked as the test",
+          ">test<" in page and "on test until 31 October" in page)
+    est = {"meters": {"gf_basement": 170.0, "first_cafe": 210.0},
+           "to": pd.Timestamp("2026-11-18 11:00", tz="UTC")}
+    bill = ev.month_bill_page(est, METERS, sep)
+    check("this month's bill: each meter at its own rate, 30 November days",
+          "5,100 units" in bill and "6,300 units" in bill
+          and "October: 11,623 units" in bill, bill[:300])
 
     # ---- the charts on a phone -------------------------------------------
     small = ev.columns(["a", "b", "c"], [[0.3], [1.15], [0.8]], ["#000"],
