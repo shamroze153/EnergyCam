@@ -2507,20 +2507,21 @@ def show_meters(df, recent, now):
     rates = (rate, float(a.get("peak_rs_per_kwh", 81) or 81))
     # Right under the form (Shamroze, 17 Nov): units a day, the month's
     # bill at that pace, and units an hour reading to reading.
-    month = ev.month_page(mode, ev.month_estimate(
-        readings, mine, rates, av.peak_window(a)), mine, rates,
-        bills[bills["meter"].isin(codes)] if len(bills) else None)
+    my_bills = bills[bills["meter"].isin(codes)] if len(bills) else None
+    est = ev.month_estimate(readings, mine, rates, av.peak_window(a))
+    month = ev.month_page(mode, est, mine, rates, my_bills)
     paced = ev.pace_page(mode, readings, mine, rate)
     if month or paced:
         st.markdown(ev.css(mode) + '<div class="ec">' + month + paced
                     + "</div>", unsafe_allow_html=True)
     st.markdown(ev.meters_page(
-        mode, table, kind, mine, bills[bills["meter"].isin(codes)]
-        if len(bills) else bills, cooled_hours, rate,
+        mode, table, kind, mine, my_bills if my_bills is not None else bills,
+        cooled_hours, rate,
         ev.suspicious(readings, mine), True, LINK_BASE.get("campus") or "",
         usage, {"since": a.get("solar_since"),
                 "full_from": a.get("solar_full_from"),
-                "kw": a.get("solar_kw")}), unsafe_allow_html=True)
+                "kw": a.get("solar_kw")},
+        ev.month_expected(est, mine, my_bills)), unsafe_allow_html=True)
     with st.expander("Every reading, as entered"):
         if len(readings):
             shown = readings.copy()

@@ -398,6 +398,136 @@ def columns(labels, stacks, colours, tips, height=220, cap=None,
     return "".join(html)
 
 
+def pairs(labels, before, after, colour, tips, height=220, cap=None,
+          marks=None, dashed=None):
+    """Two columns per label, last year's (pale) beside this year's, on
+    one scale. A value over `cap` is drawn to the top and said so;
+    `dashed[i]` draws this year's column as an estimate, not a bill."""
+    values = [v for v in before + after if v]
+    top = max([1.0] + [v for v in values if cap is None or v <= cap])
+    step, high = _nice(top * 1.05)
+    n = len(labels)
+    width = 100.0 / max(1, n)
+    bar = min(width * 0.36, width / 2 - 0.4)
+    svg = ['<svg viewBox="0 0 100 100" preserveAspectRatio="none" '
+           'aria-hidden="true">']
+    for v in _ticks(step, high):
+        y = 100 - 100.0 * v / high
+        svg.append('<line x1="0" x2="100" y1="%.2f" y2="%.2f" stroke="%s" '
+                   'stroke-width="1" vector-effect="non-scaling-stroke"/>'
+                   % (y, y, "var(--axis)" if v == 0 else "var(--grid)"))
+    over = []
+    for i in range(n):
+        mid = (i + 0.5) * width
+        for j, (v, x) in enumerate(((before[i], mid - bar - 0.3),
+                                    (after[i], mid + 0.3))):
+            if not v:
+                continue
+            h = min(100.0, 100.0 * v / high)
+            if cap is not None and v > cap:
+                over.append(i)
+            guess = j == 1 and dashed and dashed[i]
+            svg.append('<rect x="%.3f" y="%.3f" width="%.3f" height="%.3f" '
+                       'fill="%s" fill-opacity="%s"%s/>'
+                       % (x, 100 - h, bar, h, colour,
+                          ".35" if j == 0 else (".6" if guess else "1"),
+                          ' stroke="%s" stroke-dasharray="3 2" stroke-width="1.5"'
+                          ' vector-effect="non-scaling-stroke"' % colour
+                          if guess else ""))
+        svg.append('<rect class="hit" x="%.3f" y="0" width="%.3f" '
+                   'height="100"><title>%s</title></rect>'
+                   % (i * width, width, esc(tips[i])))
+    svg.append("</svg>")
+    html = ['<div class="ec-chart" style="height:%dpx"><div class="plot">'
+            % height, "".join(svg)]
+    for v in _ticks(step, high):
+        text = (("%gk" % (v / 1000.0)) if high >= 10000 and v
+                else format(v, ",") if v == int(v) else "%g" % v)
+        html.append('<span class="yt" style="top:%.2f%%">%s</span>'
+                    % (100 - 100.0 * v / high, text))
+    for k, i in enumerate(range(n)):
+        alt = (n - 1 - k) % 2 == 1
+        html.append('<span class="xt%s" style="left:%.2f%%">%s</span>'
+                    % (" alt" if alt else "", (i + 0.5) * width,
+                       esc(labels[i])))
+    for i in sorted(set(over)):
+        html.append('<span class="plab" style="left:%.2f%%;top:0%%">'
+                    '↑ off the scale</span>' % ((i + 0.5) * width))
+    for i, word in enumerate(marks or []):
+        if word and i not in over:
+            v = max(before[i] or 0, after[i] or 0)
+            html.append('<span class="plab mk alt" style="left:%.2f%%;'
+                        'top:%.2f%%">%s</span>'
+                        % ((i + 0.5) * width, 100 - 100.0 * v / high,
+                           esc(word)))
+    html.append("</div></div>")
+    return "".join(html)
+
+
+def year_on_year(months, colour, expected=None):
+    """Each month of the last bill year beside the same month a year
+    before, both meters together (Shamroze, 20 Nov: "last November so many
+    units, this November so many"). `expected`: (month start, units, Rs)
+    for the month under way, drawn dashed beside the same month's bill a
+    year ago."""
+    if months is None or not len(months):
+        return ""
+    tot = months.assign(u=months["units"].astype(float),
+                        rs=months["amount_rs"].astype(float)) \
+        .groupby("period_start").agg(u=("u", "sum"), rs=("rs", "sum"),
+                                      odd=("impossible", "any"))
+    tot.index = [pd.Timestamp(d) for d in tot.index]
+    dates = sorted(tot.index)
+    if len(dates) < 13:
+        return ""
+    rows = []
+    for d in dates[-12:]:
+        p = d - pd.DateOffset(years=1)
+        if p in tot.index:
+            rows.append((d, p, float(tot.loc[d, "u"]), float(tot.loc[d, "rs"]),
+                         bool(tot.loc[d, "odd"]), False))
+    if expected:
+        d, units, rs = expected
+        d = pd.Timestamp(d)
+        d = d.tz_localize(None) if d.tzinfo else d
+        p = d - pd.DateOffset(years=1)
+        if p in tot.index and d not in tot.index:
+            rows.append((d, p, float(units), float(rs), False, True))
+    if not rows:
+        return ""
+    labels, before, after, tips, marks, dashed = [], [], [], [], [], []
+    for d, p, u, rs, odd, guess in rows:
+        pu, prs = float(tot.loc[p, "u"]), float(tot.loc[p, "rs"])
+        labels.append(d.strftime("%b") + (" (now)" if guess else ""))
+        before.append(pu)
+        after.append(u)
+        dashed.append(guess)
+        change = _pct(pu, u)
+        marks.append(None if odd or tot.loc[p, "odd"] else change)
+        tips.append("%s · %d: %s units, Rs %s · %d: %s units, Rs %s%s · %s"
+                    % (d.strftime("%B"), p.year, _n(pu), _n(prs), d.year,
+                       _n(u), _n(rs), " (expected, at the readings' pace)"
+                       if guess else "", change
+                       + (" · a queried bill in it" if odd or tot.loc[p, "odd"]
+                          else "")))
+    normal = [v for v, o in zip(after, [r[4] for r in rows]) if not o] + \
+        [v for v, p in zip(before, [r[1] for r in rows])
+         if not tot.loc[p, "odd"]]
+    cap = max(normal) * 1.15 if normal else None
+    return ('<div class="ec-h"><span class="t">This year against last year'
+            '</span><span class="c">units each month, both meters · hover '
+            'for the rupees</span>%s</div><div class="ec-card" style="'
+            'padding:16px 18px 26px">%s<div class="en-note">The pale column '
+            'is the same month a year before. The panels went up in October '
+            '2026, so the months before that compare the building with '
+            'itself; the dashed column is this month so far, at the pace of '
+            'the readings.</div></div>'
+            % (legend([("color-mix(in srgb, %s 35%%, transparent)" % colour,
+                        "a year before"), (colour, "this year")]),
+               pairs(labels, before, after, colour, tips, height=230,
+                     cap=cap, marks=marks, dashed=dashed)))
+
+
 def legend(items):
     return '<span class="ec-legend">%s</span>' % "".join(
         '<span><i class="box" style="background:%s"></i>%s</span>'
@@ -466,7 +596,7 @@ border-color:var(--t1)}
 .en-yr-sum{font-size:13px;color:var(--t2);margin:2px 0 6px;line-height:1.5}
 .en-more{margin-top:18px}.en-more>summary{cursor:pointer;font-weight:650;
 font-size:14px;color:var(--t2);padding:6px 0;list-style-position:inside}
-@media (max-width:760px){.ec-chart .xt.alt{display:none}
+@media (max-width:760px){.ec-chart .xt.alt,.ec-chart .plab.mk.alt{display:none}
 .en-ranked .row{grid-template-columns:minmax(0,1fr) 96px}
 .en-ranked .row>*{min-width:0}.en-ranked .v span{overflow-wrap:anywhere}
 .en-ranked .tr{grid-column:1/-1;order:3}.en-sun{grid-template-columns:1fr}
@@ -914,6 +1044,19 @@ def bill_rates(bills, meters, n=3):
     return out
 
 
+def month_expected(est, meters, bills):
+    """(the month's first day, units, Rs) for the month under way, at the
+    readings' pace and each meter's own bill rate; None without both."""
+    rates = bill_rates(bills, meters)
+    if not est or not rates or not all(k in rates for k in est["meters"]):
+        return None
+    end = pd.Timestamp(est["to"]).tz_convert(LOCAL)
+    days = end.days_in_month
+    units = sum(v * days for v in est["meters"].values())
+    rs = sum(v * days * rates[k][0] for k, v in est["meters"].items())
+    return (pd.Timestamp(end.year, end.month, 1), units, rs)
+
+
 def month_bill_page(est, meters, bills):
     """This month's bill on each meter at the pace of the readings (20 Nov,
     Shamroze: "from the daily units, what bill to expect this month"),
@@ -1116,9 +1259,10 @@ def pace_page(theme, readings, meters, rate):
 
 def meters_page(theme, table, kind, meters, bills, cooled_hours, rate,
                 problems, campus_has_meters, campus, usage=None,
-                solar=None):
+                solar=None, expected=None):
     """The Meters view below the form: days, then months. `solar`: the
-    array as rooms.yaml has it -- {since, full_from, kw}."""
+    array as rooms.yaml has it -- {since, full_from, kw}. `expected`: this
+    month's (start, units, Rs) at the readings' pace, for year_on_year."""
     t = TOKENS[theme]
     c = SERIES[theme]
     h = [css(theme), '<div class="ec">']
@@ -1391,6 +1535,7 @@ def meters_page(theme, table, kind, meters, bills, cooled_hours, rate,
                         format(int(b["units"]), ","),
                         format(int(round(float(b["amount_rs"]))), ",")))
         h.append("</div>")
+        h.append(year_on_year(months, c["gf"], expected))
     h.append("</div>")
     return "".join(h)
 
