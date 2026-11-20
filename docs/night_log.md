@@ -1272,3 +1272,12 @@ Two or three lines a round; picture file names, never pictures.
   disagreed nowhere else. AC: 140-H Reception ran empty 20:15-21:06 (then
   infrared, unknown); Marketing empty and cooled at 21:57; at 22:23 only
   the Basement and 141 Room 32 run, both with people in. Tests green.
+* 00:43 Round: field_audit 00:25 -- MISSED 0, GHOST 0, FAINT 5, PASSING
+  1, FOLLOWING 7, DRIFT 2, 108 match. The page agreed with the cameras,
+  but it showed 3 people on the roof: Solar Array ch26 boxes the corner
+  of the panels' frame, up in the air, every pass of every night for
+  four nights (12-14 an hour, nearly always the only one; drop_still
+  never caught it -- infrared flicker), and ch30 a tree on the skyline
+  beyond the roof. Both zoned (465 and 90 boxes taken; the smaller
+  skyline shapes left -- a person at the far edge is as small). Tests
+  green; loop restarted.

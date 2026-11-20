@@ -1617,6 +1617,17 @@ rooms:
     channels: [26, 29, 30, 31, 32]
     ac: none
     empty_after_minutes: null
+    # 21 Nov, 640x360. ch 26: the corner of the panels' frame at the top
+    # right, up in the air, boxed every pass of every night for four nights
+    # (12-14 an hour, 0.25-0.77, nearly always the only "person") -- the
+    # page showed people on the roof all night. ch 30: a tree on the
+    # skyline beyond the roof's far edge, 13-34 passes a day. Nobody can
+    # stand in either; a person on the roof is a box below them.
+    ignore:
+      26:
+        - [550, 30, 615, 100]
+      30:
+        - [385, 10, 415, 60]
     note: >
       Five cameras on the roof. Nothing to switch off, but a person on the roof
       is a cleaning visit, and the date and time of one is a fact nobody
