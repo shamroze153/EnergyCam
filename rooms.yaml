@@ -1951,6 +1951,13 @@ rooms:
     channels: [3, 9]
     ac: none
     empty_after_minutes: null
+    # 20 Nov: ch 3 looks through the glass wall into the office on its
+    # right (the "pure" sign) and counted the people at its desks as in the
+    # lobby -- 12-49 passes a day, most of them the lobby's only "person".
+    # The next room, zoned; the corridor's floor is left of x 1300.
+    ignore:
+      3:
+        - [1350, 150, 1920, 760]
 
   - name: 141 Corridor (2nd floor)
     dept: Shared

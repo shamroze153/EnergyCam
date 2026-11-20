@@ -143,6 +143,17 @@ def unpack(text):
     return None if spread < 1e-6 else small / spread
 
 
+def brightness(frame, box):
+    """Mean brightness inside the box, 0-255; None for an empty box."""
+    x1, y1, x2, y2 = box
+    patch = frame[y1:y2, x1:x2]
+    if patch.size == 0:
+        return None
+    if patch.ndim == 3:
+        patch = cv2.cvtColor(patch, cv2.COLOR_BGR2GRAY)
+    return float(patch.mean())
+
+
 def contrast(frame, box):
     """Spread of brightness inside the box. Lit strokes on a dark face give a
     high number; a blank panel gives almost nothing."""
@@ -342,6 +353,16 @@ def _read_block(frame, config):
             if score < ANCHOR_MATCH:
                 astray.append(score)
                 continue
+        # A face the light has washed out (20 Nov: Marketing's M2 from about
+        # 16:30, the unit one flat bright shade, mean ~205, its light unseen
+        # whether it runs or not) is left unread -- None, counted among the
+        # unseen -- never an "off" nobody saw.
+        bright_max = unit.get("bright_max")
+        if bright_max is not None:
+            mean = brightness(frame, box)
+            if mean is not None and mean >= float(bright_max):
+                lit.append(None)
+                continue
         value = contrast(frame, box)
         if value is None:
             return None, None, "a box is empty"
@@ -378,16 +399,26 @@ def _read_block(frame, config):
 
 def _verdict(lit, astray, unseen):
     """The room's (state, why, running) from the units read, the ones left
-    unread as astray, and the ones no camera reads at all."""
+    unread as astray, and the ones no camera reads at all. A None in lit
+    is a unit washed out by the light: unread, like an unseen one."""
+    blind = sum(1 for x in lit if x is None)
+    lit = [x for x in lit if x is not None]
     if not lit:
         if astray:
             return None, ("the camera has moved: the view round the box"
                           " matches the calibrated one only %.2f"
                           % max(astray)), None
+        if blind:
+            return None, ("the light washes the unit out; unread"
+                          if blind == 1 else "the light washes the units out;"
+                          " unread"), None
         return None, "no usable boxes", None
     skipped = ("; %d left unread, the view round %s not as calibrated (%s)"
                % (len(astray), "it" if len(astray) == 1 else "them",
                   ", ".join("%.2f" % s for s in astray)) if astray else "")
+    if blind:
+        skipped += "; %d washed out by the light, unread" % blind
+    unseen += blind
     running = sum(1 for x in lit if x)
     # Any unit running means the room is being cooled. A room with two units
     # and one of them on is not an off room.

@@ -1240,3 +1240,15 @@ Two or three lines a round; picture file names, never pictures.
   frame: none running in an off period, 44 of 45 running read; one
   pre-move frame (18 Nov 13:25) passes the view check at 0.58. 23 units
   read on both campuses. Tests green; loop restarted for ac_units.yaml.
+* 18:37 Round: field_audit 18:25 -- MISSED 0, GHOST 5, FAINT 3, PASSING
+  2, FOLLOWING 12, DRIFT 12, 88 match; the gym not opened. Ablution Area
+  and H First Floor Lobby: people coming and going (0.67-0.92, a new spot
+  each pass). 141 Reception Roof: a man on the yellow chair the check did
+  not score. 141-D Squat Wolf Room 2: the black chair on the right at
+  0.26-0.33 -- a seat, left. 141 Lobby (2nd floor) ch3 counted people in
+  the office through its glass wall, 12-49 passes a day -- the next room,
+  zoned (takes 184 of five days' boxes; the corridor's people stay).
+  Found: from 16:30 Marketing's M2 face washes out (mean ~205) and its
+  block read "off" unseen. ac_detect now takes a unit's `bright_max`: over
+  it the unit is unread, counted among the unseen -- never an off nobody
+  saw. M2 at 185 (running by day 140-176). Tests green; loop restarted.

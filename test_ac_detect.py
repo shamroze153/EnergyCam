@@ -127,6 +127,41 @@ def check_inverted(ok):
        "--choice must be between 1 and" in branch)
 
 
+def check_washed_out(ok):
+    """A face the light washes out is unread, not off (20 Nov, Marketing's
+    M2: from about 16:30 the whole unit is one flat bright shade and its
+    light cannot be seen, running or not)."""
+    lit = np.full((1080, 1920, 3), 150, np.uint8)
+    lit[20:50, 10:40] = np.random.default_rng(5).integers(
+        100, 255, (30, 30, 3), dtype=np.uint8)
+    dim_off = np.full((1080, 1920, 3), 150, np.uint8)
+    washed = np.full((1080, 1920, 3), 205, np.uint8)
+    unit = {"label": "M2", "led_roi": [10, 20, 40, 50],
+            "led_std_threshold": 11.0, "bright_max": 185,
+            "measured": {"on_std": 18.1, "off_std": 2.8}}
+    one = {"R": {"frame_size": [1920, 1080], "units": [unit]}}
+    ok("a lit light still reads on under bright_max",
+       ac_detect.read_room(lit, "R", one)[0] == "on")
+    ok("a dark one on a normal face still reads off",
+       ac_detect.read_room(dim_off, "R", one)[0] == "off")
+    state, why, running = ac_detect.read_units(washed, "R", one)
+    ok("a washed-out face is unread, not off",
+       state is None and "washes" in why and running is None)
+    other = {"label": "M1", "led_roi": [100, 20, 130, 50],
+             "led_std_threshold": 11.0,
+             "measured": {"on_std": 40.0, "off_std": 1.0}}
+    two = {"R": {"frame_size": [1920, 1080], "units": [other, unit]}}
+    both = washed.copy()
+    both[20:50, 100:130] = np.random.default_rng(6).integers(
+        0, 255, (30, 30, 3), dtype=np.uint8)
+    state, why, running = ac_detect.read_units(both, "R", two)
+    ok("another unit running beside it still makes the room on, one of one",
+       state == "on" and running == 1 and "1 washed out" in why)
+    state, why, running = ac_detect.read_units(washed, "R", two)
+    ok("the other off and this one washed out: the room unknown, not off",
+       state is None and running == 0 and "cannot be seen" in why)
+
+
 def check_people_masked(ok):
     """A change where a person stands is that person moving.
 
@@ -512,6 +547,7 @@ def main():
     ok("Admin Room's calibration on disk carries an anchor",
        bool(ON_DISK["Admin Room"]["units"][0].get("anchor")))
     check_inverted(ok)
+    check_washed_out(ok)
     check_people_masked(ok)
     check_several_units(ok)
 

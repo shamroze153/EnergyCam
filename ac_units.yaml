@@ -759,6 +759,10 @@ rooms:
         # 16:13). At 11 a washed-out "on" reads off (not seen running), and
         # an off unit never reads running.
         led_std_threshold: 11.0
+        # From about 16:30 the whole face is one flat bright shade (mean
+        # 199-207 on 19 and 20 Nov) and the light cannot be seen at all:
+        # unread then, not "off". Running by day the box's mean is 140-176.
+        bright_max: 185
         # Measured on 20 Nov's midday switch, M1 running throughout: on
         # 12:25, off 12:38 (Friday prayers), on again 14:11. By eye it ran
         # 19 Nov 10:07-15:35 and 20 Nov 10:32-12:25 and 14:11 on; off 19 Nov
