@@ -1491,6 +1491,16 @@ rooms:
     channels: [1]
     ac: none
     empty_after_minutes: null
+    # 20 Nov, 640x360: (1) the top of the doorway on the right shows the
+    # cafe's floor beyond it, and people in the cafe were counted on the
+    # stairs -- 14-27 passes a day, most of them the only "person" (0.26-
+    # 0.89); somebody walking through the doorway is a tall box reaching
+    # well below y 80. (2) a wooden board in the bottom-right corner, in
+    # the evening light 0.25-0.57, 8-44 passes on most evenings.
+    ignore:
+      1:
+        - [470, 0, 600, 80]
+        - [588, 292, 640, 360]
 
   - name: Cafe Hand Washing
     floor: Cafe

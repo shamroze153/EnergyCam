@@ -1252,3 +1252,14 @@ Two or three lines a round; picture file names, never pictures.
   block read "off" unseen. ac_detect now takes a unit's `bright_max`: over
   it the unit is unread, counted among the unseen -- never an off nobody
   saw. M2 at 185 (running by day 140-176). Tests green; loop restarted.
+* 20:43 Round: field_audit 20:25 -- MISSED 0, GHOST 3, FAINT 2, PASSING
+  1, FOLLOWING 20, DRIFT 2, 95 match. Cafe Stairs ch1: people in the cafe
+  seen through the top of the doorway (14-27 passes a day, mostly the
+  only one) and a wooden board in the bottom-right corner by evening --
+  both zoned (198 of five days' boxes taken; the people on the stairs,
+  0.69-0.91, stay). 141-D Squat Wolf Room 3: something on the floor at
+  the bottom left, 0.32-0.37, after hours -- drop_still's to set aside;
+  141 Lobby (1st floor) ch15: a small far figure, 5-14 a day up to 0.72
+  -- left. AC: 140-H Reception empty from 20:11 with its split running --
+  its louvre open (darkness 0.33, contrast 54; shut last night 0.50+/6-18):
+  a real empty-and-cooled room, the reading right. Tests green; restart.
