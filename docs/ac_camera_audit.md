@@ -1,6 +1,6 @@
 # AC units and cameras -- both campuses
 
-## Where it stands (20 Nov 2026, 16:45) -- the follow-up table
+## Where it stands (20 Nov 2026, 16:35) -- the follow-up table
 
 Units from rooms.yaml (Shamroze's surveys, with `unwatched_units`). **In
 camera** = some camera shows the unit well enough to try a calibration
@@ -25,7 +25,7 @@ says 22.)
 | **141-C/D** | | **73** | **26** | **11** |
 | **Both** | | **131** | **49** | **23** |
 
-20 Nov, 16:45: Marketing's M2 by the small white light on its front, from
+20 Nov, 16:35: Marketing's M2 by the small white light on its front, from
 its own midday switch (on 12:25, off 12:38 for Friday prayers, on 14:11)
 with M1 running throughout; the threshold set above the midpoint, since
 the afternoon sun washes the light out (an off unit never reads running).

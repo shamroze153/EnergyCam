@@ -709,7 +709,7 @@ rooms:
     # runs, its louvre open with it -- and the Kenwood by ch 13's camera, by
     # its display (in `also:`). The other two are not read yet, so an
     # "off" here stays unknown; any of the three seen running is a real
-    # "on". M2 (ch 3, top centre) added 20 Nov 16:40 by the small white
+    # "on". M2 (ch 3, top centre) added 20 Nov 16:30 by the small white
     # light on its front, after its own midday switch (12:25 -> 12:38).
     unseen_units: 2
     # The lighting the measurement was taken in. The contrast inside a box
@@ -775,7 +775,7 @@ rooms:
           off_std: 2.80           # light dark
           on_peak: 202
           off_peak: 149
-          taken: 2026-11-20T16:40+0500
+          taken: 2026-11-20T16:30+0500
 
     also:
       - recorder: dvr2

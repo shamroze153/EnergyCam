@@ -1229,7 +1229,7 @@ Two or three lines a round; picture file names, never pictures.
   lobby: a man passed at 14:22, gone when the check looked -- the loop a
   pass behind), FAINT 4, PASSING 3, FOLLOWING 21, DRIFT 9, 85 match.
   Nothing to change.
-* 16:45 Round: field_audit 16:25 -- MISSED 1 (H Stairs: a man on the
+* 16:35 Round: field_audit 16:25 -- MISSED 1 (H Stairs: a man on the
   stairs between two passes; the loop counted people there 22 times
   today), GHOST 0, FAINT 2, PASSING 4, FOLLOWING 17, DRIFT 6, 92 match;
   the 141 gym not opened (15:00-20:00). Calibrated Marketing's M2 by the
