@@ -1281,3 +1281,10 @@ Two or three lines a round; picture file names, never pictures.
   beyond the roof. Both zoned (465 and 90 boxes taken; the smaller
   skyline shapes left -- a person at the far edge is as small). Tests
   green; loop restarted.
+* 02:43 Round: field_audit 02:25 -- MISSED 0, GHOST 1, FAINT 3,
+  FOLLOWING 3, 116 match. The ghost, 141 Room 22: a man at his laptop at
+  02:25, the check did not score him -- the page right. Creative Room:
+  people working late at the desks. Left: Solar Array ch29, a narrow
+  shape between the roof's columns at night only (5-8 passes a night,
+  0.25-0.41) -- person-sized at that distance, so not certain; Gaming
+  Area's tiny far shape, new since yesterday. Nothing changed; no restart.
