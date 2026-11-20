@@ -240,6 +240,24 @@ def main():
           "5,100 units" in bill and "6,300 units" in bill
           and "October: 11,623 units" in bill, bill[:300])
 
+    # ---- two years of bills: the switch, the totals, the hover -------------
+    two = pd.DataFrame([
+        {"meter": k, "period_start": "%d-%02d-01" % (y, m),
+         "period_end": "%d-%02d-28" % (y, m), "units": u, "amount_rs": u * 70}
+        for y in (2025, 2026) for m in range(1, 13)
+        for k, u in (("gf_basement", 10000 if y == 2025 else 9000),
+                     ("first_cafe", 4000))])
+    page = ev.meters_page("dark", None, "daily", METERS, two, None, 67.0, [],
+                          True, "140-H")
+    check("a year switch when there are two years of bills",
+          'id="enyr-a"' in page and "Both years" in page
+          and "Jan 25 – Dec 25" in page, page[-600:])
+    check("each year's total, and this year against the last",
+          "156,000 units" in page and "168,000 units" in page
+          and "units <b>−7%</b>" in page)
+    check("hovering a month gives each meter and the month's total",
+          "Total 13,000 units, Rs 910,000" in page)
+
     # ---- the charts on a phone -------------------------------------------
     small = ev.columns(["a", "b", "c"], [[0.3], [1.15], [0.8]], ["#000"],
                        ["", "", ""])

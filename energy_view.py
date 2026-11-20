@@ -455,6 +455,15 @@ border-radius:99px;margin-top:10px;border:1px solid var(--line)}
 .en-sun-share .bar{height:12px;border-radius:99px;background:var(--meter);
 overflow:hidden;margin:0 0 7px;display:flex}
 .en-sun-share .bar i{display:block;height:100%%}
+.en-yr>input{position:absolute;opacity:0;pointer-events:none}
+.en-yr>label{display:inline-block;padding:4px 12px;margin:0 6px 10px 0;
+border:1px solid var(--line);border-radius:99px;font-size:12.5px;
+cursor:pointer;color:var(--t2)}
+.en-yr>input:checked+label{background:var(--t1);color:var(--page);
+border-color:var(--t1)}
+.en-yr>.p{display:none}
+#enyr-a:checked~.p.a,#enyr-b:checked~.p.b,#enyr-c:checked~.p.c{display:block}
+.en-yr-sum{font-size:13px;color:var(--t2);margin:2px 0 6px;line-height:1.5}
 .en-more{margin-top:18px}.en-more>summary{cursor:pointer;font-weight:650;
 font-size:14px;color:var(--t2);padding:6px 0;list-style-position:inside}
 @media (max-width:760px){.ec-chart .xt.alt{display:none}
@@ -1280,6 +1289,8 @@ def meters_page(theme, table, kind, meters, bills, cooled_hours, rate,
     if len(months):
         wide = months.pivot_table(index="period_start", columns="meter",
                                   values="units", aggfunc="sum").sort_index()
+        money = months.pivot_table(index="period_start", columns="meter",
+                                   values="amount_rs", aggfunc="sum")
         flags = months.groupby("period_start")["impossible"].any()
         normal = [v for d, row in wide.iterrows() if not flags.get(d)
                   for v in [row.sum()]]
@@ -1287,24 +1298,87 @@ def meters_page(theme, table, kind, meters, bills, cooled_hours, rate,
         order = [k for k in (gf, ff) if k in wide.columns] + \
             [k for k in wide.columns if k not in (gf, ff)]
         palette = [c["gf"], c["ff"], c["solar"]]
-        labels, stacks, tips = [], [], []
-        for d, row in wide.iterrows():
-            labels.append(pd.Timestamp(d).strftime("%b %y"))
-            stacks.append([row.get(k) if pd.notna(row.get(k)) else None
-                           for k in order])
-            tips.append("%s · %s" % (
-                pd.Timestamp(d).strftime("%B %Y"), " · ".join(
-                    "%s %s units" % (by_code[k]["label"] if k in by_code
-                                     else k,
-                                     format(int(row[k]), ","))
-                    for k in order if pd.notna(row.get(k)))))
+        name = (lambda k: by_code[k]["label"] if k in by_code else k)
+
+        def tip(d, row):
+            # Each meter, then the month's total (Shamroze, 20 Nov: "show
+            # the total too -- this month so many units, this much bill").
+            rs = money.loc[d] if d in money.index else {}
+            parts = ["%s %s units, Rs %s" % (
+                name(k), _n(row[k]), _n(rs.get(k, 0) or 0))
+                for k in order if pd.notna(row.get(k))]
+            total = sum(float(row[k]) for k in order if pd.notna(row.get(k)))
+            spent = sum(float(rs.get(k, 0) or 0) for k in order
+                        if pd.notna(row.get(k)))
+            return "%s · %s · Total %s units, Rs %s" % (
+                pd.Timestamp(d).strftime("%B %Y"), " · ".join(parts),
+                _n(total), _n(spent))
+
+        def chart(dates):
+            rows = wide.loc[dates]
+            return columns(
+                [pd.Timestamp(d).strftime("%b %y") for d in dates],
+                [[row.get(k) if pd.notna(row.get(k)) else None
+                  for k in order] for _, row in rows.iterrows()],
+                palette[:len(order)], [tip(d, r) for d, r in rows.iterrows()],
+                height=230, cap=cap, top=cap / 1.15 if cap else None)
+
+        def total(dates):
+            """Units and rupees in these months, and the queried bills'
+            share of each, so two years compare without them."""
+            these = months[months["period_start"].isin(dates)]
+            odd = these[these["impossible"]]
+            return (float(these["units"].astype(float).sum()),
+                    float(these["amount_rs"].astype(float).sum()),
+                    float(odd["units"].astype(float).sum()),
+                    float(odd["amount_rs"].astype(float).sum()))
+
+        def money_text(rs):
+            return ("Rs %.1f million" % (rs / 1e6)) if rs >= 1e6 \
+                else "Rs %s" % _n(rs)
+
+        def span(dates):
+            return "%s – %s" % (pd.Timestamp(dates[0]).strftime("%b %y"),
+                                pd.Timestamp(dates[-1]).strftime("%b %y"))
+
+        dates = list(wide.index)
+        panels = [("a", dates[-12:])]
+        if len(dates) > 12:
+            panels.append(("b", dates[-24:-12]))
+            panels.append(("c", dates))
         h.append('<div class="ec-h"><span class="t">The bills, month by month'
-                 '</span><span class="c">units, in date order</span>%s</div>'
-                 % legend([(palette[i], by_code[k]["label"] if k in by_code
-                            else k) for i, k in enumerate(order)]))
-        h.append('<div class="ec-card" style="padding:16px 18px 26px">%s'
-                 % columns(labels, stacks, palette[:len(order)], tips,
-                           height=230, cap=cap))
+                 '</span><span class="c">units · hover a month for each '
+                 'meter, the total and the rupees</span>%s</div>'
+                 % legend([(palette[i], name(k))
+                           for i, k in enumerate(order)]))
+        h.append('<div class="ec-card en-yr" style="padding:16px 18px 26px">')
+        if len(panels) > 1:
+            # A pure-HTML switch (radio buttons and CSS), so the page
+            # needs no Streamlit round trip to change year.
+            for key, ds in panels:
+                h.append('<input type="radio" name="enyr" id="enyr-%s"%s>'
+                         '<label for="enyr-%s">%s</label>'
+                         % (key, " checked" if key == "a" else "", key,
+                            "Both years" if key == "c" else span(ds)))
+        before = total(panels[1][1]) if len(panels) > 1 else None
+        for key, ds in panels:
+            u, rs, odd, odd_rs = total(ds)
+            line = "<b>%s units</b> · <b>%s</b> in %d months" % (
+                _n(u), money_text(rs), len(ds))
+            if odd:
+                line += " · %s units, %s of it in the queried bill" % (
+                    _n(odd), money_text(odd_rs))
+            if key == "a" and before and before[0] - before[2]:
+                # Like for like: the queried bill out of both years.
+                line += ("<br>Against %s%s: units <b>%s</b>, rupees <b>%s</b>"
+                         % (span(panels[1][1]),
+                            ", the queried bill left out" if odd or before[2]
+                            else "",
+                            _pct(before[0] - before[2], u - odd),
+                            _pct(before[1] - before[3], rs - odd_rs)))
+            h.append('<div class="%s"><div class="en-yr-sum">%s</div>%s'
+                     '</div>' % ("p " + key if len(panels) > 1 else "",
+                                 line, chart(ds)))
         for _, b in months[months["impossible"]].iterrows():
             h.append('<div class="en-warn">%s <b>%s, %s: %s units for Rs %s.'
                      '</b> More than the connection can deliver in that month,'
