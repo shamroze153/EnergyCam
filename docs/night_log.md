@@ -1206,3 +1206,15 @@ Two or three lines a round; picture file names, never pictures.
   scales under one fixed, July 2026's bill marked without sanctioned
   loads (the live meters table has none), two explaining charts folded
   under "More". No restart (dashboard only).
+* 12:38 Round: field_audit 12:25 -- MISSED 0, GHOST 5, FAINT 3, PASSING
+  3, FOLLOWING 16, DRIFT 9, 87 match. Zoned: 141 SoftFM Store ch1, stock
+  on the floor at the bottom-left edge, counted day and night four days
+  running (the zone takes 169 of five days' boxes; the people, 0.83-0.90,
+  stay). Left for Shamroze: Old Finance Room ch7 counts the tall black
+  chair in the middle at 0.79-0.82 (a seat -- no zone); RO Plant ch19 the
+  chair and the standing fan by day (up to 0.92 some days -- somebody may
+  sit there); HFM Workshop's bottom-left corner and After Entrance's lawn
+  edge, few passes. Marketing M2 switched on 10:19-10:32 by a small white
+  light: in an 11x9 box on >= 12.8, off <= 6.1 (19 Nov 16:00 sun) -- a gap
+  under calibrate_room's 8, so it waits for this evening's switch-off.
+  Tests green; loop restarted for the zone.

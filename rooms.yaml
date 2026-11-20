@@ -2167,6 +2167,13 @@ rooms:
     channels: [1]
     ac: none
     empty_after_minutes: null
+    # 20 Nov: stock on the floor at the bottom-left edge, under the shelves,
+    # counted day and night four days running (8-44 passes a day, 0.25-0.71,
+    # nearly always the only "person") -- the 12:25 audit's ghost. A person
+    # standing there is a taller box reaching well above it.
+    ignore:
+      1:
+        - [140, 296, 208, 360]
 
   # ---- cooled on purpose: watched, never alerted on --------------------------
 
