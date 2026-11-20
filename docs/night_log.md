@@ -1218,3 +1218,14 @@ Two or three lines a round; picture file names, never pictures.
   light: in an 11x9 box on >= 12.8, off <= 6.1 (19 Nov 16:00 sun) -- a gap
   under calibrate_room's 8, so it waits for this evening's switch-off.
   Tests green; loop restarted for the zone.
+* 14:10 (Shamroze asked about the Mosque's AC): read right -- top unit
+  02:09-02:25 with a man inside 02:17-02:25, off by 02:35; both units
+  08:49-09:02 (a man in), and ~10:52-11:16 while it was cleaned, empty at
+  11:05-11:09. The page's "first seen 01:20" and the fajr visits were the
+  recorder's clock: on a Friday it reads "Fri" and in infrared its "ri"
+  was boxed as a person. Zoned the clock's strip (takes those 5 boxes of
+  852); loop restarted 14:15. Collages in frames/mosque_check/ (local).
+* 14:35 Round: field_audit 14:25 -- MISSED 0, GHOST 1 (141 2nd-floor
+  lobby: a man passed at 14:22, gone when the check looked -- the loop a
+  pass behind), FAINT 4, PASSING 3, FOLLOWING 21, DRIFT 9, 85 match.
+  Nothing to change.
