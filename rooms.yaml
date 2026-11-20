@@ -1319,6 +1319,14 @@ rooms:
     in_view: 2              # units a camera shows, read or not (audit 19 Nov)
     ac_tons: [1, 1]   # survey 12 Nov: mosque, 2 x 1 ton Kenwood
     empty_after_minutes: 20
+    # 20 Nov: the recorder's clock along the top-left reads "Fri" on a
+    # Friday, and in infrared its "ri" was boxed as a person (12x32,
+    # 0.26-0.36) at 01:17 and through fajr -- the page's "first seen
+    # 01:20". The clock's strip, in the main stream's 1920x1080; nobody
+    # can be four-fifths inside a 64-pixel band at the top of the wall.
+    ignore:
+      6:
+        - [0, 48, 600, 112]
     note: >
       Worth doing first. A prayer room fills and empties on a fixed schedule,
       so a unit left running after everyone leaves is both the easiest waste to
