@@ -1193,3 +1193,16 @@ Two or three lines a round; picture file names, never pictures.
   141 Room 11 ch9: a headset and cables on the desk at 0.31 (set aside by
   night; by day hit on 16-17 Nov, up to 0.70, none on 18-19) -- left.
   Nothing changed; tests green; no restart.
+* 11:20 Round: field_audit 10:25 -- MISSED 1, GHOST 1, both people: Admin
+  Room's the loop a pass behind (counted at 10:33, 0.78); Attendance
+  Machine H's a man at the turnstile at 10:26 that the check did not
+  score. FOLLOWING 18 (opening time). AC: Admin Room, 141 Finance, Room
+  27 (both), Marketing M1 (on 10:06-10:19) and the Basement's two Haiers
+  read on; M2 still shut at 10:19, Room 32 ch26 empty -- next round.
+  Energy page (Shamroze): "Solar: before and after" -- 375 units a day
+  on October's bill, 169 since 9 Nov, the first floor's 240 -> 208 as the
+  control, ~156 a day off the grid; the date the panels went up is not on
+  record (rooms.yaml `solar_since`). Charts: half the dates on a phone,
+  scales under one fixed, July 2026's bill marked without sanctioned
+  loads (the live meters table has none), two explaining charts folded
+  under "More". No restart (dashboard only).

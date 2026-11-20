@@ -184,6 +184,58 @@ def main():
     check("a campus with no meters says so instead of showing another's",
           "No electricity meters are recorded for 141-C/D" in other)
 
+    # ---- 20 Nov: the live meters table has no sanctioned loads ------------
+    bare = METERS.drop(columns=["sanctioned_kw"])
+    six = pd.DataFrame([
+        {"meter": "first_cafe", "period_start": "2026-%02d-01" % m,
+         "period_end": "2026-%02d-28" % m, "units": u, "amount_rs": u * 70.0}
+        for m, u in ((3, 2130), (4, 2868), (5, 5044), (6, 3277), (7, 41145),
+                     (8, 6332), (9, 5986), (10, 7440))])
+    flagged = ev.month_bills(six, bare)
+    check("without a sanctioned load, a month at many times the usual is "
+          "still marked", list(flagged[flagged["impossible"]]["month"])
+          == ["Jul 26"], list(flagged[flagged["impossible"]]["month"]))
+
+    # ---- solar, before and after ------------------------------------------
+    sb = pd.DataFrame(
+        [{"meter": k, "period_start": "2026-10-01", "period_end": "2026-10-31",
+          "units": u, "amount_rs": u * 70.0}
+         for k, u in (("gf_basement", 11623), ("first_cafe", 7440))])
+    days = pd.date_range("2026-11-09", periods=9, tz="Asia/Karachi")
+    st = pd.DataFrame({"day": days, "gf_basement": [170.0] * 9,
+                       "first_cafe": [210.0] * 9,
+                       "solar": [240.0] * 9})
+    eff = ev.solar_effect(sb, st, METERS)
+    check("before is the last bill before the panels, a day at a time",
+          eff and round(eff["gf_before"]) == 375, eff)
+    check("after is the readings since",
+          eff and eff["gf_after"] == 170.0 and eff["days"] == 9, eff)
+    check("the first floor, with no panels, says what the weather did",
+          eff and round(eff["expected"]) == round(11623 / 31 * 210 / 240.0),
+          eff)
+    card = ev.solar_before_after("dark", eff, sb, METERS, 67.0)
+    check("the card says the date is assumed until it is written down",
+          "solar_since" in card and "Since 9 Nov" in card, card[:200])
+    later = ev.solar_effect(sb, st, METERS, "2026-11-12")
+    check("a date written down moves 'after' to it",
+          later and later["days"] == 6 and not later["assumed"], later)
+    check("no bill before the panels, no card",
+          ev.solar_effect(sb.iloc[0:0], st, METERS) is None)
+
+    # ---- the charts on a phone -------------------------------------------
+    small = ev.columns(["a", "b", "c"], [[0.3], [1.15], [0.8]], ["#000"],
+                       ["", "", ""])
+    tops = [float(v) for v in re.findall(r'class="yt" style="top:([\d.]+)%',
+                                         small)]
+    check("a scale under one still reaches above the tallest column",
+          ev._nice(1.2)[1] >= 1.2 and min(tops) == 0.0, ev._nice(1.2))
+    twelve = ev.columns(["d%d" % i for i in range(12)], [[1]] * 12, ["#000"],
+                        [""] * 12)
+    shown = re.findall(r'class="xt( alt)?"[^>]*>([^<]+)<', twelve)
+    check("every other label drops on a phone, never the newest",
+          shown[-1] == ("", "d11") and any(a for a, _ in shown)
+          and not any(a and b == "d11" for a, b in shown), shown)
+
     # ---- where the waste is ----------------------------------------------
     now = (DAY + timedelta(hours=6)).tz_convert("UTC")
     history = pd.DataFrame([

@@ -18,6 +18,7 @@ What it fixed, 11 November, when the page "looked strange":
   * a day with no reading turned the next one into two days of units,
     drawn as a spike.
 """
+import math
 import statistics
 from bisect import bisect_right
 
@@ -279,38 +280,62 @@ def month_bills(bills, meters):
         return bills
     b = av.enrich_bills(bills)
     bad = av.impossible_months(b, meters)
-    b = b.assign(impossible=b.index.isin(bad.index))
+    flag = b.index.isin(bad.index)
+    # The live meters table has no sanctioned loads (20 Nov), so the rule
+    # above never fired there and July 2026's 41,145 units on the first
+    # floor drew every other month flat. A month at over three times its
+    # meter's usual day is the same fault, seen from the bills alone.
+    n = (pd.to_datetime(b["period_end"])
+         - pd.to_datetime(b["period_start"])).dt.days + 1
+    per = b["units"].astype(float) / n.clip(lower=1)
+    usual = per.groupby(b["meter"]).transform("median")
+    count = per.groupby(b["meter"]).transform("count")
+    flag = flag | ((count >= 6) & (per > 3 * usual)).values
+    b = b.assign(impossible=flag)
     return b.sort_values("period_start")
 
 
 # ===================================================================== drawing
 
 def _nice(top):
-    for step in (1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000,
-                 2500, 5000, 10000):
+    """A step and a top for the scale. Steps under one too: units a
+    person-hour run 0.3-1.2, and a top of int(1.2) = 1 cut the tallest
+    column off at the frame (20 Nov)."""
+    for step in (0.1, 0.2, 0.25, 0.5, 1, 2, 5, 10, 20, 25, 50, 100, 200,
+                 250, 500, 1000, 2000, 2500, 5000, 10000):
         if top / step <= 5:
-            return step, max(step, -(-int(top) // step) * step)
-    return 10000, -(-int(top) // 10000) * 10000
+            high = max(step, math.ceil(round(top / step, 6)) * step)
+            if step >= 1:
+                step, high = int(step), int(high)
+            return step, high
+    return 10000, int(math.ceil(top / 10000.0)) * 10000
+
+
+def _ticks(step, high):
+    """The scale's values, bottom to top, without float creep."""
+    n = int(round(high / float(step)))
+    return [round(i * step, 6) for i in range(n + 1)]
 
 
 def columns(labels, stacks, colours, tips, height=220, cap=None,
-            marks=None):
+            marks=None, top=None):
     """Stacked columns, one per label; the parts of each stack in order.
 
     stacks: per column, a list of values (None or 0 draws nothing).
     cap: a ceiling for the scale; a column above it is drawn to the top
          and marked, so one impossible month does not flatten the rest.
     marks: per column, None or a short word drawn above it.
+    top: the scale's top, so two charts side by side share one scale.
     """
     totals = [sum(v or 0 for v in s) for s in stacks]
-    top = max([1.0] + [t for t in totals if cap is None or t <= cap])
+    top = top or max([1.0] + [t for t in totals if cap is None or t <= cap])
     step, high = _nice(top * 1.05)
     n = len(labels)
     width = 100.0 / max(1, n)
     bar = min(width * 0.7, width - 0.6)
     svg = ['<svg viewBox="0 0 100 100" preserveAspectRatio="none" '
            'aria-hidden="true">']
-    for v in range(0, high + 1, step):
+    for v in _ticks(step, high):
         y = 100 - 100.0 * v / high
         svg.append('<line x1="0" x2="100" y1="%.2f" y2="%.2f" stroke="%s" '
                    'stroke-width="1" vector-effect="non-scaling-stroke"/>'
@@ -320,11 +345,13 @@ def columns(labels, stacks, colours, tips, height=220, cap=None,
         x = i * width + (width - bar) / 2
         base = 0.0
         clipped = cap is not None and totals[i] > cap
-        scale = (high / totals[i]) if clipped and totals[i] else 1.0
         for value, colour in zip(parts, colours):
-            if not value:
+            if not value or base >= 100:
                 continue
-            h = 100.0 * value * scale / high
+            # Each part at its true height, the one that runs off the top
+            # cut there: squeezing the whole column to fit drew July's
+            # ground floor at half its units (20 Nov).
+            h = min(100.0 * value / high, 100.0 - base)
             y = 100 - (base + h)
             # The surface gap between stacked parts: a hair off each top.
             svg.append('<rect x="%.3f" y="%.3f" width="%.3f" height="%.3f" '
@@ -340,18 +367,25 @@ def columns(labels, stacks, colours, tips, height=220, cap=None,
     svg.append("</svg>")
     html = ['<div class="ec-chart" style="height:%dpx"><div class="plot">'
             % height, "".join(svg)]
-    for v in range(0, high + 1, step):
+    for v in _ticks(step, high):
         # In full under ten thousand, compact on an axis that reaches it:
         # "25,000" did not fit the gutter and broke over two lines.
         text = (("%gk" % (v / 1000.0)) if high >= 10000 and v
-                else format(v, ","))
+                else format(v, ",") if v == int(v) else "%g" % v)
         html.append('<span class="yt" style="top:%.2f%%">%s</span>'
                     % (100 - 100.0 * v / high, text))
     every = max(1, -(-n // 10))
-    for i, label in enumerate(labels):
-        if i % every == 0 or i == n - 1:
-            html.append('<span class="xt" style="left:%.2f%%">%s</span>'
-                        % ((i + 0.5) * width, esc(label)))
+    # Not one so close to the last that the two run together.
+    shown = [i for i in range(n)
+             if (i % every == 0 and n - 1 - i >= every) or i == n - 1]
+    for k, i in enumerate(shown):
+        # On a phone every other one only (20 Nov: "Mon 09Tue 10Wed 11"
+        # ran together under the daily chart). Counted back from the last,
+        # so the newest always keeps its label.
+        alt = (len(shown) - 1 - k) % 2 == 1
+        html.append('<span class="xt%s" style="left:%.2f%%">%s</span>'
+                    % (" alt" if alt else "", (i + 0.5) * width,
+                       esc(labels[i])))
     for i in over:
         html.append('<span class="plab" style="left:%.2f%%;top:0%%">'
                     '↑ off the scale</span>' % ((i + 0.5) * width))
@@ -421,7 +455,10 @@ border-radius:99px;margin-top:10px;border:1px solid var(--line)}
 .en-sun-share .bar{height:12px;border-radius:99px;background:var(--meter);
 overflow:hidden;margin:0 0 7px;display:flex}
 .en-sun-share .bar i{display:block;height:100%%}
-@media (max-width:760px){.en-ranked .row{grid-template-columns:minmax(0,1fr) 96px}
+.en-more{margin-top:18px}.en-more>summary{cursor:pointer;font-weight:650;
+font-size:14px;color:var(--t2);padding:6px 0;list-style-position:inside}
+@media (max-width:760px){.ec-chart .xt.alt{display:none}
+.en-ranked .row{grid-template-columns:minmax(0,1fr) 96px}
 .en-ranked .row>*{min-width:0}.en-ranked .v span{overflow-wrap:anywhere}
 .en-ranked .tr{grid-column:1/-1;order:3}.en-sun{grid-template-columns:1fr}
 .en-tiles{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
@@ -507,6 +544,180 @@ def solar_block(table, gf, rate, sun_colour, grid_colour):
                   len(values), "" if len(values) == 1 else "s", _n(total),
                   _n(total * rate)))
     return "".join(out)
+
+
+def solar_effect(bills, table, meters, since=None):
+    """Units a day on each meter before the panels and after (20 Nov,
+    Shamroze: "show the difference since the solar went up").
+
+    Before: the last whole billing month that ended before the panels, in
+    units a day, so a 31-day month and a 9-day stretch compare. After: the
+    metered days since, from the readings. The first-floor meter has no
+    panels behind it, so its own change over the same two stretches is the
+    weather and the work; the ground floor's change beyond that is the
+    panels. `since` is rooms.yaml's `solar_since`; until somebody writes it
+    down, the first day the inverter's figure was typed in.
+
+    Returns None when either side is missing, else a dict.
+    """
+    if table is None or table.empty or bills is None or not len(bills):
+        return None
+    codes = {m["code"]: m for _, m in meters.iterrows()}
+    gf = next((k for k, m in codes.items() if m["behind_solar"]), None)
+    ff = next((k for k in codes if k != gf), None)
+    if not gf or gf not in table.columns:
+        return None
+    assumed = since is None
+    if assumed:
+        sun = table[table["solar"].notna()] if "solar" in table.columns \
+            else table.iloc[0:0]
+        if sun.empty:
+            return None
+        since = sun["day"].iloc[0]
+    since = pd.Timestamp(since)
+    days = pd.to_datetime(table["day"])
+    if since.tzinfo is None and days.dt.tz is not None:
+        since = since.tz_localize(days.dt.tz)
+    after = table[(days >= since) & table[gf].notna()]
+    if ff and ff in table.columns:
+        after = after[after[ff].notna()]
+    b = month_bills(bills, meters)
+    end = pd.to_datetime(b["period_end"]).dt.date
+    b = b[(end < since.date()) & ~b["impossible"]]
+    gf_months = b[b["meter"] == gf].sort_values("period_start")
+    if after.empty or gf_months.empty:
+        return None
+    last = gf_months.iloc[-1]
+
+    def per_day(row):
+        n = (pd.Timestamp(row["period_end"]) - pd.Timestamp(row["period_start"])
+             ).days + 1
+        return float(row["units"]) / max(1, n)
+
+    out = {"gf": gf, "ff": ff, "since": since, "assumed": assumed,
+           "month": pd.Timestamp(last["period_start"]),
+           "gf_bill": float(last["units"]), "gf_before": per_day(last),
+           "gf_after": float(after[gf].mean()), "days": len(after),
+           "ff_before": None, "ff_after": None, "expected": None,
+           "saved": None, "solar": None}
+    if "solar" in table.columns:
+        sun = table[(days >= since) & table["solar"].notna()]["solar"]
+        out["solar"] = float(sun.mean()) if len(sun) else None
+    if ff:
+        same = b[(b["meter"] == ff)
+                 & (b["period_start"] == last["period_start"])]
+        if len(same) and ff in after.columns:
+            out["ff_before"] = per_day(same.iloc[0])
+            out["ff_after"] = float(after[ff].mean())
+            if out["ff_before"] > 0:
+                out["expected"] = out["gf_before"] * out["ff_after"] / \
+                    out["ff_before"]
+                out["saved"] = out["expected"] - out["gf_after"]
+    return out
+
+
+def _pct(a, b):
+    return "%s%.0f%%" % ("+" if b >= a else "−", abs(100.0 * (b / a - 1))) \
+        if a else ""
+
+
+def solar_before_after(theme, eff, bills, meters, rate):
+    """The card for solar_effect: four tiles, then each meter's months in
+    units a day on one shared scale, the stretch since the panels last."""
+    if not eff:
+        return ""
+    c = SERIES[theme]
+    codes = {m["code"]: m for _, m in meters.iterrows()}
+    since = eff["since"].strftime("%d %b").lstrip("0")
+    month = eff["month"].strftime("%B %Y")
+    h = ['<div class="ec-h"><span class="t">Solar: before and after</span>'
+         '<span class="c">units a day from the grid · the ground floor meter '
+         'has the panels, the first floor\'s has none</span></div>'
+         '<div class="en-tiles">']
+    h.append(tile("Ground floor, before", "%s a day" % _n(eff["gf_before"]),
+                  "%s bill, %s units" % (esc(month), _n(eff["gf_bill"]))))
+    h.append(tile("Ground floor, since %s" % since,
+                  "%s a day" % _n(eff["gf_after"]),
+                  "<b>%s</b> · %d day%s of readings"
+                  % (_pct(eff["gf_before"], eff["gf_after"]), eff["days"],
+                     "" if eff["days"] == 1 else "s")))
+    if eff["ff_before"]:
+        h.append(tile("First floor, same two stretches",
+                      "%s → %s" % (_n(eff["ff_before"]), _n(eff["ff_after"])),
+                      "%s with no panels: the weather and the work"
+                      % _pct(eff["ff_before"], eff["ff_after"])))
+    if eff["saved"] is not None and eff["saved"] > 0:
+        h.append(tile("Off the grid, thanks to the panels",
+                      "~%s units a day" % _n(eff["saved"]),
+                      "about Rs %s a day, Rs %s a month at Rs %.0f"
+                      % (_n(eff["saved"] * rate), _n(eff["saved"] * rate * 30),
+                         rate)))
+    h.append("</div>")
+
+    months = month_bills(bills, meters)
+    rows = {}
+    for code in (eff["gf"], eff["ff"]):
+        if not code:
+            continue
+        m = months[months["meter"] == code].sort_values("period_start")
+        bars = []
+        for _, r in m.iterrows():
+            n = (pd.Timestamp(r["period_end"])
+                 - pd.Timestamp(r["period_start"])).days + 1
+            bars.append((pd.Timestamp(r["period_start"]).strftime("%b %y"),
+                         float(r["units"]) / max(1, n), bool(r["impossible"]),
+                         "%s · %s units a day (%s on the bill)"
+                         % (pd.Timestamp(r["period_start"]).strftime("%B %Y"),
+                            _n(float(r["units"]) / max(1, n)),
+                            _n(r["units"]))))
+        rows[code] = bars
+    normal = [v for bars in rows.values() for _, v, bad, _ in bars if not bad]
+    normal += [eff["gf_after"] + (eff["solar"] or 0)]
+    if eff["ff_after"]:
+        normal.append(eff["ff_after"])
+    top = max(normal) * 1.08
+    for code in (eff["gf"], eff["ff"]):
+        if code not in rows:
+            continue
+        bars = rows[code]
+        labels = [b[0] for b in bars] + ["Since " + since]
+        if code == eff["gf"]:
+            stacks = [[v, None] for _, v, _, _ in bars] + \
+                [[eff["gf_after"], eff["solar"]]]
+            colours = [c["gf"], c["solar"]]
+            last_tip = ("Since %s · %s units a day from the grid%s"
+                        % (since, _n(eff["gf_after"]),
+                           " + %s kWh a day of solar" % _n(eff["solar"])
+                           if eff["solar"] else ""))
+            caption = legend([(c["gf"], "grid"), (c["solar"], "solar")])
+        else:
+            stacks = [[v] for _, v, _, _ in bars] + [[eff["ff_after"]]]
+            colours = [c["ff"]]
+            last_tip = "Since %s · %s units a day" % (since,
+                                                      _n(eff["ff_after"]))
+            caption = legend([(c["ff"], "grid")])
+        marks = [None] * len(bars) + (["after solar"] if code == eff["gf"]
+                                      else [None])
+        h.append('<div class="ec-h"><span class="t">%s</span><span class="c">'
+                 'units a day, month by month</span>%s</div>'
+                 '<div class="ec-card" style="padding:16px 18px 26px">%s</div>'
+                 % (esc(codes[code]["label"] if code in codes else code),
+                    caption,
+                    columns(labels, stacks, colours,
+                            [b[3] for b in bars] + [last_tip], height=190,
+                            cap=top / 1.08, marks=marks, top=top)))
+    h.append('<div class="en-note">A bill is a month, so each is shared out '
+             'over its days; the last column is the readings since %s. '
+             'The first floor meter has no panels behind it, so its change is '
+             'what the weather and the work did; the ground floor\'s fall '
+             'beyond it is the panels. The estimate takes %s as the month '
+             'before them.%s</div>'
+             % (since, esc(month),
+                " The day the panels went up is not written down yet, so "
+                "\"after\" starts at the first solar figure typed in; the "
+                "date goes in rooms.yaml as solar_since."
+                if eff["assumed"] else ""))
+    return "".join(h)
 
 
 # ===================================================================== pages
@@ -789,7 +1000,8 @@ def pace_page(theme, readings, meters, rate):
 
 
 def meters_page(theme, table, kind, meters, bills, cooled_hours, rate,
-                problems, campus_has_meters, campus, usage=None):
+                problems, campus_has_meters, campus, usage=None,
+                solar_since=None):
     """The Meters view below the form: days, then months."""
     t = TOKENS[theme]
     c = SERIES[theme]
@@ -847,6 +1059,9 @@ def meters_page(theme, table, kind, meters, bills, cooled_hours, rate,
                                                rate)))
         h.append("</div>")
         h.append(solar_block(table, gf, rate, c["solar"], c["gf"]))
+        h.append(solar_before_after(
+            theme, solar_effect(bills, table, meters, solar_since), bills,
+            meters, rate))
 
         labels = [day_label(d) for d in table["day"]]
         stacks, tips, marks = [], [], []
@@ -892,11 +1107,14 @@ def meters_page(theme, table, kind, meters, bills, cooled_hours, rate,
                     " Solar was read as the inverter's running total and"
                     " turned into days." if kind == "total" else ""))
 
+        # The two charts that explain rather than report, folded away
+        # (Shamroze, 20 Nov: "keep the important graphs, clean").
+        more = []
         if cooled_hours is not None:
             tips = ["%s · %.0f room-hours empty with a unit assumed on"
                     % (pd.Timestamp(d).strftime("%A %d %B"), v)
                     for d, v in zip(table["day"], cooled_hours)]
-            h.append('<div class="ec-h"><span class="t">Rooms on these meters '
+            more.append('<div class="ec-h"><span class="t">Rooms on these meters '
                      'left empty with a unit</span><span class="c">room-hours '
                      'each day: ten rooms empty for an hour is ten · from '
                      'the cameras</span>'
@@ -932,7 +1150,7 @@ def meters_page(theme, table, kind, meters, bills, cooled_hours, rate,
                                (" · %.2f a person-hour" % v) if v else
                                " · a meter not read that day"))
             if any(p[0] for p in per):
-                h.append('<div class="ec-h"><span class="t">Units for the use '
+                more.append('<div class="ec-h"><span class="t">Units for the use '
                          'they were for</span><span class="c">grid and solar '
                          'units per person-hour in the building · lower is '
                          'better</span></div><div class="ec-card" style="'
@@ -942,6 +1160,10 @@ def meters_page(theme, table, kind, meters, bills, cooled_hours, rate,
                          'day with the same units shows up tall. Days the '
                          'cameras watched only part of read high.</div></div>'
                          % columns(labels, per, [c["ff"]], tips, height=150))
+        if more:
+            h.append('<details class="en-more"><summary>More: rooms left '
+                     'cooled, and units for each person in</summary>%s'
+                     '</details>' % "".join(more))
     for p in problems:
         h.append('<div class="en-warn">%s %s</div>' % (ov.WARN, esc(p)))
 
@@ -976,7 +1198,8 @@ def meters_page(theme, table, kind, meters, bills, cooled_hours, rate,
                            height=230, cap=cap))
         for _, b in months[months["impossible"]].iterrows():
             h.append('<div class="en-warn">%s <b>%s, %s: %s units for Rs %s.'
-                     '</b> More than the connection can deliver in that month'
+                     '</b> More than the connection can deliver in that month,'
+                     ' or over three times this meter\'s usual month'
                      ' — worth querying with K-Electric. It is left out'
                      ' of the scale above.</div>'
                      % (ov.WARN, esc(b["month"]),
