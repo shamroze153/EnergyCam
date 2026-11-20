@@ -2374,6 +2374,13 @@ rooms:
     channels: [1, 2, 3, 9, 10, 11, 12, 13, 14, 15, 16]
     ac: none
     empty_after_minutes: null
+    # 20 Nov: ch 3 (352x288) counted the potted palm at its bottom-right
+    # edge, 0.25-0.47, every day and every hour for five days, nearly always
+    # the only "person" (15-60 passes a day). Somebody walking past that
+    # corner is a box reaching well above it.
+    ignore:
+      3:
+        - [310, 210, 352, 288]
 
   # ---- NVR2: mapped by Shamroze, 11 November ---------------------------------
 

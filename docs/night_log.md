@@ -1263,3 +1263,12 @@ Two or three lines a round; picture file names, never pictures.
   -- left. AC: 140-H Reception empty from 20:11 with its split running --
   its louvre open (darkness 0.33, contrast 54; shut last night 0.50+/6-18):
   a real empty-and-cooled room, the reading right. Tests green; restart.
+* 22:43 Round: field_audit 22:25 -- MISSED 0, GHOST 1, FAINT 4, PASSING
+  2, FOLLOWING 10, DRIFT 3, 103 match. The ghost: 141 Outside (NVR 3)
+  ch3's potted palm at the bottom-right edge, 0.25-0.47 every hour of
+  five days (15-60 passes a day, nearly always the only one) -- zoned in
+  its 352x288 frame (takes 151; the people walking there stay). The night
+  check's other detections are what drop_still sets aside: the page
+  disagreed nowhere else. AC: 140-H Reception ran empty 20:15-21:06 (then
+  infrared, unknown); Marketing empty and cooled at 21:57; at 22:23 only
+  the Basement and 141 Room 32 run, both with people in. Tests green.
