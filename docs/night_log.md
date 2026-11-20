@@ -1186,3 +1186,10 @@ Two or three lines a round; picture file names, never pictures.
   set aside by drop_still. Basement ch23: 16.5 px more since 22:33, ~44 px
   since 12:09, slower (~1.3 px an hour). Nothing to change in rooms.yaml;
   tests green; no restart.
+* 08:43 Round: field_audit 08:25 -- MISSED 0, GHOST 0, FAINT 2, PASSING 2,
+  FOLLOWING 9 (people arriving), DRIFT 2 (outside), 108 match. Every
+  calibrated block reads its units off on the 08:25 frames, view checks
+  all passing in the morning light; nothing switched yet (opening 10:00).
+  141 Room 11 ch9: a headset and cables on the desk at 0.31 (set aside by
+  night; by day hit on 16-17 Nov, up to 0.70, none on 18-19) -- left.
+  Nothing changed; tests green; no restart.
