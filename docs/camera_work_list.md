@@ -110,7 +110,7 @@ Shamroze, 14 Nov: the camera team starts Monday -- 141-C first, then 141-D, then
 | Cyber Security Room | xvr3:2 | 1 (1) | 0 | bring a unit into frame (none in view 14 Nov) |  |
 | HR Room | dvr2:2 | 1 (2) | 0 | bring a unit into frame | a unit top right of ch2, maybe the next room's through the glass: check |
 | IT Head Room | dvr2:11 | 1 (1.5) | 0 | bring a unit into frame |  |
-| Marketing | dvr2:3 dvr2:13 | 5 (1+1+1+1+1) | 2 | 2 of 5 read | all 5 in camera (ch3 and ch13); M1 (ch3) and the Kenwood by ch13's camera calibrated 20 Nov; M2 waits for a second day; the row of four on ch13 end-on |
+| Marketing | dvr2:3 dvr2:13 | 5 (1+1+1+1+1) | 3 | 3 of 5 read | all 5 in camera (ch3 and ch13); M1 and M2 (ch3) and the Kenwood by ch13's camera calibrated 20 Nov; the row of four on ch13 end-on |
 | Old Finance Room | xvr3:7 | 1 (1) | 0 | bring a unit into frame |  |
 | UPS Room | dvr2:5 | 1 (1) | 0 | bring a unit into frame (none in view 14 Nov) |  |
 | Wellows | dvr2:15 dvr2:16 | 2 (1+1) | 0 | unit in view: calibrate | one unit top left of ch15: calibrate (on/off); the other out of frame |
@@ -137,6 +137,6 @@ Shamroze, 14 Nov: the camera team starts Monday -- 141-C first, then 141-D, then
 | 141-C/D | 141-D Waiting area (ground floor) | 1 (1) |
 | 141-C/D | 141-D Tree room, meeting room (ground floor) | 1 (2) |
 
-Units in rooms with a camera: 105; read by a camera today: 22 (20 Nov).
+Units in rooms with a camera: 105; read by a camera today: 23 (20 Nov).
 
 Channels with no room name yet: cd_nvr4 ch17 (a corridor), ch26 (the outside lane with a guard), ch31 (a pantry/kitchen); cd_nvr4 ch30 shows the same as cd_nvr1 ch14 (141-C Cafe).

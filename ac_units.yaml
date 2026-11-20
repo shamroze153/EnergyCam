@@ -707,12 +707,11 @@ rooms:
     # from frames/ac_keep, nobody switching anything: the split at ch 3's
     # top left (M1), by the white light under its display -- lit while it
     # runs, its louvre open with it -- and the Kenwood by ch 13's camera, by
-    # its display (in `also:`). The other three are not read yet, so an
-    # "off" here stays unknown; either of these two seen running is a real
-    # "on". M2 (ch 3, top centre) switched with M1 on 19 Nov and reads by
-    # its louvre's darkness (open 0.47-0.63, shut 0.76-0.98), but on one
-    # day only: wait for a second day before adding it.
-    unseen_units: 3
+    # its display (in `also:`). The other two are not read yet, so an
+    # "off" here stays unknown; any of the three seen running is a real
+    # "on". M2 (ch 3, top centre) added 20 Nov 16:40 by the small white
+    # light on its front, after its own midday switch (12:25 -> 12:38).
+    unseen_units: 2
     # The lighting the measurement was taken in. The contrast inside a box
     # depends on it, so a reading under the other kind is refused rather
     # than guessed at.
@@ -751,6 +750,32 @@ rooms:
           # lighting up, and the reading is taken that way round: the
           # direction is read back off these two numbers, not stored
           # separately, so they cannot disagree with each other.
+
+      - label: Split top centre (M2), its white light
+        led_roi: [1128, 41, 1139, 50]
+        # Set above the midpoint on purpose (20 Nov): from about 15:30 the
+        # sun on this wall washes the light out -- running, it falls to 8-10
+        # in this box; off, the bright gradient alone reaches 6-8 (19 Nov
+        # 16:13). At 11 a washed-out "on" reads off (not seen running), and
+        # an off unit never reads running.
+        led_std_threshold: 11.0
+        # Measured on 20 Nov's midday switch, M1 running throughout: on
+        # 12:25, off 12:38 (Friday prayers), on again 14:11. By eye it ran
+        # 19 Nov 10:07-15:35 and 20 Nov 10:32-12:25 and 14:11 on; off 19 Nov
+        # 15:48 through the night and 20 Nov 12:38-13:58.
+        # The view check on the blue sticker at the unit's left, clear of
+        # the light and the louvre (a plain white face can pass a wrong
+        # view): every running frame 0.64+, frames from before the camera
+        # was moved on 19 Nov mostly refused; a dim early morning can fail
+        # it, which reads unknown, never a guess.
+        anchor_roi: [1040, 8, 1110, 60]
+        anchor: WFhYWlxaWl5eXmBlaWtraWlpY2BgYmBjZ2llaWtpZ2VnaWlra2ttb3N1d3d7fX+DRERERkhKTExIREZQUlhaXFZQTEhISEpMUlRYVlJUWFhYVlZYWFhaWlpeYGBgYmNlRkREREZGSEpISEpIRkJAQEZKSkpMTkxKSkpKUFJQUE5KTExQUlRSUlRWWlpeXmJjUlBMSkpOUlZUUlRSUlBUWFpaXmJlZ2lrb3FvaWdpbW1tc3V3eX19f3+DhYeJiY2PWlhSUE5WZXWBi5GRj4+Pk5eanJ6eoKqwuLy8tLa8tKiinp6ipKampqiqrK6usLK0YF5cWlxjd4+ksLasppqPg39/gYF/fYF/e3dzaX+kqKCcnp6goqKioqSmqqqusLK0YmNjZWtxeXViRDIuLi4sKSkuMjY2NCEVAQAAAC57l5eXmJiYmJianJ6goqSmqKqsYmNnaW1zc14hAAAAAAAAAQkPExcbGxEJAAAAAB1ig4mRlZeXl5ianp6gpKSmqKqsYGNna2tpbWMfAAAAABEdJzA2Njo+QExIQEI6GyNWe4OHk5OVl5eanJ6goqKmpqqsYmVna2tjbXMwAQcXJTpGUlhYWFpcXlhYUlRMKSNShZGLkZGTlZWXmpyeoKCkpKiqY2Vpa2tnd4M+GSw2QExSWlpWVlhYWF5gXmBWKxlKiZyVj5GRk5WXmJqcoKCipKaoY2dpa2tvg4U+ITxESEpKTlBSVlhYVk5QTlBGJx9KhZWNj5GRk5WXmJqcnqCipKaoZWlra2txgYFAHzI+QkBAREZKTlBQTkxMREg8IRdAg5eLkZGTlZWXmpyeoKCkpKaqZ2lra2treYNOJyMrLC4uNDg6QEREQj46MDAnEQUwh6aTk5OVl5eYmp6goqKmpqisZ2lra2tpc4dgLBUXHR0fJSs0PEJCQEQ+MjAnEQAriayTk5WVl5ianJ6goqSmqKqsZWVpbWtpb31gJwAHFRMXGx8rND5CQEBCOjgsDQEpiayXlZWVl5icnqCipKaoqqqsZWVpa2diYHdvOAAAAQ0VFx8rMjpAQDo8Ojo0GQklf6ialZWXmJqcnqKipKaoqqqsZWVnZ2NSTpPOojgAAAUPGSMpMjxAQDg6OkA+JRUldZ6Yl5eXmJyeoKKkpqaqqqyuZ2VlZWBSUqr//7JYMh0TEx8pOERIRD5AQkhINCcyd5qXmJiYmpyeoKKkpqiqqqyuZ2VlZWBSXrr////runlIJyMwQk5QSkhKTFRWSkRMhZ6ampiamp6goKSmpqiqrKyuZ2VnZ2JOY8b//////+2gUDY+SlJUUlJUVmBlYF5ij6KempqanJ6goqSmqKqsrK6wZ2VnaWNcZbb////////VYDxMUFRWVlZaXmtxbWlpkaKempqanqCgoqSmqKqsrK6wYmVnZ2NeVlqBpqSonqyybzg4VGJcVFpaYGdtbWtzlaagnp6eoKCioKKorK6srrCyYGNpa2liVkxgi5htOCxYYEpGWGNlY1pYXFxeWF51l6Canp6eoKCkpKKgpKawrqyuYGNrbW9rYlZeg5dgJQssOj5GVFZQUlhYVE5IPk57mJqTnJ6eoqKkpqaorrCorLC0YGNpa21tbWNpgYdeNCc8KSEySEpGSlZaVExCOlaHnJiTnJ6goqSioqSipKamrLCwYmJjZWVpa217i4FaMClMRjg4PDZGYmJrbWNaVG+XopyanJ6gpKakpqScnKCTl6CsYmJiYmBiZW1/kYlxVFBxd3dvVjY+YH2Nk4uBeYmipKCgnqCipKSmqq60yt3Oxry6YmBgYGBgY2l1jZWPgXmNmK66qHdaYIWYpJqRjZiqqKKkoKCioqSipKjA8f//////YmJiYmNiY2dthZWTjYeRoMbz/9Wag4mVnJiVl6CoqKSkpKSioqKgoKCw0e/1/f3vY2NjY2NiYGNvgY+TkY+VnK7M18KglZWVl5qcnqKipKampqakpKSkpKSmqKqqqq6wY2NjY2NiYmNvgY2Tk5GRlY+HgYGFi5WXmJqcnqCipKampqampqampqaoqqqsrLCwY2NjY2NiYmNvgY2Tk5ORj42HhY2NiZWXmJqcnqCioqSmpqampqamqKiqqqyusLK0Y2NjY2NjYmVvf4uRk5eVkZGNiYuRlZeYmJqcnqCioqSkpqamqKioqqqsrrCysrS2Y2NjY2NjY2Vvf4uPk5WXlY+Pj42TmpeYmpyenp6goqSkpKamqqqqrKyurrK0tri6Y2NjY2NjY2Vvf4uPkZOTkYmJkZGJh5eYmpyenp6goqKkpKaoqqqurq6usLS2uLq8Y2NjY2NjY2VtfYmRkY+PjZGPjZGTk5eYmp6enp6goKKkpKaoqqyurq6wsrS2uLq+Y2NlY2JiY2NtfYeNjY2Pj4+RkY+Rl5qanKCgoKCioqKkpqaoqKqsrq6wsLC0tri6Y2NlY2JiY2NtfYeNjY2Pj4+RkY+Rl5qcnKCioqCioqSkpqioqqqsrrCwsLC0tri6Y2NlY2JiY2NtfYeNjY2Pj42Pj4+Rl5qcnqCioqKioqSkqKiqrK6urrCwsrK0tri6Y2NlY2JiY2NtfYeNjY2Pj42Nj4+Rl5ycnqCioqKipKSkqKiqrrCwsLCwsrK0tri6Y2NlY2JiY2NtfYeNjY2Pj4uLj42Rl5yeoKKkpKSkpKampqiqrrCwsLKysrS0tri6Y2NlY2JiY2NtfYeNjY2Pj4uLjY2Rl5yeoKKkpKSkpqampKaqrK6wsrKytLS0tri6Y2NlY2JiY2NtfYeNjY2Pj4uJjY2Rl5yeoKKkpKSkpqamoqSoqq6wsrK0tLS0tri6ZWNjY2NjY2NtfYmPkZGPjY+PjY2Rl5yeoKKkpKKkpKSkpqaqrK6wsrK0tLS0tri4Z2NjZWVjY2Nte4eRlZqcmpiXlZWVlZqeoKKkpKKkpKSkqKiqrq6ysrKytLS0tra4aWVlY2VjY2VreYWPk5icnJqanJ6enJygoKCkpKKkpKSkpqiqrK6wsLKytLS0tLa4aWllYmJlZ2dpdYWDfXVxc3d9h4+YnJygoqCkpKKkpKSkpqiqrK6wsLKysrK0tLa4
+        measured:
+          on_std: 18.09           # light lit
+          off_std: 2.80           # light dark
+          on_peak: 202
+          off_peak: 149
+          taken: 2026-11-20T16:40+0500
 
     also:
       - recorder: dvr2

@@ -1229,3 +1229,14 @@ Two or three lines a round; picture file names, never pictures.
   lobby: a man passed at 14:22, gone when the check looked -- the loop a
   pass behind), FAINT 4, PASSING 3, FOLLOWING 21, DRIFT 9, 85 match.
   Nothing to change.
+* 16:45 Round: field_audit 16:25 -- MISSED 1 (H Stairs: a man on the
+  stairs between two passes; the loop counted people there 22 times
+  today), GHOST 0, FAINT 2, PASSING 4, FOLLOWING 17, DRIFT 6, 92 match;
+  the 141 gym not opened (15:00-20:00). Calibrated Marketing's M2 by the
+  small white light on its front, from its own midday switch with M1
+  running (on 12:25, off 12:38 for Friday prayers, on 14:11): on 18.1,
+  off 2.8; threshold 11, above the midpoint, because the afternoon sun
+  washes the light out (on 8-10, off up to 8). Replayed over every kept
+  frame: none running in an off period, 44 of 45 running read; one
+  pre-move frame (18 Nov 13:25) passes the view check at 0.58. 23 units
+  read on both campuses. Tests green; loop restarted for ac_units.yaml.

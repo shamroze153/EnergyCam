@@ -1,12 +1,12 @@
 # AC units and cameras -- both campuses
 
-## Where it stands (20 Nov 2026, 02:40) -- the follow-up table
+## Where it stands (20 Nov 2026, 16:45) -- the follow-up table
 
 Units from rooms.yaml (Shamroze's surveys, with `unwatched_units`). **In
 camera** = some camera shows the unit well enough to try a calibration
 (rooms.yaml's `in_view`, per room); **calibrated** = read on or off by the
 loop now. Each campus page's "Units a camera reads" tile shows the same
-live: "11 of 58 -- 11 more in camera, waiting to be calibrated". (The
+live: "12 of 58 -- 10 more in camera, waiting to be calibrated". (The
 table's 23 in camera for 140-H counts one more: a DR room's split seen
 partly at the edge of nvr1 ch23, the DR Rooms Lobby. The DR rooms are
 `unwatched_units`, no camera room, so no `in_view` counts it and the tile
@@ -15,15 +15,20 @@ says 22.)
 | Campus | Part | Units | In camera | Calibrated |
 |---|---|---|---|---|
 | 140-H | Basement | 6 | 5 | 2 |
-| 140-H | Ground floor | 23 | 11 | 5 |
+| 140-H | Ground floor | 23 | 11 | 6 |
 | 140-H | First floor (Saturday) | 22 | 2 so far | 0 |
 | 140-H | Cafe and mosque | 7 | 5 | 4 |
-| **140-H** | | **58** | **23** | **11** |
+| **140-H** | | **58** | **23** | **12** |
 | 141-C/D | Ground floors | 45 | 12 | 7 |
 | 141-C/D | First floors | 14 | 5 | 1 |
 | 141-C/D | Second floors | 14 | 9 | 3 |
 | **141-C/D** | | **73** | **26** | **11** |
-| **Both** | | **131** | **49** | **22** |
+| **Both** | | **131** | **49** | **23** |
+
+20 Nov, 16:45: Marketing's M2 by the small white light on its front, from
+its own midday switch (on 12:25, off 12:38 for Friday prayers, on 14:11)
+with M1 running throughout; the threshold set above the midpoint, since
+the afternoon sun washes the light out (an off unit never reads running).
 
 20 Nov, night, from the kept frames with nobody switching: Marketing's M1
 (ch 3, its white light and louvre: on 10:00, off 15:42) and the Kenwood
