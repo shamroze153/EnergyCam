@@ -1174,3 +1174,15 @@ Two or three lines a round; picture file names, never pictures.
   infrared 'on' frame yet). Basement ch23 still tilting: 13.5 px more
   since 22:33, ~41 px since 12:09 (ch21 still) -- on the team's list.
   Tests green, pushed 9f51b08, loop restarted 04:45 (one loop).
+* 06:48 Round: field_audit 06:25 -- MISSED 0, GHOST 1, FAINT 6, PASSING 2,
+  FOLLOWING 4, 110 match. The ghost, H Street, is people the check did not
+  score (a man by the cars on ch6 at 06:29, one far down the street on
+  ch7; the loop's boxes move every pass, 0.67-0.92) -- the page right.
+  night_check at dawn: Admin Room's 1 is a person in the chair; 141 Room
+  22's 1 a person at a laptop all night (0.82-0.88 from 00:03). Cyber
+  Security Room counted its two empty chairs at 06:33 (0.52, 0.41) as the
+  light came up, 0 again at 06:45 -- seats people use, so no zone; left
+  (frames/Cyber_Security_Room_xvr3_ch02_boxes.jpg). Room 6's 04:11 box:
+  set aside by drop_still. Basement ch23: 16.5 px more since 22:33, ~44 px
+  since 12:09, slower (~1.3 px an hour). Nothing to change in rooms.yaml;
+  tests green; no restart.
