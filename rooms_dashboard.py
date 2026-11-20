@@ -2521,7 +2521,28 @@ def show_meters(df, recent, now):
         usage, {"since": a.get("solar_since"),
                 "full_from": a.get("solar_full_from"),
                 "kw": a.get("solar_kw")},
-        ev.month_expected(est, mine, my_bills)), unsafe_allow_html=True)
+        None, bills_inline=False), unsafe_allow_html=True)
+    # The bills' year as a Streamlit control: the page's 30-second refresh
+    # put an HTML switch back to this year every time (20 Nov).
+    years = ev.bill_years(my_bills, mine)
+    view = None
+    if years:
+        st.markdown(ev.css(mode) + '<div class="ec">'
+                    + ev.bills_heading(mode, mine) + "</div>",
+                    unsafe_allow_html=True)
+    if len(years) > 1:
+        names = [label for _, label in years]
+        if hasattr(st, "segmented_control"):
+            pick = st.segmented_control("Bills for", names, default=names[0],
+                                        key="bills_year")
+        else:
+            pick = st.radio("Bills for", names, horizontal=True,
+                            key="bills_year")
+        view = dict((label, key) for key, label in years).get(pick, "a")
+    st.markdown(ev.css(mode) + '<div class="ec">' + ev.bills_section(
+        mode, my_bills, mine, view or "a",
+        ev.month_expected(est, mine, my_bills), heading=False) + "</div>",
+        unsafe_allow_html=True)
     with st.expander("Every reading, as entered"):
         if len(readings):
             shown = readings.copy()

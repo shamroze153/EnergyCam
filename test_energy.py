@@ -257,16 +257,30 @@ def main():
           and "units <b>−7%</b>" in page)
     check("hovering a month gives each meter and the month's total",
           "Total 13,000 units, Rs 910,000" in page)
+    check("the year switch offers this year, the year before and both",
+          [k for k, _ in ev.bill_years(two, METERS)] == ["a", "b", "c"]
+          and ev.bill_years(two, METERS)[1][1] == "Jan 25 – Dec 25")
+    last = ev.bills_section("dark", two, METERS, "b")
+    check("a year chosen on the page draws that year, with no HTML switch",
+          'id="enyr-' not in last and "168,000 units" in last
+          and "Jan 2025" in last and "Dec 2026" not in last, last[:300])
+    check("and every month of it in figures, the month's total and bill",
+          last.split("Month by month, year by year")[0].count("<tr") == 13
+          and "<b>14,000</b>" in last
+          and "Rs 980,000" in last)
     yoy = ev.meters_page("dark", None, "daily", METERS, two, None, 67.0, [],
                          True, "140-H",
                          expected=(pd.Timestamp("2027-01-01"), 6500, 455000))
-    check("each month beside the same month a year before",
-          "This year against last year" in yoy
-          and "March · 2025: 14,000 units" in yoy
-          and "2026: 13,000 units" in yoy)
-    check("the month under way, expected, beside last year's bill",
-          "Jan (now)" in yoy and "2027: 6,500 units, Rs 455,000 (expected"
-          in yoy and "stroke-dasharray" in yoy)
+    check("each month with a column for every year",
+          "Month by month, year by year" in yoy
+          and "March · 2025: 14,000 units, Rs 980,000 · 2026: 13,000 units"
+          in yoy)
+    check("the month under way, expected, dashed, beside the years before",
+          "2027: 6,500 units, Rs 455,000 (expected)" in yoy
+          and "stroke-dasharray" in yoy and "~6,500*" in yoy)
+    check("and the years in figures, with each year's total",
+          "<th>2025</th><th>2026</th><th>2027</th>" in yoy
+          and "<b>168,000</b>" in yoy and "12 months" in yoy)
 
     # ---- the charts on a phone -------------------------------------------
     small = ev.columns(["a", "b", "c"], [[0.3], [1.15], [0.8]], ["#000"],
