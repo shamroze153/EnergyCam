@@ -1389,3 +1389,9 @@ Two or three lines a round; picture file names, never pictures.
   0047.jpg), outdoors, no unit: left. Nothing changed; no restart. Loop
   alive (00:46 pass), desk rows each pass; the hosted Progress tab now
   has every working day 12-24 Nov.
+* 02:47 round: 1 GHOST, 1 DRIFT (140-H Entry Area 5 vs 1 -- people
+  leaving the gate), no MISSED. The ghost, 141-D Squat Wolf Room 3: a
+  small dark shape on ch7's top-left edge, above the desks, 0.26-0.45 in
+  9-13 passes a night since 20 Nov -- zoned [0,12,44,96] (its boxes wholly
+  inside; a person at the door or a desk still counted, checked). Tests
+  green; pushed 602e04f; loop restarted 03:06.
