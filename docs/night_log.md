@@ -1308,4 +1308,5 @@ Two or three lines a round; picture file names, never pictures.
   cafe "off, 0 units" at 19:09, 19:27 and 19:40; the first pass after
   the restart wrote "on, 1 unit" at 20:29 -- with nobody in the cafe.
 * Left uncommitted in rooms.yaml from 21 Nov 04:43: a Solar Array ch29
-  zone (pipework, no unit) -- for Shamroze to say before it is committed.
+  zone (pipework, no unit). Committed on Shamroze's yes (20:35); the
+  20:24 restart had already loaded it.

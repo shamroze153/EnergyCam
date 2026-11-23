@@ -1623,9 +1623,14 @@ rooms:
     # page showed people on the roof all night. ch 30: a tree on the
     # skyline beyond the roof's far edge, 13-34 passes a day. Nobody can
     # stand in either; a person on the roof is a box below them.
+    # ch 29: pipework behind the cross-braces beside the big column,
+    # boxed on five nights (0.25-0.41, always the only "person"); on 21
+    # Nov 04:26 the check found nobody on any of the five cameras.
     ignore:
       26:
         - [550, 30, 615, 100]
+      29:
+        - [252, 92, 292, 192]
       30:
         - [385, 10, 415, 60]
     note: >
