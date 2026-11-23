@@ -382,6 +382,15 @@ rooms:
             led_std_threshold: 30.5
             # 19 Nov, darkness: open 0.19-0.53, shut 0.67+ (17-19 Nov).
             dark_max: 0.60
+            # 23 Nov: darkness against the tower's own white face, left of
+            # the louvre, not the ring round the box. The box sits at the
+            # tower's right edge, so half the ring was the doorway behind
+            # it: dark at night (the tower ran all evening and read "off"
+            # 19:17-19:44, 0.71-0.76), bright by day (shut down to 0.62).
+            # Every colour frame kept 21-23 Nov against this face: open
+            # 0.29-0.53, shut 0.67-1.04; the ring had given open up to 0.76
+            # and shut from 0.62 -- no gap at all.
+            dark_ref: [383, 34, 390, 56]
             # 17 Nov: view check moved to the left wall below the window; the old one failed on two frames in three by day.
             # Every kept frame 0.89+ (the old view check failed 182); a 50 px nudge 0.07.
             anchor_roi: [40, 240, 200, 400]

@@ -170,7 +170,7 @@ def contrast(frame, box):
 DARK_RING = 5
 
 
-def darkness(frame, box, ring=DARK_RING):
+def darkness(frame, box, ring=DARK_RING, ref=None):
     """The box's darkest tenth against the median of the ring round it.
 
     A louvre that opens shows the dark inside of the unit between its slats:
@@ -181,6 +181,15 @@ def darkness(frame, box, ring=DARK_RING):
     lights off and the pink wash of the neon wall on its edge lifting the
     box's contrast into the range of a real open louvre (25-36 against
     31-39); its darkness was 0.86-0.91, open louvres' 0.13-0.47.
+
+    `ref` ([x1, y1, x2, y2], a unit's `dark_ref`) measures the box against
+    that region of the unit's own face instead of the ring. For a box at the
+    unit's edge the ring is half whatever stands behind the unit. 23 Nov:
+    the cafe's tower 6 ran all evening and read "off" 19:17-19:44 -- the
+    doorway behind it went dark at nightfall, the ring fell from ~190 to
+    ~95 and its open louvre read 0.71-0.76 against 0.60; somebody standing
+    beside it at 19:57 lifted the ring and it read running again. By day
+    the bright doorway did the reverse, a shut louvre down to 0.62.
     """
     x1, y1, x2, y2 = box
     if frame.ndim == 3:
@@ -188,6 +197,13 @@ def darkness(frame, box, ring=DARK_RING):
     patch = frame[y1:y2, x1:x2].astype(np.float32)
     if patch.size == 0:
         return None
+    if ref is not None:
+        rx1, ry1, rx2, ry2 = (int(v) for v in ref)
+        face = frame[max(0, ry1):ry2, max(0, rx1):rx2]
+        if face.size == 0:
+            return None
+        return float(np.percentile(patch, 10)
+                     / max(1.0, float(np.median(face))))
     ox1, oy1 = max(0, x1 - ring), max(0, y1 - ring)
     outer = frame[oy1:y2 + ring, ox1:x2 + ring].astype(np.float32)
     keep = np.ones(outer.shape, dtype=bool)
@@ -386,9 +402,16 @@ def _read_block(frame, config):
         # the slats -- a change of light lifts contrast but not darkness --
         # and the box is not one flat shade (half the contrast threshold at
         # least: a shadow over the whole box is dark too, but even).
+        # Measured against the unit's own face (`dark_ref`) where the ring
+        # round the box takes in what stands behind the unit.
         dark_max = unit.get("dark_max")
         if dark_max is not None and higher_is_on:
-            dark = darkness(frame, box)
+            ref = unit.get("dark_ref")
+            if ref is not None:
+                rx1, ry1, rx2, ry2 = ref
+                if rx2 > width or ry2 > height or rx1 < 0 or ry1 < 0:
+                    return None, None, "a box falls outside the frame"
+            dark = darkness(frame, box, ref=ref)
             lit.append(dark is not None and dark <= float(dark_max)
                        and value >= threshold / 2.0)
             continue

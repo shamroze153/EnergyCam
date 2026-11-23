@@ -333,6 +333,52 @@ def check_louvre_darkness(ok):
     state, why, _ = ac_detect.read_units(shut, "Cafe", two)
     ok("and with it unseen, a shut louvre beside it is not an 'off' room",
        state is None)
+    check_louvre_at_the_edge(ok)
+
+
+def check_louvre_at_the_edge(ok):
+    """23 Nov: the cafe's tower 6 ran all evening and read "off" 19:17-19:44.
+    Its box is at the tower's right edge, so the ring round it is half the
+    doorway behind, which went dark at nightfall. `dark_ref` measures the
+    box against the tower's own face instead."""
+    print("-- a louvre at the unit's edge is measured against the unit")
+    box = [100, 100, 112, 115]
+    face = [85, 105, 95, 130]
+    unit = {"label": "tower 6", "led_roi": box, "led_std_threshold": 30.5,
+            "dark_max": 0.60,
+            "measured": {"on_std": 37.3, "off_std": 23.6}}
+    x1, y1, x2, y2 = box
+
+    def tower(behind):
+        frame = np.full((300, 300, 3), behind, dtype=np.uint8)
+        frame[y1:200, 70:x2] = 180       # the tower; its top and right edge
+        return frame                     # are the box's top and right edge
+
+    night_open = tower(40)
+    night_open[y1:y2:3, x1:x2] = 30      # dark slats, as at 19:17
+    night_open[y1 + 1:y2:3, x1:x2] = 30
+    ring = ac_detect.darkness(night_open, box)
+    own = ac_detect.darkness(night_open, box, ref=face)
+    ok("against the dark doorway the open louvre looks shut (%.2f)" % ring,
+       ring > 0.60)
+    ok("against the tower's own face it is open (%.2f)" % own, own < 0.30)
+    with_ref = {"Cafe": {"frame_size": [300, 300],
+                         "units": [dict(unit, dark_ref=face)]}}
+    ring_only = {"Cafe": {"frame_size": [300, 300], "units": [unit]}}
+    ok("so with dark_ref it reads running",
+       ac_detect.read_room(night_open, "Cafe", with_ref)[0] == "on")
+    ok("(the ring alone read it off -- the bug)",
+       ac_detect.read_room(night_open, "Cafe", ring_only)[0] == "off")
+    night_shut = tower(40)
+    ok("a shut louvre against the same dark doorway still reads off",
+       ac_detect.read_room(night_shut, "Cafe", with_ref)[0] == "off")
+    day_shut = tower(250)
+    ok("and against the bright doorway by day too",
+       ac_detect.read_room(day_shut, "Cafe", with_ref)[0] == "off")
+    astray = {"Cafe": {"frame_size": [300, 300],
+                       "units": [dict(unit, dark_ref=[290, 0, 310, 20])]}}
+    ok("a dark_ref off the frame is refused, not read",
+       ac_detect.read_room(night_open, "Cafe", astray)[0] is None)
 
 
 def main():
