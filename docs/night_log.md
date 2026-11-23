@@ -1288,3 +1288,24 @@ Two or three lines a round; picture file names, never pictures.
   shape between the roof's columns at night only (5-8 passes a night,
   0.25-0.41) -- person-sized at that distance, so not certain; Gaming
   Area's tiny far shape, new since yesterday. Nothing changed; no restart.
+
+## 23 Nov, evening
+
+* The laptop slept 12:05-19:01 (Critical Battery) -- no passes or kept
+  frames in between; and the loop was gone after its 20:02 pass (no
+  room_loop process at 20:15; the charger came out at 20:06).
+* 20:20 Shamroze: the 141-C Cafe's AC was running and the page said all
+  off. Kept frames 19:04-20:09: towers 1-5 shut (flat faces; 4 and 5 open
+  at 11:50 for comparison), tower 6 (ch 2) open in every frame -- but read
+  off 19:17-19:44. Its box is at the tower's right edge, so half the ring
+  darkness() measured against was the doorway behind: dark at nightfall
+  (ring ~190 -> ~95, open read 0.71-0.76 against 0.60), bright by day (shut
+  down to 0.62), lifted by a man standing beside it at 19:57. New
+  `dark_ref` (a unit's own face to measure against): tower 6 on the white
+  face left of its louvre -- every colour frame 21-23 Nov open 0.29-0.53,
+  shut 0.67-1.04. Replayed: no running in a shut period. Tests green,
+  pushed c510b4e, loop restarted 20:24 (one loop). The database had the
+  cafe "off, 0 units" at 19:09, 19:27 and 19:40; the first pass after
+  the restart wrote "on, 1 unit" at 20:29 -- with nobody in the cafe.
+* Left uncommitted in rooms.yaml from 21 Nov 04:43: a Solar Array ch29
+  zone (pipework, no unit) -- for Shamroze to say before it is committed.
