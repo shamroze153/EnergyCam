@@ -5115,6 +5115,32 @@ def show_sightings(mode, people):
                             on_click=decide, args=(p["code"], s, "no"))
 
 
+def show_building(mode, people):
+    """The building in 3D (Shamroze, 23 Nov: "pura 3D banao, kaun kahan
+    ja raha hai"): the floors one above another, each employee where they
+    are now and the way they went today -- building.yaml's schematic map,
+    drawn from the numbers alone (codes and room names), so the hosted
+    page can show it too."""
+    import building
+    import building_view
+    b = building.load()
+    if not b or not people:
+        return
+    st.markdown(overview.css(mode) + '<div class="ec"><div class="ec-h">'
+                '<span class="t">Where they are, and the way they went today'
+                '</span><span class="c">the building floor by floor &middot; '
+                'a filled dot is at the desk or seen there (by face, or '
+                'confirmed); a ring is &ldquo;possibly&rdquo; &middot; the '
+                'map is a sketch from the cameras, not a floor plan &middot; '
+                'drag to turn it</span></div></div>', unsafe_allow_html=True)
+    # scrollZoom off: the page must scroll past it, not zoom into it
+    st.plotly_chart(building_view.figure(b, people, mode),
+                    use_container_width=True, theme=None,
+                    config={"displaylogo": False, "scrollZoom": False})
+    for code, now_at, way in building_view.way_lines(people):
+        st.caption("**%s** · %s · %s" % (code, now_at, way))
+
+
 def show_progress(now):
     """Progress (Shamroze, 23 Nov): the employee-productivity project --
     its stages, and time at the desk for the desks HR approved watching.
@@ -5157,6 +5183,7 @@ def show_progress(now):
         cfg, people, made, hours_sent = got
         st.markdown(progress_view.page(mode, cfg, people, made, hours_sent),
                     unsafe_allow_html=True)
+        show_building(mode, people)
         st.caption("Sent by the office laptop at %s (every five minutes). The "
                    "pictures, the day's videos and the sightings to check "
                    "stay on that laptop." % made)
@@ -5179,6 +5206,7 @@ def show_progress(now):
     st.markdown(progress_view.page(mode, cfg, people,
                                    local.strftime("%d %b %H:%M"), hours),
                 unsafe_allow_html=True)
+    show_building(mode, people)
     show_sightings(mode, people)
     # Each employee's day as a video (progress_video.py): pictures of the
     # desk, so -- like everything here -- only on this laptop. Made in a

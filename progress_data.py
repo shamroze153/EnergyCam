@@ -457,8 +457,16 @@ def day_activity(person, day, rows=None, notes=None, passes=None,
     mine = rows[rows["code"] == code] if len(rows) else rows
     acts = mine[(mine["kind"] == "desk") & (mine["state"] != "away")] \
         if len(mine) else mine
-    seen = mine[(mine["kind"] == "seen") & (mine["score"] >= seen_min)] \
-        if len(mine) else mine
+    # A sighting by face (progress_track, faces.py) stands as confirmed
+    # whatever its number -- a face is only "face" far above the line --
+    # unless somebody says no; one by the body needs SEEN_MIN.
+    if len(mine) and "state" in mine.columns:
+        seen = mine[(mine["kind"] == "seen")
+                    & ((mine["state"] == "face")
+                       | (mine["score"] >= seen_min))]
+    else:
+        seen = mine[(mine["kind"] == "seen") & (mine["score"] >= seen_min)] \
+            if len(mine) else mine
     start_of_day = pd.Timestamp(day) + pd.Timedelta(hours=DAY_FROM)
     line, read = [], 0
     for start, end, state in timeline(person, notes, passes):
@@ -479,6 +487,7 @@ def day_activity(person, day, rows=None, notes=None, passes=None,
     # the day at the desk. A confirmed one names the place; a possible one
     # is listed for somebody to look at; a rejected one is forgotten.
     possible = []
+    sightings = []           # every one kept, for the building map
     if at and len(seen):
         lo = line[at[0]][0] - SEEN_WINDOW
         hi = line[at[-1]][1] + SEEN_WINDOW
@@ -490,7 +499,19 @@ def day_activity(person, day, rows=None, notes=None, passes=None,
                 continue
             inside = inside.assign(verdict=[
                 reviews.get((r["time"], code, str(r["room"])), "")
+                or ("yes" if str(r.get("state", "")) == "face" else "")
                 for _, r in inside.iterrows()])
+            for _, r in inside.iterrows():
+                if r["verdict"] == "no":
+                    continue
+                how = "face" if str(r.get("state", "")) == "face" and \
+                    r["verdict"] == "yes" and not reviews.get(
+                        (r["time"], code, str(r["room"]))) else (
+                    "seen" if r["verdict"] == "yes" else "possible")
+                sightings.append({"t": r["at"], "place": str(r["room"]),
+                                  "how": how, "score": float(r["score"]),
+                                  "recorder": str(r["recorder"]),
+                                  "channel": int(r["channel"])})
             yes = inside[inside["verdict"] == "yes"]
             if len(yes):
                 best = yes.loc[yes["score"].idxmax()]
@@ -528,9 +549,46 @@ def day_activity(person, day, rows=None, notes=None, passes=None,
         "last_seen": anywhere[-1][1] if anywhere else None,
         "last_seen_where": anywhere[-1][3] if anywhere else "",
         "possible": possible,
+        "sightings": sorted(sightings, key=lambda s: s["t"]),
         "places": {k: minutes[k] for k in KINDS
                    if k not in AT_DESK and k != "unseen" and minutes[k] > 0},
     }
+
+
+def route(day_act, desk_place, cams=None):
+    """The day as stops through the building, for building_view: each
+    stretch at the desk {"t", "until", "place": desk_place, "how": "desk"},
+    and each sighting while away {"t", "place", "how": face | seen |
+    possible} -- one after another at the same place made one, with
+    "until". Away and not seen is no stop: the way between two stops is
+    not known, and is drawn as the fewest steps. A sighting's place is its
+    camera's room in rooms.yaml (`cams`, building.cameras()) where known:
+    the kept frames' file names spell "140-H" as "140 H"."""
+    cams = cams or {}
+    stops = []
+    for s, e, k, _ in day_act.get("line") or []:
+        if k not in AT_DESK:
+            continue
+        if stops and stops[-1]["how"] == "desk" and s - stops[-1]["until"] \
+                <= JOINED:
+            stops[-1]["until"] = e
+        else:
+            stops.append({"t": s, "until": e, "place": desk_place,
+                          "how": "desk"})
+    for g in day_act.get("sightings") or []:
+        place = cams.get((g.get("recorder"), g.get("channel")), g["place"])
+        stops.append({"t": g["t"], "until": None, "place": place,
+                      "how": g["how"]})
+    stops.sort(key=lambda q: q["t"])
+    out = []
+    for q in stops:
+        last = out[-1] if out else None
+        if last and q["how"] != "desk" and last["how"] == q["how"] \
+                and last["place"] == q["place"]:
+            last["until"] = q["t"]
+            continue
+        out.append(dict(q))
+    return out
 
 
 # ------------------------------------------------ every day, and right now
@@ -744,16 +802,26 @@ def build(cfg, today, hours=(10, 20), count=5, folder=SEATS, frm=8, to=24,
     focus = days[-1] if days else today
     now = now if now is not None else pd.Timestamp.now()
     stored = load_history()
+    try:
+        import building
+        cams = building.cameras()
+    except Exception:                                       # noqa: BLE001
+        cams = {}
     for person in cfg.get("people") or []:
         summaries = week(person, days, hours, cache)
         state = {"state": "out", "label": "Not in today", "since": None,
                  "minutes": None, "place": ""}
+        desk_place = cams.get((person.get("recorder"),
+                               int(person.get("channel") or 0)),
+                              person.get("department", ""))
+        way = []
         try:
             n, p = cache.get(focus) or (notes(focus), passes(focus))
             the_day = day_activity(person, focus, notes=n, passes=p)
             if focus == now.strftime("%Y-%m-%d"):
                 state = live(the_day, now, hours)
             the_day["slots"] = kind_slots(the_day, frm, to)
+            way = route(the_day, desk_place, cams)
             the_day.pop("line", None)
         except Exception:                                   # noqa: BLE001
             the_day = None
@@ -764,6 +832,8 @@ def build(cfg, today, hours=(10, 20), count=5, folder=SEATS, frm=8, to=24,
         out.append({
             "focus": the_day,
             "live": state,
+            "route": way,
+            "desk_place": desk_place,
             "history": past,
             "code": person.get("code", "?"),
             "name": person.get("name") or "",

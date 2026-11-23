@@ -1,0 +1,162 @@
+# 140-H as places and the ways between them (Shamroze, 23 Nov 2026: "entry
+# hai, reception hai, basement, ground floor, first floor aur phir cafe --
+# pura 3D bana sakte ho; employee jahan jaye camera usko follow kare").
+#
+# Read by building.py: the Progress tab draws it (building_view.py), and the
+# loop's follow mode (progress_follow.py) looks first at the cameras nearest
+# to where an employee was last seen, by the number of steps along `links`.
+#
+# A FIRST DRAFT, from the camera names, their floors in rooms.yaml and the
+# cameras' own pictures (19 Nov contact sheets) -- not from a floor plan.
+# `at` is a place's spot on a schematic floor (x 0-12 across, y 0-9 deep),
+# not a measurement. Links marked "# guess" are the least sure. A floor plan
+# (the fire-exit plan on each floor) would put both right.
+#
+# Every name is a room of rooms.yaml (its cameras come from there); a place
+# with `outside: true` is drawn round the building rather than in it.
+campus: 140-H
+# bottom to top
+floors: [Basement, Ground floor, First floor, Cafe floor]
+
+places:
+  # --- the way in, from the street to reception
+  H Street:                {floor: Ground floor, at: [0.6, 0.0], outside: true}
+  Outside H:               {floor: Ground floor, at: [-0.6, 0.8], outside: true}
+  H Outside Area:          {floor: Ground floor, at: [-0.6, 2.2], outside: true}
+  P1 Parking:              {floor: Ground floor, at: [2.2, -0.8], outside: true}
+  P2 Parking:              {floor: Ground floor, at: [3.6, -0.8], outside: true}
+  P3 Parking:              {floor: Ground floor, at: [5.0, -0.8], outside: true}
+  140-H Entry Area:        {floor: Ground floor, at: [1.2, 0.9], outside: true}
+  Entry H:                 {floor: Ground floor, at: [2.4, 1.2], outside: true}
+  140-H After Entrance:    {floor: Ground floor, at: [3.6, 1.4], outside: true}
+  Attendance Machine H:    {floor: Ground floor, at: [4.8, 1.9]}
+  140-H Reception:         {floor: Ground floor, at: [5.8, 2.8]}
+  140-H Board Room:        {floor: Ground floor, at: [4.2, 3.0]}
+  # --- ground floor
+  140-H Lobby Area:        {floor: Ground floor, at: [6.2, 3.9]}
+  H Ground Floor Lobby:    {floor: Ground floor, at: [7.2, 4.7]}
+  Lobby:                   {floor: Ground floor, at: [8.2, 4.0]}   # floor not in rooms.yaml
+  Lobby 1:                 {floor: Ground floor, at: [8.8, 5.2]}   # floor not in rooms.yaml
+  H Stairs:                {floor: Ground floor, at: [9.6, 3.2], stairs: true}
+  HR Room:                 {floor: Ground floor, at: [3.0, 4.6]}
+  Cyber Security Room:     {floor: Ground floor, at: [4.4, 5.2]}
+  Old Finance Room:        {floor: Ground floor, at: [3.0, 6.0]}
+  UPS Room:                {floor: Ground floor, at: [2.6, 7.4]}
+  Marketing:               {floor: Ground floor, at: [4.2, 6.9]}
+  Creative Room:           {floor: Ground floor, at: [5.4, 7.3]}
+  Admin Room:              {floor: Ground floor, at: [6.6, 7.3]}
+  AutoOS:                  {floor: Ground floor, at: [7.8, 7.1]}
+  IT Head Room:            {floor: Ground floor, at: [9.0, 6.7]}
+  Wellows:                 {floor: Ground floor, at: [9.6, 5.7]}
+  # --- round the building, at ground level
+  H Smoking Area:          {floor: Ground floor, at: [11.0, 2.6], outside: true}
+  Smoking Area Street:     {floor: Ground floor, at: [12.0, 1.6], outside: true}
+  H Backside:              {floor: Ground floor, at: [11.0, 6.4], outside: true}
+  H Backside Street:       {floor: Ground floor, at: [12.0, 7.6], outside: true}
+  Emergency Exit:          {floor: Ground floor, at: [10.6, 8.6], outside: true}
+  Genset Area:             {floor: Ground floor, at: [-0.4, 7.6], outside: true}
+  RO Plant:                {floor: Ground floor, at: [0.6, 8.6], outside: true}
+  RO Street:               {floor: Ground floor, at: [-0.6, 9.2], outside: true}
+  Outside:                 {floor: Ground floor, at: [12.4, 4.6], outside: true}   # nvr4 ch10, where unsure
+  # --- basement
+  H Basement Parking:      {floor: Basement, at: [2.0, 1.6]}
+  Basement:                {floor: Basement, at: [6.0, 4.6]}
+  DL Department:           {floor: Basement, at: [4.0, 6.2]}
+  Basement Meeting Room:   {floor: Basement, at: [7.8, 6.4]}
+  # --- first floor
+  H First Floor Lobby:     {floor: First floor, at: [7.2, 4.7]}
+  First Floor Lobby:       {floor: First floor, at: [8.4, 4.0]}
+  H First Floor Sitting Area: {floor: First floor, at: [5.8, 4.0]}
+  140-H Commons:           {floor: First floor, at: [5.0, 2.2]}   # the terrace; floor not in rooms.yaml
+  DR Rooms Lobby:          {floor: First floor, at: [5.6, 6.0]}
+  Room 17:                 {floor: First floor, at: [3.6, 6.6]}
+  Room 18:                 {floor: First floor, at: [6.8, 7.1]}
+  Data Centre Operations:  {floor: First floor, at: [9.0, 6.7]}
+  # --- the cafe floor, at the top
+  Cafe Stairs:             {floor: Cafe floor, at: [9.6, 3.2], stairs: true}
+  Prompt Cafe Gate:        {floor: Cafe floor, at: [8.4, 3.6]}
+  Prompt Cafe:             {floor: Cafe floor, at: [6.4, 4.6]}
+  Pantry:                  {floor: Cafe floor, at: [4.8, 4.0]}
+  Gaming Area:             {floor: Cafe floor, at: [5.6, 6.5]}
+  Cafe Hand Washing:       {floor: Cafe floor, at: [7.8, 5.7]}
+  Cafe Shoe Rack:          {floor: Cafe floor, at: [9.2, 5.0]}
+  Ablution Area:           {floor: Cafe floor, at: [9.4, 6.5]}
+  Mosque:                  {floor: Cafe floor, at: [8.4, 7.5]}
+  Atrium Glass:            {floor: Cafe floor, at: [1.4, 4.0], outside: true}
+  Solar Array:             {floor: Cafe floor, at: [3.0, 8.8], outside: true}
+  AC Outdoor Units:        {floor: Cafe floor, at: [1.0, 6.6], outside: true}
+  Inverter Room:           {floor: Cafe floor, at: [1.2, 2.2], outside: true}
+
+# Walking routes, both ways.
+links:
+  # the street and the way in
+  - [H Street, 140-H Entry Area]
+  - [H Street, Outside H]
+  - [Outside H, H Outside Area]
+  - [H Street, P1 Parking]
+  - [P1 Parking, P2 Parking]
+  - [P2 Parking, P3 Parking]
+  - [H Street, H Basement Parking]          # the ramp
+  - [H Outside Area, Genset Area]           # guess
+  - [Genset Area, RO Plant]                 # guess
+  - [RO Plant, RO Street]                   # guess
+  - [140-H Entry Area, Entry H]
+  - [Entry H, 140-H After Entrance]
+  - [140-H After Entrance, Attendance Machine H]
+  - [Attendance Machine H, 140-H Reception]
+  - [140-H Reception, 140-H Board Room]
+  - [140-H Reception, 140-H Lobby Area]
+  # the ground floor
+  - [140-H Lobby Area, H Ground Floor Lobby]
+  - [H Ground Floor Lobby, Lobby]
+  - [Lobby, Lobby 1]
+  - [Lobby, H Stairs]
+  - [H Ground Floor Lobby, H Stairs]
+  - [140-H Lobby Area, HR Room]
+  - [140-H Lobby Area, Cyber Security Room]
+  - [HR Room, Old Finance Room]             # guess
+  - [Old Finance Room, UPS Room]            # guess
+  - [H Ground Floor Lobby, Marketing]
+  - [H Ground Floor Lobby, Creative Room]
+  - [H Ground Floor Lobby, Admin Room]
+  - [H Ground Floor Lobby, AutoOS]
+  - [Lobby 1, IT Head Room]
+  - [Lobby 1, Wellows]
+  # round the building: the smoking passage by the garden, the back
+  - [140-H After Entrance, H Smoking Area]  # guess
+  - [H Smoking Area, Smoking Area Street]
+  - [Smoking Area Street, Outside]          # guess
+  - [Lobby 1, Emergency Exit]               # guess
+  - [Emergency Exit, H Backside]
+  - [H Backside, H Backside Street]
+  # the stairs, floor to floor
+  - [H Stairs, Basement]
+  - [H Stairs, H First Floor Lobby]
+  - [H Stairs, First Floor Lobby]
+  - [H Stairs, Cafe Stairs]
+  # the basement
+  - [Basement, DL Department]
+  - [Basement, Basement Meeting Room]
+  - [Basement, H Basement Parking]
+  # the first floor
+  - [H First Floor Lobby, First Floor Lobby]
+  - [H First Floor Lobby, H First Floor Sitting Area]
+  - [H First Floor Sitting Area, 140-H Commons]
+  - [H First Floor Lobby, DR Rooms Lobby]
+  - [DR Rooms Lobby, Room 17]
+  - [DR Rooms Lobby, Room 18]
+  - [First Floor Lobby, Data Centre Operations]
+  # the cafe floor
+  - [Cafe Stairs, Prompt Cafe Gate]
+  - [Prompt Cafe Gate, Prompt Cafe]
+  - [Prompt Cafe, Pantry]
+  - [Prompt Cafe, Gaming Area]
+  - [Prompt Cafe, Cafe Hand Washing]
+  - [Cafe Stairs, Cafe Shoe Rack]
+  - [Cafe Shoe Rack, Mosque]
+  - [Cafe Shoe Rack, Ablution Area]
+  - [Ablution Area, Cafe Hand Washing]
+  - [Pantry, Atrium Glass]                  # guess
+  - [Cafe Stairs, Solar Array]              # guess
+  - [Solar Array, AC Outdoor Units]         # guess
+  - [Solar Array, Inverter Room]            # guess

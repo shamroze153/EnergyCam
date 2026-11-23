@@ -38,6 +38,7 @@ import sys
 import time
 import traceback
 from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 
 # Joining a stream part way through means ffmpeg decodes a few frames against a
 # reference it never received, and it says so on stderr every single time. Those
@@ -81,6 +82,13 @@ try:
     import progress_track
 except Exception:                                           # noqa: BLE001
     progress_track = None
+# Following those employees between passes (progress_follow.py, 23 Nov):
+# their desk cameras every minute, and the cameras round one who has left
+# the desk. Guarded the same way.
+try:
+    import progress_follow
+except Exception:                                           # noqa: BLE001
+    progress_follow = None
 
 PKT = timezone(timedelta(hours=5))
 
@@ -1915,6 +1923,23 @@ def main():
     # would otherwise never reach the interval and never delete anything.
     last_sweep = 0.0
 
+    def grab_one(room, key):
+        # One camera of a room, through the same gates and private hours
+        # as the pass (fetch), for progress_follow.
+        return fetch(SimpleNamespace(name=room.name, cameras=[key],
+                                     private=room.private,
+                                     stream=room.stream),
+                     recorders, args.timeout).get(key)
+
+    def look_again(room, key, wide):
+        # Counted as examine() counts it, but only handed to progress_track:
+        # the room's own count and its seat notes are the pass's.
+        after = not in_operations(datetime.now(PKT), hours)
+        boxes = people_boxes(wide, model, conf=room.conf_for(after, key),
+                             imgsz=args.imgsz, iou=args.iou)
+        counted = [b for b in boxes if not ignored(b, room.ignore.get(key))]
+        progress_track.observe(room.name, key, wide, counted, model)
+
     def pulse():
         # The heartbeat, at most once a HEARTBEAT_SECONDS, from inside the
         # pass as well as after it. A pass takes about four minutes, and a
@@ -1923,6 +1948,11 @@ def main():
         if not args.no_db and time.time() - BEAT_AT[0] >= HEARTBEAT_SECONDS \
                 and beat():
             BEAT_AT[0] = time.time()
+        if progress_follow is not None and progress_track is not None:
+            # Never raises; does nothing without progress.yaml, or out of
+            # its hours.
+            progress_follow.step(rooms, recorders, grab_one, look_again,
+                                 muffle=muffled)
     # A cycle that throws used to end the process, and with it the night. A
     # recorder rebooting, a switch dropping a packet, the database refusing a
     # connection for ten seconds -- any of them was the whole building

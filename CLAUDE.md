@@ -76,6 +76,27 @@ counts as a place. Never confirm one for Shamroze without being sure by
 eye. `yolov8s-pose.pt` is downloaded but not used until a day of phone
 moments shows it helps.
 
+Faces and following (23 Nov night, HR's permission for these five):
+`faces.py` (OpenCV's YuNet + SFace, `models/`, git-ignored) learns each
+employee's face only at their own desk (`progress/faces/<code>.npy`,
+numbers, never a picture, this laptop only; a stranger in the chair is
+not admitted once five are kept) and names them elsewhere only far above
+OpenCV's line (SAME 0.55, MARGIN 0.15) -- such a sighting is state "face"
+and counts without review (a "no" on the tab still wins). On the ceiling
+cameras a face is often too small or from above: no face is no answer,
+and the body re-ID's "possible" stands. `building.yaml` is 140-H as places
+on four floors and the ways between them (a sketch from the cameras, not a
+floor plan -- correct it from the fire-exit plans; `building.problems`
+must stay empty, test_progress checks it). `progress_follow.py`, called
+from the loop between batches (`pulse`), looks at the five desk cameras
+every minute and, once a desk is empty two looks running, at the cameras
+nearest to where that employee was (cafe, smoking, meeting rooms and the
+mosque a little first) every 30 s for 15 min, moving round each new
+sighting -- through `fetch` (gates, private hours) and
+`progress_track.observe`, so the same rows, pictures and rules. The
+Progress tab draws `building_view.py`'s 3D building: everybody now, and
+the day's way (also on the hosted page: codes and room names only).
+
 Savings & peak (18 Nov): the dashboard's "Savings & peak" tab is
 `savings.py` -- the scoreboard (meters against the last bill and the same
 month a year ago; what cooling empty rooms cost, this week against the

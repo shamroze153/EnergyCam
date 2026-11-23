@@ -567,7 +567,280 @@ def check_kept_local():
           'progress_view.locked(mode, "unset")' in source, True)
 
 
+def check_faces():
+    print("-- faces: only a clear face names somebody")
+    import numpy as np
+    import faces
+
+    def unit(*v):
+        v = np.array(v + (0.0,) * (128 - len(v)), np.float32)
+        return v / np.linalg.norm(v)
+    g = {"P1": np.array([unit(1, 0, 0), unit(.95, .05, 0), unit(.9, .1, 0)]),
+         "P2": np.array([unit(0, 1, 0), unit(.05, .95, 0), unit(.1, .9, 0)])}
+    check("a face like P1's kept faces is P1",
+          faces.best_match(unit(.97, .03, 0), g)[0], "P1")
+    check("a face half like P1, half like P2 is nobody (the margin)",
+          faces.best_match(unit(1, 1, 0), g), None)
+    check("a face like nobody's is nobody",
+          faces.best_match(unit(0, 0, 1), g), None)
+    check("no face, no answer", faces.best_match(None, g), None)
+    check("the score is the mean of the best three",
+          round(faces.score(unit(1, 0, 0), np.array(
+              [unit(1, 0, 0), unit(1, 0, 0), unit(0, 1, 0), unit(1, 0, 0)])),
+              3), 1.0)
+    folder = tempfile.mkdtemp()
+    try:
+        check("no gallery yet is an empty one",
+              faces.load_gallery("P7", folder).shape, (0, 128))
+        for i in range(5):
+            faces.add_to_gallery("P7", unit(1, .01 * i, 0), folder)
+        check("the first five desk faces are kept",
+              len(faces.load_gallery("P7", folder)), 5)
+        check("then a stranger in the chair is not learned as the employee",
+              faces.add_to_gallery("P7", unit(0, 0, 1), folder), False)
+        check("but another face of theirs is",
+              faces.add_to_gallery("P7", unit(1, .02, 0), folder), True)
+        check("nothing is kept for no face",
+              faces.add_to_gallery("P7", None, folder), False)
+        check("the gallery is numbers, not pictures",
+              sorted(os.listdir(folder)), ["P7.npy"])
+    finally:
+        shutil.rmtree(folder)
+    # A face sighting stands as seen without a review; a "no" still wins.
+    p = passes_every("08:00", "16:00")
+    sat = notes_at([t.strftime("%H:%M") for t in pd.date_range(
+        at("10:01"), at("12:00"), freq="5min")]
+        + [t.strftime("%H:%M") for t in pd.date_range(
+            at("13:01"), at("14:00"), freq="5min")])
+    rows = pd.DataFrame([
+        {"time": "12:20:00", "code": "P9", "kind": "seen", "state": "face",
+         "room": "Prompt Cafe", "recorder": "nvr4", "channel": 14,
+         "score": 0.58, "x1": 0, "y1": 0, "x2": 0, "y2": 0}])
+    rows["at"] = pd.to_datetime(DAY + " " + rows["time"])
+    d = pdx.day_activity(PERSON, DAY, rows=rows, notes=sat, passes=p,
+                         reviews={})
+    check("seen by face (0.58, under the body's 0.70): a place, no review",
+          (round(d["places"].get("cafe", 0)), d["possible"],
+           [s["how"] for s in d["sightings"]]), (5, [], ["face"]))
+    d = pdx.day_activity(PERSON, DAY, rows=rows, notes=sat, passes=p,
+                         reviews={("12:20:00", "P9", "Prompt Cafe"): "no"})
+    check("a face somebody says no to is forgotten",
+          (d["places"], d["sightings"]), ({}, []))
+    import progress_track as pt
+    check("the loop learns faces only at the desk, compares them elsewhere",
+          ("faces.add_to_gallery" in open("progress_track.py").read(),
+           "faces.best_match" in open("progress_track.py").read()),
+          (True, True))
+    check("face numbers stay on this laptop",
+          "progress/" in open(".gitignore").read()
+          and "models/" in open(".gitignore").read(), True)
+    check("and the tracker still runs without the face models",
+          callable(pt.face_galleries), True)
+
+
+B = {"floors": ["Basement", "Ground floor", "First floor"],
+     "places": {"Desk Room": {"floor": "Ground floor", "at": [1, 1]},
+                "Lobby": {"floor": "Ground floor", "at": [2, 1]},
+                "Stairs": {"floor": "Ground floor", "at": [3, 1]},
+                "Cafe": {"floor": "First floor", "at": [3, 3]},
+                "Basement": {"floor": "Basement", "at": [3, 1]},
+                "Far Office": {"floor": "First floor", "at": [5, 5]}},
+     "links": [["Desk Room", "Lobby"], ["Lobby", "Stairs"],
+               ["Stairs", "Cafe"], ["Stairs", "Basement"],
+               ["Cafe", "Far Office"]]}
+CAMS = {("dvr9", 1): "Desk Room", ("dvr9", 2): "Lobby",
+        ("dvr9", 3): "Stairs", ("dvr9", 4): "Cafe", ("dvr9", 5): "Basement",
+        ("dvr9", 6): "Far Office"}
+
+
+def check_building():
+    print("-- the building: places, ways, the nearest cameras")
+    import building
+    check("the fewest steps from a desk to the cafe go up the stairs",
+          building.route(B, "Desk Room", "Cafe"),
+          ["Desk Room", "Lobby", "Stairs", "Cafe"])
+    check("no way to an unknown place", building.route(B, "Desk Room", "X"),
+          [])
+    check("steps from the desk", building.steps_from(B, "Desk Room")["Far "
+                                                                     "Office"],
+          4)
+    check("a place's height is its floor's",
+          building.xyz(B, "Cafe"), (3.0, 3.0, 2.0))
+    got = building.nearest_cameras(B, CAMS, "Desk Room", skip={("dvr9", 1)})
+    check("the cameras nearest first, the desk's own left out (a tie in "
+          "steps goes by the room's name)",
+          [k for _, k, _ in got][:3], [("dvr9", 2), ("dvr9", 3), ("dvr9", 5)])
+    check("a sound map has no problems", building.problems(B, list(B[
+        "places"])), [])
+    check("a room left off the map is said",
+          building.problems(B, list(B["places"]) + ["New Room"]),
+          ["room 'New Room' is not on the map"])
+    real = building.load()
+    rooms = [r for r in building.campus_rooms(
+        recorders={"nvr1", "nvr4", "dvr2", "xvr3"})
+        if r != "XVR 3 unused channels"]
+    check("building.yaml has every 140-H room, and nothing else",
+          building.problems(real, rooms), [])
+    check("140-H's floors, bottom to top", building.floors(real),
+          ["Basement", "Ground floor", "First floor", "Cafe floor"])
+    check("from Wellows to the cafe by the stairs",
+          "H Stairs" in building.route(real, "Wellows", "Prompt Cafe"), True)
+
+
+def check_follow():
+    print("-- follow mode: the cameras round somebody who has left the desk")
+    from datetime import datetime as _dt
+    import building
+    import progress_follow as pf
+    import progress_track as pt
+    pf.reset()
+    t0 = _dt(2026, 11, 20, 11, 0, 0, tzinfo=pt.PKT)
+
+    def t(minutes):
+        return t0 + pd.Timedelta(minutes=minutes)
+    pf.on_desk("P9", True, t(0), "Desk Room", ("dvr9", 1))
+    check("at the desk: nobody followed", pf.following(t(0).timestamp()), [])
+    pf.on_desk("P9", False, t(1), "Desk Room", ("dvr9", 1))
+    check("one look without them is not leaving (a missed detection)",
+          pf.following(t(1).timestamp()), [])
+    pf.on_desk("P9", False, t(2), "Desk Room", ("dvr9", 1))
+    check("two in a row is: followed from the first miss",
+          (pf.following(t(2).timestamp()), pf._state["P9"]["left"]),
+          (["P9"], t(1).timestamp()))
+    got = pf.plan(t(2).timestamp(), B, CAMS, set(CAMS), count=2)
+    check("the nearest camera, and the cafe as soon (a likely place to "
+          "go), never the desk's own",
+          [k for k, _ in got], [("dvr9", 2), ("dvr9", 4)])
+    got = pf.plan(t(3).timestamp(), B, CAMS, set(CAMS), count=2)
+    check("then the ones not looked at yet", [k for k, _ in got][0],
+          ("dvr9", 3))
+    pf.on_seen("P9", "Cafe", t(4), "possible", 0.74)
+    check("a sighting moves the looking round it",
+          pf._state["P9"]["around"], "Cafe")
+    got = pf.plan(t(4).timestamp(), B, CAMS, set(CAMS), count=1)
+    check("so the cafe's own camera comes first",
+          [k for k, _ in got], [("dvr9", 4)])
+    check("followed for a while after the last sighting, then not",
+          (pf.following(t(18).timestamp()), pf.following(t(20).timestamp())),
+          (["P9"], []))
+    pf.on_desk("P9", True, t(10), "Desk Room", ("dvr9", 1))
+    check("back at the desk: not followed", pf.following(t(10).timestamp()),
+          [])
+    pf.on_desk("P8", False, t(0), "Desk Room", ("dvr9", 1))
+    pf.on_desk("P8", False, t(1), "Desk Room", ("dvr9", 1))
+    check("never seen at the desk today: not followed (not in yet)",
+          pf.following(t(1).timestamp()), [])
+
+    # A step: the desk camera every minute; round them once they have left.
+    pf.reset()
+    room = type("R", (), {"name": "Desk Room", "cameras": [("dvr9", 1)]})()
+    others = [type("R", (), {"name": n, "cameras": [k]})()
+              for k, n in CAMS.items() if k != ("dvr9", 1)]
+    person = dict(PERSON, recorder="dvr9", channel=1, code="P9")
+    grabbed, looked = [], []
+    old = (pt._people, building.load, pf.campus_cameras)
+    present = [True]
+    try:
+        pt._people = lambda: [person]
+        building.load = lambda path=None: B
+        pf.campus_cameras = lambda: CAMS
+
+        def grab(r, key):
+            grabbed.append(key)
+            return "frame"
+
+        def look(r, key, frame):
+            looked.append(key)
+            if key == ("dvr9", 1):
+                pf.on_desk("P9", present[0], clock_now[0], "Desk Room", key)
+        clock_now = [t(0)]
+
+        def step(minutes):
+            clock_now[0] = t(minutes)
+            return pf.step([room] + others, {}, grab, look, now=t(minutes),
+                           clock=lambda: t(minutes).timestamp())
+        check("at 11:00 the desk camera is looked at", (step(0), grabbed),
+              (1, [("dvr9", 1)]))
+        grabbed.clear()
+        check("not again within the minute", (step(0.5), grabbed), (0, []))
+        present[0] = False
+        step(1)
+        step(2)
+        grabbed.clear()
+        step(3)
+        check("once they have left, the cameras round the desk too",
+              grabbed[0] == ("dvr9", 1) and ("dvr9", 2) in grabbed
+              and ("dvr9", 1) not in grabbed[1:], True)
+        grabbed.clear()
+        late = _dt(2026, 11, 20, 23, 0, 0, tzinfo=pt.PKT)
+        check("not at night", pf.step([room] + others, {}, grab, look,
+                                      now=late, clock=lambda: late.timestamp()),
+              0)
+        check("a step that breaks says so and goes on",
+              pf.step([room], {}, None, None, now=t(30),
+                      clock=lambda: t(30).timestamp()), 0)
+    finally:
+        pt._people, building.load, pf.campus_cameras = old
+        pf.reset()
+    source = open("room_loop.py", encoding="utf-8").read()
+    check("the loop follows between its batches, guarded",
+          "progress_follow.step(rooms, recorders, grab_one, look_again"
+          in source and "progress_follow = None" in source, True)
+    check("and looks through the same gates and private hours (fetch)",
+          "return fetch(SimpleNamespace(" in source, True)
+
+
+def check_route_and_map():
+    print("-- the day's way through the building, and its 3D picture")
+    import building_view as bv
+    day_act = {"line": [
+        (at("10:00"), at("10:05"), "computer", "Test Room"),
+        (at("10:05"), at("10:10"), "computer", "Test Room"),
+        (at("10:10"), at("10:15"), "unseen", ""),
+        (at("10:15"), at("10:20"), "unseen", ""),
+        (at("10:20"), at("10:25"), "phone", "Test Room")],
+        "sightings": [
+            {"t": at("10:12"), "place": "140 H Cafe", "how": "possible",
+             "score": 0.74, "recorder": "dvr9", "channel": 4},
+            {"t": at("10:17"), "place": "140 H Cafe", "how": "possible",
+             "score": 0.75, "recorder": "dvr9", "channel": 4}]}
+    got = pdx.route(day_act, "Desk Room", CAMS)
+    check("desk, the cafe (by its camera's room name, once), desk again",
+          [(q["t"].strftime("%H:%M"), q["place"], q["how"]) for q in got],
+          [("10:00", "Desk Room", "desk"), ("10:12", "Cafe", "possible"),
+           ("10:20", "Desk Room", "desk")])
+    check("a stop keeps till when", got[1]["until"], at("10:17"))
+    person = {"code": "P9", "desk_place": "Desk Room", "route": got,
+              "live": {"state": "away", "since": at("10:10")}}
+    check("away and possibly seen: now possibly there",
+          bv.where_now(person), ("Cafe", "possible"))
+    check("at the desk: at the desk",
+          bv.where_now(dict(person, live={"state": "desk"})),
+          ("Desk Room", "desk"))
+    check("away, not seen since leaving: nowhere drawn",
+          bv.where_now(dict(person, route=got[:1]))[0], None)
+    xs, ys, zs = bv.path_points(B, got)
+    check("the way drawn goes by the stairs, not through the floor",
+          len(xs), 7)
+    fig = bv.figure(B, [person], "dark")
+    check("the picture has the floors, the ways, the places and P9",
+          any("P9" in (t.name or "") for t in fig.data)
+          and len(fig.data) > len(B["floors"]) * 3, True)
+    check("colours follow the code, not the order shown",
+          bv.colour("P3", "light"), bv.colour("P3", "light", ["P1", "P2",
+                                                              "P3"]))
+    check("the way in words", bv.way_lines([person])[0][0], "P9")
+    check("the hosted copy carries the way (codes and rooms, no names)",
+          [q["place"] for q in pdx.from_payloads(pdx.to_payloads(
+              {}, [dict(person, name="Someone")], (10, 20), "now"))[1][0][
+              "route"]], ["Desk Room", "Cafe", "Desk Room"])
+
+
 def main():
+    check_faces()
+    check_building()
+    check_follow()
+    check_route_and_map()
     check_timeline()
     check_day()
     check_passes_and_usual()

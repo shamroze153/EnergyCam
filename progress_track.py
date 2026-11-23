@@ -38,6 +38,7 @@ import numpy as np
 import pandas as pd
 
 import desk_activity as da
+import faces
 import progress_data as pdx
 import reid
 # The day's assembly and the kinds of place live in progress_data, which
@@ -65,10 +66,22 @@ CAMPUS_RECORDERS = {"nvr1", "nvr4", "dvr2", "xvr3"}     # 140-H
 # until somebody confirms it on the Progress tab, and only confirmed
 # places are counted in the day's hours (progress_data.day_activity).
 TRACK_ELSEWHERE = reid.available()
+# Faces (faces.py; HR's permission for these five, 23 Nov): a face clearly
+# one employee's names them on any camera and the sighting needs nobody's
+# confirming; no face, or an unclear one, leaves the body re-ID to say
+# "possible".
+FACES_ON = faces.available()
+_face_cache = {"stamp": None, "galleries": {}}
 REID_MIN = 0.70
 REID_MARGIN = 0.03
 GALLERY_MAX = 40         # desk sightings kept per employee per day
 MIN_BOX_H = reid.MIN_H   # px: smaller people are too few pixels to compare
+
+# Told of every desk look -- f(code, present, at, room, key) -- and every
+# sighting -- f(code, room, at, state, score): progress_follow.py, which
+# moves the looking round an employee who has left the desk.
+ON_DESK = []
+ON_SEEN = []
 
 _cfg = {"mtime": None, "people": []}
 _gallery = {}            # (day, code) -> [unit vectors from the desk]
@@ -270,6 +283,9 @@ def _observe(room, key, frame, boxes, model, now):
                                            else "computer")
             if TRACK_ELSEWHERE:
                 learn(day, p["code"], reid.embed(frame, [me[2:]])[0])
+            if FACES_ON:
+                faces.add_to_gallery(p["code"], faces.of_person(frame,
+                                                                me[2:]))
         rows.append((hms, p["code"], "desk", state, room, key[0],
                      int(key[1]), 1.0 if me is not None else 0.0)
                     + (tuple(int(v) for v in me[2:]) if me is not None
@@ -279,7 +295,7 @@ def _observe(room, key, frame, boxes, model, now):
             % (hms.replace(":", ""), state)))
     # Everybody else on this camera who may be a visiting employee -- not
     # for the employees whose own desk camera this is (their neighbours).
-    if TRACK_ELSEWHERE:
+    if TRACK_ELSEWHERE or FACES_ON:
         visitors = [p for p in people
                     if (p["recorder"], int(p["channel"]))
                     != (key[0], int(key[1]))]
@@ -287,6 +303,20 @@ def _observe(room, key, frame, boxes, model, now):
                           visitors)
     if rows:
         _write(day, rows)
+    _tell(rows, now, key)
+
+
+def _tell(rows, now, key):
+    """progress_follow (and anything else listening) hears of the looks."""
+    for r in rows:
+        for f in (ON_DESK if r[2] == "desk" else ON_SEEN):
+            try:
+                if r[2] == "desk":
+                    f(r[1], r[3] != "away", now, r[4], key)
+                else:
+                    f(r[1], r[4], now, r[3], r[7])
+            except Exception:                               # noqa: BLE001
+                pass
 
 
 def seen_name(hms, score, room, key):
@@ -297,25 +327,49 @@ def seen_name(hms, score, room, key):
         key[0], int(key[1]))
 
 
+def face_galleries(codes, folder=None):
+    """The employees' kept faces (faces.GALLERY_DIR), read again only when
+    one of the files changes."""
+    folder = folder or faces.GALLERY_DIR
+    stamp = []
+    for c in codes:
+        path = os.path.join(folder, "%s.npy" % c)
+        stamp.append(os.path.getmtime(path) if os.path.exists(path) else 0)
+    stamp = (folder, tuple(codes), tuple(stamp))
+    if _face_cache["stamp"] != stamp:
+        loaded = {c: faces.load_gallery(c, folder) for c in codes}
+        _face_cache.update(stamp=stamp, galleries={
+            c: g for c, g in loaded.items() if len(g) >= 3})
+    return _face_cache["galleries"]
+
+
 def sightings(room, key, frame, persons, taken, day, hms, people):
     """Rows (and pictures) for the people on this camera most like one of
-    `people` today: "seen", "possible" until somebody confirms them."""
+    `people`: "face" where a face clearly names them (counted as seen),
+    else "possible" by the body until somebody confirms it."""
     galleries = {p["code"]: gallery(day, p["code"]) for p in people}
     galleries = {c: g for c, g in galleries.items() if g is not None}
-    if not galleries:
+    face_g = face_galleries([p["code"] for p in people]) if FACES_ON else {}
+    if not galleries and not face_g:
         return []
     cand = candidates(room, key, persons, frame.shape[1], taken,
                       regular_seats(day))
     if not cand:
         return []
-    vecs = reid.embed(frame, [b[2:] for b in cand])
+    vecs = reid.embed(frame, [b[2:] for b in cand]) if galleries else \
+        [None] * len(cand)
     rows = []
     for b, v in zip(cand, vecs):
-        m = best_match(v, galleries)
+        m, state = None, "possible"
+        if face_g:
+            m = faces.best_match(faces.of_person(frame, b[2:]), face_g)
+            state = "face" if m is not None else state
+        if m is None and galleries:
+            m = best_match(v, galleries)
         if m is None:
             continue
         code, score, _ = m
-        rows.append((hms, code, "seen", "possible", room, key[0],
+        rows.append((hms, code, "seen", state, room, key[0],
                      int(key[1]), score) + tuple(int(x) for x in b[2:]))
         _crop(frame, b[2:], os.path.join(CROPS, day, code,
                                          seen_name(hms, score, room, key)))
@@ -435,6 +489,9 @@ def backfill(day, people, model, frames_dir=None, folder=None,
             me = r["employee"]
             if me is not None and TRACK_ELSEWHERE:
                 learn(day, p["code"], reid.embed(frame, [me[2:]])[0])
+            if me is not None and FACES_ON:
+                faces.add_to_gallery(p["code"], faces.of_person(frame,
+                                                                me[2:]))
             if not desk_rows:
                 continue          # the day's desk rows are written already
             rows.append((hms, p["code"], "desk", r["state"], p["department"],
@@ -445,7 +502,7 @@ def backfill(day, people, model, frames_dir=None, folder=None,
             desk_crop(frame, p["seat"], os.path.join(
                 CROPS, day, p["code"], "%s_desk_%s.jpg"
                 % (hms.replace(":", ""), r["state"])))
-    if elsewhere and TRACK_ELSEWHERE:
+    if elsewhere and (TRACK_ELSEWHERE or FACES_ON):
         for path in sorted(glob.glob(os.path.join(frames_dir, "*", "*.jpg"))):
             try:
                 room, key = _kept_camera(path)
