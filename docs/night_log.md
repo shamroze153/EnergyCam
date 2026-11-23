@@ -1335,3 +1335,16 @@ Two or three lines a round; picture file names, never pictures.
   test_room_loop and test_integration were writing their stand-in pass
   into the real progress file (21:47:59, 21:54:11): redirected, the rows
   removed. All 21 test files green; loop restarted 21:47 (one loop).
+* 22:40 Re-ID (Shamroze OK'd the downloads): OSNet-AIN from torchreid's
+  model zoo (MIT code, MSMT17 weights, models/, weights_only) and
+  yolov8s-pose.pt (downloaded, not used yet -- too few phone moments
+  today to show it helps). On today's kept frames: an employee's second
+  camera 0.63-0.77 (colour had given 0.28-0.43); strangers over 0.70
+  mostly people at their own regular desks -- filtered out -- but one
+  still at 0.80. So sightings are "possible" until confirmed on the tab;
+  only confirmed places count. Today backfilled: 19 sightings, 6 left to
+  check after the day's filters (none confirmed -- the clearest, one at
+  the cafe, still not certain side by side). The review button checked
+  in the browser and its test row removed. Mid-way a failed splice
+  emptied progress_track.py on disk; restored from git before anything
+  imported it. Pushed 985a98f; loop restarted 22:34, first pass 254 s.
