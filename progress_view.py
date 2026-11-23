@@ -76,10 +76,24 @@ def day_block(focus, c, frm=8, to=24):
              ("Last out", t(focus.get("last_out"))),
              ("Last seen", t(focus.get("last_seen"))),
              ("At the desk", dur(at_desk))]
+    # Where they went: confirmed places only; possible ones wait below.
+    places = focus.get("places") or {}
+    names = {"meeting": "meetings", "own room": "own room, not at desk",
+             "office": "other offices", "cafe": "cafe / pantry",
+             "smoking": "smoking area", "prayer": "prayer",
+             "corridor": "corridors / reception", "outside": "outside"}
+    went = " · ".join("%s %s" % (esc(names.get(k, k)), dur(v))
+                      for k, v in sorted(places.items(), key=lambda x: -x[1]))
+    n_possible = len(focus.get("possible") or [])
+    where = ('<div class="pg-where"><b>Away, seen in:</b> %s%s</div>'
+             % (went or "no confirmed place yet",
+                (' <span>· %d possible sighting%s to check below</span>'
+                 % (n_possible, "" if n_possible == 1 else "s"))
+                if n_possible else ""))
     return (
         '<div class="pg-today"><div class="pg-th">%s<span>%s activity '
         'reading%s</span></div><div class="pg-facts4">%s</div>'
-        '<div class="pg-split">%s</div><div class="pg-leg">%s</div>'
+        '<div class="pg-split">%s</div><div class="pg-leg">%s</div>%s'
         '<div class="pg-days" style="padding-bottom:16px"><div class="pg-day">'
         '<span class="d">%s</span><svg viewBox="0 0 100 10" '
         'preserveAspectRatio="none" class="pg-bar">%s</svg><span class="r">'
@@ -88,7 +102,7 @@ def day_block(focus, c, frm=8, to=24):
            "" if focus.get("read", 0) == 1 else "s",
            "".join('<div><span>%s</span><b>%s</b></div>' % (esc(k), esc(v))
                    for k, v in facts),
-           bar, legend, esc(label[:6]), rects, axis(frm, to)))
+           bar, legend, where, esc(label[:6]), rects, axis(frm, to)))
 
 
 def hhmm(hour):
@@ -459,6 +473,9 @@ color:var(--t2)}
 margin-right:5px;vertical-align:-1px}
 .pg .pg-leg em{font-style:normal;font-weight:650;color:var(--t1)}
 .pg .pg-sub{font-size:11.5px;color:var(--t3);margin-top:8px}
+.pg .pg-where{font-size:12px;color:var(--t2);margin:6px 0 2px}
+.pg .pg-where b{color:var(--t1);font-weight:650}
+.pg .pg-where span{color:#3987e5;font-weight:600}
 .pg .pg-gantt{position:relative;--gl:170px;margin:6px 0 14px;padding-bottom:20px}
 .pg .pg-grow{display:grid;grid-template-columns:var(--gl) 1fr;align-items:center;
 min-height:30px}

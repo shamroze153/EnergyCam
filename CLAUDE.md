@@ -65,10 +65,16 @@ own box, "talking" only somebody standing over the desk) through
 `progress_track.observe` (guarded: it can never stop a pass), writing
 `progress/<date>.csv` and the desk's picture to `frames/progress/` (both
 local, kept 7 days). `progress_video.py` turns a day into a video per
-employee (the tab plays it). Following them to other cameras
-(`TRACK_ELSEWHERE`) is OFF: shirt colour was tested on 23 Nov and
-matched strangers better than the employee's own second camera -- it
-needs a trained re-identification model, checked by eye, first.
+employee (the tab plays it). Following them to other cameras: shirt
+colour was tested on 23 Nov and turned down; `reid.py` runs OSNet-AIN
+(`reid_osnet.py`, torchreid's MIT code, unchanged; weights in `models/`,
+git-ignored, loaded `weights_only=True`) on every 140-H camera's people
+who are not at a regular seat of an office, and writes the best match
+over 0.70 (by 0.03) as a *possible* sighting with a picture. Only a
+sighting confirmed on the tab ("Sightings to check" -> `review_<date>.csv`)
+counts as a place. Never confirm one for Shamroze without being sure by
+eye. `yolov8s-pose.pt` is downloaded but not used until a day of phone
+moments shows it helps.
 
 Savings & peak (18 Nov): the dashboard's "Savings & peak" tab is
 `savings.py` -- the scoreboard (meters against the last bill and the same

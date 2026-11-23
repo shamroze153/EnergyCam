@@ -5036,6 +5036,61 @@ def cached_progress(today, stamp, bucket, hours):
     return cfg, progress_data.build(cfg, today, hours)
 
 
+def show_sightings(mode, people):
+    """The day's possible sightings, for a person to confirm (Shamroze, 23
+    Nov: "where did they go"). The network's best guesses, each beside the
+    employee at their desk; only a "yes" makes it a place in the day's
+    hours, a "no" forgets it. Pictures from this laptop only."""
+    import progress_data
+    import progress_view
+    todo = [(p, s) for p in people
+            for s in ((p.get("focus") or {}).get("possible") or [])]
+    if not todo:
+        return
+    day = next(p["focus"]["day"] for p in people if p.get("focus"))
+    st.markdown(overview.css(mode) + '<div class="ec"><div class="ec-h">'
+                '<span class="t">Where did they go? Sightings to check'
+                '</span><span class="c">%d possible &middot; the re-ID '
+                'network&rsquo;s best guess on another camera while they were '
+                'away from the desk &middot; only a &ldquo;yes&rdquo; counts'
+                '</span></div></div>' % len(todo), unsafe_allow_html=True)
+
+    def decide(code, s, verdict):
+        progress_data.save_review(day, s["time"], code, s["room"], verdict)
+        cached_progress.clear()
+
+    for p in people:
+        items = sorted((p.get("focus") or {}).get("possible") or [],
+                       key=lambda s: s["time"])
+        if not items:
+            continue
+        st.markdown("**%s** · desk in %s · %d to check"
+                    % (progress_view.who(p), p["department"], len(items)))
+        shown = items[:5]
+        cols = st.columns(len(shown) + 1)
+        ref = progress_data.desk_picture(day, p["code"])
+        with cols[0]:
+            if ref:
+                stretch(st.image, ref, caption="at the desk")
+        for col, s in zip(cols[1:], shown):
+            with col:
+                pic = progress_data.seen_picture(day, p["code"], s["time"],
+                                                 s["recorder"], s["channel"])
+                if pic:
+                    stretch(st.image, pic)
+                st.caption("%s · %s · %.2f" % (s["time"][:5], s["room"],
+                                               s["score"]))
+                k = "%s_%s_%s%s" % (p["code"], s["time"], s["recorder"],
+                                    s["channel"])
+                yes, no = st.columns(2)
+                with yes:
+                    stretch(st.button, "Yes", key="sy_" + k,
+                            on_click=decide, args=(p["code"], s, "yes"))
+                with no:
+                    stretch(st.button, "No", key="sn_" + k,
+                            on_click=decide, args=(p["code"], s, "no"))
+
+
 def show_progress(now):
     """Progress (Shamroze, 23 Nov): the employee-productivity project --
     its stages, and time at the desk for the desks HR approved watching.
@@ -5072,14 +5127,20 @@ def show_progress(now):
         return
     local = now.tz_convert(PKT)
     hours = tuple(float(h) for h in work_hours())
+    day_key = local.strftime("%Y-%m-%d")
+    review_file = os.path.join(progress_data.ACTIVITY,
+                               "review_%s.csv" % day_key)
     with st.spinner("Adding up the desks..."):
         cfg, people = cached_progress(
-            local.strftime("%Y-%m-%d"),
-            os.path.getmtime(progress_data.CONFIG),
+            day_key,
+            (os.path.getmtime(progress_data.CONFIG),
+             os.path.getmtime(review_file) if os.path.exists(review_file)
+             else 0),
             _to_5min(now).isoformat(), hours)
     st.markdown(progress_view.page(mode, cfg, people,
                                    local.strftime("%d %b %H:%M"), hours),
                 unsafe_allow_html=True)
+    show_sightings(mode, people)
     # Each employee's day as a video (progress_video.py): pictures of the
     # desk, so -- like everything here -- only on this laptop. Made in a
     # process of its own: it needs OpenCV, which the hosted page has not.

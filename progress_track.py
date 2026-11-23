@@ -10,18 +10,19 @@ this rides on it and opens no camera of its own. For each camera's people
 
   * on an employee's own desk camera: is somebody at the desk, and doing
     what (desk_activity: computer / phone / talking)? While they sit there
-    it learns what they are wearing today -- a colour signature of the
-    shirt and of the trousers -- afresh each day;
-  * on every other 140-H camera: does anybody there look like an employee
-    who has a signature today? The closest look-alike above MATCH_MIN is
-    written down with its score.
+    it learns how they look today (reid.py: 512 numbers a picture, from a
+    network trained to tell people apart across cameras), afresh each day;
+  * on every other 140-H camera: is anybody there -- not sitting at a
+    regular seat of an office -- most like one of the employees, by a
+    clear margin? That is written down as a possible sighting, with a
+    small picture, for somebody to confirm on the Progress tab.
 
-No face is used, nothing is recognised beyond "dressed like P3 today".
-progress_day() later puts each pass together: at the desk (and what
-doing), else seen somewhere (the place's kind: meeting, cafe, smoking,
-prayer, outside, corridors, another office, their own room), else "not on
-any camera" -- the restroom or a room without one -- between first in and
-last out.
+No face is matched, and no name: "looks like P3 today". The day's
+assembly (progress_data.day_activity) puts each pass together: at the
+desk (and what doing), else at a confirmed sighting's place (meeting,
+cafe, smoking, prayer, outside, corridors, another office, their own
+room), else "not on any camera" -- the restroom or a room without one --
+between first in and last out.
 
 Written: progress/<date>.csv (numbers) and, for checking by eye and for
 the day's video, small crops in frames/progress/<date>/<code>/ -- this
@@ -37,35 +38,40 @@ import numpy as np
 
 import desk_activity as da
 import progress_data as pdx
+import reid
 # The day's assembly and the kinds of place live in progress_data, which
 # the dashboard reads without OpenCV; this module is the loop's half.
 from progress_data import (AT_DESK, CROPS, KINDS, PLACES,  # noqa: F401
-                           SEEN_MIN, place_of)
+                           place_of)
 
 PKT = timezone(timedelta(hours=5))
 OUT = pdx.ACTIVITY
 KEEP_DAYS = 7
 CAMPUS_RECORDERS = {"nvr1", "nvr4", "dvr2", "xvr3"}     # 140-H
 
-# Looking for the employees on the other cameras is OFF. 23 Nov, tested on
-# the day's kept frames before turning it on: by shirt colour each
-# employee matched themselves at their desk at 0.77-0.87 -- but one
-# matched a stranger in another department at 0.77, two in dark T-shirts
-# each other at 0.84, and one their own second camera (another angle on
-# the same desk, the same minute, side on in dim light) at only
-# 0.28-0.43. A place found that way would be invented as often as found.
-# The plumbing stays (sightings, kinds of place, the day's assembly) for a
-# re-identification model trained for it, checked by eye before it is
-# switched on.
-TRACK_ELSEWHERE = False
-# A look-alike this close or closer is written down as a sighting; the
-# day's assembly takes, per pass, the closest one over SEEN_MIN.
-MATCH_MIN = 0.55
-SAVE_MIN = 0.62          # sightings worth a crop to check by eye
-MIN_BOX_H = 70           # px: smaller people are too few pixels to compare
+# Following the employees to the other cameras. 23 Nov, first try, shirt
+# colour: each employee matched themselves at the desk at 0.77-0.87, but
+# a stranger in another department at 0.77, and their own second camera
+# (another angle on the same desk, the same minute) at only 0.28-0.43 --
+# turned down. Second try, OSNet-AIN (reid.py, trained to tell people
+# apart across cameras), on the day's kept frames: an employee's own
+# second camera 0.63-0.77, and the strangers above 0.70 were nearly all
+# people sitting at their own regular desks elsewhere, or neighbours on
+# the employee's own camera. So: nobody at a regular seat in an office
+# and nobody on the employee's own desk camera is a candidate; the best
+# employee must reach REID_MIN and beat the next by REID_MARGIN. Even
+# then one stranger reached 0.80 -- so a sighting is only "possible"
+# until somebody confirms it on the Progress tab, and only confirmed
+# places are counted in the day's hours (progress_data.day_activity).
+TRACK_ELSEWHERE = reid.available()
+REID_MIN = 0.70
+REID_MARGIN = 0.03
+GALLERY_MAX = 40         # desk sightings kept per employee per day
+MIN_BOX_H = reid.MIN_H   # px: smaller people are too few pixels to compare
 
 _cfg = {"mtime": None, "people": []}
-_sig = {}            # (day, code) -> {"up": hist, "n": int}
+_gallery = {}            # (day, code) -> [unit vectors from the desk]
+_seats = {"day": None, "spots": {}}
 
 
 def _people():
@@ -80,57 +86,86 @@ def _people():
     return _cfg["people"]
 
 
-def _hist(hsv):
-    """Colour of a patch, little moved by how bright the room is: hue and
-    saturation of the coloured pixels, and for the grey ones (dark shirts,
-    white shirts -- most of an office) only light, mid or dark."""
-    s, v = hsv[:, :, 1], hsv[:, :, 2]
-    ok = ((v > 30) & (v < 240)).astype(np.uint8)
-    colour = (ok & (s >= 50)).astype(np.uint8)
-    grey = (ok & (s < 50)).astype(np.uint8)
-    hc = cv2.calcHist([hsv], [0, 1], colour, [12, 3], [0, 180, 50, 256])
-    hg = cv2.calcHist([hsv], [2], grey, [3], [30, 240])
-    h = np.concatenate([hc.ravel(), hg.ravel()]).astype(np.float32)
-    total = float(h.sum())
-    return h / total if total > 0 else None
-
-
-def signature(frame, box):
-    """The colour of a person's shirt: the middle of the top of their box
-    (the bottom of a seated person's box is chair and desk, 23 Nov), or
-    None for a box too small to tell."""
-    x1, y1, x2, y2 = (int(round(float(v))) for v in box[:4])
-    h, w = y2 - y1, x2 - x1
-    if h < MIN_BOX_H or w < 20:
-        return None
-    H, W = frame.shape[:2]
-    cx1, cx2 = max(0, x1 + int(0.22 * w)), min(W, x2 - int(0.22 * w))
-    ya, yb = max(0, y1 + int(0.15 * h)), min(H, y1 + int(0.45 * h))
-    patch = frame[ya:yb, cx1:cx2]
-    if patch.size == 0:
-        return None
-    up = _hist(cv2.cvtColor(patch, cv2.COLOR_BGR2HSV))
-    return None if up is None else {"up": up}
-
-
-def similarity(a, b):
-    """0-1: how alike two shirts are (1 - Bhattacharyya distance)."""
-    if not a or not b:
-        return 0.0
-    return float(max(0.0, 1.0 - cv2.compareHist(
-        a["up"], b["up"], cv2.HISTCMP_BHATTACHARYYA)))
-
-
-def learn(day, code, sig, weight=0.2):
-    """Fold a desk sighting into the employee's signature for the day."""
-    if sig is None:
+def learn(day, code, vec):
+    """Keep a desk sighting's vector in the employee's gallery for today."""
+    if vec is None or not np.any(vec):
         return
-    cur = _sig.get((day, code))
-    if cur is None:
-        _sig[(day, code)] = {"up": sig["up"].copy(), "n": 1}
-        return
-    cur["up"] = (1 - weight) * cur["up"] + weight * sig["up"]
-    cur["n"] += 1
+    g = _gallery.setdefault((day, code), [])
+    g.append(np.asarray(vec, np.float32))
+    del g[:-GALLERY_MAX]
+
+
+def gallery(day, code):
+    """The employee's look today: the mean of their desk vectors, as a
+    unit vector, or None before they have sat down."""
+    g = _gallery.get((day, code))
+    if not g:
+        return None
+    m = np.mean(g, axis=0)
+    n = float(np.linalg.norm(m))
+    return m / n if n else None
+
+
+def regular_seats(day):
+    """Each camera's seats held on the last working days (seat_map): who
+    sits there in an office is its owner, not a visitor."""
+    if _seats["day"] == day:
+        return _seats["spots"]
+    spots = {}
+    try:
+        import seat_map
+        days = [d for d in pdx.working_days(day, 4) if d < day][-3:]
+        notes = seat_map.load(days, (9, 21)) if days else None
+        if notes is not None and len(notes):
+            found = seat_map.seats(
+                notes, passes=seat_map.passes_in(days, (9, 21)),
+                min_share=0.10)
+            for (_, rec, ch), s in found.items():
+                spots[(rec, int(ch))] = [(x, y) for x, y, _, _ in s]
+    except Exception:                                       # noqa: BLE001
+        spots = {}
+    _seats.update(day=day, spots=spots)
+    return spots
+
+
+def at_regular_seat(key, box, width, spots):
+    """A box whose bottom sits on one of the camera's regular seats."""
+    pts = spots.get((key[0], int(key[1])))
+    if not pts:
+        return False
+    x1, y1, x2, y2 = (float(v) for v in box[:4])
+    r = max(pdx.SEAT_RADIUS * width, pdx.SEAT_REACH * (y2 - y1))
+    bx, by = (x1 + x2) / 2.0, y2
+    return any((bx - x) ** 2 + (by - y) ** 2 <= r * r for x, y in pts)
+
+
+def best_match(vec, galleries):
+    """(code, score, margin) of the employee this vector is most like, or
+    None when no employee reaches REID_MIN by REID_MARGIN."""
+    if vec is None or not np.any(vec) or not galleries:
+        return None
+    scores = sorted(((float(np.dot(vec, g)), c) for c, g in galleries.items()),
+                    reverse=True)
+    top, code = scores[0]
+    second = scores[1][0] if len(scores) > 1 else -1.0
+    if top < REID_MIN or top - second < REID_MARGIN:
+        return None
+    return code, top, top - second
+
+
+def candidates(room, key, persons, width, taken, spots):
+    """The people on this camera who may be a visiting employee: not
+    already an employee at their desk, big enough to tell, and not
+    sitting at a regular seat of an office."""
+    office = place_of(room) == "office"
+    out = []
+    for b in persons:
+        if id(b) in taken or (b[5] - b[3]) < MIN_BOX_H:
+            continue
+        if office and at_regular_seat(key, b[2:], width, spots):
+            continue
+        out.append(b)
+    return out
 
 
 def _write(day, rows, folder=None):
@@ -232,7 +267,8 @@ def _observe(room, key, frame, boxes, model, now):
             guest = da.visitor(persons, me)
             state = "phone" if phone else ("talking" if guest
                                            else "computer")
-            learn(day, p["code"], signature(frame, me[2:]))
+            if TRACK_ELSEWHERE:
+                learn(day, p["code"], reid.embed(frame, [me[2:]])[0])
         rows.append((hms, p["code"], "desk", state, room, key[0],
                      int(key[1]), 1.0 if me is not None else 0.0)
                     + (tuple(int(v) for v in me[2:]) if me is not None
@@ -240,33 +276,49 @@ def _observe(room, key, frame, boxes, model, now):
         desk_crop(frame, p["seat"], os.path.join(
             CROPS, day, p["code"], "%s_desk_%s.jpg"
             % (hms.replace(":", ""), state)))
-    # Everybody else on this camera, against every employee with a
-    # signature today.
-    known = {p["code"]: _sig.get((day, p["code"])) for p in people}
-    known = {c: s for c, s in known.items() if s is not None}
-    if known and TRACK_ELSEWHERE:
-        for b in persons:
-            if id(b) in taken:
-                continue
-            sig = signature(frame, b[2:])
-            if sig is None:
-                continue
-            for code, s in known.items():
-                score = similarity(sig, s)
-                if score < MATCH_MIN:
-                    continue
-                rows.append((hms, code, "seen", "", room, key[0],
-                             int(key[1]), score)
-                            + tuple(int(v) for v in b[2:]))
-                if score >= SAVE_MIN:
-                    _crop(frame, b[2:], os.path.join(
-                        CROPS, day, code, "%s_seen_%.0f_%s_%s%02d.jpg"
-                        % (hms.replace(":", ""), 100 * score,
-                           "".join(ch if ch.isalnum() else "_"
-                                   for ch in room)[:28],
-                           key[0], int(key[1]))))
+    # Everybody else on this camera who may be a visiting employee -- not
+    # for the employees whose own desk camera this is (their neighbours).
+    if TRACK_ELSEWHERE:
+        visitors = [p for p in people
+                    if (p["recorder"], int(p["channel"]))
+                    != (key[0], int(key[1]))]
+        rows += sightings(room, key, frame, persons, taken, day, hms,
+                          visitors)
     if rows:
         _write(day, rows)
+
+
+def seen_name(hms, score, room, key):
+    """The file name of a possible sighting's picture."""
+    return "%s_seen_%.0f_%s_%s%02d.jpg" % (
+        hms.replace(":", ""), 100 * score,
+        "".join(ch if ch.isalnum() else "_" for ch in room)[:28],
+        key[0], int(key[1]))
+
+
+def sightings(room, key, frame, persons, taken, day, hms, people):
+    """Rows (and pictures) for the people on this camera most like one of
+    `people` today: "seen", "possible" until somebody confirms them."""
+    galleries = {p["code"]: gallery(day, p["code"]) for p in people}
+    galleries = {c: g for c, g in galleries.items() if g is not None}
+    if not galleries:
+        return []
+    cand = candidates(room, key, persons, frame.shape[1], taken,
+                      regular_seats(day))
+    if not cand:
+        return []
+    vecs = reid.embed(frame, [b[2:] for b in cand])
+    rows = []
+    for b, v in zip(cand, vecs):
+        m = best_match(v, galleries)
+        if m is None:
+            continue
+        code, score, _ = m
+        rows.append((hms, code, "seen", "possible", room, key[0],
+                     int(key[1]), score) + tuple(int(x) for x in b[2:]))
+        _crop(frame, b[2:], os.path.join(CROPS, day, code,
+                                         seen_name(hms, score, room, key)))
+    return rows
 
 
 # The day's assembly is progress_data.day_activity (the dashboard reads
@@ -275,27 +327,46 @@ load_day = pdx.load_activity
 progress_day = pdx.day_activity
 
 
-def backfill(day, people, model, frames_dir=None, folder=None):
+def _kept_camera(path):
+    """(room, (recorder, channel)) from a kept frame's file name, e.g.
+    'Prompt_Cafe__nvr4_ch14.jpg' -> ('Prompt Cafe', ('nvr4', 14))."""
+    name = os.path.basename(path)[:-4]
+    room, cam = name.rsplit("__", 1)
+    rec, ch = cam.rsplit("_ch", 1)
+    return room.replace("_", " ").strip(), (rec, int(ch))
+
+
+def backfill(day, people, model, frames_dir=None, folder=None,
+             elsewhere=True, hours=("08:00", "21:30"), desk_rows=True):
     """Activity rows (and desk crops) for a day from the frames kept every
     ten minutes (frames/ac_keep), for days before the loop wrote its own.
+    Then, with every desk sighting of the day as each employee's look,
+    the possible sightings on every other kept 140-H frame in `hours`.
     Returns how many frames were read."""
     import glob
     frames_dir = frames_dir or os.path.join("frames", "ac_keep", day)
     rows, n = [], 0
+
+    def stamp_of(path):
+        s = datetime.fromtimestamp(os.path.getmtime(path), PKT)
+        return s if s.strftime("%Y-%m-%d") == day else None
+
     for p in people:
         pat = os.path.join(frames_dir, "*", "*__%s_ch%02d.jpg"
                            % (p["recorder"], int(p["channel"])))
         for path in sorted(glob.glob(pat)):
             frame = cv2.imread(path)
-            if frame is None:
-                continue
-            stamp = datetime.fromtimestamp(os.path.getmtime(path), PKT)
-            if stamp.strftime("%Y-%m-%d") != day:
+            stamp = stamp_of(path)
+            if frame is None or stamp is None:
                 continue
             hms = stamp.strftime("%H:%M:%S")
             r = da.classify(frame, p, model)
             n += 1
             me = r["employee"]
+            if me is not None and TRACK_ELSEWHERE:
+                learn(day, p["code"], reid.embed(frame, [me[2:]])[0])
+            if not desk_rows:
+                continue          # the day's desk rows are written already
             rows.append((hms, p["code"], "desk", r["state"], p["department"],
                          p["recorder"], int(p["channel"]),
                          1.0 if me is not None else 0.0)
@@ -304,6 +375,32 @@ def backfill(day, people, model, frames_dir=None, folder=None):
             desk_crop(frame, p["seat"], os.path.join(
                 CROPS, day, p["code"], "%s_desk_%s.jpg"
                 % (hms.replace(":", ""), r["state"])))
+    if elsewhere and TRACK_ELSEWHERE:
+        for path in sorted(glob.glob(os.path.join(frames_dir, "*", "*.jpg"))):
+            try:
+                room, key = _kept_camera(path)
+            except ValueError:
+                continue
+            stamp = stamp_of(path)
+            if key[0] not in CAMPUS_RECORDERS or stamp is None or not (
+                    hours[0] <= stamp.strftime("%H:%M") <= hours[1]):
+                continue
+            frame = cv2.imread(path)
+            if frame is None:
+                continue
+            n += 1
+            persons = da.detect(frame, model, classes=[da.PERSON],
+                                conf=da.PERSON_CONF)
+            taken = set()
+            for p in people:
+                if (p["recorder"], int(p["channel"])) == key:
+                    me = da.employee(persons, p["seat"], frame.shape[1])
+                    if me is not None:
+                        taken.add(id(me))
+            visitors = [p for p in people
+                        if (p["recorder"], int(p["channel"])) != key]
+            rows += sightings(room, key, frame, persons, taken, day,
+                              stamp.strftime("%H:%M:%S"), visitors)
     rows.sort()
     if rows:
         _write(day, rows, folder)

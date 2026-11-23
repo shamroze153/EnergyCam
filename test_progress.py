@@ -259,18 +259,36 @@ def check_tracking():
          "office"])
     check("their own department's room is their own room",
           pt.place_of("Test Room", own="Test Room"), "own room")
-    check("following them elsewhere is off until a model is trusted",
-          pt.TRACK_ELSEWHERE, False)
-    red = np.zeros((400, 200, 3), np.uint8)
-    red[:, :] = (30, 30, 200)
-    blue = np.zeros((400, 200, 3), np.uint8)
-    blue[:, :] = (200, 60, 30)
-    a = pt.signature(red, (0, 0, 200, 400))
-    check("a shirt matches itself", round(pt.similarity(a, a), 2), 1.0)
-    check("a red shirt does not match a blue one",
-          pt.similarity(a, pt.signature(blue, (0, 0, 200, 400))) < 0.3, True)
-    check("a box too small to tell has no signature",
-          pt.signature(red, (0, 0, 20, 30)), None)
+    # The re-ID matching, on made-up vectors.
+    def unit(*v):
+        v = np.array(v + (0.0,) * (512 - len(v)), np.float32)
+        return v / np.linalg.norm(v)
+    g = {"P1": unit(1, 0, 0), "P2": unit(0, 1, 0)}
+    check("somebody clearly like P1 is P1",
+          pt.best_match(unit(0.9, 0.1, 0.0), g)[0], "P1")
+    check("somebody between two employees is nobody (the margin)",
+          pt.best_match(unit(1, 1, 0), g), None)
+    check("somebody like neither is nobody",
+          pt.best_match(unit(0, 0, 1), g), None)
+    pt._gallery.clear()
+    pt.learn(DAY, "P9", unit(1, 0, 0))
+    pt.learn(DAY, "P9", unit(0.8, 0.2, 0))
+    check("an employee's look is the mean of their desk sightings",
+          round(float(np.dot(pt.gallery(DAY, "P9"), unit(0.9, 0.1, 0))), 2),
+          1.0)
+    check("no desk sighting yet, no look", pt.gallery(DAY, "P8"), None)
+    spots = {("dvr9", 1): [(500, 700)]}
+    seated = (0, 0.9, 450, 400, 550, 700)
+    standing = (0, 0.9, 900, 300, 1000, 700)
+    tiny = (0, 0.9, 900, 300, 920, 330)
+    got = pt.candidates("Test Office", ("dvr9", 1),
+                        [seated, standing, tiny], 1920, set(), spots)
+    check("in an office, somebody at a regular seat is its owner, not a "
+          "visitor; a tiny box is too small to tell", got, [standing])
+    got = pt.candidates("Prompt Cafe", ("dvr9", 1), [seated], 1920, set(),
+                        spots)
+    check("in the cafe a regular seat is still a candidate", got, [seated])
+    pt._gallery.clear()
 
     # A day: at the desk 10:00-12:00 (computer, one phone read), away
     # 12:00-13:00, back 13:00-14:00 (no activity read), gone after.
@@ -301,6 +319,49 @@ def check_tracking():
           round(sum(d["estimate"].values())), 180)
     check("before and after the day is 'out', not unseen",
           d["line"][0][2], "out")
+
+    # Sightings while away: possible until confirmed; only "yes" counts.
+    seen = pd.DataFrame([
+        {"time": "12:20:00", "code": "P9", "kind": "seen",
+         "state": "possible", "room": "Prompt Cafe", "recorder": "nvr4",
+         "channel": 14, "score": 0.76, "x1": 0, "y1": 0, "x2": 0, "y2": 0},
+        {"time": "10:30:00", "code": "P9", "kind": "seen",
+         "state": "possible", "room": "H Smoking Area", "recorder": "nvr1",
+         "channel": 12, "score": 0.80, "x1": 0, "y1": 0, "x2": 0, "y2": 0},
+        {"time": "15:40:00", "code": "P9", "kind": "seen",
+         "state": "possible", "room": "Prompt Cafe", "recorder": "nvr4",
+         "channel": 14, "score": 0.81, "x1": 0, "y1": 0, "x2": 0, "y2": 0}])
+    seen["at"] = pd.to_datetime(DAY + " " + seen["time"])
+    both = pd.concat([rows, seen], ignore_index=True)
+    sat = notes_at(
+        [t.strftime("%H:%M") for t in pd.date_range(
+            at("10:01"), at("12:00"), freq="5min")]
+        + [t.strftime("%H:%M") for t in pd.date_range(
+            at("13:01"), at("14:00"), freq="5min")])
+    d = pdx.day_activity(PERSON, DAY, rows=both, notes=sat, passes=p,
+                         reviews={})
+    check("a sighting while away is listed as possible, not counted",
+          ([s["kind"] for s in d["possible"]], d["places"]), (["cafe"], {}))
+    check("one while at the desk is not even listed (10:30)",
+          any(s["time"] == "10:30:00" for s in d["possible"]), False)
+    check("one more than an hour after the last out is not (15:40)",
+          any(s["time"] == "15:40:00" for s in d["possible"]), False)
+    d = pdx.day_activity(PERSON, DAY, rows=both, notes=sat, passes=p,
+                         reviews={("12:20:00", "P9", "Prompt Cafe"): "yes"})
+    check("confirmed, it is a place in the day's hours",
+          (round(d["places"].get("cafe", 0)), d["possible"]), (5, []))
+    d = pdx.day_activity(PERSON, DAY, rows=both, notes=sat, passes=p,
+                         reviews={("12:20:00", "P9", "Prompt Cafe"): "no"})
+    check("rejected, it is forgotten", (d["places"], d["possible"]), ({}, []))
+    folder = tempfile.mkdtemp()
+    try:
+        pdx.save_review(DAY, "12:20:00", "P9", "Prompt Cafe", "yes", folder)
+        pdx.save_review(DAY, "12:20:00", "P9", "Prompt Cafe", "no", folder)
+        check("the latest word on a sighting stands",
+              pdx.load_reviews(DAY, folder),
+              {("12:20:00", "P9", "Prompt Cafe"): "no"})
+    finally:
+        shutil.rmtree(folder)
 
     # The loop's hook: one camera's boxes for the employee's desk.
     folder = tempfile.mkdtemp()

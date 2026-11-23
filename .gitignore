@@ -95,3 +95,7 @@ progress_*.html
 # their desk pictures and day videos live under frames/progress/.
 progress/
 *.webm
+# downloaded model weights: the re-ID network's (reid.py) and the pose
+# model's (yolov8s-pose.pt, under *.pt above)
+models/
+*.pth

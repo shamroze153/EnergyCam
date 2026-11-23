@@ -281,9 +281,12 @@ def week(person, days, hours=(10, 20), cache=None):
 
 ACTIVITY = "progress"
 CROPS = os.path.join("frames", "progress")
-# A sighting elsewhere this close (progress_track, once switched on) names
-# the place for that pass.
-SEEN_MIN = 0.62
+# A sighting elsewhere this close (progress_track.REID_MIN) is a possible
+# place for that pass; it names the place only once confirmed by a person
+# (review_<date>.csv, from the Progress tab), and only within an hour of
+# the day at the desk.
+SEEN_MIN = 0.70
+SEEN_WINDOW = pd.Timedelta(minutes=60)
 # Where a camera's room is, by kind. First match wins; anything else is an
 # office (their own room if it is their department's).
 PLACES = [
@@ -326,8 +329,54 @@ def load_activity(day, folder=None):
     return d
 
 
+def load_reviews(day, folder=None):
+    """What a person said about the day's possible sightings:
+    {(time, code, room): "yes" | "no"}, the latest word for each."""
+    path = os.path.join(folder or ACTIVITY, "review_%s.csv" % day)
+    if not os.path.exists(path):
+        return {}
+    d = pd.read_csv(path, dtype=str).fillna("")
+    return {(r["time"], r["code"], r["room"]): r["verdict"]
+            for _, r in d.iterrows()}
+
+
+def seen_picture(day, code, time_, recorder, channel, crops=None):
+    """The small picture progress_track kept of a possible sighting, or
+    None (pictures are on this laptop only, and let go after a week)."""
+    import glob
+    hits = glob.glob(os.path.join(
+        crops or CROPS, day, code, "%s_seen_*_%s%02d.jpg"
+        % (str(time_).replace(":", ""), recorder, int(channel))))
+    return sorted(hits)[0] if hits else None
+
+
+def desk_picture(day, code, crops=None):
+    """The latest picture of the employee's desk with them at it."""
+    import glob
+    hits = []
+    for state in ("computer", "phone", "talking"):
+        hits += glob.glob(os.path.join(crops or CROPS, day, code,
+                                       "*_desk_%s.jpg" % state))
+    return sorted(hits)[-1] if hits else None
+
+
+def save_review(day, time_, code, room, verdict, folder=None):
+    """Write one yes/no about a possible sighting (the Progress tab)."""
+    import csv
+    folder = folder or ACTIVITY
+    os.makedirs(folder, exist_ok=True)
+    path = os.path.join(folder, "review_%s.csv" % day)
+    new = not os.path.exists(path)
+    with open(path, "a", newline="", encoding="utf-8") as fh:
+        w = csv.writer(fh)
+        if new:
+            w.writerow(["time", "code", "room", "verdict", "at"])
+        w.writerow([time_, code, room, verdict,
+                    datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
+
+
 def day_activity(person, day, rows=None, notes=None, passes=None,
-                 seen_min=SEEN_MIN):
+                 seen_min=SEEN_MIN, reviews=None):
     """An employee's whole day, pass by pass, and its figures.
 
     At the desk or not comes from the seat notes (timeline(): every pass,
@@ -345,6 +394,7 @@ def day_activity(person, day, rows=None, notes=None, passes=None,
     rows = load_activity(day) if rows is None else rows
     notes = globals()["notes"](day) if notes is None else notes
     passes = globals()["passes"](day) if passes is None else passes
+    reviews = load_reviews(day) if reviews is None else reviews
     code = person["code"]
     own = person.get("department")
     mine = rows[rows["code"] == code] if len(rows) else rows
@@ -364,17 +414,40 @@ def day_activity(person, day, rows=None, notes=None, passes=None,
                     kind = str(acts.loc[gap.idxmin(), "state"])
                     read += 1
             line.append([start, end, kind, room])
-            continue
-        inside = seen[(seen["at"] > start) & (seen["at"] <= end)] \
-            if len(seen) else seen
-        if len(inside):
-            best = inside.loc[inside["score"].idxmax()]
-            line.append([start, end, place_of(best["room"], own),
-                         str(best["room"])])
         else:
             line.append([start, end, "unseen", ""])
     at = [i for i, p in enumerate(line)
           if p[2] in AT_DESK and p[1] > start_of_day]
+    # Away from the desk: the best sighting in each pass within an hour of
+    # the day at the desk. A confirmed one names the place; a possible one
+    # is listed for somebody to look at; a rejected one is forgotten.
+    possible = []
+    if at and len(seen):
+        lo = line[at[0]][0] - SEEN_WINDOW
+        hi = line[at[-1]][1] + SEEN_WINDOW
+        for p in line:
+            if p[2] != "unseen" or p[0] < lo or p[1] > hi:
+                continue
+            inside = seen[(seen["at"] > p[0]) & (seen["at"] <= p[1])]
+            if not len(inside):
+                continue
+            inside = inside.assign(verdict=[
+                reviews.get((r["time"], code, str(r["room"])), "")
+                for _, r in inside.iterrows()])
+            yes = inside[inside["verdict"] == "yes"]
+            if len(yes):
+                best = yes.loc[yes["score"].idxmax()]
+                p[2], p[3] = place_of(best["room"], own), str(best["room"])
+                continue
+            open_ = inside[inside["verdict"] == ""]
+            if len(open_):
+                best = open_.loc[open_["score"].idxmax()]
+                possible.append({
+                    "time": str(best["time"]), "room": str(best["room"]),
+                    "kind": place_of(best["room"], own),
+                    "score": float(best["score"]),
+                    "recorder": str(best["recorder"]),
+                    "channel": int(best["channel"])})
     for i, p in enumerate(line):
         if p[2] == "unseen" and (not at or i < at[0] or i > at[-1]):
             p[2] = "out"
@@ -397,6 +470,9 @@ def day_activity(person, day, rows=None, notes=None, passes=None,
         "last_out": line[at[-1]][1] if at else None,
         "last_seen": anywhere[-1][1] if anywhere else None,
         "last_seen_where": anywhere[-1][3] if anywhere else "",
+        "possible": possible,
+        "places": {k: minutes[k] for k in KINDS
+                   if k not in AT_DESK and k != "unseen" and minutes[k] > 0},
     }
 
 
