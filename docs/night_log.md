@@ -1377,3 +1377,15 @@ Two or three lines a round; picture file names, never pictures.
   nobody in) and the same twin with the five on the Progress tab. Pushed
   f000e33 and 21c44c9; loop restarted 23:53. Not photo-real: it is
   building.yaml's sketch -- the fire-exit plans would give it true sizes.
+
+## 24 Nov, night
+
+* 00:47 round: 3 GHOST, 113 match, no MISSED. 141 First Aid: a man at
+  00:45 (0.87, by the door), gone by the check -- the loop a pass behind.
+  H Ground Floor Lobby: one 0.47 box at xvr3 ch10's right edge (the
+  vending machine), once; by day people pass there (0.92), so no zone.
+  Outside H: nvr1 ch31's far gate (68,51), small 10x24 boxes most nights
+  -- looks like the guard sitting by the gate (ghost_Outside_H_ch31_nvr1_
+  0047.jpg), outdoors, no unit: left. Nothing changed; no restart. Loop
+  alive (00:46 pass), desk rows each pass; the hosted Progress tab now
+  has every working day 12-24 Nov.
