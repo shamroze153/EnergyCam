@@ -85,3 +85,9 @@ Claude support sheet*
 weekly_report_sent.json
 weekly_report.log
 weekly_preview*.html
+
+# Progress (23 Nov): which desks are watched, under which codes, and the
+# project's stages -- about named people's working day, so this machine
+# only. progress.example.yaml shows the shape.
+progress.yaml
+progress_*.html

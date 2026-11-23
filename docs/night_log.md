@@ -1310,3 +1310,12 @@ Two or three lines a round; picture file names, never pictures.
 * Left uncommitted in rooms.yaml from 21 Nov 04:43: a Solar Array ch29
   zone (pipework, no unit). Committed on Shamroze's yes (20:35); the
   20:24 restart had already loaded it.
+* 21:00 Progress (Shamroze; HR approved watching 4-5 employees): a
+  password-protected "Progress" tab -- the project's five stages and a
+  card per employee (time at their own desk from the seat notes: first
+  in, last out, hours, breaks; never "productive"). Five employees in five
+  late-staying 140-H departments, coded P1-P5; which is which lives only
+  in progress.yaml on this laptop. Checked by eye on today's kept frames:
+  94 of 97 readings agree. Needs PROGRESS_PASSWORD in .env to open.
+  Found on the way: both Marketing cameras (ch 3, ch 13) were re-aimed
+  between 12:05 and 19:01 today -- their AC calibrations need checking.

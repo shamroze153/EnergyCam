@@ -1,0 +1,31 @@
+# The shape of progress.yaml, which lives on the office laptop only (it is
+# git-ignored: it says which employee sits at which desk). Copy this to
+# progress.yaml there and fill it in. Nothing here is a real desk.
+campus: 140-H
+started: 2026-11-23
+
+people:
+  - code: P1                 # the page calls them "Employee P1"...
+    name: ""                 # ...unless a name is put here (laptop only)
+    department: Some Room    # the room their desk is in, as rooms.yaml
+    recorder: dvr2           # the camera that sees the desk best
+    channel: 15
+    seat: [560, 700]         # where a sitter's box ends, in that camera's
+                             # pixels (seat_map.py finds the busy ones)
+    # since: 2026-11-19      # only if the camera was re-aimed: days before
+    why: why this desk was picked
+    check: {date: 23 Nov, frames: 19, agree: 18,
+            missed: "what the readings got wrong, checked by eye"}
+
+stages:                      # status: done, doing, next, later
+  - name: Employees and codes
+    status: done
+    progress: 100
+    what: what the stage is
+    done: 23 Nov
+  - name: Time at the desk
+    status: doing
+    progress: 50
+    what: what the stage is
+    next: the next step
+    due: 25 Nov

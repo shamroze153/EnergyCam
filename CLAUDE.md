@@ -47,7 +47,18 @@ Tests: `python test_room_loop.py`, `test_overview.py`, `test_energy.py`,
 `test_integration.py`, `test_audit.py`, `test_ac_detect.py`,
 `test_meters.py`, `test_analysis.py`, `test_alerts.py`, `test_empty.py`,
 `test_live_ac.py`, `test_floors.py`, `test_energy_rooms.py`, `test_seats.py`,
-`test_ac_plan.py`, `test_seating.py`, `test_savings.py`.
+`test_ac_plan.py`, `test_seating.py`, `test_savings.py`, `test_progress.py`.
+
+Progress (23 Nov): HR approved watching a handful of employees.
+`progress_data.py` turns the seat notes into each employee's day at their
+own desk (first in, last out, hours at the desk, breaks; a pass never made
+is "not watched", never "away"); `progress_view.py` draws the dashboard's
+"Progress" tab -- the project's stages and an employee card each -- behind
+its own password, `PROGRESS_PASSWORD` (.env / secrets; unset = locked).
+Which employee, which desk, which code: `progress.yaml`, this machine only
+(git-ignored; `progress.example.yaml` shows the shape). Never commit it,
+never put a name or a result in the repo. Say "at the desk", never
+"productive", and check a new desk by eye on its kept frames first.
 
 Savings & peak (18 Nov): the dashboard's "Savings & peak" tab is
 `savings.py` -- the scoreboard (meters against the last bill and the same

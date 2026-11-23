@@ -5027,6 +5027,64 @@ st.markdown(overview.campus_head({"name": campus}, campuses, mode,
                                  wordmark(mode), live_text, healthy, when,
                                  LINK_BASE, KEEP_VIEW), unsafe_allow_html=True)
 
+@st.cache_data(ttl=300, show_spinner=False)
+def cached_progress(today, stamp, bucket, hours):
+    """progress.yaml and every desk's last five working days. `stamp` (the
+    file's time) and `bucket` (five minutes) only key the cache."""
+    import progress_data
+    cfg = progress_data.load()
+    return cfg, progress_data.build(cfg, today, hours)
+
+
+def show_progress(now):
+    """Progress (Shamroze, 23 Nov): the employee-productivity project --
+    its stages, and time at the desk for the desks HR approved watching.
+
+    A door of its own: PROGRESS_PASSWORD (in .env on the laptop, in the
+    app's secrets where hosted), not the dashboard's own word, so only he
+    and his boss open it. Unset means locked, never open. And it reads
+    only this machine's files (progress.yaml, seats/), so on the hosted
+    page it says it runs on the office laptop and shows nothing."""
+    import progress_data
+    import progress_view
+    mode = LINK_BASE.get("theme") or "dark"
+    wanted = _setting("PROGRESS_PASSWORD")
+    if not wanted:
+        st.markdown(progress_view.locked(mode, "unset"),
+                    unsafe_allow_html=True)
+        return
+    if not st.session_state.get("progress_in"):
+        st.markdown(progress_view.locked(mode, "ask"), unsafe_allow_html=True)
+        typed = st.text_input("Progress password", type="password",
+                              key="progress_typed",
+                              label_visibility="collapsed",
+                              placeholder="Progress password")
+        if typed:
+            # compare_digest, as at the front door: no timing to guess by.
+            if hmac.compare_digest(str(typed), str(wanted)):
+                st.session_state["progress_in"] = True
+                st.rerun()
+            st.error("Not that.")
+        return
+    if not os.path.exists(progress_data.CONFIG):
+        st.markdown(progress_view.locked(mode, "none"),
+                    unsafe_allow_html=True)
+        return
+    local = now.tz_convert(PKT)
+    hours = tuple(float(h) for h in work_hours())
+    with st.spinner("Adding up the desks..."):
+        cfg, people = cached_progress(
+            local.strftime("%Y-%m-%d"),
+            os.path.getmtime(progress_data.CONFIG),
+            _to_5min(now).isoformat(), hours)
+    st.markdown(progress_view.page(mode, cfg, people,
+                                   local.strftime("%d %b %H:%M"), hours),
+                unsafe_allow_html=True)
+    if st.button("Lock Progress", key="progress_lock"):
+        st.session_state["progress_in"] = False
+        st.rerun()
+
+
 # ---- the views -------------------------------------------------------------
 #
 # Five in a row across the top -- the ones people open -- and the rest behind
@@ -5034,10 +5092,11 @@ st.markdown(overview.campus_head({"name": campus}, campuses, mode,
 # One room.
 # "Desks" (13 Nov): the seating sheet against the cameras, Envoy-style.
 # "Savings & peak" (18 Nov): the scoreboard, and every room's peak hours.
+# "Progress" (23 Nov): the productivity project, behind its own password.
 PRIMARY = ["Overview", "Who comes when", "Rooms", "Desks", "Empty time",
            "Energy", "Savings & peak"]
 SECONDARY = ["One room", "Camera health", "Look at the rooms",
-             "Numbers & history"]
+             "Numbers & history", "Progress"]
 VIEWS = PRIMARY + SECONDARY
 # Meters and Analysis became one tab on 12 Nov; a session still on either
 # opens on it rather than falling back to the front page.
@@ -5334,6 +5393,9 @@ elif view == "Camera health":
 
 elif view == "Look at the rooms":
     show_stills(cooled, now)
+
+elif view == "Progress":
+    show_progress(now)
 
 else:
     show_numbers(df, cooled, recent, now)
