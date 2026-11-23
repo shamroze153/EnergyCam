@@ -398,6 +398,41 @@ def check_tracking():
           in source and "progress_track = None" in source, True)
 
 
+def check_twin():
+    print("-- the 3D twin: numbers only, every room, the five on request")
+    import twin_view as tv
+    latest = [{"room": "Cafe", "status": "occupied", "people": 3,
+               "ac_state": "on", "ac_units_on": 2},
+              {"room": "Lobby", "status": "empty", "people": 0,
+               "ac_state": "on", "ac_units_on": float("nan")}]
+    d = tv.scene_data(B, latest)
+    rooms = {r["n"]: r for r in d["rooms"]}
+    check("every place of the building is a room of the scene",
+          sorted(rooms), sorted(B["places"]))
+    check("its live numbers ride along (a missing count stays unknown)",
+          (rooms["Cafe"]["p"], rooms["Cafe"]["u"], rooms["Lobby"]["u"],
+           rooms["Basement"]["st"]), (3, 2, None, "unknown"))
+    check("floors by height", (rooms["Basement"]["f"], rooms["Cafe"]["f"]),
+          (0, 2))
+    check("nobody drawn unless asked (the Progress tab only)", d["emp"], [])
+    html = tv.page(tv.scene_data(B, latest, [
+        {"code": "P9", "place": "Cafe", "how": "face", "colour": "#2a78d6"}]),
+        "dark", 500)
+    check("the page is whole: no placeholder left, three.js pinned",
+          ("__" not in html.replace("__proto__", ""),
+           "three@0.128.0" in html, '"P9"' in html), (True, True, True))
+    sneaky = dict(B, places=dict(B["places"], **{
+        "</script><b>": {"floor": "Basement", "at": [1, 1]}}))
+    check("a room's name cannot end the script",
+          "</script><b>" in tv.page(tv.scene_data(sneaky), "light"), False)
+    check("no picture in it: drawn from numbers alone",
+          any(w in html for w in (".jpg", ".png", "data:image")), False)
+    dash = open("rooms_dashboard.py", encoding="utf-8").read()
+    check("3D is first in 140-H's row, and the page still opens on Overview",
+          ('PRIMARY = (["3D"] if campus == PROGRESS_CAMPUS else [])' in dash,
+           'st.session_state["view"] = "Overview"' in dash), (True, True))
+
+
 def check_night():
     print("-- at night: a stretch that only begins after 22:00 is no sitter")
     p = passes_every("21:30", "23:30")
@@ -922,6 +957,7 @@ def main():
     check_building()
     check_follow()
     check_route_and_map()
+    check_twin()
     check_night()
     check_stretches()
     check_average()

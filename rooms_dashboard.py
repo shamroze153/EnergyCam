@@ -5140,6 +5140,37 @@ def show_sightings(mode, people):
                             on_click=decide, args=(p["code"], s, "no"))
 
 
+def twin(mode, employees=None, height=640):
+    """The building as a 3D twin, live (twin_view.py): its rooms from
+    building.yaml, their people and ACs from the latest readings."""
+    import streamlit.components.v1 as components
+    import building
+    import twin_view
+    b = building.load()
+    if not b:
+        st.info("building.yaml is missing, so there is no building to draw.")
+        return
+    try:
+        latest = load_state()[0].to_dict("records")
+    except Exception:                                       # noqa: BLE001
+        latest = []
+    data = twin_view.scene_data(b, latest, employees)
+    components.html(twin_view.page(data, mode, height), height=height + 8)
+
+
+def show_twin():
+    """The "3D" tab: 140-H floor by floor, live."""
+    mode = LINK_BASE.get("theme") or "dark"
+    st.markdown(overview.css(mode) + '<div class="ec"><div class="ec-h">'
+                '<span class="t">140-H in 3D, live</span><span class="c">'
+                'every floor and room, the people the cameras count in it and '
+                'its AC as read now &middot; a sketch of the building from the '
+                'cameras (building.yaml), not yet the floor plan &middot; '
+                'lift one floor out with the buttons, point at a room for its '
+                'numbers</span></div></div>', unsafe_allow_html=True)
+    twin(mode, height=680)
+
+
 def pick_progress_day(days):
     """A row of the days kept (newest first), to look at any one of them
     (Shamroze, 23 Nov: "kal dekhna chahun, parson dekhna chahun").
@@ -5171,6 +5202,22 @@ def show_building(mode, people):
     b = building.load()
     if not b or not people:
         return
+    # The twin with the five in it, where each is now.
+    order = [p.get("code") for p in people]
+    here = []
+    for p in people:
+        place, how = building_view.where_now(p)
+        if place:
+            here.append({"code": p.get("code", "?"), "place": place,
+                         "how": how, "colour": building_view.colour(
+                             p.get("code"), mode, order)})
+    st.markdown(overview.css(mode) + '<div class="ec"><div class="ec-h">'
+                '<span class="t">The building now, with the five in it</span>'
+                '<span class="c">a ball over each one&rsquo;s place: solid at '
+                'the desk or seen there, faint &ldquo;?&rdquo; possibly; '
+                'nobody drawn who is out or not seen since leaving the desk'
+                '</span></div></div>', unsafe_allow_html=True)
+    twin(mode, here, height=560)
     st.markdown(overview.css(mode) + '<div class="ec"><div class="ec-h">'
                 '<span class="t">Where they are, and the way they went today'
                 '</span><span class="c">the building floor by floor &middot; '
@@ -5303,9 +5350,13 @@ def show_progress(now):
 # in the top row on the campus it watches (Shamroze: "140-H campus me
 # Progress ka tab"; tucked under More it was not found), nowhere else.
 PROGRESS_CAMPUS = "140-H"
-PRIMARY = ["Overview", "Who comes when", "Rooms", "Desks", "Empty time",
-           "Energy", "Savings & peak"] + (
-               ["Progress"] if campus == PROGRESS_CAMPUS else [])
+# "3D" (23 Nov night, Shamroze: "140-H ke andar ek 3D ka column pehle add
+# kar do"): the building as a twin, first in 140-H's row -- the page still
+# opens on Overview.
+PRIMARY = (["3D"] if campus == PROGRESS_CAMPUS else []) + [
+    "Overview", "Who comes when", "Rooms", "Desks", "Empty time",
+    "Energy", "Savings & peak"] + (
+        ["Progress"] if campus == PROGRESS_CAMPUS else [])
 SECONDARY = ["One room", "Camera health", "Look at the rooms",
              "Numbers & history"]
 VIEWS = PRIMARY + SECONDARY
@@ -5607,6 +5658,9 @@ elif view == "Look at the rooms":
 
 elif view == "Progress":
     show_progress(now)
+
+elif view == "3D":
+    show_twin()
 
 else:
     show_numbers(df, cooled, recent, now)
