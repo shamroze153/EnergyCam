@@ -154,6 +154,12 @@ JOINED = pd.Timedelta(minutes=2)
 # at his desk, 0.90, 1.13; a man standing by P2's empty chair, 0.89, 2.46).
 LONE_SURE = 0.6
 SEATED_RATIO = 1.8
+# A stretch at the desk that only BEGINS at night is not a sitter: in
+# infrared an empty black chair scores like a person (CLAUDE.md, 14 Nov),
+# and the cleaners come round (23 Nov 23:05-23:11, P5's empty chair and a
+# cleaner made a "last out 23:14"; seen by eye). Somebody who sat down
+# before NIGHT_FROM and works on is kept (P3 21:47-22:13 the same night).
+NIGHT_FROM = 22
 
 
 def timeline(person, day_notes, day_passes, min_score=None):
@@ -207,6 +213,19 @@ def timeline(person, day_notes, day_passes, min_score=None):
         if (out[k][2] == "desk" and before == "away" and after == "away"
                 and out[k][3] < LONE_SURE):
             out[k][2] = "blip"
+    k = 0
+    while k < len(out):
+        if out[k][2] != "desk":
+            k += 1
+            continue
+        end = k
+        while end + 1 < len(out) and out[end + 1][2] == "desk" \
+                and joined(end, end + 1):
+            end += 1
+        if out[k][0].hour >= NIGHT_FROM:
+            for m in range(k, end + 1):
+                out[m][2] = "blip"
+        k = end + 1
     return [(p[0], p[1], "away" if p[2] == "blip" else p[2]) for p in out]
 
 
@@ -732,6 +751,44 @@ def history(person, upto, count=20, folder=SEATS, cache=None, stored=None,
                 since and day < since):
             out[day] = rec
     return [out[d] for d in sorted(out)][-count:]
+
+
+def average(past, days=7):
+    """An employee's usual over their last `days` days in (Shamroze, 23
+    Nov: "per day ya 7 din ka average"): first in and last out as clock
+    minutes, minutes in the office and at the desk, desk %, computer %
+    (over the days the activity was read, and how many), minutes on the
+    phone and talking, breaks a day and the longest. Days only partly
+    watched are left out while there are whole ones. None before a day in."""
+    rows = [r for r in past or [] if r.get("first") is not None][-days:]
+    whole = [r for r in rows if not r.get("part")] or rows
+    if not whole:
+        return None
+
+    def mean(vals):
+        vals = [float(v) for v in vals if v is not None and v == v]
+        return sum(vals) / len(vals) if vals else None
+
+    def clock(t):
+        return t.hour * 60 + t.minute
+    read = [r for r in whole if r.get("computer_pct") is not None
+            and r.get("computer_pct") == r.get("computer_pct")]
+    return {
+        "days": len(whole), "from": whole[0]["day"], "to": whole[-1]["day"],
+        "first": mean([clock(r["first"]) for r in whole]),
+        "last": mean([clock(r["last"]) for r in whole if r.get("last")
+                      is not None]),
+        "in_min": mean([r.get("in_min") for r in whole]),
+        "desk_min": mean([r.get("desk_min") for r in whole]),
+        "desk_pct": mean([r.get("desk_pct") for r in whole]),
+        "computer_pct": mean([r.get("computer_pct") for r in read]),
+        "computer_min": mean([r.get("computer_min") for r in read]),
+        "phone_min": mean([r.get("phone_min") for r in read]),
+        "talking_min": mean([r.get("talking_min") for r in read]),
+        "read_days": len(read),
+        "breaks": mean([r.get("breaks") for r in whole]),
+        "longest_break": mean([r.get("longest_break") for r in whole]),
+    }
 
 
 def live(day_act, now, hours=(10, 20)):

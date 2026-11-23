@@ -387,9 +387,13 @@ def sightings(room, key, frame, persons, taken, day, hms, people):
 PUBLISH_EVERY = 300
 _published = {"at": 0.0, "missing": False, "told": False}
 
+# The payload is given twice rather than read back as EXCLUDED.payload:
+# reading an EXCLUDED column needs SELECT on that column of the table, and
+# the camera machine may read only (day, code) -- 23 Nov, the first real
+# write was "permission denied for table progress_days".
 UPSERT = ("INSERT INTO progress_days (day, code, payload, updated_at)"
           " VALUES (%s, %s, %s::jsonb, now())"
-          " ON CONFLICT (day, code) DO UPDATE SET payload = EXCLUDED.payload,"
+          " ON CONFLICT (day, code) DO UPDATE SET payload = %s::jsonb,"
           " updated_at = now()")
 
 
@@ -422,7 +426,7 @@ def publish(connect, now=None, clock=time.time, force=False):
         conn = connect()
         try:
             cur = conn.cursor()
-            cur.executemany(UPSERT, [(day, code, j) for code, j in rows])
+            cur.executemany(UPSERT, [(day, code, j, j) for code, j in rows])
             conn.commit()
             cur.close()
         finally:

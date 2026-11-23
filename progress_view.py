@@ -435,6 +435,48 @@ def team_table(people, c, days_shown=10):
             '</table></div>' % (head, "".join(rows)))
 
 
+def averages_table(people, days=7):
+    """Each employee's usual over their last seven days in: in, out, the
+    office and the desk, computer and phone, breaks (progress_data.average).
+    Shamroze, 23 Nov: "per day ya 7 din ka average"."""
+    import progress_data as pdx
+    rows = []
+    for p in people:
+        a = pdx.average(p.get("history"), days)
+        if a is None:
+            rows.append('<tr><th class="who">%s<span>%s</span></th>'
+                        '<td colspan="9" class="none">no day in yet</td></tr>'
+                        % (esc(p.get("code", "?")),
+                           esc(p.get("department", ""))))
+            continue
+        comp = ("%s <small>%d day%s read</small>"
+                % (pct(a["computer_pct"]), a["read_days"],
+                   "" if a["read_days"] == 1 else "s")
+                if a["read_days"] else '<small>not read yet</small>')
+        rows.append(
+            '<tr><th class="who">%s<span>%s</span></th><td>%d</td>'
+            '<td><b>%s</b></td><td><b>%s</b></td><td>%s</td><td>%s</td>'
+            '<td><b>%s</b></td><td>%s</td><td>%s</td><td>%s</td></tr>'
+            % (esc(p.get("code", "?")), esc(p.get("department", "")),
+               a["days"], hhmm(a["first"] / 60.0 if a["first"] is not None
+                               else None),
+               hhmm(a["last"] / 60.0 if a["last"] is not None else None),
+               dur(a["in_min"]), dur(a["desk_min"]), pct(a["desk_pct"]),
+               comp, dur(a["phone_min"]) if a["read_days"] else "--",
+               "%.1f (longest %s)" % (a["breaks"] or 0, dur(a["longest_break"]))
+               if a["breaks"] is not None else "--"))
+    return ('<div class="ec-h"><span class="t">The usual week</span>'
+            '<span class="c">each employee&rsquo;s average over their last '
+            '%d days in (days only partly watched left out) &middot; computer '
+            'and phone only on the days the activity was read (from 23 Nov)'
+            '</span></div><div class="ec-card pg-tablewrap"><table '
+            'class="pg-team pg-avg"><thead><tr><th></th><th>days</th>'
+            '<th>in</th><th>out</th><th>in the office</th><th>at the desk'
+            '</th><th>desk %%</th><th>computer %%</th><th>phone</th>'
+            '<th>breaks a day</th></tr></thead><tbody>%s</tbody></table>'
+            '</div>' % (days, "".join(rows)))
+
+
 def legend(c):
     items = [("desk", "at the desk"), ("away", "away from the desk"),
              ("out", "not in yet / gone")]
@@ -481,6 +523,7 @@ def page(mode, cfg, people, as_of, hours=(10, 20), frm=8, to=24):
     return (css(mode) + "\n" + _CSS % c + "\n" + '<div class="ec pg">' + head
             + live_strip(people, c, as_of) + tiles(people, c)
             + team_table(people, c)
+            + averages_table(people)
             + tracker(cfg.get("stages") or [], c, cfg.get("needs"))
             + body + note + "</div>")
 

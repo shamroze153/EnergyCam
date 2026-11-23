@@ -398,6 +398,52 @@ def check_tracking():
           in source and "progress_track = None" in source, True)
 
 
+def check_night():
+    print("-- at night: a stretch that only begins after 22:00 is no sitter")
+    p = passes_every("21:30", "23:30")
+    line = pdx.timeline(PERSON, notes_at(["23:06", "23:11", "23:16"]), p)
+    check("an empty chair in infrared at 23:05-23:20 is not at the desk",
+          [s for s in line if s[2] == "desk"], [])
+    line = pdx.timeline(PERSON, notes_at(
+        ["21:46", "21:51", "21:56", "22:01", "22:06", "22:11"]), p)
+    check("somebody who sat down before 22:00 and works on is kept",
+          (min(s[0] for s in line if s[2] == "desk").strftime("%H:%M"),
+           max(s[1] for s in line if s[2] == "desk").strftime("%H:%M")),
+          ("21:45", "22:15"))
+
+
+def check_average():
+    print("-- the usual week: averages over the last seven days in")
+
+    def day(d, first, last, desk, part=False, comp=None):
+        return {"day": d, "first": pd.Timestamp("%s %s" % (d, first)),
+                "last": pd.Timestamp("%s %s" % (d, last)), "in_min": 600.0,
+                "desk_min": desk, "desk_pct": desk / 600.0, "part": part,
+                "computer_pct": comp, "computer_min": None if comp is None
+                else comp * 600, "phone_min": None if comp is None else 10.0,
+                "talking_min": None if comp is None else 5.0, "breaks": 2,
+                "longest_break": 30.0}
+    past = [day("2026-11-%02d" % d, "10:00", "20:00", 300.0)
+            for d in range(10, 16)]
+    past += [day("2026-11-16", "11:00", "21:00", 480.0, comp=0.7),
+             day("2026-11-17", "09:00", "13:00", 100.0, part=True),
+             {"day": "2026-11-18", "first": None, "last": None}]
+    a = pdx.average(past)
+    check("seven whole days in; a part day and a day not in left out",
+          (a["days"], a["from"], a["to"]), (6, "2026-11-11", "2026-11-16"))
+    check("usual in and out as clock times",
+          (round(a["first"]), round(a["last"])), (610, 1210))
+    check("desk % the mean of the days", round(a["desk_pct"], 3),
+          round((5 * 0.5 + 0.8) / 6, 3))
+    check("computer % only over the days it was read",
+          (a["computer_pct"], a["read_days"]), (0.7, 1))
+    check("nobody in yet: nothing", pdx.average([]), None)
+    html = pv.averages_table([{"code": "P9", "department": "Test",
+                               "history": past}])
+    check("the page's table says the usual in and out",
+          "10:10" in html and "20:10" in html and "1 day read" in html, True)
+
+
 def check_presence_rules():
     print("-- at the desk: the rules checked by eye on 24 Nov")
     p = passes_every("10:00", "11:00")
@@ -841,6 +887,8 @@ def main():
     check_building()
     check_follow()
     check_route_and_map()
+    check_night()
+    check_average()
     check_timeline()
     check_day()
     check_passes_and_usual()
