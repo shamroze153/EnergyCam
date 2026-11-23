@@ -1348,3 +1348,21 @@ Two or three lines a round; picture file names, never pictures.
   in the browser and its test row removed. Mid-way a failed splice
   emptied progress_track.py on disk; restored from git before anything
   imported it. Pushed 985a98f; loop restarted 22:34, first pass 254 s.
+
+* 23:10-23:50 (Shamroze: HR's permission for faces; "camera follow
+  kare, pura 3D banao"): faces.py (YuNet + SFace) learns the five at
+  their own desks -- on 23 Nov's kept frames 3-6 desk faces each, and no
+  face anywhere else reached 0.55, so no face sighting yet (none false
+  either). building.yaml: 140-H as 61 places on four floors with their
+  ways; progress_follow.py: desk cameras every minute, and round an
+  employee who has left (two empty looks) every 30 s for 15 min; the
+  Progress tab's 3D building with each one now and the day's way.
+  Pushed 8a92733. Shamroze ran sql/11 and set PROGRESS_PASSWORD; the
+  first send failed "permission denied" (the upsert read EXCLUDED.payload,
+  which needs SELECT on payload) -- fixed by sending the payload twice, no
+  grant changed; sent at 23:42, the hosted tab has its numbers. Also: a
+  desk stretch beginning after 22:00 no longer counts (P5's empty chair
+  + a cleaner, 23:05-23:11, seen by eye), and "The usual week" (7-day
+  averages). Pushed a2560f9; loop restarted 23:47. The Mosque and 141-C
+  Cafe room pages open without an error here; the error Shamroze saw is
+  not reproduced -- ask him for its picture.
