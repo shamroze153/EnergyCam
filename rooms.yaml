@@ -1726,6 +1726,15 @@ rooms:
     stream: main
     ac: hidden
     empty_after_minutes: 45
+    ignore:
+      7:
+        # 24 Nov 02:47 audit: a small dark shape on the top-left edge of
+        # the frame, above the desks (nobody sits there), read as a
+        # person 0.26-0.45 in 9-13 passes a night since 20 Nov
+        # (ghost_141_D_Squat_Wolf_Room_3_ch07_cd_nvr3_0247.jpg). Its boxes
+        # are 25x64 and lie wholly inside; somebody in the doorway there
+        # is taller and stays counted.
+        - [0, 12, 44, 96]
 
   - name: 141-D Squat Wolf Room 4
     dept: Squat Wolf
