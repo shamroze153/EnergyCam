@@ -5028,10 +5028,31 @@ st.markdown(overview.campus_head({"name": campus}, campuses, mode,
                                  LINK_BASE, KEEP_VIEW), unsafe_allow_html=True)
 
 @st.cache_data(ttl=120, show_spinner=False)
-def cached_progress_cloud(bucket):
+def cached_progress_cloud_days(bucket):
+    """The days the office laptop has sent, newest first (at most 30)."""
+    try:
+        conn = psycopg2.connect(DATABASE_URL, sslmode=DB_SSLMODE,
+                                connect_timeout=10)
+    except psycopg2.Error:
+        return []
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT DISTINCT day FROM progress_days"
+                    " ORDER BY day DESC LIMIT 30")
+        days = [r[0].isoformat() for r in cur.fetchall()]
+        cur.close()
+    except psycopg2.Error:
+        return []
+    finally:
+        conn.close()
+    return days
+
+
+@st.cache_data(ttl=120, show_spinner=False)
+def cached_progress_cloud(bucket, day=None):
     """The numbers the office laptop sent (progress_days, sql/11) -- for
-    the hosted page, which has none of its files. None when there are
-    none yet (or the table is not there)."""
+    the hosted page, which has none of its files: for `day`, or the latest
+    day. None when there are none yet (or the table is not there)."""
     import progress_data
     try:
         conn = psycopg2.connect(DATABASE_URL, sslmode=DB_SSLMODE,
@@ -5040,8 +5061,12 @@ def cached_progress_cloud(bucket):
         return None
     try:
         cur = conn.cursor()
-        cur.execute("SELECT code, payload FROM progress_days"
-                    " WHERE day = (SELECT max(day) FROM progress_days)")
+        if day:
+            cur.execute("SELECT code, payload FROM progress_days"
+                        " WHERE day = %s", (day,))
+        else:
+            cur.execute("SELECT code, payload FROM progress_days"
+                        " WHERE day = (SELECT max(day) FROM progress_days)")
         rows = cur.fetchall()
         cur.close()
     except psycopg2.Error:
@@ -5115,6 +5140,26 @@ def show_sightings(mode, people):
                             on_click=decide, args=(p["code"], s, "no"))
 
 
+def pick_progress_day(days):
+    """A row of the days kept (newest first), to look at any one of them
+    (Shamroze, 23 Nov: "kal dekhna chahun, parson dekhna chahun").
+    Returns the day chosen, YYYY-MM-DD, or None with no days."""
+    if not days:
+        return None
+    import datetime as _dt
+
+    def label(d):
+        day = _dt.date.fromisoformat(d)
+        today = _dt.datetime.now(PKT).date()
+        if day == today:
+            return "Today"
+        if day == today - _dt.timedelta(days=1):
+            return "Yesterday"
+        return day.strftime("%a %d %b")
+    return st.selectbox("Day", days, index=0, format_func=label,
+                        key="progress_day")
+
+
 def show_building(mode, people):
     """The building in 3D (Shamroze, 23 Nov: "pura 3D banao, kaun kahan
     ja raha hai"): the floors one above another, each employee where they
@@ -5175,7 +5220,9 @@ def show_progress(now):
         # The hosted page: the numbers the office laptop sent, nothing else
         # (Shamroze, 23 Nov: "sab data is computer pe rahe, bas dashboard ke
         # zariye progress aa jaye").
-        got = cached_progress_cloud(_to_5min(now).isoformat())
+        sent = cached_progress_cloud_days(_to_5min(now).isoformat())
+        chosen = pick_progress_day(sent)
+        got = cached_progress_cloud(_to_5min(now).isoformat(), chosen)
         if not got or not got[1]:
             st.markdown(progress_view.locked(mode, "none"),
                         unsafe_allow_html=True)
@@ -5193,7 +5240,10 @@ def show_progress(now):
         return
     local = now.tz_convert(PKT)
     hours = tuple(float(h) for h in work_hours())
-    day_key = local.strftime("%Y-%m-%d")
+    today = local.strftime("%Y-%m-%d")
+    kept = sorted(set(progress_data.working_days(today, 30))
+                  | {today}, reverse=True)
+    day_key = pick_progress_day(kept) or today
     review_file = os.path.join(progress_data.ACTIVITY,
                                "review_%s.csv" % day_key)
     with st.spinner("Adding up the desks..."):

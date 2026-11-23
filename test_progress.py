@@ -412,6 +412,35 @@ def check_night():
           ("21:45", "22:15"))
 
 
+def check_stretches():
+    print("-- the day stretch by stretch")
+    day_act = {"line": [
+        (at("08:00"), at("08:05"), "out", ""),
+        (at("10:00"), at("10:05"), "computer", "Test Room"),
+        (at("10:05"), at("10:10"), "phone", "Test Room"),
+        (at("10:10"), at("10:15"), "unseen", ""),
+        (at("10:15"), at("10:20"), "cafe", "Prompt Cafe"),
+        (at("11:00"), at("11:05"), "desk", "Test Room"),
+        (at("11:05"), at("11:10"), "out", "")],
+        "sightings": [{"t": at("10:12"), "place": "x", "how": "possible",
+                       "score": 0.7, "recorder": "dvr9", "channel": 4}]}
+    got = pdx.stretches(day_act, CAMS)
+    check("desk, away, a hole not watched, desk -- from first in to last out",
+          [(s["from"].strftime("%H:%M"), s["to"].strftime("%H:%M"), s["what"])
+           for s in got],
+          [("10:00", "10:10", "desk"), ("10:10", "10:20", "away"),
+           ("10:20", "11:00", "unwatched"), ("11:00", "11:05", "desk")])
+    check("what they did at the desk, by minutes",
+          got[0]["kinds"], {"computer": 5.0, "phone": 5.0})
+    check("where they were while away: confirmed, and possibly",
+          (got[1]["where"], got[1]["seen"]),
+          (["Prompt Cafe"], [("Cafe", "possible")]))
+    html = pv.stretch_list({"stretches": got}, pv.colours("dark"))
+    check("the page lists them latest first",
+          html.index("11:00") < html.index("10:00") and "Not watched" in html
+          and "possibly Cafe" in html, True)
+
+
 def check_average():
     print("-- the usual week: averages over the last seven days in")
 
@@ -580,6 +609,12 @@ def check_publish():
         check("every employee and the project, upserted",
               (sent, len(cur.rows) >= 2, cur.rows[-1][1]),
               (True, True, "_project"))
+        check("the payload goes in twice: no EXCLUDED column is read (the "
+              "camera machine may read only day and code)",
+              ("EXCLUDED" in pt.UPSERT, cur.rows[0][2] == cur.rows[0][3]),
+              (False, True))
+        check("and one earlier day goes with it, for the day picker",
+              len({r[0] for r in cur.rows}), 2)
         check("not again within five minutes",
               pt.publish(lambda: Conn(cur), clock=lambda: 1e9 + 60), False)
         err = psycopg2.errors.UndefinedTable("no table")
@@ -888,6 +923,7 @@ def main():
     check_follow()
     check_route_and_map()
     check_night()
+    check_stretches()
     check_average()
     check_timeline()
     check_day()

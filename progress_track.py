@@ -446,7 +446,39 @@ def publish(connect, now=None, clock=time.time, force=False):
                   " sql/11_progress.sql once (the laptop's tab is unaffected)")
         return False
     _published["missing"] = False
+    # And one earlier day each time, until the last fortnight is all there
+    # (Shamroze, 23 Nov: "kal, parson dekhna chahun" on the hosted page):
+    # each worked out to its own end, then never again this run.
+    try:
+        _publish_past(connect, cfg, day, hours)
+    except Exception:                                       # noqa: BLE001
+        pass
     return True
+
+
+PAST_DAYS = 14
+_past_sent = set()
+
+
+def _publish_past(connect, cfg, today, hours):
+    days = [d for d in pdx.working_days(today, PAST_DAYS + 1)
+            if d < today and d not in _past_sent]
+    if not days:
+        return None
+    d = days[-1]
+    end = pd.Timestamp(d) + pd.Timedelta(hours=23, minutes=59)
+    people = pdx.build(cfg, d, hours, now=end)
+    rows = pdx.to_payloads(cfg, people, hours, "%s (the day's end)" % d)
+    conn = connect()
+    try:
+        cur = conn.cursor()
+        cur.executemany(UPSERT, [(d, code, j, j) for code, j in rows])
+        conn.commit()
+        cur.close()
+    finally:
+        conn.close()
+    _past_sent.add(d)
+    return d
 
 
 # The day's assembly is progress_data.day_activity (the dashboard reads

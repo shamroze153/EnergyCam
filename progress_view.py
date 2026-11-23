@@ -97,12 +97,55 @@ def day_block(focus, c, frm=8, to=24):
         '<div class="pg-days" style="padding-bottom:16px"><div class="pg-day">'
         '<span class="d">%s</span><svg viewBox="0 0 100 10" '
         'preserveAspectRatio="none" class="pg-bar">%s</svg><span class="r">'
-        '</span></div>%s</div></div>'
+        '</span></div>%s</div>%s</div>'
         % (esc(label), focus.get("read", 0),
            "" if focus.get("read", 0) == 1 else "s",
            "".join('<div><span>%s</span><b>%s</b></div>' % (esc(k), esc(v))
                    for k, v in facts),
-           bar, legend, where, esc(label[:6]), rects, axis(frm, to)))
+           bar, legend, where, esc(label[:6]), rects, axis(frm, to),
+           stretch_list(focus, c)))
+
+
+KIND_WORDS = {"computer": "computer", "phone": "phone", "talking": "talking",
+              "desk": "not read"}
+HOW_WORDS = {"face": "seen by face", "seen": "seen", "possible": "possibly"}
+
+
+def stretch_list(focus, c):
+    """The day stretch by stretch, latest first -- the way a room's page
+    lists its AC (Shamroze, 23 Nov: "P1 ke aage poori line ... is se le ke
+    yahan tha"). progress_data.stretches() made the list."""
+    items = (focus or {}).get("stretches") or []
+    if not items:
+        return ""
+    rows = []
+    for st in reversed(items):
+        what = st["what"]
+        if what == "desk":
+            colour, title = c["computer"], "At the desk"
+            kinds = sorted(((k, v) for k, v in st["kinds"].items() if v >= 1),
+                           key=lambda kv: -kv[1])
+            detail = " &middot; ".join("%s %s" % (esc(KIND_WORDS.get(k, k)),
+                                                  dur(v)) for k, v in kinds)
+        elif what == "unwatched":
+            colour, title = c["t3"], "Not watched"
+            detail = "the loop or the laptop was off"
+        else:
+            colour, title = c["unseen"], "Away from the desk"
+            bits = ["in %s" % esc(r) for r in st.get("where") or []]
+            bits += ["%s %s" % (HOW_WORDS.get(h, h), esc(r))
+                     for r, h in st.get("seen") or []
+                     if r not in (st.get("where") or [])]
+            detail = " &middot; ".join(bits) or "on no camera"
+        rows.append(
+            '<div class="pg-st"><i style="background:%s"></i><span class="w">'
+            '%s&ndash;%s</span><span class="m">%s</span><span class="x"><b>%s'
+            '</b> %s</span></div>'
+            % (colour, st["from"].strftime("%H:%M"), st["to"].strftime("%H:%M"),
+               dur(st["minutes"]), title, detail))
+    return ('<details class="pg-stretch" open><summary>Stretch by stretch '
+            '<span>%d &middot; latest first</span></summary>%s</details>'
+            % (len(items), "".join(rows)))
 
 
 def hhmm(hour):
@@ -615,6 +658,16 @@ color:var(--t2)}
 margin-right:5px;vertical-align:-1px}
 .pg .pg-leg em{font-style:normal;font-weight:650;color:var(--t1)}
 .pg .pg-sub{font-size:11.5px;color:var(--t3);margin-top:8px}
+.pg .pg-stretch{margin:2px 0 8px;font-size:12px}
+.pg .pg-stretch summary{cursor:pointer;font-weight:650;color:var(--t1);padding:4px 0}
+.pg .pg-stretch summary span{font-weight:500;color:var(--t3);margin-left:4px}
+.pg .pg-st{display:grid;grid-template-columns:4px 92px 54px 1fr;gap:8px;
+align-items:baseline;padding:5px 0;border-top:1px solid var(--line)}
+.pg .pg-st i{display:block;width:4px;height:14px;border-radius:2px;align-self:center}
+.pg .pg-st .w{white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--t1)}
+.pg .pg-st .m{white-space:nowrap;color:var(--t3);font-variant-numeric:tabular-nums}
+.pg .pg-st .x{color:var(--t2);min-width:0}
+.pg .pg-st .x b{color:var(--t1);font-weight:650}
 .pg .pg-where{font-size:12px;color:var(--t2);margin:6px 0 2px}
 .pg .pg-where b{color:var(--t1);font-weight:650}
 .pg .pg-where span{color:#3987e5;font-weight:600}

@@ -574,6 +574,54 @@ def day_activity(person, day, rows=None, notes=None, passes=None,
     }
 
 
+def stretches(day_act, cams=None):
+    """The day stretch by stretch, the way a room's page lists its AC
+    (Shamroze, 23 Nov: "is time yahan tha, is time yahan tha"): oldest
+    first, from the first in to the last out --
+    {"from", "to", "minutes", "what": desk | away | unwatched,
+     "kinds": {kind: minutes} (at the desk: computer, phone, talking,
+     desk = not read), "where": [confirmed rooms], "seen": [(room, how)]
+     (sightings while away: face, seen or possible)}.
+    A hole in the watching (the loop or the laptop stopped) is its own
+    "unwatched" stretch, never desk or away."""
+    cams = cams or {}
+    line = [p for p in day_act.get("line") or []]
+    out = []
+    for s, e, k, room in line:
+        what = "desk" if k in AT_DESK else ("out" if k == "out" else "away")
+        last = out[-1] if out else None
+        if last and s - last["to"] > JOINED:
+            out.append({"from": last["to"], "to": s, "what": "unwatched",
+                        "kinds": {}, "where": [], "seen": []})
+            last = out[-1]
+        if last and last["what"] == what:
+            last["to"] = e
+        else:
+            out.append({"from": s, "to": e, "what": what, "kinds": {},
+                        "where": [], "seen": []})
+            last = out[-1]
+        last["kinds"][k] = last["kinds"].get(k, 0.0) + _minutes(s, e)
+        if what == "away" and k != "unseen" and room \
+                and room not in last["where"]:
+            last["where"].append(room)
+    # only from the first in to the last out: before and after is "out"
+    while out and out[0]["what"] in ("out", "unwatched"):
+        out.pop(0)
+    while out and out[-1]["what"] in ("out", "unwatched"):
+        out.pop()
+    for g in day_act.get("sightings") or []:
+        place = cams.get((g.get("recorder"), g.get("channel")), g["place"])
+        for st in out:
+            if st["what"] == "away" and st["from"] < g["t"] <= st["to"]:
+                if (place, g["how"]) not in st["seen"]:
+                    st["seen"].append((place, g["how"]))
+    for st in out:
+        st["minutes"] = _minutes(st["from"], st["to"])
+        if st["what"] == "out":
+            st["what"] = "away"          # out between two desk stretches
+    return out
+
+
 def route(day_act, desk_place, cams=None):
     """The day as stops through the building, for building_view: each
     stretch at the desk {"t", "until", "place": desk_place, "how": "desk"},
@@ -879,6 +927,7 @@ def build(cfg, today, hours=(10, 20), count=5, folder=SEATS, frm=8, to=24,
                 state = live(the_day, now, hours)
             the_day["slots"] = kind_slots(the_day, frm, to)
             way = route(the_day, desk_place, cams)
+            the_day["stretches"] = stretches(the_day, cams)
             the_day.pop("line", None)
         except Exception:                                   # noqa: BLE001
             the_day = None
