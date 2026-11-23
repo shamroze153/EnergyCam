@@ -5080,6 +5080,35 @@ def show_progress(now):
     st.markdown(progress_view.page(mode, cfg, people,
                                    local.strftime("%d %b %H:%M"), hours),
                 unsafe_allow_html=True)
+    # Each employee's day as a video (progress_video.py): pictures of the
+    # desk, so -- like everything here -- only on this laptop. Made in a
+    # process of its own: it needs OpenCV, which the hosted page has not.
+    focus = next((p["focus"]["day"] for p in people if p.get("focus")), None)
+    if focus:
+        st.markdown(overview.css(mode) + '<div class="ec"><div class="ec-h">'
+                    '<span class="t">The day, as a video</span><span class="c">'
+                    '%s &middot; the desk every pass, what they were doing, '
+                    'the hours so far</span></div></div>' % focus,
+                    unsafe_allow_html=True)
+        if st.button("Make the videos for %s" % focus, key="progress_videos"):
+            import subprocess
+            import sys
+            with st.spinner("Making the videos..."):
+                subprocess.run([sys.executable, "progress_video.py", "--day",
+                                focus], capture_output=True, timeout=600)
+        shown = [(p, os.path.join(progress_data.CROPS, focus,
+                                  "%s_day.webm" % p["code"]))
+                 for p in people]
+        shown = [(p, v) for p, v in shown if os.path.exists(v)]
+        if shown:
+            cols = st.columns(min(3, len(shown)))
+            for i, (p, video) in enumerate(shown):
+                with cols[i % len(cols)]:
+                    st.caption("%s · %s" % (progress_view.who(p),
+                                            p["department"]))
+                    st.video(video, format="video/webm")
+        else:
+            st.caption("No video for %s yet." % focus)
     if st.button("Lock Progress", key="progress_lock"):
         st.session_state["progress_in"] = False
         st.rerun()

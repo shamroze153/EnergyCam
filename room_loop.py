@@ -74,6 +74,14 @@ from schedule import (WORKING, describe, in_operations, period,  # noqa: F401
                       wait_before_reporting)
 from test_camera import build_url, grab
 
+# Progress (23 Nov): the watched employees' desk activity, read from the
+# frames this loop already has. Optional: if it cannot load, the loop runs
+# exactly as before.
+try:
+    import progress_track
+except Exception:                                           # noqa: BLE001
+    progress_track = None
+
 PKT = timezone(timedelta(hours=5))
 
 # A Dahua recording in 1080N keeps half the horizontal detail and stretches it
@@ -1201,6 +1209,10 @@ def examine(room, frames, model, imgsz, iou, ac_units=None,
         counted = drop_still(room, key, wide, counted, after_hours)
         here = len(counted)
         note_seats(room.name, key, counted, getattr(wide, "shape", (0, 0)))
+        if progress_track is not None:
+            # Never raises; does nothing unless progress.yaml names a desk
+            # on this camera (or, later, tracking elsewhere is switched on).
+            progress_track.observe(room.name, key, wide, counted, model)
         if keep is None or here > people:
             keep = wide
         people = max(people, here)

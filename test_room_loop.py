@@ -46,6 +46,11 @@ room_loop.SEATS_DIR = _seat_tmp.mkdtemp()
 room_loop.AC_KEEP_DIR = _seat_tmp.mkdtemp()
 room_loop.STILL_FILE = _seat_tmp.mktemp(suffix=".json")
 room_loop.STILL_STATE = _seat_tmp.mktemp(suffix=".npz")
+# Nor in the Progress employees' rows and desk pictures (23 Nov: a test
+# pass at 21:47:59 wrote "away" for all five into the day's real file).
+if getattr(room_loop, "progress_track", None) is not None:
+    room_loop.progress_track.OUT = _seat_tmp.mkdtemp()
+    room_loop.progress_track.CROPS = _seat_tmp.mkdtemp()
 
 T0 = datetime.datetime(2026, 11, 5, 18, 0, tzinfo=PKT)
 FAILURES = []

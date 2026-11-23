@@ -13,7 +13,7 @@ No Streamlit and no database: figures in, HTML out.
 from overview import TOKENS, css, esc
 
 STATUS = {"done": "Done", "doing": "In progress", "next": "Next",
-          "later": "Later"}
+          "later": "Later", "blocked": "Waiting"}
 
 
 def colours(mode):
@@ -21,8 +21,74 @@ def colours(mode):
     t.update({"desk": "#2a9d63", "away": "#e8a21a",
               "out": t["s2"], "unwatched": "transparent",
               "doing": t["accent"], "done": "#2a9d63", "next": "#e8a21a",
-              "later": t["t3"]})
+              "later": t["t3"], "blocked": "#d03b3b",
+              # what the employee was doing (progress_track kinds)
+              "computer": "#2a9d63", "phone": "#e5383b",
+              "talking": "#8b5cf6", "unseen": "#e8a21a",
+              "deskread": "#6fbf8f"})
+    for k in ("meeting", "own room", "office", "cafe", "smoking", "prayer",
+              "corridor", "outside"):
+        t[k] = "#3987e5"
     return t
+
+
+# The day's kinds, as the page names them, in the order the bar shows them.
+DAY_PARTS = [("computer", "At the computer"), ("phone", "On the phone"),
+             ("talking", "Talking at the desk"),
+             ("unseen", "Away from the desk")]
+
+
+def day_block(focus, c, frm=8, to=24):
+    """The day in focus: first in, last out, last seen; hours by activity
+    as one bar; and the day as coloured slots."""
+    if not focus:
+        return ""
+
+    def t(x):
+        return x.strftime("%H:%M") if x is not None else "--"
+    m, est = focus["minutes"], focus["estimate"]
+    at_desk = sum(m.get(k, 0.0) for k in ("computer", "phone", "talking",
+                                           "desk"))
+    away = sum(v for k, v in m.items()
+               if k not in ("computer", "phone", "talking", "desk"))
+    parts = {"computer": est["computer"] if sum(est.values()) else
+             m.get("desk", 0.0), "phone": est["phone"],
+             "talking": est["talking"], "unseen": away}
+    total = sum(parts.values()) or 1.0
+    bar = "".join('<i style="width:%.2f%%;background:%s" title="%s %s"></i>'
+                  % (100 * parts[k] / total, c[k], esc(label), dur(parts[k]))
+                  for k, label in DAY_PARTS if parts[k] > 0)
+    legend = "".join('<span><b style="background:%s"></b>%s <em>%s</em>'
+                     '</span>' % (c[k], esc(label), dur(parts[k]))
+                     for k, label in DAY_PARTS)
+    slots = focus.get("slots") or []
+    cols = []
+    for s in slots:
+        key = "deskread" if s == "desk" else s
+        cols.append(c.get(key, "transparent"))
+    n = max(1, len(cols))
+    rects = "".join('<rect x="%.3f" y="0" width="%.3f" height="10" fill="%s"/>'
+                    % (i * 100.0 / n, 100.0 / n + 0.02, col)
+                    for i, col in enumerate(cols) if col != "transparent")
+    import datetime as _dt
+    label = _dt.date.fromisoformat(focus["day"]).strftime("%a %d %b")
+    facts = [("First in", t(focus.get("first_in"))),
+             ("Last out", t(focus.get("last_out"))),
+             ("Last seen", t(focus.get("last_seen"))),
+             ("At the desk", dur(at_desk))]
+    return (
+        '<div class="pg-today"><div class="pg-th">%s<span>%s activity '
+        'reading%s</span></div><div class="pg-facts4">%s</div>'
+        '<div class="pg-split">%s</div><div class="pg-leg">%s</div>'
+        '<div class="pg-days" style="padding-bottom:16px"><div class="pg-day">'
+        '<span class="d">%s</span><svg viewBox="0 0 100 10" '
+        'preserveAspectRatio="none" class="pg-bar">%s</svg><span class="r">'
+        '</span></div>%s</div></div>'
+        % (esc(label), focus.get("read", 0),
+           "" if focus.get("read", 0) == 1 else "s",
+           "".join('<div><span>%s</span><b>%s</b></div>' % (esc(k), esc(v))
+                   for k, v in facts),
+           bar, legend, esc(label[:6]), rects, axis(frm, to)))
 
 
 def hhmm(hour):
@@ -62,11 +128,67 @@ def axis(frm=8, to=24, marks=(10, 14, 18, 22)):
                                                  "%02d" % h) for h in marks)
 
 
-def tracker(stages, c):
-    """The project, stage by stage."""
+def gantt(stages, c, today=None):
+    """The stages on a calendar: a bar from start to end each, filled to
+    its progress, and a line at today. Stages without dates are left off."""
+    import datetime as _dt
+
+    def d(x):
+        try:
+            return _dt.date.fromisoformat(str(x))
+        except (TypeError, ValueError):
+            return None
+    dated = [(s, d(s.get("start")), d(s.get("end"))) for s in stages]
+    dated = [x for x in dated if x[1] and x[2]]
+    if not dated:
+        return ""
+    lo = min(x[1] for x in dated)
+    hi = max(x[2] for x in dated)
+    span = float((hi - lo).days + 1)
+    today = today or _dt.date.today()
+
+    def pct(day):
+        return 100.0 * (day - lo).days / span
+    ticks = []
+    day = lo
+    while day <= hi:
+        if day.weekday() == 0 or day == lo:
+            ticks.append('<span style="left:%.2f%%">%s</span>'
+                         % (pct(day), day.strftime("%d %b")))
+        day += _dt.timedelta(days=1)
+    rows = []
+    for s, a, b in dated:
+        status = s.get("status", "later")
+        p = float(s.get("progress") or 0)
+        left, width = pct(a), 100.0 * ((b - a).days + 1) / span
+        rows.append(
+            '<div class="pg-grow"><div class="pg-gname"><b>%s</b>'
+            '<span class="pg-pill" style="background:%s">%s</span></div>'
+            '<div class="pg-gtrack"><div class="pg-gbar" style="left:%.2f%%;'
+            'width:%.2f%%;border-color:%s"><i style="width:%.0f%%;'
+            'background:%s"></i></div></div></div>'
+            % (esc(s.get("name", "")), c.get(status, c["t3"]),
+               STATUS.get(status, status), left, width,
+               c.get(status, c["t3"]), p, c.get(status, c["t3"])))
+    line = ""
+    if lo <= today <= hi:
+        line = ('<div class="pg-gtoday" style="left:calc(var(--gl) + '
+                '(100%% - var(--gl)) * %.4f)"><span>today</span></div>'
+                % ((today - lo).days / span + 0.5 / span))
+    return ('<div class="pg-gantt">%s<div class="pg-gaxis">%s</div>%s</div>'
+            % ("".join(rows), "".join(ticks), line))
+
+
+def tracker(stages, c, needs=None, today=None):
+    """The project, stage by stage: on a calendar, then in words."""
     if not stages:
         return ""
     overall = sum(float(s.get("progress") or 0) for s in stages) / len(stages)
+    chart = gantt(stages, c, today)
+    asks = ""
+    if needs:
+        asks = ('<div class="pg-needs"><b>What it needs next</b><ul>%s</ul>'
+                '</div>' % "".join("<li>%s</li>" % esc(n) for n in needs))
     rows = []
     for i, s in enumerate(stages, 1):
         status = s.get("status", "later")
@@ -91,7 +213,8 @@ def tracker(stages, c):
             '<span class="c">%d stages &middot; %.0f%% done overall</span>'
             '</div><div class="ec-card pg-track"><div class="pg-overall">'
             '<div class="ec-meter"><i style="width:%.0f%%"></i></div></div>'
-            '%s</div>' % (len(stages), overall, overall, "".join(rows)))
+            '%s%s%s</div>' % (len(stages), overall, overall, chart,
+                              "".join(rows), asks))
 
 
 def tiles(people, c):
@@ -190,10 +313,12 @@ def card(p, c, frm=8, to=24, whole=480):
     return ('<div class="ec-card pg-card"><div class="pg-hd">'
             '<span class="pg-code">%s</span><div class="pg-dept"><b>%s</b>'
             '<span>%s</span></div><div class="pg-big">%s</div></div>'
+            '%s<div class="pg-sub">The last working days at the desk</div>'
             '<div class="pg-facts">%s</div>%s<div class="pg-days">%s%s</div>'
             '<div class="pg-why">%s</div></div>'
             % (esc(p["code"]), esc(who(p)),
                esc("desk in %s · %s" % (p["department"], basis)), big,
+               day_block(p.get("focus"), c, frm, to),
                "".join('<span class="ec-pill">%s</span>' % esc(f)
                        for f in facts if f),
                agree, "".join(rows), axis(frm, to),
@@ -244,8 +369,9 @@ def page(mode, cfg, people, as_of, hours=(10, 20), frm=8, to=24):
     # on one line left the second block unclosed and the whole page inside
     # it, invisible (23 Nov, the first look in the dashboard).
     return (css(mode) + "\n" + _CSS % c + "\n" + '<div class="ec pg">' + head
-            + tiles(people, c) + tracker(cfg.get("stages") or [], c) + body
-            + note + "</div>")
+            + tiles(people, c)
+            + tracker(cfg.get("stages") or [], c, cfg.get("needs"))
+            + body + note + "</div>")
 
 
 def locked(mode, why):
@@ -316,7 +442,47 @@ color:var(--t3)}
 .pg .pg-hatch{background:repeating-linear-gradient(45deg,transparent 0 2px,
 var(--line2) 2px 4px)}
 .pg .pg-note{line-height:1.5}
+.pg .pg-today{margin:12px 0 6px;padding:12px 12px 4px;border-radius:12px;
+background:var(--s2)}
+.pg .pg-th{display:flex;align-items:baseline;gap:8px;font-weight:700;font-size:13.5px}
+.pg .pg-th span{font-weight:500;font-size:11.5px;color:var(--t3)}
+.pg .pg-facts4{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:8px 0 10px}
+.pg .pg-facts4 div{display:flex;flex-direction:column}
+.pg .pg-facts4 span{font-size:11px;color:var(--t3)}
+.pg .pg-facts4 b{font-size:16px;font-weight:700;white-space:nowrap}
+.pg .pg-split{display:flex;height:14px;border-radius:7px;overflow:hidden;
+background:var(--line)}
+.pg .pg-split i{display:block;height:100%%}
+.pg .pg-leg{display:flex;flex-wrap:wrap;gap:4px 12px;margin:7px 0 2px;font-size:11.5px;
+color:var(--t2)}
+.pg .pg-leg b{display:inline-block;width:9px;height:9px;border-radius:2px;
+margin-right:5px;vertical-align:-1px}
+.pg .pg-leg em{font-style:normal;font-weight:650;color:var(--t1)}
+.pg .pg-sub{font-size:11.5px;color:var(--t3);margin-top:8px}
+.pg .pg-gantt{position:relative;--gl:170px;margin:6px 0 14px;padding-bottom:20px}
+.pg .pg-grow{display:grid;grid-template-columns:var(--gl) 1fr;align-items:center;
+min-height:30px}
+.pg .pg-gname{display:flex;align-items:center;gap:6px;min-width:0;padding-right:8px}
+.pg .pg-gname b{font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pg .pg-gname .pg-pill{font-size:9.5px;padding:1px 6px}
+.pg .pg-gtrack{position:relative;height:18px;border-radius:4px;
+background:repeating-linear-gradient(90deg,var(--line) 0 1px,transparent 1px 7.14%%)}
+.pg .pg-gbar{position:absolute;top:2px;height:14px;border-radius:7px;border:1.5px solid;
+overflow:hidden;background:var(--s1)}
+.pg .pg-gbar i{display:block;height:100%%;opacity:.85}
+.pg .pg-gaxis{position:absolute;left:var(--gl);right:0;bottom:0;height:16px}
+.pg .pg-gaxis span{position:absolute;font-size:10px;color:var(--t3);white-space:nowrap}
+.pg .pg-gtoday{position:absolute;top:-4px;bottom:16px;width:0;
+border-left:2px dashed %(crit)s}
+.pg .pg-gtoday span{position:absolute;top:-14px;left:-14px;font-size:9.5px;
+color:%(crit)s;font-weight:700}
+.pg .pg-needs{margin-top:10px;padding-top:10px;border-top:1px solid var(--line);font-size:13px}
+.pg .pg-needs ul{margin:6px 0 0 18px;padding:0;color:var(--t2)}
+.pg .pg-needs li{margin:3px 0}
 @media (max-width:420px){
+.pg .pg-gantt{--gl:118px}
+.pg .pg-gname .pg-pill{display:none}
+.pg .pg-facts4 b{font-size:14px}
 .pg .pg-day{grid-template-columns:40px 1fr 62px;gap:6px}
 .pg .pg-axis{left:46px;right:68px}
 .pg .pg-big{font-size:24px}

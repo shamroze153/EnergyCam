@@ -1319,3 +1319,19 @@ Two or three lines a round; picture file names, never pictures.
   94 of 97 readings agree. Needs PROGRESS_PASSWORD in .env to open.
   Found on the way: both Marketing cameras (ch 3, ch 13) were re-aimed
   between 12:05 and 19:01 today -- their AC calibrations need checking.
+* 21:50 Progress, more (Shamroze: computer / phone / talking hours, where
+  they go, a video, a real tracker). desk_activity.py reads each pass at
+  the desk: computer, phone (a phone in their own box, also looked for at
+  twice the size), talking (only somebody standing over the desk). Checked
+  by eye on today's kept frames: 98 of 110 agree; phone the weakest. The
+  loop now calls progress_track.observe after note_seats (guarded) and
+  writes progress/<date>.csv and the desk's picture (local, 7 days);
+  today was backfilled from frames/ac_keep. progress_video.py: a day per
+  employee as a WebM, played in the tab. The tab: the day in focus (first
+  in, last out, last seen, hours by activity, coloured), a Gantt of the
+  stages, what it needs next. Following them to other cameras is OFF:
+  shirt colour matched strangers better than an employee's own second
+  camera -- needs a re-identification model (a download) first.
+  test_room_loop and test_integration were writing their stand-in pass
+  into the real progress file (21:47:59, 21:54:11): redirected, the rows
+  removed. All 21 test files green; loop restarted 21:47 (one loop).

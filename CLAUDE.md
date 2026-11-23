@@ -59,6 +59,16 @@ Which employee, which desk, which code: `progress.yaml`, this machine only
 (git-ignored; `progress.example.yaml` shows the shape). Never commit it,
 never put a name or a result in the repo. Say "at the desk", never
 "productive", and check a new desk by eye on its kept frames first.
+The loop reads what each employee is doing at the desk every pass
+(`desk_activity.py`: computer / phone / talking -- a phone found in their
+own box, "talking" only somebody standing over the desk) through
+`progress_track.observe` (guarded: it can never stop a pass), writing
+`progress/<date>.csv` and the desk's picture to `frames/progress/` (both
+local, kept 7 days). `progress_video.py` turns a day into a video per
+employee (the tab plays it). Following them to other cameras
+(`TRACK_ELSEWHERE`) is OFF: shirt colour was tested on 23 Nov and
+matched strangers better than the employee's own second camera -- it
+needs a trained re-identification model, checked by eye, first.
 
 Savings & peak (18 Nov): the dashboard's "Savings & peak" tab is
 `savings.py` -- the scoreboard (meters against the last bill and the same

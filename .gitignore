@@ -91,3 +91,7 @@ weekly_preview*.html
 # only. progress.example.yaml shows the shape.
 progress.yaml
 progress_*.html
+# the loop's desk activity rows for those employees (progress_track.py);
+# their desk pictures and day videos live under frames/progress/.
+progress/
+*.webm

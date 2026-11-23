@@ -220,6 +220,123 @@ def check_page():
           ("6h 12m", "45m"))
 
 
+def check_desk_activity():
+    print("-- what an employee is doing at the desk")
+    import desk_activity as da
+    me = (0, 0.9, 500, 300, 620, 520)            # seated, box ends at 520
+    seat = [560, 520]
+    others = [(0, 0.8, 900, 300, 1020, 520)]     # somebody far off
+    check("the person whose box ends at the desk is the employee",
+          da.employee([me] + others, seat, 1920), me)
+    check("nobody near the desk: no employee",
+          da.employee(others, seat, 1920), None)
+    neighbour = (0, 0.9, 630, 305, 750, 520)      # seated beside, same size
+    standing = (0, 0.9, 600, 180, 700, 560)       # taller, head above, touching
+    far_tall = (0, 0.9, 1300, 100, 1420, 700)     # tall, but across the room
+    check("a neighbour sitting beside is not a visitor",
+          da.visitor([me, neighbour], me), None)
+    check("somebody standing over the desk is", da.visitor([me, standing], me),
+          standing)
+    check("somebody tall across the room is not (23 Nov, P1 typing alone)",
+          da.visitor([me, far_tall], me), None)
+    phone = (da.PHONE, 0.4, 540, 400, 560, 430)
+    check("a phone in the employee's box is theirs",
+          da.phone_near([phone], me), phone)
+    check("a phone elsewhere is not",
+          da.phone_near([(da.PHONE, 0.4, 1500, 400, 1520, 430)], me), None)
+
+
+def check_tracking():
+    print("-- the whole day, and the loop's hook")
+    import numpy as np
+    import progress_track as pt
+    check("the dashboard's half needs no OpenCV",
+          "cv2" in open("progress_data.py", encoding="utf-8").read(), False)
+    check("kinds of place", [pt.place_of(r) for r in (
+        "140-H Board Room", "H Smoking Area", "Mosque", "Prompt Cafe",
+        "P1 Parking", "H Ground Floor Lobby", "HR Room")],
+        ["meeting", "smoking", "prayer", "cafe", "outside", "corridor",
+         "office"])
+    check("their own department's room is their own room",
+          pt.place_of("Test Room", own="Test Room"), "own room")
+    check("following them elsewhere is off until a model is trusted",
+          pt.TRACK_ELSEWHERE, False)
+    red = np.zeros((400, 200, 3), np.uint8)
+    red[:, :] = (30, 30, 200)
+    blue = np.zeros((400, 200, 3), np.uint8)
+    blue[:, :] = (200, 60, 30)
+    a = pt.signature(red, (0, 0, 200, 400))
+    check("a shirt matches itself", round(pt.similarity(a, a), 2), 1.0)
+    check("a red shirt does not match a blue one",
+          pt.similarity(a, pt.signature(blue, (0, 0, 200, 400))) < 0.3, True)
+    check("a box too small to tell has no signature",
+          pt.signature(red, (0, 0, 20, 30)), None)
+
+    # A day: at the desk 10:00-12:00 (computer, one phone read), away
+    # 12:00-13:00, back 13:00-14:00 (no activity read), gone after.
+    p = passes_every("08:00", "16:00")
+    seen = [t.strftime("%H:%M") for t in pd.date_range(
+        at("10:01"), at("12:00"), freq="5min")] + [
+        t.strftime("%H:%M") for t in pd.date_range(
+            at("13:01"), at("14:00"), freq="5min")]
+    rows = pd.DataFrame([
+        {"time": t.strftime("%H:%M:%S"), "code": "P9", "kind": "desk",
+         "state": "phone" if t.hour == 11 and t.minute < 10 else "computer",
+         "room": "Test Room", "recorder": "dvr2", "channel": 15,
+         "score": 1.0, "x1": 0, "y1": 0, "x2": 0, "y2": 0}
+        for t in pd.date_range(at("10:02"), at("11:58"), freq="5min")])
+    rows["at"] = pd.to_datetime(DAY + " " + rows["time"])
+    d = pdx.day_activity(PERSON, DAY, rows=rows, notes=notes_at(seen),
+                         passes=p)
+    m = d["minutes"]
+    check("first in, last out", (d["first_in"], d["last_out"]),
+          (at("10:00"), at("14:00")))
+    check("two hours read at the desk, mostly the computer",
+          (round(m["computer"] + m["phone"]), m["phone"] > 0), (120, True))
+    check("the hour back without a reading is 'desk', not guessed",
+          round(m["desk"]), 60)
+    check("the hour away, with no camera match, is unseen",
+          round(m["unseen"]), 60)
+    check("the estimate shares the unread hour as the read ones were",
+          round(sum(d["estimate"].values())), 180)
+    check("before and after the day is 'out', not unseen",
+          d["line"][0][2], "out")
+
+    # The loop's hook: one camera's boxes for the employee's desk.
+    folder = tempfile.mkdtemp()
+    old = (pt.OUT, pt.CROPS, pt._cfg.copy())
+    try:
+        pt.OUT = os.path.join(folder, "progress")
+        pt.CROPS = os.path.join(folder, "crops")
+        pt._cfg.update({"mtime": "fixed", "people": [PERSON]})
+        orig = pt._people
+        pt._people = lambda: [PERSON]
+        frame = np.full((1080, 1920, 3), 120, np.uint8)
+        from datetime import datetime as _dt
+        now = _dt(2026, 11, 20, 10, 5, 0, tzinfo=pt.PKT)
+        pt.observe("Test Room", ("dvr2", 15), frame,
+                   [(500, 400, 620, 700, 0.9)], None, now)
+        pt.observe("Test Room", ("dvr2", 15), None, [], None, now)
+        pt.observe("Other", ("cd_nvr1", 3), frame, [(0, 0, 10, 10, .9)],
+                   None, now)
+        got = pd.read_csv(os.path.join(pt.OUT, DAY + ".csv"))
+        check("the hook writes one desk row for the employee's camera",
+              (len(got), got["kind"][0], got["state"][0]),
+              (1, "desk", "computer"))
+        check("and keeps the desk's picture for the day's video",
+              len(os.listdir(os.path.join(pt.CROPS, DAY, "P9"))), 1)
+        pt._people = orig
+    finally:
+        pt.OUT, pt.CROPS = old[0], old[1]
+        pt._cfg.clear()
+        pt._cfg.update(old[2])
+        shutil.rmtree(folder)
+    source = open("room_loop.py", encoding="utf-8").read()
+    check("the loop calls the hook, guarded",
+          "progress_track.observe(room.name, key, wide, counted, model)"
+          in source and "progress_track = None" in source, True)
+
+
 def check_kept_local():
     print("-- kept on this machine")
     ignored = open(".gitignore", encoding="utf-8").read().split()
@@ -237,6 +354,8 @@ def main():
     check_day()
     check_passes_and_usual()
     check_page()
+    check_desk_activity()
+    check_tracking()
     check_kept_local()
     print()
     if FAILURES:

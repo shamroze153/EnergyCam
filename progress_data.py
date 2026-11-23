@@ -272,6 +272,134 @@ def week(person, days, hours=(10, 20), cache=None):
     return out
 
 
+# ------------------------------------------------- what they did all day
+#
+# The loop's half (progress_track.py, with OpenCV) writes, every pass, what
+# each employee was doing at the desk to ACTIVITY/<date>.csv, and the
+# desk's picture under CROPS. This half reads them -- pandas only, so the
+# dashboard reaches it without the detector's libraries.
+
+ACTIVITY = "progress"
+CROPS = os.path.join("frames", "progress")
+# A sighting elsewhere this close (progress_track, once switched on) names
+# the place for that pass.
+SEEN_MIN = 0.62
+# Where a camera's room is, by kind. First match wins; anything else is an
+# office (their own room if it is their department's).
+PLACES = [
+    ("meeting", ("board room", "meeting room")),
+    ("smoking", ("smoking",)),
+    ("prayer", ("mosque", "ablution")),
+    ("cafe", ("cafe", "pantry", "commons", "gaming")),
+    ("outside", ("street", "outside", "parking", "backside", "solar",
+                 "genset", "ro plant", "emergency", "outdoor", "inverter",
+                 "atrium")),
+    ("corridor", ("lobby", "stairs", "entry", "entrance", "attendance",
+                  "reception", "sitting area")),
+]
+KINDS = ["computer", "phone", "talking", "desk", "meeting", "own room",
+         "office", "cafe", "smoking", "prayer", "corridor", "outside",
+         "unseen"]
+AT_DESK = ("computer", "phone", "talking", "desk")
+# An activity read this close to a pass at the desk is that pass's.
+ACTIVITY_REACH = pd.Timedelta(minutes=8)
+
+
+def place_of(room, own=None):
+    """The kind of place a room is."""
+    name = (room or "").lower()
+    if own and name == str(own).lower():
+        return "own room"
+    for kind, words in PLACES:
+        if any(w in name for w in words):
+            return kind
+    return "office"
+
+
+def load_activity(day, folder=None):
+    """The day's activity rows (progress_track), with a timestamp `at`."""
+    path = os.path.join(folder or ACTIVITY, day + ".csv")
+    if not os.path.exists(path):
+        return pd.DataFrame()
+    d = pd.read_csv(path)
+    d["at"] = pd.to_datetime(day + " " + d["time"])
+    return d
+
+
+def day_activity(person, day, rows=None, notes=None, passes=None,
+                 seen_min=SEEN_MIN):
+    """An employee's whole day, pass by pass, and its figures.
+
+    At the desk or not comes from the seat notes (timeline(): every pass,
+    checked by eye at 93 of 99). What they were doing there comes from the
+    activity read nearest the pass (from the loop, or from kept frames); a
+    pass at the desk with none near is "desk" -- at the desk, activity not
+    read. Away from the desk, a sighting elsewhere names the place (only
+    once progress_track.TRACK_ELSEWHERE is on); otherwise "unseen". Before
+    first in and after last out: "out".
+
+    Returns {"line": [(start, end, kind, room)], "minutes": {kind: min},
+    "estimate": {computer, phone, talking: min} (the unread desk minutes
+    shared out as the read ones were), "read": passes with an activity,
+    "first_in", "last_out", "last_seen", "last_seen_where"}."""
+    rows = load_activity(day) if rows is None else rows
+    notes = globals()["notes"](day) if notes is None else notes
+    passes = globals()["passes"](day) if passes is None else passes
+    code = person["code"]
+    own = person.get("department")
+    mine = rows[rows["code"] == code] if len(rows) else rows
+    acts = mine[(mine["kind"] == "desk") & (mine["state"] != "away")] \
+        if len(mine) else mine
+    seen = mine[(mine["kind"] == "seen") & (mine["score"] >= seen_min)] \
+        if len(mine) else mine
+    start_of_day = pd.Timestamp(day) + pd.Timedelta(hours=DAY_FROM)
+    line, read = [], 0
+    for start, end, state in timeline(person, notes, passes):
+        if state == "desk":
+            kind, room = "desk", own
+            if len(acts):
+                mid = start + (end - start) / 2
+                gap = (acts["at"] - mid).abs()
+                if gap.min() <= ACTIVITY_REACH:
+                    kind = str(acts.loc[gap.idxmin(), "state"])
+                    read += 1
+            line.append([start, end, kind, room])
+            continue
+        inside = seen[(seen["at"] > start) & (seen["at"] <= end)] \
+            if len(seen) else seen
+        if len(inside):
+            best = inside.loc[inside["score"].idxmax()]
+            line.append([start, end, place_of(best["room"], own),
+                         str(best["room"])])
+        else:
+            line.append([start, end, "unseen", ""])
+    at = [i for i, p in enumerate(line)
+          if p[2] in AT_DESK and p[1] > start_of_day]
+    for i, p in enumerate(line):
+        if p[2] == "unseen" and (not at or i < at[0] or i > at[-1]):
+            p[2] = "out"
+    minutes = {k: 0.0 for k in KINDS}
+    for s, e, k, _ in line:
+        if k in minutes:
+            minutes[k] += (e - s).total_seconds() / 60.0
+    done = {k: minutes[k] for k in ("computer", "phone", "talking")}
+    total_read = sum(done.values())
+    estimate = dict(done)
+    if total_read > 0:
+        for k in estimate:
+            estimate[k] += minutes["desk"] * done[k] / total_read
+    anywhere = [p for p in line if p[2] not in ("out", "unseen")
+                and p[1] > start_of_day]
+    return {
+        "day": day, "line": [tuple(p) for p in line], "minutes": minutes,
+        "estimate": estimate, "read": read,
+        "first_in": line[at[0]][0] if at else None,
+        "last_out": line[at[-1]][1] if at else None,
+        "last_seen": anywhere[-1][1] if anywhere else None,
+        "last_seen_where": anywhere[-1][3] if anywhere else "",
+    }
+
+
 def build(cfg, today, hours=(10, 20), count=5, folder=SEATS, frm=8, to=24):
     """Everything the Progress page draws, desk by desk: the last `count`
     working days up to `today` (YYYY-MM-DD), each day's summary and slots,
@@ -280,9 +408,18 @@ def build(cfg, today, hours=(10, 20), count=5, folder=SEATS, frm=8, to=24):
     whole = 0.8 * 60 * (hours[1] - hours[0])
     cache = {}
     out = []
+    focus = days[-1] if days else today
     for person in cfg.get("people") or []:
         summaries = week(person, days, hours, cache)
+        try:
+            n, p = cache.get(focus) or (notes(focus), passes(focus))
+            the_day = day_activity(person, focus, notes=n, passes=p)
+            the_day["slots"] = kind_slots(the_day, frm, to)
+            the_day.pop("line", None)
+        except Exception:                                   # noqa: BLE001
+            the_day = None
         out.append({
+            "focus": the_day,
             "code": person.get("code", "?"),
             "name": person.get("name") or "",
             "department": person.get("department", ""),
@@ -294,6 +431,27 @@ def build(cfg, today, hours=(10, 20), count=5, folder=SEATS, frm=8, to=24):
             "usual": usual([s for s in summaries if not s.get("before")],
                            whole),
         })
+    return out
+
+
+def kind_slots(day_summary_, frm=8, to=24, step=10):
+    """progress_track.progress_day's line as `step`-minute slots: the kind
+    that held most of each slot, or "unwatched"."""
+    base = pd.Timestamp(day_summary_["day"])
+    line = day_summary_["line"]
+    out = []
+    t = base + pd.Timedelta(hours=frm)
+    end = base + pd.Timedelta(hours=to)
+    width = pd.Timedelta(minutes=step)
+    while t < end:
+        u = t + width
+        share = {}
+        for s, e, k, _ in line:
+            a, b = max(s, t), min(e, u)
+            if b > a:
+                share[k] = share.get(k, 0.0) + (b - a).total_seconds()
+        out.append(max(share, key=share.get) if share else "unwatched")
+        t = u
     return out
 
 

@@ -1,0 +1,175 @@
+"""What an employee is doing at their own desk, from one camera picture.
+
+Shamroze, 23 Nov: "how many hours on the computer, how many on the mobile,
+how many talking". One frame of the employee's desk camera gives one of:
+
+    "computer"  at the desk, nothing else seen: at the screen / desk work
+    "phone"     at the desk with a phone in or by their hands
+    "talking"   at the desk with somebody standing at it
+    "away"      nobody at the desk
+
+From the detector the loop already runs (YOLOv8, COCO): people, and the
+small things -- a cell phone, a laptop, a screen. A phone is looked for
+twice: in the whole picture, and again in the employee's own box blown up
+to twice its size, where a phone of a few pixels becomes findable.
+
+What it cannot tell, and does not pretend to: whether the screen shows
+work, whether a call is about work, whether talking is a meeting. A
+neighbour sitting at the next desk is not "talking" -- only somebody
+standing at the desk is (a seated neighbour is the same height as the
+employee in the picture; a standing visitor is taller). Each sample is a
+moment; hours come from many moments (progress_watch.py, every few
+minutes), never from one.
+"""
+import cv2
+import numpy as np
+
+PERSON = 0
+LAPTOP = 63
+TV = 62
+KEYBOARD = 66
+PHONE = 67
+THINGS = [PERSON, TV, LAPTOP, KEYBOARD, PHONE]
+
+STATES = ("computer", "phone", "talking", "away")
+
+CONF = 0.15          # low: a phone is small and a visitor half hidden
+PERSON_CONF = 0.30   # but a person needs more than that to be a person
+# A box whose bottom is this far from the desk's point (as progress_data:
+# a share of the frame's width, or of the box's own height) sits there.
+SEAT_RADIUS = 0.035
+SEAT_REACH = 0.3
+# A visitor is somebody whose box touches the employee's, widened by this
+# share of its size, and who stands: this much taller, head above theirs.
+VISIT_PAD = 0.15
+VISIT_TALLER = 1.15
+
+
+def detect(frame, model, imgsz=1280, conf=CONF, classes=THINGS):
+    """[(cls, conf, x1, y1, x2, y2)] in the frame's pixels."""
+    out = []
+    res = model(frame, classes=classes, conf=conf, imgsz=imgsz,
+                verbose=False)
+    for r in res:
+        for b in r.boxes:
+            x1, y1, x2, y2 = (float(v) for v in b.xyxy[0])
+            out.append((int(b.cls[0]), float(b.conf[0]), x1, y1, x2, y2))
+    return out
+
+
+def employee(persons, seat, width):
+    """The person box sitting at the desk: its bottom nearest the desk's
+    point, within reach. None when nobody is there."""
+    x, y = seat
+    best = None
+    for p in persons:
+        _, _, x1, y1, x2, y2 = p
+        h = y2 - y1
+        reach = max(SEAT_RADIUS * width, SEAT_REACH * h)
+        d = ((x1 + x2) / 2.0 - x) ** 2 + (y2 - y) ** 2
+        if d <= reach * reach and (best is None or d < best[0]):
+            best = (d, p)
+    return best[1] if best else None
+
+
+def _inside(point, box, widen=0.15):
+    px, py = point
+    _, _, x1, y1, x2, y2 = box
+    w, h = x2 - x1, y2 - y1
+    return (x1 - widen * w <= px <= x2 + widen * w
+            and y1 - widen * h <= py <= y2 + widen * h)
+
+
+def phone_near(things, box):
+    """A phone whose middle is in (or just round) the employee's box."""
+    for t in things:
+        if t[0] == PHONE and _inside(((t[2] + t[4]) / 2, (t[3] + t[5]) / 2),
+                                     box):
+            return t
+    return None
+
+
+def phone_close_look(frame, box, model, scale=2.0):
+    """The employee's box, blown up, searched for a phone alone."""
+    _, _, x1, y1, x2, y2 = box
+    h, w = frame.shape[:2]
+    pad_x, pad_y = 0.15 * (x2 - x1), 0.1 * (y2 - y1)
+    X1, Y1 = int(max(0, x1 - pad_x)), int(max(0, y1 - pad_y))
+    X2, Y2 = int(min(w, x2 + pad_x)), int(min(h, y2 + pad_y))
+    crop = frame[Y1:Y2, X1:X2]
+    if crop.size == 0:
+        return None
+    big = cv2.resize(crop, None, fx=scale, fy=scale,
+                     interpolation=cv2.INTER_CUBIC)
+    found = detect(big, model, imgsz=max(320, min(1280, max(big.shape[:2]))),
+                   conf=0.25, classes=[PHONE])
+    if not found:
+        return None
+    c, s, a, b, cc, d = max(found, key=lambda t: t[1])
+    return (c, s, X1 + a / scale, Y1 + b / scale, X1 + cc / scale,
+            Y1 + d / scale)
+
+
+def visitor(persons, box):
+    """Somebody standing at the employee's desk: their box touches the
+    employee's (widened a little), they are taller in the picture, and
+    their head is above the employee's. 23 Nov, checked by eye: a rule
+    of "anybody tall within 60% either side" called P1 "talking" four
+    frames running while he typed alone -- a colleague sitting nearer the
+    camera looks tall too. Touching, taller and head above is somebody
+    standing over the desk."""
+    _, _, x1, y1, x2, y2 = box
+    w, h = x2 - x1, y2 - y1
+    pad_x, pad_y = VISIT_PAD * w, VISIT_PAD * h
+    for p in persons:
+        if p is box:
+            continue
+        _, _, a, b, c, d = p
+        touches = (c >= x1 - pad_x and a <= x2 + pad_x
+                   and d >= y1 - pad_y and b <= y2 + pad_y)
+        if touches and (d - b) >= VISIT_TALLER * h and b < y1:
+            return p
+    return None
+
+
+def classify(frame, person, model, things=None):
+    """{"state", "employee", "phone", "visitor"} for one frame of the
+    employee's desk camera. `person`: a progress.yaml entry (seat)."""
+    things = detect(frame, model) if things is None else things
+    persons = [t for t in things if t[0] == PERSON and t[1] >= PERSON_CONF]
+    width = frame.shape[1]
+    me = employee(persons, [float(v) for v in person["seat"]], width)
+    out = {"state": "away", "employee": me, "phone": None, "visitor": None}
+    if me is None:
+        return out
+    phone = phone_near(things, me) or phone_close_look(frame, me, model)
+    guest = visitor(persons, me)
+    out["phone"], out["visitor"] = phone, guest
+    out["state"] = "phone" if phone else ("talking" if guest else "computer")
+    return out
+
+
+def draw(frame, result, seat):
+    """The frame with what classify() saw drawn on it (for checking by eye;
+    such pictures stay on this machine)."""
+    img = frame.copy()
+    colours = {"employee": (80, 220, 120), "phone": (0, 0, 255),
+               "visitor": (255, 160, 0)}
+    for key, colour in colours.items():
+        t = result.get(key)
+        if t:
+            cv2.rectangle(img, (int(t[2]), int(t[3])), (int(t[4]), int(t[5])),
+                          colour, 3)
+    cv2.circle(img, (int(seat[0]), int(seat[1])), 12, (0, 255, 255), 3)
+    return img
+
+
+def crop_around(img, seat, size=520):
+    """A square round the desk, for a contact sheet."""
+    x, y = (int(v) for v in seat)
+    h, w = img.shape[:2]
+    X1, Y1 = max(0, x - size // 2), max(0, y - int(size * 0.8))
+    X2, Y2 = min(w, X1 + size), min(h, Y1 + size)
+    out = img[Y1:Y2, X1:X2]
+    return cv2.resize(out, (300, 300)) if out.size else np.zeros(
+        (300, 300, 3), np.uint8)
