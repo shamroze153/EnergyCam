@@ -55,6 +55,12 @@ DAY_FROM = 8
 # An away stretch at least this long is a break worth listing.
 BREAK_MIN = 15
 
+# A note on the desk counts only at this score or more (the loop notes
+# everything from 0.25). 24 Nov, against 105 frames checked by eye: 0.25
+# and 0.35 both 95.2%, 0.30 96.2% -- it drops a turned, empty chair (P1's
+# at 20:28, 0.29) and keeps a dim sitter (P5 at 19:41, 0.32).
+DESK_MIN_SCORE = 0.30
+
 # A pass longer than this is the laptop asleep in the middle of it (17 Nov
 # 19:56 to 18 Nov 10:33 is one "pass" in cycles.csv), not a look at the
 # desk: it is left out, unwatched. room_loop.stale_pass draws the same line.
@@ -103,22 +109,54 @@ def reach(person, cam_notes):
     return max(SEAT_RADIUS * width, SEAT_REACH * height)
 
 
-def at_desk(person, day_notes):
-    """The times of the notes that fall on this person's desk."""
+def desk_notes(person, day_notes, min_score=None):
+    """The notes that fall on this person's desk: within reach of the
+    desk's point, and scoring at least `min_score` (DESK_MIN_SCORE).
+
+    The reach is each note's own: a share of the frame's width, or of that
+    box's height where that is more (as desk_activity.employee). 24 Nov,
+    checked by eye: P1 leaning over his desk, near the camera, had a box
+    300 px tall ending 71-78 px from the desk's point -- outside the 67 px
+    the camera's middling box allowed, so four passes of him at work read
+    "away"."""
     if day_notes is None or day_notes.empty:
-        return []
+        return day_notes.iloc[0:0] if day_notes is not None else None
+    min_score = DESK_MIN_SCORE if min_score is None else min_score
     cam = day_notes[(day_notes["recorder"] == person["recorder"])
                     & (day_notes["channel"] == int(person["channel"]))]
+    if "score" in cam.columns and min_score > 0:
+        cam = cam[cam["score"] >= min_score]
     if cam.empty:
-        return []
+        return cam
     x, y = (float(v) for v in person["seat"])
-    r = reach(person, cam)
+    if person.get("reach"):
+        r = float(person["reach"])
+    else:
+        width = float(cam["frame_w"].iloc[0])
+        r = (SEAT_REACH * cam["h"]).clip(lower=SEAT_RADIUS * width)
     bottom = cam["cy"] + cam["h"] / 2.0
     hit = ((cam["cx"] - x) ** 2 + (bottom - y) ** 2) <= r * r
-    return sorted(cam.loc[hit, "at"])
+    return cam[hit]
 
 
-def timeline(person, day_notes, day_passes):
+def at_desk(person, day_notes, min_score=None):
+    """The times of the notes that fall on this person's desk."""
+    notes_ = desk_notes(person, day_notes, min_score)
+    return [] if notes_ is None or notes_.empty else sorted(notes_["at"])
+
+
+# Passes further apart than this have a hole between them (the loop or the
+# laptop stopped): nothing is filled in across it.
+JOINED = pd.Timedelta(minutes=2)
+# A lone pass at the desk is let go as somebody passing or a chair in the
+# changing light -- unless what was seen there was this sure of a person,
+# and sitting: a box no taller than this for its width (24 Nov: P4 back
+# at his desk, 0.90, 1.13; a man standing by P2's empty chair, 0.89, 2.46).
+LONE_SURE = 0.6
+SEATED_RATIO = 1.8
+
+
+def timeline(person, day_notes, day_passes, min_score=None):
     """Pass by pass: [(start, end, "desk" | "away")], one-pass blips gone.
 
     A pass is "desk" when a note on the desk falls inside it. A single
@@ -126,31 +164,50 @@ def timeline(person, day_notes, day_passes):
     "desk". Then the reverse: a single "desk" pass with "away" on both
     sides is somebody passing, or a chair as the light changes at dawn (19
     Nov 07:01, a "first in" nobody made), and is "away" -- a sitter stays
-    longer than one pass. Passes the loop never made are not in the
-    list."""
+    longer than one pass -- unless the person seen there was sure
+    (LONE_SURE: 24 Nov, P4 back at his desk at 19:59 for one pass at 0.9).
+    Nothing is filled in across a hole in the passes (24 Nov: the loop
+    stopped 20:07-20:25, and the pass after the hole made P1's empty chair
+    at 20:28 "desk" because the passes either side of the hole were).
+    Passes the loop never made are not in the list."""
     if day_passes is None or day_passes.empty:
         return []
-    hits = at_desk(person, day_notes)
+    seen_notes = desk_notes(person, day_notes, min_score)
+    hits, sure = [], []
+    if seen_notes is not None and not seen_notes.empty:
+        ordered = seen_notes.sort_values("at")
+        hits = list(ordered["at"])
+        score = ordered["score"] if "score" in ordered.columns else 1.0
+        seated = (ordered["h"] / ordered["w"].clip(lower=1.0)) <= SEATED_RATIO
+        # How sure a pass is of a SEATED person: a standing one counts 0.
+        sure = list((score * seated).astype(float))
     out = []
     i = 0
     for start, end in zip(day_passes["start"], day_passes["end"]):
         while i < len(hits) and hits[i] <= start:
             i += 1
-        seen = i < len(hits) and hits[i] <= end
-        out.append([start, end, "desk" if seen else "away"])
+        j, best = i, 0.0
+        while j < len(hits) and hits[j] <= end:
+            best = max(best, sure[j])
+            j += 1
+        out.append([start, end, "desk" if j > i else "away", best])
+
+    def joined(a, b):
+        return out[b][0] - out[a][1] <= JOINED
+
     for k in range(1, len(out) - 1):
         if (out[k][2] == "away" and out[k - 1][2] == "desk"
-                and out[k + 1][2] == "desk"):
+                and out[k + 1][2] == "desk" and joined(k - 1, k)
+                and joined(k, k + 1)):
             out[k][2] = "desk"
     for k in range(len(out)):
-        before = out[k - 1][2] if k > 0 else "away"
-        after = out[k + 1][2] if k + 1 < len(out) else "away"
-        if out[k][2] == "desk" and before == "away" and after == "away":
+        before = out[k - 1][2] if k > 0 and joined(k - 1, k) else "away"
+        after = out[k + 1][2] if k + 1 < len(out) and joined(k, k + 1) \
+            else "away"
+        if (out[k][2] == "desk" and before == "away" and after == "away"
+                and out[k][3] < LONE_SURE):
             out[k][2] = "blip"
-    for p in out:
-        if p[2] == "blip":
-            p[2] = "away"
-    return [tuple(p) for p in out]
+    return [(p[0], p[1], "away" if p[2] == "blip" else p[2]) for p in out]
 
 
 def _minutes(a, b):
@@ -476,26 +533,238 @@ def day_activity(person, day, rows=None, notes=None, passes=None,
     }
 
 
-def build(cfg, today, hours=(10, 20), count=5, folder=SEATS, frm=8, to=24):
+# ------------------------------------------------ every day, and right now
+#
+# Shamroze, 23 Nov: "first in kab, last out kab, poore din kya kiya, kitne
+# percent productivity -- bahut saare dinon ka" and "status jaise AC ka
+# status jaata hai". Two figures a day, said apart because they are not
+# the same claim:
+#   desk %      time at the desk / time in the office (first in -> last out)
+#   computer %  time at the computer / time in the office -- only on days
+#               the activity at the desk was read (from 23 Nov)
+
+HISTORY = os.path.join("progress", "history.csv")
+HISTORY_COLS = ["day", "code", "first", "last", "in_min", "span_min",
+                "part", "desk_min", "away_min", "desk_pct", "computer_min",
+                "phone_min", "talking_min", "computer_pct", "breaks",
+                "longest_break", "read"]
+# A loop silent this long is not watching: the status says so.
+STALE = pd.Timedelta(minutes=15)
+
+
+def day_record(person, day, n=None, p=None, rows=None, reviews=None):
+    """One employee's day as the history keeps it (see above)."""
+    a = day_activity(person, day, rows=rows, notes=n, passes=p,
+                     reviews=reviews)
+    first, last = a["first_in"], a["last_out"]
+    # Time in the office is the WATCHED time between first in and last
+    # out: 23 Nov the laptop slept 12:05-19:01, and counting those seven
+    # hours as "in the office, not at the desk" made a full day look 14%.
+    in_min, desk, breaks, run, prev_end = 0.0, 0.0, [], None, None
+    for s, e, k, _ in a["line"]:
+        if first is None or s < first or e > last:
+            continue
+        if prev_end is not None and s - prev_end > JOINED:
+            run = None              # a hole in the watching: no break known
+        prev_end = e
+        in_min += _minutes(s, e)
+        if k in AT_DESK:
+            desk += _minutes(s, e)
+            if run:
+                breaks.append(_minutes(run, s))
+                run = None
+        elif run is None:
+            run = s
+    span = _minutes(first, last) if first is not None else 0.0
+    breaks = [b for b in breaks if b >= BREAK_MIN]
+    read = a["read"] > 0
+    est = a["estimate"]
+    # The computer share is of the desk time that was read, applied to all
+    # of the desk time; minutes away are the watched ones not at the desk.
+    return {
+        "day": day, "first": first, "last": last, "in_min": in_min,
+        "span_min": span, "part": span - in_min > 30,
+        "desk_min": desk, "away_min": max(0.0, in_min - desk),
+        "desk_pct": desk / in_min if in_min > 0 else None,
+        "computer_min": est["computer"] if read else None,
+        "phone_min": est["phone"] if read else None,
+        "talking_min": est["talking"] if read else None,
+        "computer_pct": est["computer"] / in_min if read and in_min > 0
+        else None,
+        "breaks": len(breaks), "longest_break": max(breaks, default=0.0),
+        "read": int(a["read"]),
+    }, a
+
+
+def load_history(path=None):
+    """The days the history file keeps: {(day, code): record}."""
+    path = path or HISTORY
+    if not os.path.exists(path):
+        return {}
+    d = pd.read_csv(path, dtype=str).fillna("")
+    out = {}
+    for _, r in d.iterrows():
+        rec = {}
+        for c in HISTORY_COLS:
+            v = r.get(c, "")
+            if c in ("day", "code"):
+                rec[c] = v
+            elif c in ("first", "last"):
+                rec[c] = pd.Timestamp("%s %s" % (r["day"], v)) if v else None
+            elif c == "part":
+                rec[c] = v == "True"
+            else:
+                rec[c] = float(v) if v not in ("", "None") else None
+        out[(rec["day"], rec["code"])] = rec
+    return out
+
+
+def store_history(records, path=None):
+    """Write (or rewrite) days in the history file -- this machine only
+    (progress/ is git-ignored): the seat notes behind them are let go after
+    two weeks, the days are kept."""
+    path = path or HISTORY
+    kept = load_history(path)
+    for rec in records:
+        kept[(rec["day"], rec["code"])] = rec
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    rows = []
+    for key in sorted(kept):
+        rec = kept[key]
+        row = []
+        for c in HISTORY_COLS:
+            v = rec.get(c)
+            if c in ("first", "last"):
+                v = v.strftime("%H:%M") if v is not None else ""
+            elif isinstance(v, float):
+                v = "%.4f" % v
+            row.append("" if v is None else str(v))
+        rows.append(row)
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8", newline="") as fh:
+        import csv
+        w = csv.writer(fh)
+        w.writerow(HISTORY_COLS)
+        w.writerows(rows)
+    os.replace(tmp, path)
+
+
+def history(person, upto, count=20, folder=SEATS, cache=None, stored=None,
+            reviews_for=None):
+    """The employee's working days up to `upto`, newest last: worked out
+    from the seat notes where they are still kept, else as the history
+    file kept them."""
+    cache = {} if cache is None else cache
+    since = str(person.get("since") or "")
+    code = person.get("code", "?")
+    days = working_days(upto, count, folder)
+    out = {}
+    for day in days:
+        if since and day < since:
+            continue
+        if day not in cache:
+            cache[day] = (notes(day), passes(day))
+        n, p = cache[day]
+        rec, _ = day_record(person, day, n, p,
+                            reviews=(reviews_for or {}).get(day))
+        rec["code"] = code
+        out[day] = rec
+    for (day, c), rec in (stored or {}).items():
+        if c == code and day not in out and day <= upto and not (
+                since and day < since):
+            out[day] = rec
+    return [out[d] for d in sorted(out)][-count:]
+
+
+def live(day_act, now, hours=(10, 20)):
+    """What the employee is doing right now, from today's passes:
+    {"state": desk | away | out | gone | unwatched, "label", "since",
+    "minutes", "place"} -- the way the campus page says a room's AC is on."""
+    line = [p for p in day_act.get("line") or [] if p[1] <= now]
+    day = day_act.get("day")
+    if not line:
+        return {"state": "unwatched", "label": "Not watched yet today",
+                "since": None, "minutes": None, "place": ""}
+    if now - line[-1][1] > STALE:
+        return {"state": "unwatched", "label": "Not being watched",
+                "since": line[-1][1], "minutes": _minutes(line[-1][1], now),
+                "place": ""}
+
+    def group(k):
+        return "desk" if k in AT_DESK else "away"
+    kind = line[-1][2]
+    g = group(kind)
+    i = len(line) - 1
+    while (i > 0 and group(line[i - 1][2]) == g
+           and line[i][0] - line[i - 1][1] <= JOINED):
+        i -= 1
+    since = line[i][0]
+    place = ""
+    start_of_day = pd.Timestamp(day) + pd.Timedelta(hours=DAY_FROM)
+    came = [p for p in line if p[2] in AT_DESK and p[1] > start_of_day]
+    if g == "desk":
+        state = "desk"
+        label = {"computer": "At the computer", "phone": "On the phone",
+                 "talking": "Talking at the desk"}.get(kind, "At the desk")
+    elif not came:
+        # Not at the desk yet today -- by now, not by the end of the day.
+        state, label, since = "out", "Not in yet", None
+    else:
+        end = pd.Timestamp(day) + pd.Timedelta(hours=hours[1])
+        if now >= end and _minutes(since, now) >= 30:
+            state, label, since = "gone", "Gone for the day", came[-1][1]
+        else:
+            state, label = "away", "Away from the desk"
+            confirmed = [p for p in line[i:] if p[2] not in ("unseen", "out")
+                         and p[2] not in AT_DESK]
+            if confirmed:
+                place = confirmed[-1][3]
+            else:
+                possible = [s for s in day_act.get("possible") or []
+                            if since <= pd.Timestamp("%s %s" % (day, s["time"]))
+                            <= now]
+                if possible:
+                    place = "possibly %s" % possible[-1]["room"]
+    return {"state": state, "label": label, "since": since,
+            "minutes": _minutes(since, now) if since is not None else None,
+            "place": place}
+
+
+def build(cfg, today, hours=(10, 20), count=5, folder=SEATS, frm=8, to=24,
+          now=None, history_days=20):
     """Everything the Progress page draws, desk by desk: the last `count`
     working days up to `today` (YYYY-MM-DD), each day's summary and slots,
-    and a usual day over the whole ones (80% of office hours watched)."""
+    and a usual day over the whole ones (80% of office hours watched);
+    the day in focus (`focus`), what is happening now (`live`), and every
+    day kept (`history`)."""
     days = working_days(today, count, folder)
     whole = 0.8 * 60 * (hours[1] - hours[0])
     cache = {}
     out = []
     focus = days[-1] if days else today
+    now = now if now is not None else pd.Timestamp.now()
+    stored = load_history()
     for person in cfg.get("people") or []:
         summaries = week(person, days, hours, cache)
+        state = {"state": "out", "label": "Not in today", "since": None,
+                 "minutes": None, "place": ""}
         try:
             n, p = cache.get(focus) or (notes(focus), passes(focus))
             the_day = day_activity(person, focus, notes=n, passes=p)
+            if focus == now.strftime("%Y-%m-%d"):
+                state = live(the_day, now, hours)
             the_day["slots"] = kind_slots(the_day, frm, to)
             the_day.pop("line", None)
         except Exception:                                   # noqa: BLE001
             the_day = None
+        try:
+            past = history(person, today, history_days, folder, cache, stored)
+        except Exception:                                   # noqa: BLE001
+            past = []
         out.append({
             "focus": the_day,
+            "live": state,
+            "history": past,
             "code": person.get("code", "?"),
             "name": person.get("name") or "",
             "department": person.get("department", ""),
@@ -508,6 +777,99 @@ def build(cfg, today, hours=(10, 20), count=5, folder=SEATS, frm=8, to=24):
                            whole),
         })
     return out
+
+
+# ------------------------------------------------- the hosted page's copy
+#
+# The hosted dashboard has none of this machine's files, so the loop sends
+# it the numbers (progress_track.publish -> progress_days, sql/11): codes,
+# departments, times and hours -- never a name, never a picture.
+
+def office_hours(path="rooms.yaml"):
+    """The office day from rooms.yaml's hours, as (10.0, 20.0)."""
+    try:
+        with open(path, encoding="utf-8") as fh:
+            op = ((yaml.safe_load(fh) or {}).get("hours") or {}).get(
+                "operations") or {}
+    except OSError:
+        op = {}
+
+    def h(t, default):
+        try:
+            a, b = str(t).split(":")[:2]
+            return int(a) + int(b) / 60.0
+        except (ValueError, AttributeError):
+            return default
+    return h(op.get("start", "10:00"), 10.0), h(op.get("end", "20:00"), 20.0)
+
+
+def _jsonable(x):
+    """A build() result as plain JSON: times as "ts:<iso>", tuples as
+    lists, numpy numbers as Python ones."""
+    import datetime as _dt
+    if x is pd.NaT or x is None:
+        return None
+    if isinstance(x, pd.Timestamp):
+        return "ts:" + x.isoformat()
+    if isinstance(x, (_dt.datetime, _dt.date)):
+        return x.isoformat()          # a stage's start or end, from YAML
+    if isinstance(x, dict):
+        return {str(k): _jsonable(v) for k, v in x.items()}
+    if isinstance(x, (list, tuple)):
+        return [_jsonable(v) for v in x]
+    if hasattr(x, "item") and not isinstance(x, (str, bytes)):
+        try:
+            return x.item()
+        except (ValueError, AttributeError):
+            pass
+    return x
+
+
+def _restore(x):
+    if isinstance(x, str) and x.startswith("ts:"):
+        return pd.Timestamp(x[3:])
+    if isinstance(x, dict):
+        return {k: _restore(v) for k, v in x.items()}
+    if isinstance(x, list):
+        return [_restore(v) for v in x]
+    return x
+
+
+def to_payloads(cfg, people, hours, made):
+    """progress_days rows for one day: [(code, json)], one an employee and
+    one "_project" (the stages). Names are blanked: they stay here."""
+    import json
+    rows = []
+    for p in people:
+        q = dict(p)
+        q["name"] = ""
+        rows.append((str(p.get("code", "?")), json.dumps(_jsonable(q))))
+    project = {"campus": cfg.get("campus", ""),
+               "stages": cfg.get("stages") or [],
+               "needs": cfg.get("needs") or [],
+               "hours": list(hours), "made": made}
+    rows.append(("_project", json.dumps(_jsonable(project))))
+    return rows
+
+
+def from_payloads(rows):
+    """(cfg, people, made, hours) back from progress_days rows
+    [(code, payload)] -- payload a dict (psycopg2 reads JSONB so) or text."""
+    import json
+    cfg, people, made, hours = {}, [], "", (10.0, 20.0)
+    for code, payload in rows:
+        data = payload if isinstance(payload, dict) else json.loads(payload)
+        data = _restore(data)
+        if code == "_project":
+            cfg = {"campus": data.get("campus", ""),
+                   "stages": data.get("stages") or [],
+                   "needs": data.get("needs") or []}
+            made = data.get("made", "")
+            hours = tuple(data.get("hours") or (10.0, 20.0))
+        else:
+            people.append(data)
+    people.sort(key=lambda p: str(p.get("code", "")))
+    return cfg, people, made, hours
 
 
 def kind_slots(day_summary_, frm=8, to=24, step=10):

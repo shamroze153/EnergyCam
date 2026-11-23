@@ -246,7 +246,12 @@ def tiles(people, c):
                  for p in people)
     agree = sum(int((p.get("check") or {}).get("agree") or 0)
                 for p in people)
+    recent = [r["desk_pct"] for p in people
+              for r in (p.get("history") or [])[-5:]
+              if r.get("desk_pct") is not None]
     cells = [
+        ("Desk %, last 5 days", pct(sum(recent) / len(recent))
+         if recent else "--", "of the time in the office, all five"),
         ("Employees watched", "%d" % len(people),
          "in %d departments" % len({p["department"] for p in people})),
         ("At the desk, a usual day", "%.1f h" % desk_h,
@@ -339,6 +344,97 @@ def card(p, c, frm=8, to=24, whole=480):
                esc(p.get("why", ""))))
 
 
+LIVE_COLOURS = {"desk": "#2a9d63", "away": "#e8a21a", "out": "#898781",
+                "gone": "#898781", "unwatched": "#d03b3b"}
+
+
+def live_strip(people, c, as_of=""):
+    """Right now, every employee in one row -- the way the campus page says
+    which ACs are on."""
+    if not any(p.get("live") for p in people):
+        return ""
+    chips = []
+    for p in people:
+        lv = p.get("live") or {}
+        state = lv.get("state", "out")
+        since = lv.get("since")
+        if hasattr(since, "strftime"):
+            mins = lv.get("minutes")
+            when = ("since %s" % since.strftime("%H:%M")) + (
+                " · %s" % dur(mins) if mins and state in ("desk", "away")
+                else "")
+        else:
+            when = ""
+        if state == "gone" and hasattr(since, "strftime"):
+            when = "left at %s" % since.strftime("%H:%M")
+        chips.append(
+            '<div class="pg-live" style="border-left-color:%s">'
+            '<span class="pg-code sm">%s</span><div><b>%s</b><span>%s%s'
+            '</span></div></div>'
+            % (LIVE_COLOURS.get(state, "#898781"), esc(p.get("code", "?")),
+               esc(lv.get("label", "")), esc(when),
+               (" · %s" % esc(lv["place"])) if lv.get("place") else ""))
+    return ('<div class="ec-h"><span class="t">Right now</span><span class="c">'
+            '%s</span></div><div class="pg-lives">%s</div>'
+            % (("as of %s" % esc(as_of)) if as_of else "", "".join(chips)))
+
+
+def pct(x):
+    return "%.0f%%" % (100 * x) if x is not None else "--"
+
+
+def team_table(people, c, days_shown=10):
+    """Every employee against every day kept: desk % (and computer % where
+    the activity was read), first in and last out."""
+    days = sorted({r["day"] for p in people for r in p.get("history") or []})
+    days = days[-days_shown:]
+    if not days:
+        return ""
+    import datetime as _dt
+    head = "".join('<th>%s</th>' % esc(
+        _dt.date.fromisoformat(d).strftime("%a %d")) for d in days)
+    rows = []
+    for p in people:
+        by_day = {r["day"]: r for r in p.get("history") or []}
+        cells = []
+        shares = []
+        for d in days:
+            r = by_day.get(d)
+            if not r or r.get("first") is None:
+                cells.append('<td class="none">%s</td>'
+                             % ("not in" if r else "--"))
+                continue
+            share = r.get("desk_pct")
+            if share is not None:
+                shares.append(share)
+            alpha = 0.12 + 0.55 * min(1.0, max(0.0, share or 0.0))
+            comp = r.get("computer_pct")
+            cells.append(
+                '<td style="background:rgba(42,157,99,%.2f)" title="in %s, out '
+                '%s; %s at the desk of %s watched%s"><b>%s</b>%s<small>%s-%s'
+                '</small></td>'
+                % (alpha, r["first"].strftime("%H:%M"),
+                   r["last"].strftime("%H:%M"), dur(r.get("desk_min")),
+                   dur(r.get("in_min")),
+                   " (part of the day)" if r.get("part") else "",
+                   pct(share) + ("*" if r.get("part") else ""),
+                   ('<i>computer %s</i>' % pct(comp)) if comp is not None
+                   else "", r["first"].strftime("%H:%M"),
+                   r["last"].strftime("%H:%M")))
+        avg = sum(shares) / len(shares) if shares else None
+        rows.append('<tr><th class="who">%s<span>%s</span></th>%s'
+                    '<td class="avg"><b>%s</b></td></tr>'
+                    % (esc(p.get("code", "?")), esc(p.get("department", "")),
+                       "".join(cells), pct(avg)))
+    return ('<div class="ec-h"><span class="t">Every day</span><span class="c">'
+            'desk %% = time at the desk of the time in the office (first in to '
+            'last out, as watched); computer %% where the activity was read; '
+            '* part of the day watched</span></div>'
+            '<div class="ec-card pg-tablewrap"><table class="pg-team"><thead>'
+            '<tr><th></th>%s<th>usual</th></tr></thead><tbody>%s</tbody>'
+            '</table></div>' % (head, "".join(rows)))
+
+
 def legend(c):
     items = [("desk", "at the desk"), ("away", "away from the desk"),
              ("out", "not in yet / gone")]
@@ -383,7 +479,8 @@ def page(mode, cfg, people, as_of, hours=(10, 20), frm=8, to=24):
     # on one line left the second block unclosed and the whole page inside
     # it, invisible (23 Nov, the first look in the dashboard).
     return (css(mode) + "\n" + _CSS % c + "\n" + '<div class="ec pg">' + head
-            + tiles(people, c)
+            + live_strip(people, c, as_of) + tiles(people, c)
+            + team_table(people, c)
             + tracker(cfg.get("stages") or [], c, cfg.get("needs"))
             + body + note + "</div>")
 
@@ -396,8 +493,10 @@ def locked(mode, why):
                   "(and in the app's secrets where it is hosted)."),
         "ask": ("Progress", "Private: the employees' time at their desks, "
                 "for the productivity project. Enter its own password."),
-        "none": ("Progress runs on the office laptop.", "Its desk list and "
-                 "the seat notes it reads never leave that machine."),
+        "none": ("Progress has not reached this page yet.", "The office "
+                 "laptop sends its numbers (never a name or a picture) every "
+                 "five minutes, once an administrator has run "
+                 "sql/11_progress.sql in Supabase."),
     }[why]
     return (css(mode) + '<div class="ec"><div class="ec-h" style="margin-top:'
             '6px"><span class="t">%s</span></div><div class="ec-note" '
@@ -476,7 +575,7 @@ margin-right:5px;vertical-align:-1px}
 .pg .pg-where{font-size:12px;color:var(--t2);margin:6px 0 2px}
 .pg .pg-where b{color:var(--t1);font-weight:650}
 .pg .pg-where span{color:#3987e5;font-weight:600}
-.pg .pg-gantt{position:relative;--gl:170px;margin:6px 0 14px;padding-bottom:20px}
+.pg .pg-gantt{position:relative;--gl:170px;margin:22px 0 14px;padding-bottom:20px}
 .pg .pg-grow{display:grid;grid-template-columns:var(--gl) 1fr;align-items:center;
 min-height:30px}
 .pg .pg-gname{display:flex;align-items:center;gap:6px;min-width:0;padding-right:8px}
@@ -493,6 +592,28 @@ overflow:hidden;background:var(--s1)}
 border-left:2px dashed %(crit)s}
 .pg .pg-gtoday span{position:absolute;top:-14px;left:-14px;font-size:9.5px;
 color:%(crit)s;font-weight:700}
+.pg .pg-lives{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));
+gap:10px}
+.pg .pg-live{display:flex;gap:9px;align-items:center;background:var(--s1);
+border:1px solid var(--line);border-left:5px solid;border-radius:12px;padding:9px 11px;
+min-width:0}
+.pg .pg-live div{display:flex;flex-direction:column;min-width:0}
+.pg .pg-live b{font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pg .pg-live span:not(.pg-code){font-size:11.5px;color:var(--t3)}
+.pg .pg-code.sm{font-size:11.5px;padding:4px 7px;border-radius:8px}
+.pg .pg-tablewrap{padding:6px;overflow-x:auto}
+.pg .pg-team{border-collapse:separate;border-spacing:3px;font-size:12px;min-width:100%%}
+.pg .pg-team th{font-weight:600;color:var(--t3);font-size:11px;white-space:nowrap;
+padding:2px 4px}
+.pg .pg-team th.who{text-align:left;color:var(--t1);font-size:13px}
+.pg .pg-team th.who span{display:block;font-size:10.5px;color:var(--t3);font-weight:500}
+.pg .pg-team td{border-radius:7px;padding:5px 6px;text-align:center;
+white-space:nowrap;min-width:64px}
+.pg .pg-team td b{display:block;font-size:14px}
+.pg .pg-team td i{display:block;font-style:normal;font-size:10.5px;color:var(--t2)}
+.pg .pg-team td small{display:block;font-size:10px;color:var(--t3)}
+.pg .pg-team td.none{color:var(--t3);background:var(--s2)}
+.pg .pg-team td.avg{background:var(--s2)}
 .pg .pg-needs{margin-top:10px;padding-top:10px;border-top:1px solid var(--line);font-size:13px}
 .pg .pg-needs ul{margin:6px 0 0 18px;padding:0;color:var(--t2)}
 .pg .pg-needs li{margin:3px 0}

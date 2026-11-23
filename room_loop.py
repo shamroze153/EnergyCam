@@ -2003,6 +2003,14 @@ def main():
                     weekly_mail(now)
                 except Exception as e:                      # noqa: BLE001
                     print(">> weekly report: %s" % safe_error(e))
+                # Progress's numbers for the hosted page (23 Nov), every ten
+                # minutes; never a name or a picture. Guarded like the mail:
+                # a failure here is reported, never a stopped loop.
+                if progress_track is not None:
+                    try:
+                        progress_track.publish(connect)
+                    except Exception as e:                  # noqa: BLE001
+                        print(">> progress numbers: %s" % safe_error(e))
 
             if args.once:
                 return

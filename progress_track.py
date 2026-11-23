@@ -35,6 +35,7 @@ from datetime import datetime, timedelta, timezone
 
 import cv2
 import numpy as np
+import pandas as pd
 
 import desk_activity as da
 import progress_data as pdx
@@ -319,6 +320,75 @@ def sightings(room, key, frame, persons, taken, day, hms, people):
         _crop(frame, b[2:], os.path.join(CROPS, day, code,
                                          seen_name(hms, score, room, key)))
     return rows
+
+
+# ------------------------------------------------------ the hosted page
+#
+# Shamroze, 23 Nov: "send the dashboard to somebody and the progress should
+# go the way the AC status goes -- all the data stays on this computer".
+# Every PUBLISH_EVERY seconds the loop sends the day's NUMBERS to
+# progress_days (sql/11_progress.sql): codes, departments, times, hours.
+# Never a name, never a picture.
+
+PUBLISH_EVERY = 300
+_published = {"at": 0.0, "missing": False, "told": False}
+
+UPSERT = ("INSERT INTO progress_days (day, code, payload, updated_at)"
+          " VALUES (%s, %s, %s::jsonb, now())"
+          " ON CONFLICT (day, code) DO UPDATE SET payload = EXCLUDED.payload,"
+          " updated_at = now()")
+
+
+def publish(connect, now=None, clock=time.time, force=False):
+    """The day's numbers to progress_days, at most every PUBLISH_EVERY
+    seconds (every hour while the table is missing). True when sent."""
+    t = clock()
+    wait = 3600 if _published["missing"] else PUBLISH_EVERY
+    if not force and t - _published["at"] < wait:
+        return False
+    _published["at"] = t
+    cfg = pdx.load() or {}
+    if not cfg.get("people"):
+        return False
+    now = now or datetime.now(PKT)
+    day = now.strftime("%Y-%m-%d")
+    hours = pdx.office_hours()
+    people = pdx.build(cfg, day, hours,
+                       now=pd.Timestamp(now.replace(tzinfo=None)))
+    # Keep every day worked out, here, before the seat notes behind it
+    # are let go (two weeks): progress/history.csv.
+    try:
+        pdx.store_history([dict(r, code=p["code"]) for p in people
+                           for r in p.get("history") or []])
+    except OSError:
+        pass
+    rows = pdx.to_payloads(cfg, people, hours, now.strftime("%d %b %H:%M"))
+    import psycopg2
+    try:
+        conn = connect()
+        try:
+            cur = conn.cursor()
+            cur.executemany(UPSERT, [(day, code, j) for code, j in rows])
+            conn.commit()
+            cur.close()
+        finally:
+            conn.close()
+    except psycopg2.Error as e:
+        missing = (getattr(e, "pgcode", None) in ("42P01", "42501")
+                   or isinstance(e, (psycopg2.errors.UndefinedTable,
+                                     psycopg2.errors.InsufficientPrivilege)))
+        if not missing:
+            raise
+        # No table yet, or no grant: an administrator runs sql/11 once.
+        _published["missing"] = True
+        if not _published["told"]:
+            _published["told"] = True
+            print(">> progress_days is not there yet: the hosted Progress tab"
+                  " stays empty until an administrator runs"
+                  " sql/11_progress.sql once (the laptop's tab is unaffected)")
+        return False
+    _published["missing"] = False
+    return True
 
 
 # The day's assembly is progress_data.day_activity (the dashboard reads

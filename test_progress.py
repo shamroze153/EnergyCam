@@ -398,6 +398,163 @@ def check_tracking():
           in source and "progress_track = None" in source, True)
 
 
+def check_presence_rules():
+    print("-- at the desk: the rules checked by eye on 24 Nov")
+    p = passes_every("10:00", "11:00")
+    # A big box near the camera ends 80 px from the desk's point: inside
+    # 0.3 of its own 300 px height, outside the frame's 67 px.
+    far_big = notes_at(["10:01", "10:06", "10:11"], y=630 - 150 + 0,
+                       h=300)
+    far_big["cy"] = 700 + 80 - 150          # bottom 80 px below the point
+    states = [s for _, _, s in pdx.timeline(PERSON, far_big, p)][:3]
+    check("a big sitter's own height sets the reach", states,
+          ["desk", "desk", "desk"])
+    weak = notes_at(["10:01", "10:06", "10:11"])
+    weak["score"] = 0.29
+    check("a note under DESK_MIN_SCORE (a turned empty chair) is not a "
+          "sitter", [s for _, _, s in pdx.timeline(PERSON, weak, p)][:3],
+          ["away", "away", "away"])
+    lone = notes_at(["10:21"])
+    lone["score"] = 0.9                      # seated: 90 x 200, ratio 2.2?
+    lone["w"], lone["h"] = 260, 295          # ratio 1.13: sitting
+    check("a sure, seated lone pass is kept (back at the desk)",
+          [s for _, _, s in pdx.timeline(PERSON, lone, p)][4], "desk")
+    lone["w"], lone["h"] = 134, 329          # ratio 2.46: standing
+    lone["cy"] = 700 - 329 / 2.0
+    check("a lone pass of somebody standing by the desk is not",
+          [s for _, _, s in pdx.timeline(PERSON, lone, p)][4], "away")
+    holes = pd.concat([passes_every("10:00", "10:10"),
+                       passes_every("10:30", "10:40")], ignore_index=True)
+    # desk 10:00-10:05, nothing 10:05-10:10, (a 20 min hole), desk 10:30-35
+    gap = notes_at(["10:01", "10:31"])
+    gap["w"], gap["h"] = 120, 160
+    gap["cy"] = 700 - 80
+    states = [s for _, _, s in pdx.timeline(PERSON, gap, holes)]
+    check("nothing is filled in across a hole in the watching",
+          states[1], "away")
+
+
+def check_now_and_history():
+    print("-- right now, and every day kept")
+    p = passes_every("08:00", "21:00")
+    seen = ([t.strftime("%H:%M") for t in pd.date_range(
+        at("10:01"), at("13:00"), freq="5min")]
+        + [t.strftime("%H:%M") for t in pd.date_range(
+            at("14:01"), at("19:00"), freq="5min")])
+    rows = pd.DataFrame(columns=["time", "code", "kind", "state", "room",
+                                 "recorder", "channel", "score", "at"])
+    a = pdx.day_activity(PERSON, DAY, rows=rows, notes=notes_at(seen),
+                         passes=p, reviews={})
+
+    def state(hhmm):
+        return pdx.live(a, at(hhmm), (10, 20))
+
+    check("09:00: not in yet", state("09:00")["state"], "out")
+    s = state("11:00")
+    check("11:00: at the desk since 10:00", (s["state"],
+                                             s["since"]), ("desk", at("10:00")))
+    s = state("13:30")
+    check("13:30: away since 13:00", (s["state"], s["since"]),
+          ("away", at("13:00")))
+    s = state("20:45")
+    check("20:45: gone for the day, left at 19:00",
+          (s["state"], s["since"]), ("gone", at("19:00")))
+    rec, _ = pdx.day_record(PERSON, DAY, notes_at(seen), p, rows=rows,
+                            reviews={})
+    check("the day: in 10:00, out 19:00, 8 h at the desk of 9",
+          (rec["first"], rec["last"], round(rec["desk_min"]),
+           round(rec["in_min"]), round(rec["desk_pct"], 2)),
+          (at("10:00"), at("19:00"), 480, 540, 0.89))
+    check("  one break, an hour", (rec["breaks"], round(rec["longest_break"])),
+          (1, 60))
+    folder = tempfile.mkdtemp()
+    try:
+        path = os.path.join(folder, "history.csv")
+        pdx.store_history([dict(rec, code="P9")], path)
+        back = pdx.load_history(path)[(DAY, "P9")]
+        check("the history file keeps the day",
+              (back["first"], back["last"], round(back["desk_min"])),
+              (at("10:00"), at("19:00"), 480))
+    finally:
+        shutil.rmtree(folder)
+    # The hosted page's copy: names blank, times back as times.
+    import json
+    people = [{"code": "P9", "name": "A Name", "department": "Test Room",
+               "focus": {"first_in": at("10:00")}, "history": [rec]}]
+    rows_out = pdx.to_payloads({"campus": "140-H", "stages": []}, people,
+                               (10, 20), "20 Nov 21:00")
+    check("no name leaves this machine",
+          "A Name" in "".join(j for _, j in rows_out), False)
+    cfg, back, made, hours = pdx.from_payloads(
+        [(c, json.loads(j)) for c, j in rows_out])
+    check("and the numbers come back as they went",
+          (back[0]["focus"]["first_in"], back[0]["history"][0]["last"],
+           made, hours), (at("10:00"), at("19:00"), "20 Nov 21:00",
+                          (10, 20)))
+
+
+def check_publish():
+    print("-- the numbers sent to the hosted page")
+    import progress_track as pt
+
+    class Cur:
+        def __init__(self, fail=None):
+            self.rows, self.fail = [], fail
+
+        def executemany(self, sql, rows):
+            if self.fail:
+                raise self.fail
+            self.rows += list(rows)
+
+        def close(self):
+            pass
+
+    class Conn:
+        def __init__(self, cur):
+            self.cur = cur
+
+        def cursor(self):
+            return self.cur
+
+        def commit(self):
+            pass
+
+        def close(self):
+            pass
+
+    import psycopg2
+    cur = Cur()
+    old = dict(pt._published)
+    old_history = pdx.HISTORY
+    scratch = tempfile.mkdtemp()
+    pdx.HISTORY = os.path.join(scratch, "history.csv")   # not the real one
+    try:
+        pt._published.update(at=0.0, missing=False, told=False)
+        sent = pt.publish(lambda: Conn(cur), clock=lambda: 1e9)
+        check("every employee and the project, upserted",
+              (sent, len(cur.rows) >= 2, cur.rows[-1][1]),
+              (True, True, "_project"))
+        check("not again within five minutes",
+              pt.publish(lambda: Conn(cur), clock=lambda: 1e9 + 60), False)
+        err = psycopg2.errors.UndefinedTable("no table")
+        pt._published.update(at=0.0, missing=False, told=False)
+        sent = pt.publish(lambda: Conn(Cur(fail=err)), clock=lambda: 2e9)
+        check("no table yet: nothing sent, said once, tried again hourly",
+              (sent, pt._published["missing"]), (False, True))
+    finally:
+        pt._published.clear()
+        pt._published.update(old)
+        pdx.HISTORY = old_history
+        shutil.rmtree(scratch)
+    loop = open("room_loop.py", encoding="utf-8").read()
+    check("the loop sends them, guarded",
+          "progress_track.publish(connect)" in loop, True)
+    dash = open("rooms_dashboard.py", encoding="utf-8").read()
+    check("the hosted page reads them when it has no progress.yaml",
+          "cached_progress_cloud" in dash and "FROM progress_days" in dash,
+          True)
+
+
 def check_kept_local():
     print("-- kept on this machine")
     ignored = open(".gitignore", encoding="utf-8").read().split()
@@ -417,6 +574,9 @@ def main():
     check_page()
     check_desk_activity()
     check_tracking()
+    check_presence_rules()
+    check_now_and_history()
+    check_publish()
     check_kept_local()
     print()
     if FAILURES:

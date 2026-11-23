@@ -5027,6 +5027,30 @@ st.markdown(overview.campus_head({"name": campus}, campuses, mode,
                                  wordmark(mode), live_text, healthy, when,
                                  LINK_BASE, KEEP_VIEW), unsafe_allow_html=True)
 
+@st.cache_data(ttl=120, show_spinner=False)
+def cached_progress_cloud(bucket):
+    """The numbers the office laptop sent (progress_days, sql/11) -- for
+    the hosted page, which has none of its files. None when there are
+    none yet (or the table is not there)."""
+    import progress_data
+    try:
+        conn = psycopg2.connect(DATABASE_URL, sslmode=DB_SSLMODE,
+                                connect_timeout=10)
+    except psycopg2.Error:
+        return None
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT code, payload FROM progress_days"
+                    " WHERE day = (SELECT max(day) FROM progress_days)")
+        rows = cur.fetchall()
+        cur.close()
+    except psycopg2.Error:
+        return None
+    finally:
+        conn.close()
+    return progress_data.from_payloads(rows) if rows else None
+
+
 @st.cache_data(ttl=300, show_spinner=False)
 def cached_progress(today, stamp, bucket, hours):
     """progress.yaml and every desk's last five working days. `stamp` (the
@@ -5122,8 +5146,23 @@ def show_progress(now):
             st.error("Not that.")
         return
     if not os.path.exists(progress_data.CONFIG):
-        st.markdown(progress_view.locked(mode, "none"),
+        # The hosted page: the numbers the office laptop sent, nothing else
+        # (Shamroze, 23 Nov: "sab data is computer pe rahe, bas dashboard ke
+        # zariye progress aa jaye").
+        got = cached_progress_cloud(_to_5min(now).isoformat())
+        if not got or not got[1]:
+            st.markdown(progress_view.locked(mode, "none"),
+                        unsafe_allow_html=True)
+            return
+        cfg, people, made, hours_sent = got
+        st.markdown(progress_view.page(mode, cfg, people, made, hours_sent),
                     unsafe_allow_html=True)
+        st.caption("Sent by the office laptop at %s (every five minutes). The "
+                   "pictures, the day's videos and the sightings to check "
+                   "stay on that laptop." % made)
+        if st.button("Lock Progress", key="progress_lock"):
+            st.session_state["progress_in"] = False
+            st.rerun()
         return
     local = now.tz_convert(PKT)
     hours = tuple(float(h) for h in work_hours())
@@ -5182,11 +5221,15 @@ def show_progress(now):
 # One room.
 # "Desks" (13 Nov): the seating sheet against the cameras, Envoy-style.
 # "Savings & peak" (18 Nov): the scoreboard, and every room's peak hours.
-# "Progress" (23 Nov): the productivity project, behind its own password.
+# "Progress" (23 Nov): the productivity project, behind its own password --
+# in the top row on the campus it watches (Shamroze: "140-H campus me
+# Progress ka tab"; tucked under More it was not found), nowhere else.
+PROGRESS_CAMPUS = "140-H"
 PRIMARY = ["Overview", "Who comes when", "Rooms", "Desks", "Empty time",
-           "Energy", "Savings & peak"]
+           "Energy", "Savings & peak"] + (
+               ["Progress"] if campus == PROGRESS_CAMPUS else [])
 SECONDARY = ["One room", "Camera health", "Look at the rooms",
-             "Numbers & history", "Progress"]
+             "Numbers & history"]
 VIEWS = PRIMARY + SECONDARY
 # Meters and Analysis became one tab on 12 Nov; a session still on either
 # opens on it rather than falling back to the front page.
