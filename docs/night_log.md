@@ -1366,3 +1366,14 @@ Two or three lines a round; picture file names, never pictures.
   averages). Pushed a2560f9; loop restarted 23:47. The Mosque and 141-C
   Cafe room pages open without an error here; the error Shamroze saw is
   not reproduced -- ask him for its picture.
+* 23:50-00:05 (Shamroze, from home: "productivity aur behtar, khoobsurat;
+  GTA jaisa 3D twin; P1 ke aage poori line; kal, parson, 7 din"): each
+  card now lists the day stretch by stretch (desk with computer / phone /
+  talking minutes, away with where, "not watched" for holes); a day
+  picker (laptop: any day of seat notes; hosted: any day sent -- the loop
+  now sends one earlier day with each send); "The usual week" (7-day
+  averages); a "3D" tab first in 140-H's row (twin_view.py, three.js:
+  floors, glass rooms, people and ACs live, red when an AC runs with
+  nobody in) and the same twin with the five on the Progress tab. Pushed
+  f000e33 and 21c44c9; loop restarted 23:53. Not photo-real: it is
+  building.yaml's sketch -- the fire-exit plans would give it true sizes.
