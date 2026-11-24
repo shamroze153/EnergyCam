@@ -773,9 +773,9 @@ def main():
     import yaml
     hr = yaml.safe_load(open("rooms.yaml", encoding="utf-8"))
     hr = next(r for r in hr["rooms"] if r["name"] == "HR Room")
-    check("HR Room keeps its desk beyond the glass, and its zones",
-          (hr.get("keep", {}).get(2), len(hr["ignore"][2]) >= 5),
-          ([[1550, 182]], True))
+    # The keep seat tried there (dvr2.2-2) was the next room's desk.
+    check("HR Room counts nobody beyond the glass: zones, no keep seat",
+          (hr.get("keep"), len(hr["ignore"][2]) >= 5), (None, True))
 
     # And the same rule where it actually runs.
     seen = []
