@@ -1421,3 +1421,22 @@ Two or three lines a round; picture file names, never pictures.
   restarted 09:05. Tower 6 read running all night (0.30-0.52, the night
   before shut 0.70): looks real -- left on. Progress: cases for the boss
   on the tab; the tracker brought up to date (73%).
+
+## 24 Nov, day
+
+* Campus faces (HR's approval, staff told): the members directory as a
+  local roster (478, no Gadits), 447 photos, 446 face numbers
+  (staff_faces.py); seat faces kept per regular seat each pass and
+  matched hourly (seat_faces.py) -- P3's seat matches its photo (0.53 by
+  0.12), the seats seen from above stay unnamed; a Yes/No per named seat
+  on the Progress tab. Every desk (167, 13 rooms) day by day back to 12
+  Nov, with focus, core hours, late starts, after hours and a heatmap
+  (desk_seats, desks_data, desk_watch). The turnstile (Entry H, main
+  stream) watched live -- faces on the way out; frontal only (profiles
+  matched nobody); names at 0.50 by 0.10 after two playback names did
+  not plainly match by eye. The recorder's playback works (read only);
+  entrance_backfill.py reads 19, 20, 23, 24 Nov's lunch and evening
+  tonight, and gate_match.py gives a desk to a person only after votes
+  over days. A test had written 1,289 fake rows into the day's desk file
+  -- removed, tests now write to temporary folders. Pose + screen left
+  for a validation set first. Pushed up to 505597f.
