@@ -1412,3 +1412,12 @@ Two or three lines a round; picture file names, never pictures.
   changed. The 02:47 zone holds: 141-D Squat Wolf Room 3 empty every pass
   since 03:05 (it flipped 1/0 all night before), unknown only twice, for
   one pass each, while the audit had its recorder busy.
+* 08:47 round (morning): 5 GHOST, no MISSED -- people arriving (0.76-
+  0.90 at Reception, Attendance, Room 18, 141 Room 24), the loop a pass
+  behind; nothing to change there. Morning AC: 141-C Cafe tower 4 read
+  running 02:45-07:52 with nothing switched -- the cafe's light changed
+  at 02:07 -- now read against its own face (dark_ref, as tower 6): that
+  night shut 0.81-0.94, running by day 0.36-0.42; pushed ce601e7, loop
+  restarted 09:05. Tower 6 read running all night (0.30-0.52, the night
+  before shut 0.70): looks real -- left on. Progress: cases for the boss
+  on the tab; the tracker brought up to date (73%).
