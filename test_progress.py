@@ -1837,6 +1837,42 @@ def check_board():
     check("the page in two parts, the card between them",
           ("Today, employee by employee" in top, "Every day" in top,
            "Today, employee by employee" in rest), (True, False, False))
+    # 25 Nov: a day read again from the recordings (replay_day.py) -- only
+    # the loop's gaps, notes in the loop's own format, passes of one camera.
+    import replay_day as rd
+    mo = rd.moments("2026-11-23", "12:00", "12:20", 5)
+    check("replay: a moment every five minutes",
+          [m.strftime("%H:%M") for m in mo],
+          ["12:00", "12:05", "12:10", "12:15", "12:20"])
+    loop_ends = [pd.Timestamp("2026-11-23 12:01"),
+                 pd.Timestamp("2026-11-23 12:19")]
+    check("replay: only the moments no loop pass came near (3 min)",
+          [m.strftime("%H:%M") for m in rd.unwatched(mo, loop_ends)],
+          ["12:05", "12:10", "12:15"])
+    check("replay: the loop's seat-note row",
+          rd.note_rows(mo[0], "Basement", ("nvr4", 23),
+                       [(1160, 220, 1210, 290, 0.61)], (1080, 1920, 3)),
+          [["12:00:00", "Basement", "nvr4", 23, "1185", "255", "50", "70",
+            "0.61", 1920, 1080]])
+    ps = pd.DataFrame({
+        "start": pd.to_datetime(["2026-11-23 12:00", "2026-11-23 12:05",
+                                 "2026-11-23 12:10"]),
+        "end": pd.to_datetime(["2026-11-23 12:05", "2026-11-23 12:10",
+                               "2026-11-23 12:15"]),
+        "camera": ["nvr4:23", "nvr4:23", "dvr2:9"]})
+    nt = pd.DataFrame([{"recorder": "nvr4", "channel": 23, "cx": 1185,
+                        "cy": 250, "w": 40, "h": 72, "score": 0.6,
+                        "frame_w": 1920,
+                        "at": pd.Timestamp("2026-11-23 12:0%d" % m)}
+                       for m in (3, 8)])
+    a_line = pdx.timeline({"recorder": "nvr4", "channel": 23,
+                           "seat": [1185, 286]}, nt, ps)
+    b_line = pdx.timeline({"recorder": "dvr2", "channel": 9,
+                           "seat": [500, 500]}, nt, ps)
+    check("a replayed camera's passes are its own: its desk read in them, "
+          "another camera's desk not called away in them",
+          ([s for _, _, s in a_line], [s for _, _, s in b_line]),
+          (["desk", "desk"], ["away"]))
     # 25 Nov: one desk seen by two cameras (also:): a note on either counts.
     nts = pd.DataFrame([
         {"recorder": "nvr4", "channel": 23, "cx": 1185, "cy": 250, "w": 40,

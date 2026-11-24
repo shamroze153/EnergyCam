@@ -76,28 +76,50 @@ def load(path=CONFIG):
 
 
 def passes(day, path=CYCLES):
-    """The loop's passes on `day` (YYYY-MM-DD): a frame of start, end."""
-    if not os.path.exists(path):
-        return pd.DataFrame(columns=["start", "end"])
-    c = pd.read_csv(path)
-    end = pd.to_datetime(c["time"])
-    keep = end.dt.strftime("%Y-%m-%d") == day
-    out = pd.DataFrame({"end": end[keep]})
-    out["start"] = out["end"] - pd.to_timedelta(
-        c.loc[keep, "seconds"].astype(float), unit="s")
-    out = out[(out["end"] - out["start"])
-              <= pd.Timedelta(minutes=MAX_PASS_MIN)]
-    return out.sort_values("end").reset_index(drop=True)[["start", "end"]]
+    """The loop's passes on `day` (YYYY-MM-DD): a frame of start, end --
+    and, read from the recorders' recordings afterwards (replay_day.py),
+    passes of one camera each (`camera` "nvr4:23"; the loop's are None:
+    every camera). timeline() keeps a person's own cameras' only."""
+    out = pd.DataFrame(columns=["start", "end", "camera"])
+    if os.path.exists(path):
+        c = pd.read_csv(path)
+        end = pd.to_datetime(c["time"])
+        keep = end.dt.strftime("%Y-%m-%d") == day
+        out = pd.DataFrame({"end": end[keep]})
+        out["start"] = out["end"] - pd.to_timedelta(
+            c.loc[keep, "seconds"].astype(float), unit="s")
+        out = out[(out["end"] - out["start"])
+                  <= pd.Timedelta(minutes=MAX_PASS_MIN)]
+        out["camera"] = None
+    rp = os.path.join(SEATS, REPLAY, "%s_passes.csv" % day)
+    if path == CYCLES and os.path.exists(rp):
+        r = pd.read_csv(rp)
+        r["start"], r["end"] = pd.to_datetime(r["start"]), \
+            pd.to_datetime(r["end"])
+        out = pd.concat([out, r[["start", "end", "camera"]]],
+                        ignore_index=True)
+    return out.sort_values("end").reset_index(drop=True)[
+        ["start", "end", "camera"]]
+
+
+REPLAY = "replay"        # seats/replay/<day>.csv, <day>_passes.csv
 
 
 def notes(day, folder=SEATS):
-    """The day's seat notes, with a timestamp column `at`."""
+    """The day's seat notes, with a timestamp column `at` -- the loop's,
+    and those replay_day.py read from the recordings afterwards."""
+    parts = []
     path = os.path.join(folder, "%s.csv" % day)
-    if not os.path.exists(path):
+    if os.path.exists(path):
+        parts.append(pd.read_csv(path))
+    rp = os.path.join(folder, REPLAY, "%s.csv" % day)
+    if folder == SEATS and os.path.exists(rp):
+        parts.append(pd.read_csv(rp))
+    if not parts:
         return pd.DataFrame()
-    d = pd.read_csv(path)
+    d = pd.concat(parts, ignore_index=True)
     d["at"] = pd.to_datetime(day + " " + d["time"])
-    return d
+    return d.sort_values("at").reset_index(drop=True)
 
 
 def reach(person, cam_notes):
@@ -191,6 +213,16 @@ def timeline(person, day_notes, day_passes, min_score=None):
     Passes the loop never made are not in the list."""
     if day_passes is None or day_passes.empty:
         return []
+    if "camera" in day_passes.columns:
+        # the loop's passes look at every camera; a replayed one at its own
+        mine = {"%s:%d" % (person.get("recorder"),
+                           int(person.get("channel") or 0))}
+        mine |= {"%s:%d" % (a[0], int(a[1])) for a in person.get("also") or []}
+        day_passes = day_passes[day_passes["camera"].isna()
+                                | day_passes["camera"].isin(mine)]
+        day_passes = day_passes.sort_values("start")
+        if day_passes.empty:
+            return []
     seen_notes = desk_notes(person, day_notes, min_score)
     hits, sure = [], []
     if seen_notes is not None and not seen_notes.empty:
