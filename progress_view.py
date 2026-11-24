@@ -328,6 +328,31 @@ def tag(p):
     return "%s · %s" % (p["name"], eid) if eid else p["name"]
 
 
+_ICON_RE = None
+
+
+def face(p, size=""):
+    """The employee's directory-photo icon as an <img> (progress_data.
+    photo_icon), or "" -- and "" for anything but a JPEG data icon, so a
+    row from the database can never put a link or a script on the page.
+    `size`: "" (a card), "sm" (right now) or "xs" (a table row)."""
+    global _ICON_RE
+    import re
+    if _ICON_RE is None:
+        _ICON_RE = re.compile(r"data:image/jpeg;base64,[A-Za-z0-9+/]+={0,2}")
+    src = p.get("photo") or ""
+    if not isinstance(src, str) or not _ICON_RE.fullmatch(src):
+        return ""
+    return '<img class="pg-face%s" src="%s" alt="">' % (
+        (" " + size) if size else "", src)
+
+
+def badge(p, size=""):
+    """The photo icon where there is one, else the code's badge."""
+    return face(p, size) or '<span class="pg-code%s">%s</span>' % (
+        (" " + size) if size else "", esc(p.get("code", "?")))
+
+
 def named(text, people):
     """A sentence with each employee's code put as their name, where known."""
     for p in people:
@@ -392,13 +417,15 @@ def card(p, c, frm=8, to=24, whole=480):
                     (" &middot; missed: %s" % esc(check["missed"]))
                     if check.get("missed") else ""))
     return ('<div class="ec-card pg-card"><div class="pg-hd">'
-            '<span class="pg-code">%s</span><div class="pg-dept"><b>%s</b>'
+            '%s<div class="pg-dept"><b>%s</b>'
             '<span>%s</span></div><div class="pg-big">%s</div></div>'
             '%s<div class="pg-sub">The last working days at the desk</div>'
             '<div class="pg-facts">%s</div>%s<div class="pg-days">%s%s</div>'
             '<div class="pg-why">%s</div></div>'
-            % (esc(p["code"]), esc(who(p)),
-               esc("desk in %s%s · %s" % (
+            % (badge(p), esc(who(p)),
+               esc("%sdesk in %s%s · %s" % (
+                   # the code, where the photo took its badge's place
+                   ("%s · " % p["code"]) if face(p) else "",
                    p["department"], (" · ID %s" % p["employee_id"])
                    if p.get("employee_id") else "", basis)), big,
                day_block(p.get("focus"), c, frm, to),
@@ -434,11 +461,13 @@ def live_strip(people, c, as_of=""):
         title = p.get("name") or lv.get("label", "")
         sub = (lv.get("label", "") + (" · " if when else "")) \
             if p.get("name") else ""
+        if face(p):
+            sub = "%s · %s" % (p.get("code", "?"), sub)
         chips.append(
             '<div class="pg-live" style="border-left-color:%s">'
-            '<span class="pg-code sm">%s</span><div><b>%s</b><span>%s%s%s'
+            '%s<div><b>%s</b><span>%s%s%s'
             '</span></div></div>'
-            % (LIVE_COLOURS.get(state, "#898781"), esc(p.get("code", "?")),
+            % (LIVE_COLOURS.get(state, "#898781"), badge(p, "sm"),
                esc(title), esc(sub), esc(when),
                (" · %s" % esc(lv["place"])) if lv.get("place") else ""))
     return ('<div class="ec-h"><span class="t">Right now</span><span class="c">'
@@ -489,9 +518,10 @@ def team_table(people, c, days_shown=10):
                    else "", r["first"].strftime("%H:%M"),
                    r["last"].strftime("%H:%M")))
         avg = sum(shares) / len(shares) if shares else None
-        rows.append('<tr><th class="who">%s<span>%s</span></th>%s'
+        rows.append('<tr><th class="who">%s%s<span>%s</span></th>%s'
                     '<td class="avg"><b>%s</b></td></tr>'
-                    % (esc(tag(p)), esc(p.get("department", "")),
+                    % (face(p, "xs"), esc(tag(p)),
+                       esc(p.get("department", "")),
                        "".join(cells), pct(avg)))
     return ('<div class="ec-h"><span class="t">Every day</span><span class="c">'
             'desk %% = time at the desk of the time in the office (first in to '
@@ -511,19 +541,20 @@ def averages_table(people, days=7):
     for p in people:
         a = pdx.average(p.get("history"), days)
         if a is None:
-            rows.append('<tr><th class="who">%s<span>%s</span></th>'
+            rows.append('<tr><th class="who">%s%s<span>%s</span></th>'
                         '<td colspan="9" class="none">no day in yet</td></tr>'
-                        % (esc(tag(p)), esc(p.get("department", ""))))
+                        % (face(p, "xs"), esc(tag(p)),
+                           esc(p.get("department", ""))))
             continue
         comp = ("%s <small>%d day%s read</small>"
                 % (pct(a["computer_pct"]), a["read_days"],
                    "" if a["read_days"] == 1 else "s")
                 if a["read_days"] else '<small>not read yet</small>')
         rows.append(
-            '<tr><th class="who">%s<span>%s</span></th><td>%d</td>'
+            '<tr><th class="who">%s%s<span>%s</span></th><td>%d</td>'
             '<td><b>%s</b></td><td><b>%s</b></td><td>%s</td><td>%s</td>'
             '<td><b>%s</b></td><td>%s</td><td>%s</td><td>%s</td></tr>'
-            % (esc(tag(p)), esc(p.get("department", "")),
+            % (face(p, "xs"), esc(tag(p)), esc(p.get("department", "")),
                a["days"], hhmm(a["first"] / 60.0 if a["first"] is not None
                                else None),
                hhmm(a["last"] / 60.0 if a["last"] is not None else None),
@@ -658,6 +689,11 @@ gap:14px}
 .pg .pg-code{flex:none;font-weight:750;font-size:13px;color:#fff;
 background:linear-gradient(135deg,#3987e5,#2a9d63);border-radius:10px;
 padding:6px 9px;letter-spacing:.02em}
+.pg .pg-face{flex:none;width:42px;height:42px;border-radius:50%%;object-fit:cover;
+box-shadow:0 0 0 2px var(--s1),0 0 0 3.5px #3987e5}
+.pg .pg-face.sm{width:30px;height:30px;box-shadow:0 0 0 1.5px var(--s1),0 0 0 3px #3987e5}
+.pg .pg-face.xs{width:22px;height:22px;vertical-align:-6px;margin-right:7px;
+box-shadow:0 0 0 1.5px #3987e5}
 .pg .pg-dept{min-width:0;display:flex;flex-direction:column}
 .pg .pg-dept b{font-size:15.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pg .pg-dept span{font-size:11.5px;color:var(--t3)}

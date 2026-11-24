@@ -16,3 +16,6 @@ numpy>=1.26,<3
 PyYAML==6.0.3
 psycopg2-binary==2.9.13
 python-dotenv==1.2.4
+# Streamlit installs it anyway; listed because progress_data shrinks a
+# directory photo to an icon with it (on the laptop; the host only shows it).
+pillow

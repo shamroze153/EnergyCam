@@ -568,6 +568,42 @@ def check_cases():
                                              "now"))[1][0]
     check("the hosted page gets neither the name nor the employee ID",
           (sent["name"], sent["employee_id"]), ("", ""))
+    # 24 Nov, Shamroze: "name, id, or unki picture, teeno bhjdo" -- only
+    # where progress.yaml says cloud_names: true, and of a picture only the
+    # directory photo's small icon, never one from a camera.
+    import base64
+    import io
+    from PIL import Image
+    folder = tempfile.mkdtemp()
+    try:
+        Image.new("RGB", (300, 400), (180, 120, 90)).save(
+            os.path.join(folder, "09999.jpg"))
+        icon = pdx.photo_icon("09999", folder)
+        gone = (pdx.photo_icon("00000", folder),
+                pdx.photo_icon("../09999", folder), pdx.photo_icon("", folder))
+    finally:
+        shutil.rmtree(folder)
+    im = Image.open(io.BytesIO(base64.b64decode(icon.split(",", 1)[1])))
+    check("a directory photo becomes a small square JPEG icon",
+          (icon.startswith("data:image/jpeg;base64,"), im.size,
+           len(icon) < 12000), (True, (pdx.ICON, pdx.ICON), True))
+    check("no photo, or an ID that is not a plain one, is no icon", gone,
+          ("", "", ""))
+    one = dict(people[0], focus=None, live={}, photo=icon)
+    off = pdx.from_payloads(pdx.to_payloads({}, [one], (10, 20), "now"))[1][0]
+    on = pdx.from_payloads(pdx.to_payloads({"cloud_names": True}, [one],
+                                           (10, 20), "now"))[1][0]
+    check("not allowed: no name, ID or photo leaves the laptop",
+          (off["name"], off["employee_id"], off["photo"]), ("", "", ""))
+    check("allowed (progress.yaml cloud_names: true): name, ID and the icon",
+          (on["name"], on["employee_id"], on["photo"] == icon),
+          ("Test Person", "09999", True))
+    check("the page draws the icon -- and nothing but a JPEG data icon",
+          ('class="pg-face"' in pv.face(on),
+           pv.face({"photo": "https://x.example/a.jpg"}),
+           pv.face({"photo": 'data:image/jpeg;base64,AA" onerror="x'}),
+           pv.badge({"code": "P2"})),
+          (True, "", "", '<span class="pg-code">P2</span>'))
 
 
 def check_campus_faces():

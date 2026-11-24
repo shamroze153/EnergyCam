@@ -139,7 +139,7 @@ def defined_before_use(source):
 
 PACKAGES = {                 # import name -> what installs it
     "dotenv": "python-dotenv", "yaml": "PyYAML", "psycopg2": "psycopg2-binary",
-    "streamlit_autorefresh": "streamlit-autorefresh",
+    "streamlit_autorefresh": "streamlit-autorefresh", "PIL": "pillow",
 }
 
 

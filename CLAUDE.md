@@ -57,7 +57,12 @@ is "not watched", never "away"); `progress_view.py` draws the dashboard's
 its own password, `PROGRESS_PASSWORD` (.env / secrets; unset = locked).
 Which employee, which desk, which code: `progress.yaml`, this machine only
 (git-ignored; `progress.example.yaml` shows the shape). Never commit it,
-never put a name or a result in the repo. Say "at the desk", never
+never put a name or a result in the repo. The hosted page gets codes and
+numbers -- and, since 24 Nov, each named employee's name, employee ID and
+a small icon of their directory photo, because progress.yaml says
+`cloud_names: true` (Shamroze: "teeno bhjdo ... pw protected h to masla
+nai h"; `progress_data.to_payloads`, `photo_icon`). Never a camera
+picture on the hosted page. Say "at the desk", never
 "productive", and check a new desk by eye on its kept frames first.
 The loop reads what each employee is doing at the desk every pass
 (`desk_activity.py`: computer / phone / talking -- a phone found in their
@@ -110,8 +115,8 @@ days); `python seat_faces.py match <days>` names a seat only from 8+
 faces whose mean is far above the line (0.45) and clear of the next
 (0.10) -- tested on 24 Nov: P3's seat named right (0.53, by 0.12), the
 seats seen from above or blurred left unnamed, never wrong. People/ is
-git-ignored: never a name, ID, photo or face number in the repo, nor on
-the hosted page. A named seat is shown beside its directory photo for a
+git-ignored: never a name, ID, photo or face number in the repo; on the
+hosted page only what `cloud_names` lets through (above). A named seat is shown beside its directory photo for a
 person to confirm before anything is built on it.
 
 Every desk (24 Nov, Shamroze: "140 ke sab employees ka, jo desk par
@@ -191,7 +196,9 @@ names a person is on this laptop only. Read this, then docs/night_log.md.
 * The Progress tab (laptop): Who sits where (Yes/No on seats named by
   face), Every desk (day, usual week, heatmap), Name the desks (a picker
   of the directory -- names given there are certain and become CCTV
-  galleries). The hosted page gets codes and numbers, never a name.
+  galleries). The hosted page gets codes and numbers, and the
+  named employees' name, ID and directory-photo icon (`cloud_names: true`
+  in progress.yaml) -- never a camera picture.
 * Session schedules die with the session -- recreate in a new one: the
   night audit every 2 h at :17; a resume check at :07 and :37; on 24 Nov
   18:43 the day's seat-face match and review sheet, 22:37 the gate

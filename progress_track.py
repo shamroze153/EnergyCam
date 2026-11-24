@@ -387,7 +387,9 @@ def sightings(room, key, frame, persons, taken, day, hms, people):
 # go the way the AC status goes -- all the data stays on this computer".
 # Every PUBLISH_EVERY seconds the loop sends the day's NUMBERS to
 # progress_days (sql/11_progress.sql): codes, departments, times, hours.
-# Never a name, never a picture.
+# Never a camera picture. Names, employee IDs and the directory-photo icon
+# only where progress.yaml says `cloud_names: true` (24 Nov: Shamroze,
+# "teeno bhjdo ... pw protected h"; progress_data.to_payloads).
 
 PUBLISH_EVERY = 300
 _published = {"at": 0.0, "missing": False, "told": False}

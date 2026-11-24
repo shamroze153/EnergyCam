@@ -3,6 +3,10 @@
 # progress.yaml there and fill it in. Nothing here is a real desk.
 campus: 140-H
 started: 2026-11-23
+# The hosted page (behind PROGRESS_PASSWORD) gets codes and numbers. With
+# true it also gets each named employee's name, employee ID and a small
+# icon of their directory photo -- never a camera picture.
+cloud_names: false
 
 people:
   - code: P1                 # the page calls them "Employee P1"...

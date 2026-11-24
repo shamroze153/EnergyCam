@@ -1001,6 +1001,9 @@ def build(cfg, today, hours=(10, 20), count=5, folder=SEATS, frm=8, to=24,
                 return name, eid
         return "", ""
     for person in cfg.get("people") or []:
+        hand_name, hand_id = by_hand(person)
+        name = person.get("name") or hand_name
+        eid = str(person.get("employee_id") or hand_id or "")
         summaries = week(person, days, hours, cache)
         state = {"state": "out", "label": "Not in today", "since": None,
                  "minutes": None, "place": ""}
@@ -1030,9 +1033,9 @@ def build(cfg, today, hours=(10, 20), count=5, folder=SEATS, frm=8, to=24,
             "desk_place": desk_place,
             "history": past,
             "code": person.get("code", "?"),
-            "name": person.get("name") or by_hand(person)[0],
-            "employee_id": str(person.get("employee_id")
-                               or by_hand(person)[1] or ""),
+            "name": name,
+            "employee_id": eid,
+            "photo": photo_icon(eid) if eid else "",
             "department": person.get("department", ""),
             "why": person.get("why", ""),
             "check": person.get("check") or {},
@@ -1045,11 +1048,54 @@ def build(cfg, today, hours=(10, 20), count=5, folder=SEATS, frm=8, to=24,
     return out
 
 
+# A small round picture beside a name (Shamroze, 24 Nov: "chota sa icon
+# jordo ... unki pic b ajae"): the person's photo from the members
+# directory (staff_faces.py keeps it as people/photos/<employee ID>.jpg) --
+# never a camera picture -- cut square and shrunk to ICON pixels, a few
+# kilobytes, so it can travel inside a progress_days row.
+PHOTOS = os.path.join("people", "photos")
+ICON = 96
+
+
+def photo_icon(employee_id, folder=None, size=ICON):
+    """The directory photo of `employee_id` as a small square JPEG, as a
+    "data:image/jpeg;base64,..." string; "" with no photo, an ID that is
+    not a plain one, or a photo that will not open."""
+    import re
+    eid = str(employee_id or "").strip()
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,20}", eid):
+        return ""
+    path = os.path.join(folder or PHOTOS, "%s.jpg" % eid)
+    if not os.path.exists(path):
+        return ""
+    try:
+        import base64
+        import io
+        from PIL import Image
+        with Image.open(path) as im:
+            im.draft("RGB", (2 * size, 2 * size))   # a big JPEG, read small
+            im = im.convert("RGB")
+        w, h = im.size
+        side = min(w, h)
+        # A portrait has the face in its upper half: the square from there.
+        left, top = (w - side) // 2, (h - side) // 4
+        im = im.crop((left, top, left + side, top + side)).resize(
+            (size, size), getattr(Image, "Resampling", Image).LANCZOS)
+        buf = io.BytesIO()
+        im.save(buf, "JPEG", quality=82, optimize=True)
+    except Exception:                                       # noqa: BLE001
+        return ""                  # a broken photo is no icon, not an error
+    return "data:image/jpeg;base64," + base64.b64encode(
+        buf.getvalue()).decode("ascii")
+
+
 # ------------------------------------------------- the hosted page's copy
 #
 # The hosted dashboard has none of this machine's files, so the loop sends
 # it the numbers (progress_track.publish -> progress_days, sql/11): codes,
-# departments, times and hours -- never a name, never a picture.
+# departments, times and hours. Never a camera picture. The name, the
+# employee ID and the directory-photo icon go too only where progress.yaml
+# says `cloud_names: true` (Shamroze, 24 Nov, behind the Progress password).
 
 def office_hours(path="rooms.yaml"):
     """The office day from rooms.yaml's hours, as (10.0, 20.0)."""
@@ -1103,13 +1149,19 @@ def _restore(x):
 
 def to_payloads(cfg, people, hours, made):
     """progress_days rows for one day: [(code, json)], one an employee and
-    one "_project" (the stages). Names are blanked: they stay here."""
+    one "_project" (the stages). The name, employee ID and photo icon are
+    blanked -- they stay here -- unless progress.yaml says
+    `cloud_names: true` (Shamroze, 24 Nov: "name, id, or unki picture,
+    teeno bhjdo ... pw protected h to masla nai h")."""
     import json
+    share = cfg.get("cloud_names") is True
     rows = []
     for p in people:
         q = dict(p)
-        q["name"] = ""
-        q["employee_id"] = ""            # nor the employee ID
+        if not share:
+            q["name"] = ""
+            q["employee_id"] = ""
+            q["photo"] = ""
         rows.append((str(p.get("code", "?")), json.dumps(_jsonable(q))))
     project = {"campus": cfg.get("campus", ""),
                "stages": cfg.get("stages") or [],
