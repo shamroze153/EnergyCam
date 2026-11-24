@@ -479,6 +479,117 @@ def pct(x):
     return "%.0f%%" % (100 * x) if x is not None else "--"
 
 
+AT_DESK_KINDS = ("computer", "phone", "talking", "desk")
+STATE_WORDS = {"desk": "At the desk", "away": "Away", "out": "Not in",
+               "gone": "Gone home", "unwatched": "Not watched"}
+
+
+def board_row(p, c, frm=8, to=24):
+    """One employee's line on the scoreboard: (html, sort key)."""
+    import progress_data as pdx
+    f = p.get("focus") or {}
+    m = f.get("minutes") or {}
+    lv = p.get("live") or {}
+    state = lv.get("state", "out")
+    came = f.get("first_in") is not None
+    at = sum(m.get(k, 0.0) for k in AT_DESK_KINDS) if came else 0.0
+    away = sum(v for k, v in m.items()
+               if k not in AT_DESK_KINDS and k not in ("out", "unwatched")) \
+        if came else 0.0
+    share = at / (at + away) if (at + away) > 0 else None
+    # A share over a few minutes says nothing (24 Nov: 4 minutes in, "100%
+    # of time in", +81 on the usual): compared only after an hour in.
+    early = (at + away) < 60
+    past = [r for r in p.get("history") or [] if r.get("day") != f.get("day")]
+    usual = (pdx.average(past, 7) or {}).get("desk_pct")
+    since = lv.get("since")
+    when = since.strftime("%H:%M") if hasattr(since, "strftime") else ""
+    now = ("since %s" % when if state in ("desk", "away") and when else
+           "at %s" % when if state == "gone" and when else "")
+    first = f.get("first_in")
+    first = first.strftime("%H:%M") if hasattr(first, "strftime") else "--"
+    # The day's activity where the loop read it -- shared out over the
+    # unread desk minutes the way the read ones were (progress_data).
+    est = f.get("estimate") or {}
+    total = sum(est.get(k, 0.0) for k in ("computer", "phone", "talking"))
+    split = ""
+    if f.get("read") and total > 0:
+        split = ('<div class="pg-mix">%s</div><div class="pg-mixt">%s</div>'
+                 % ("".join('<i style="width:%.1f%%;background:%s"></i>'
+                            % (100 * est[k] / total, c[k])
+                            for k in ("computer", "phone", "talking")
+                            if est.get(k, 0) > 0),
+                    " &middot; ".join("%s %s" % (w, dur(est[k]))
+                                      for k, w in (("computer", "computer"),
+                                                   ("phone", "phone"),
+                                                   ("talking", "talking"))
+                                      if est.get(k, 0) >= 1)))
+    if share is not None and early:
+        vs = ('<b class="same">--</b><small>%s</small>'
+              % ("usual %s" % pct(usual) if usual is not None
+                 else "under an hour in"))
+    elif share is not None and usual is not None:
+        diff = 100 * (share - usual)
+        arrow = ("up", "&#9650;") if diff >= 3 else ("down", "&#9660;") \
+            if diff <= -3 else ("same", "&#9679;")
+        vs = ('<b class="%s">%s %+.0f</b><small>vs usual %s</small>'
+              % (arrow[0], arrow[1], diff, pct(usual)))
+    elif usual is not None:
+        vs = '<b class="same">--</b><small>usual %s</small>' % pct(usual)
+    else:
+        vs = '<b class="same">--</b><small>no usual yet</small>'
+    slots = f.get("slots") or []
+    bar = (strip_svg(slots, c, frm, to) if slots else
+           '<svg viewBox="0 0 100 10" class="pg-bar"></svg>')
+    html = (
+        '<div class="pg-row %s">'
+        '<div class="pg-who">%s<div><b>%s</b><span>%s</span></div></div>'
+        '<div class="pg-now"><em style="background:%s">%s</em><small>%s%s'
+        '</small></div>'
+        '<div class="pg-in"><small>in</small><b>%s</b></div>'
+        '<div class="pg-desk"><b>%s</b><small>at the desk%s</small>'
+        '<div class="pg-meter"><i style="width:%.0f%%"></i></div></div>'
+        '<div class="pg-line">%s%s</div>'
+        '<div class="pg-vs">%s</div></div>'
+        % (state, badge(p, "sm"), esc(who(p)),
+           esc(" · ".join(x for x in (p.get("department", ""),
+                                      ("ID %s" % p["employee_id"])
+                                      if p.get("employee_id") else "") if x)),
+           LIVE_COLOURS.get(state, "#898781"), STATE_WORDS.get(state, state),
+           esc(now), (" &middot; %s" % esc(lv["place"]))
+           if lv.get("place") else "",
+           first, dur(at) if at else "--",
+           (" &middot; %s of time in" % pct(share)) if share is not None
+           else "", 100 * (share or 0), bar, split, vs))
+    order = {"desk": 0, "away": 1, "gone": 2, "out": 3}.get(state, 4)
+    return html, (order, -(share or 0))
+
+
+def today_board(people, c, as_of="", frm=8, to=24):
+    """Today, one line an employee (Shamroze, 24 Nov: a tracker for the
+    people he names, "bht acha sa"): where they are now, when they came
+    in, their time at the desk so far and that as a share of their time
+    in, the day as a bar, what they were doing at the desk where it was
+    read, and today's share against their own usual. What the cameras
+    measure is time at the desk -- never called "productive"."""
+    if not any(p.get("focus") or p.get("live") for p in people):
+        return ""
+    rows = sorted((board_row(p, c, frm, to) for p in people),
+                  key=lambda r: r[1])
+    here = sum(1 for p in people
+               if (p.get("live") or {}).get("state") == "desk")
+    away = sum(1 for p in people
+               if (p.get("live") or {}).get("state") == "away")
+    return ('<div class="ec-h"><span class="t">Today, employee by employee'
+            '</span><span class="c">%d at the desk &middot; %d away &middot; '
+            'the bar runs %02d:00-%02d:00 &middot; %s</span></div>'
+            '<div class="ec-card pg-board"><div class="pg-row pg-head"><div>'
+            'Employee</div><div>Now</div><div>In</div><div>Desk today</div>'
+            '<div>The day</div><div>vs usual</div></div>%s</div>'
+            % (here, away, frm, to, ("as of %s" % esc(as_of)) if as_of
+               else "", "".join(r[0] for r in rows)))
+
+
 def team_table(people, c, days_shown=10):
     """Every employee against every day kept: desk % (and computer % where
     the activity was read), first in and last out."""
@@ -634,8 +745,11 @@ def page(mode, cfg, people, as_of, hours=(10, 20), frm=8, to=24):
     # block at the end of the line holding </style>, so "</style><style>"
     # on one line left the second block unclosed and the whole page inside
     # it, invisible (23 Nov, the first look in the dashboard).
+    # The scoreboard took the "Right now" strip's place (24 Nov): it says
+    # where everybody is too, beside their day.
+    board = today_board(people, c, as_of, frm, to)
     return (css(mode) + "\n" + _CSS % c + "\n" + '<div class="ec pg">' + head
-            + live_strip(people, c, as_of) + tiles(people, c)
+            + (board or live_strip(people, c, as_of)) + tiles(people, c)
             + team_table(people, c)
             + averages_table(people)
             + cases_block(people)
@@ -796,6 +910,53 @@ white-space:nowrap;min-width:64px}
 .pg .pg-needs{margin-top:10px;padding-top:10px;border-top:1px solid var(--line);font-size:13px}
 .pg .pg-needs ul{margin:6px 0 0 18px;padding:0;color:var(--t2)}
 .pg .pg-needs li{margin:3px 0}
+.pg .pg-board{padding:6px 16px 10px}
+.pg .pg-row{display:grid;grid-template-columns:minmax(170px,1.5fr) 118px 52px
+minmax(130px,1fr) minmax(180px,2fr) 84px;gap:14px;align-items:center;
+padding:11px 0;border-top:1px solid var(--line)}
+.pg .pg-row.pg-head{border-top:0;padding:8px 0 4px;font-size:10.5px;font-weight:650;
+color:var(--t3);text-transform:uppercase;letter-spacing:.05em}
+.pg .pg-who{display:flex;align-items:center;gap:10px;min-width:0}
+.pg .pg-who div{display:flex;flex-direction:column;min-width:0}
+.pg .pg-who b{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pg .pg-who span{font-size:11px;color:var(--t3);white-space:nowrap;overflow:hidden;
+text-overflow:ellipsis}
+.pg .pg-now{display:flex;flex-direction:column;gap:3px;min-width:0}
+.pg .pg-now em{font-style:normal;align-self:flex-start;font-size:11px;font-weight:650;
+color:#fff;padding:2px 9px;border-radius:99px;white-space:nowrap}
+.pg .pg-now small,.pg .pg-in small,.pg .pg-desk small,.pg .pg-vs small{font-size:10.5px;
+color:var(--t3)}
+.pg .pg-in{display:flex;flex-direction:column}
+.pg .pg-in b{font-size:14px;font-variant-numeric:tabular-nums}
+.pg .pg-desk{display:flex;flex-direction:column;min-width:0}
+.pg .pg-desk b{font-size:17px;font-weight:720;font-variant-numeric:tabular-nums}
+.pg .pg-meter{height:6px;border-radius:3px;background:var(--line);overflow:hidden;
+margin-top:4px}
+.pg .pg-meter i{display:block;height:100%%;border-radius:3px;background:%(desk)s}
+.pg .pg-line{min-width:0}
+.pg .pg-mix{display:flex;height:5px;border-radius:3px;overflow:hidden;margin-top:5px;
+background:var(--line)}
+.pg .pg-mix i{display:block;height:100%%}
+.pg .pg-mixt{font-size:10.5px;color:var(--t3);margin-top:3px;white-space:nowrap;
+overflow:hidden;text-overflow:ellipsis}
+.pg .pg-vs{display:flex;flex-direction:column;align-items:flex-end;text-align:right}
+.pg .pg-vs b{font-size:14px;font-variant-numeric:tabular-nums}
+.pg .pg-vs b.up{color:%(desk)s}
+.pg .pg-vs b.down{color:%(crit)s}
+.pg .pg-vs b.same{color:var(--t2)}
+.pg .pg-row.gone .pg-who b,.pg .pg-row.out .pg-who b{color:var(--t2)}
+@media (max-width:760px){
+.pg .pg-board{padding:4px 12px 8px;min-width:0;max-width:100%%;overflow:hidden}
+.pg .pg-row{grid-template-columns:minmax(0,1fr) auto;gap:6px 10px}
+.pg .pg-row>div{min-width:0}
+.pg .pg-row.pg-head{display:none}
+.pg .pg-who{grid-column:1;grid-row:1}
+.pg .pg-now{grid-column:2;grid-row:1;align-items:flex-end;text-align:right}
+.pg .pg-in{grid-column:1;grid-row:2;flex-direction:row;gap:6px;align-items:baseline}
+.pg .pg-vs{grid-column:2;grid-row:2;align-items:flex-end}
+.pg .pg-desk{grid-column:1 / -1;grid-row:3}
+.pg .pg-line{grid-column:1 / -1;grid-row:4}
+}
 @media (max-width:420px){
 .pg .pg-gantt{--gl:118px}
 .pg .pg-gname .pg-pill{display:none}

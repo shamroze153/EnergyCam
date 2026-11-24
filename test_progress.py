@@ -1510,7 +1510,41 @@ def check_route_and_map():
               "route"]], ["Desk Room", "Cafe", "Desk Room"])
 
 
+def check_board():
+    """The scoreboard (24 Nov): one line an employee, at the desk first,
+    and no comparison with the usual before an hour in."""
+    import progress_view as pv
+    c = pv.colours("light")
+    t = pd.Timestamp("2026-11-24 09:00")
+
+    def person(code, state, desk, away, first=True):
+        return {"code": code, "department": "Room",
+                "live": {"state": state, "since": t},
+                "focus": {"day": "2026-11-24",
+                          "first_in": t if first else None,
+                          "minutes": {"computer": desk, "unseen": away},
+                          "estimate": {"computer": desk, "phone": 0.0,
+                                       "talking": 0.0},
+                          "read": 1, "slots": ["desk"] * 4},
+                "history": [{"day": "2026-11-23", "first": t, "last": t,
+                             "desk_pct": 0.5, "in_min": 480, "desk_min": 240}]}
+    people = [person("P1", "away", 90, 30), person("P2", "desk", 100, 20),
+              person("P3", "desk", 4, 0)]
+    html = pv.today_board(people, c)
+    check("one line an employee, the header besides", html.count(
+        'class="pg-row '), 4)
+    check("at the desk before away", html.index("Employee P2")
+          < html.index("Employee P1"), True)
+    check("four minutes in is not compared with the usual",
+          "+50" not in html and "Employee P3" in html, True)
+    check("two hours in is: 83% against a usual 50%", "+33" in html, True)
+    check("somebody not in shows no desk time",
+          pv.board_row(person("P4", "out", 5, 0, first=False), c)[0].count(
+              "<b>--</b>") >= 2, True)
+
+
 def main():
+    check_board()
     check_faces()
     check_building()
     check_follow()
