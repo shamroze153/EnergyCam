@@ -1498,3 +1498,10 @@ Two or three lines a round; picture file names, never pictures.
   Nov: 2 of 196 seats named by directory photo (a Room 17 desk already
   known, and the Basement desk the gate's suggestion S4 named the same
   person) -- for Shamroze to confirm on the tab.
+* 19:58, 24 Nov Names and faces: S1, S3, S4 confirmed ("sahi hai") --
+  three Basement desks named and added as Progress cards P10-P12 (days
+  from 19 Nov, when ch 24/25 were last re-aimed); P9's days from 19 Nov
+  too. face_sweep: the cafe/commons/smoking/parking/prayer/entry cameras
+  (640x360 in the pass) read three a minute at full size for cctv_faces;
+  the gate's sure faces join known people's galleries. Gate recording of
+  23 Nov being read (entrance_backfill) for more names in the morning.
