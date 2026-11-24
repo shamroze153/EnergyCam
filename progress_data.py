@@ -366,6 +366,7 @@ SEEN_WINDOW = pd.Timedelta(minutes=60)
 # Where a camera's room is, by kind. First match wins; anything else is an
 # office (their own room if it is their department's).
 PLACES = [
+    ("left", ("the gate, going out",)),         # GATE_ROOM
     ("meeting", ("board room", "meeting room")),
     ("smoking", ("smoking",)),
     ("prayer", ("mosque", "ablution")),
@@ -378,7 +379,24 @@ PLACES = [
 ]
 KINDS = ["computer", "phone", "talking", "desk", "meeting", "own room",
          "office", "cafe", "smoking", "prayer", "corridor", "outside",
-         "unseen"]
+         "left", "unseen"]
+# The campus cameras' faces (cctv_faces.py, people/sightings/<day>.csv):
+# a named employee seen off their seat. That matcher names at 0.50 clear of
+# the next person by 0.10; a place in somebody's day needs the face this
+# far clear (24 Nov, the day's 47: the runs that held -- a meeting room for
+# an hour, the parking at lunch -- were 0.20-0.62 clear; the scattered
+# ones, a face in five rooms in an hour, 0.10-0.16).
+CCTV_SIGHTINGS = os.path.join("people", "sightings")
+CCTV_MIN = 0.50
+CCTV_MARGIN = 0.20
+# The gate (entrance_watch) names people on the way out: away from the
+# desk after it is "out of the building" (kind "left") until they are back;
+# from this hour on, out through the gate and not back is gone home.
+GATE_ROOM = "Entry H (the gate, going out)"
+GONE_HOUR = 17
+# Desks beside the gate: its camera sees their sitter about the entry all
+# day, facing out (24 Nov: the receptionist "left the building" 88 min).
+GATE_BLIND = ("140-H Reception",)
 AT_DESK = ("computer", "phone", "talking", "desk")
 # An activity read this close to a pass at the desk is that pass's.
 ACTIVITY_REACH = pd.Timedelta(minutes=8)
@@ -474,8 +492,46 @@ def save_sighting_name(day, time_, code, room, recorder, channel, picture,
                     employee_id, datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
 
 
+def cctv_rows(day, employee_id, code, folder=None, least=CCTV_MIN,
+              margin=CCTV_MARGIN):
+    """A named employee's face sightings on the campus cameras (cctv_faces)
+    as activity rows -- kind "seen", state "face" -- those at least `least`
+    and `margin` clear of the next person (CCTV_MARGIN, above)."""
+    path = os.path.join(folder or CCTV_SIGHTINGS, day + ".csv")
+    if not employee_id or not os.path.exists(path):
+        return pd.DataFrame()
+    d = pd.read_csv(path, dtype={"employee_id": str, "time": str})
+    d = d[(d["employee_id"] == str(employee_id))
+          & (d["score"] >= least) & (d["margin"] >= margin)]
+    return _seen_rows(day, code, d, d["room"])
+
+
+def gate_rows(day, employee_id, code, folder=None):
+    """The gate's named passages of an employee (entrance_watch, faces on
+    the way out) as activity rows in GATE_ROOM."""
+    path = os.path.join(folder or GATE, day + ".csv")
+    if not employee_id or not os.path.exists(path):
+        return pd.DataFrame()
+    d = pd.read_csv(path, dtype={"employee_id": str, "time": str})
+    d = d[(d["status"] == "named") & (d["employee_id"] == str(employee_id))]
+    return _seen_rows(day, code, d, [GATE_ROOM] * len(d))
+
+
+def _seen_rows(day, code, d, rooms):
+    if not len(d):
+        return pd.DataFrame()
+    out = pd.DataFrame({"time": d["time"].astype(str).values, "code": code,
+                        "kind": "seen", "state": "face",
+                        "room": list(rooms),
+                        "recorder": d["recorder"].astype(str).values,
+                        "channel": d["channel"].astype(int).values,
+                        "score": d["score"].astype(float).values})
+    out["at"] = pd.to_datetime(day + " " + out["time"])
+    return out
+
+
 def day_activity(person, day, rows=None, notes=None, passes=None,
-                 seen_min=SEEN_MIN, reviews=None):
+                 seen_min=SEEN_MIN, reviews=None, extra=None):
     """An employee's whole day, pass by pass, and its figures.
 
     At the desk or not comes from the seat notes (timeline(): every pass,
@@ -497,6 +553,13 @@ def day_activity(person, day, rows=None, notes=None, passes=None,
     code = person["code"]
     own = person.get("department")
     mine = rows[rows["code"] == code] if len(rows) else rows
+    # the campus cameras' faces and the gate's (cctv_rows, gate_rows)
+    if extra is not None and len(extra):
+        mine = pd.concat([mine, extra], ignore_index=True) if len(mine) \
+            else extra.reset_index(drop=True)
+    exits = sorted(mine.loc[(mine["kind"] == "seen")
+                            & (mine["room"] == GATE_ROOM), "at"]) \
+        if len(mine) else []
     acts = mine[(mine["kind"] == "desk") & (mine["state"] != "away")] \
         if len(mine) else mine
     # A sighting by face (progress_track, faces.py) stands as confirmed
@@ -568,6 +631,26 @@ def day_activity(person, day, rows=None, notes=None, passes=None,
                     "score": float(best["score"]),
                     "recorder": str(best["recorder"]),
                     "channel": int(best["channel"])})
+    # Out through the gate after leaving the desk: out of the building until
+    # back at the desk (a later sighting inside still names its place).
+    # The gate sees faces only on the way out, so coming back in is known
+    # only from the next place they are seen: inside again, it stops.
+    if exits and at:
+        out_since = None
+        for i, p in enumerate(line):
+            if i < at[0] or i > at[-1]:
+                continue
+            if p[2] in AT_DESK:
+                out_since = None
+                continue
+            if any(p[0] < x <= p[1] for x in exits):
+                out_since = p[0]
+                if p[2] == "unseen":
+                    p[2], p[3] = "left", "out of the building"
+            elif p[2] == "unseen" and out_since is not None:
+                p[2], p[3] = "left", "out of the building"
+            elif p[2] not in ("unseen", "left"):
+                out_since = None             # seen inside: back in
     for i, p in enumerate(line):
         if p[2] == "unseen" and (not at or i < at[0] or i > at[-1]):
             p[2] = "out"
@@ -591,6 +674,7 @@ def day_activity(person, day, rows=None, notes=None, passes=None,
         "last_seen": anywhere[-1][1] if anywhere else None,
         "last_seen_where": anywhere[-1][3] if anywhere else "",
         "possible": possible,
+        "exits": list(exits),
         "sightings": sorted(sightings, key=lambda s: s["t"]),
         "places": {k: minutes[k] for k in KINDS
                    if k not in AT_DESK and k != "unseen" and minutes[k] > 0},
@@ -946,8 +1030,11 @@ def live(day_act, now, hours=(10, 20)):
     kind = line[-1][2]
     g = group(kind)
     i = len(line) - 1
+    # back over the same state -- and over a short hole in the watching (a
+    # restart of the loop: 24 Nov, "away since 18:03" was the restart, the
+    # desk empty since 17:11)
     while (i > 0 and group(line[i - 1][2]) == g
-           and line[i][0] - line[i - 1][1] <= JOINED):
+           and line[i][0] - line[i - 1][1] <= STALE):
         i -= 1
     since = line[i][0]
     place = ""
@@ -962,8 +1049,28 @@ def live(day_act, now, hours=(10, 20)):
         state, label, since = "out", "Not in yet", None
     else:
         end = pd.Timestamp(day) + pd.Timedelta(hours=hours[1])
-        if now >= end and _minutes(since, now) >= 30:
+        evening = pd.Timestamp(day) + pd.Timedelta(hours=GONE_HOUR)
+        # out through the gate since they left the desk (entrance_watch)
+        out_at = [x for x in day_act.get("exits") or []
+                  if since - JOINED <= x <= now]
+        seen_since = [p for p in line[i:] if p[2] not in ("unseen", "out",
+                                                          "left")
+                      and p[2] not in AT_DESK]
+        if out_at and now >= evening:
+            state, label, since = "gone", "Gone home", out_at[-1]
+            place = "out through the gate"
+        elif out_at:
+            state, label = "away", "Out of the building"
+            place = "through the gate at %s" % out_at[-1].strftime("%H:%M")
+        elif now >= end and _minutes(since, now) >= 30:
             state, label, since = "gone", "Gone for the day", came[-1][1]
+        elif now >= evening and _minutes(since, now) >= 30 \
+                and not seen_since:
+            # 24 Nov: Shamroze saw an employee who had gone home still "in
+            # the office" -- half an hour away after five, seen nowhere
+            # since and not out through the gate where it saw them: said
+            # as what it is, a likelihood.
+            state, label, since = "gone", "Probably gone home", came[-1][1]
         else:
             state, label = "away", "Away from the desk"
             confirmed = [p for p in line[i:] if p[2] not in ("unseen", "out")
@@ -1037,7 +1144,14 @@ def build(cfg, today, hours=(10, 20), count=5, folder=SEATS, frm=8, to=24,
         way = []
         try:
             n, p = cache.get(focus) or (notes(focus), passes(focus))
-            the_day = day_activity(person, focus, notes=n, passes=p)
+            at_gate = person.get("department") in GATE_BLIND
+            seen = [x for x in (cctv_rows(focus, eid, person.get("code")),
+                                pd.DataFrame() if at_gate else
+                                gate_rows(focus, eid, person.get("code")))
+                    if len(x)] if eid else []
+            the_day = day_activity(
+                person, focus, notes=n, passes=p,
+                extra=pd.concat(seen, ignore_index=True) if seen else None)
             if focus == now.strftime("%Y-%m-%d"):
                 state = live(the_day, now, hours)
             the_day["slots"] = kind_slots(the_day, frm, to)
@@ -1060,7 +1174,8 @@ def build(cfg, today, hours=(10, 20), count=5, folder=SEATS, frm=8, to=24,
             "name": name,
             "employee_id": eid,
             "photo": photo_icon(eid) if eid else "",
-            "gate": gate.get(eid, []) if eid else [],
+            "gate": gate.get(eid, []) if eid and person.get("department")
+            not in GATE_BLIND else [],
             "department": person.get("department", ""),
             "why": person.get("why", ""),
             "check": person.get("check") or {},

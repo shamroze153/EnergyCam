@@ -1150,6 +1150,56 @@ def check_now_and_history():
     s = state("20:45")
     check("20:45: gone for the day, left at 19:00",
           (s["state"], s["since"]), ("gone", at("19:00")))
+    # 24 Nov: gone home, still shown in the office.
+    check("19:20, twenty minutes away: still away",
+          state("19:20")["state"], "away")
+    s = state("19:45")
+    check("19:45, 45 min away after five, seen nowhere: probably gone home",
+          (s["state"], s["label"], s["since"]),
+          ("gone", "Probably gone home", at("19:00")))
+    # The campus cameras' faces and the gate's (cctv_faces, entrance_watch)
+    folder = tempfile.mkdtemp()
+    try:
+        with open(os.path.join(folder, DAY + ".csv"), "w") as fh:
+            fh.write("time,employee_id,room,recorder,channel,score,margin\n"
+                     "13:32:00,00042,Prompt Cafe,nvr4,14,0.55,0.25\n"
+                     "13:40:00,00042,Marketing,dvr2,3,0.55,0.12\n"
+                     "13:45:00,00042,Gaming Area,nvr4,12,0.45,0.30\n"
+                     "13:50:00,00099,Prompt Cafe,nvr4,14,0.70,0.40\n")
+        cc = pdx.cctv_rows(DAY, "00042", "P9", folder)
+        check("a face far clear of the next is a place; near or faint is not",
+              (len(cc), list(cc["room"]), list(cc["state"])),
+              (1, ["Prompt Cafe"], ["face"]))
+        with open(os.path.join(folder, DAY + ".csv"), "w") as fh:
+            fh.write("time,recorder,channel,status,employee_id,best,score,"
+                     "margin,face_w\n"
+                     "13:07:00,nvr1,5,named,00042,,0.61,0.2,80\n"
+                     "13:08:00,nvr1,5,unknown,,,0.3,0.0,60\n"
+                     "19:10:00,nvr1,5,named,00042,,0.58,0.2,80\n")
+        gr = pdx.gate_rows(DAY, "00042", "P9", folder)
+        check("the gate: the named passages only",
+              list(gr["time"]), ["13:07:00", "19:10:00"])
+    finally:
+        shutil.rmtree(folder)
+    g = pdx.day_activity(PERSON, DAY, rows=rows, notes=notes_at(seen),
+                         passes=p, reviews={}, extra=gr)
+    check("out through the gate at 13:07: out of the building till the desk"
+          " (55 min), and the 19:10 pass at the gate (5)",
+          round(g["minutes"]["left"]), 60)
+    s = pdx.live(g, at("13:30"), (10, 20))
+    check("13:30: out of the building, through the gate at 13:07",
+          (s["state"], s["label"], s["place"]),
+          ("away", "Out of the building", "through the gate at 13:07"))
+    s = pdx.live(g, at("19:30"), (10, 20))
+    check("19:30: out through the gate at 19:10 after five: gone home",
+          (s["state"], s["label"], s["since"]),
+          ("gone", "Gone home", at("19:10:00")))
+    g2 = pdx.day_activity(PERSON, DAY, rows=rows, notes=notes_at(seen),
+                          passes=p, reviews={},
+                          extra=pd.concat([gr, cc], ignore_index=True))
+    check("seen in the cafe at 13:32: back inside, not out of the building",
+          (round(g2["minutes"]["left"]), round(g2["minutes"]["cafe"]),
+           round(g2["minutes"]["unseen"])), (30, 5, 30))
     rec, _ = pdx.day_record(PERSON, DAY, notes_at(seen), p, rows=rows,
                             reviews={})
     check("the day: in 10:00, out 19:00, 8 h at the desk of 9",
@@ -1581,11 +1631,23 @@ def check_board():
     # the gate after leaving the desk, is out of the building.
     gone = person("P5", "away", 100, 40)
     gone["gate"] = ["08:30:00", "09:20:00"]
-    gone["live"]["since"] = pd.Timestamp("2026-11-24 09:10")
+    gone["live"].update(since=pd.Timestamp("2026-11-24 09:10"),
+                        label="Out of the building",
+                        place="through the gate at 09:20")   # live() says
     row = pv.board_row(gone, c)[0]
     check("away and named at the gate since: out of the building",
-          "Out of the building" in row and "via the gate at 09:20" in row
+          "Out of the building" in row and "through the gate at 09:20" in row
           and "gate out 08:30" in row, True)
+    gone["focus"]["minutes"].update(cafe=12.0, left=30.0, unseen=20.0)
+    row = pv.board_row(gone, c)[0]
+    check("and where they were away, in words",
+          "away: cafe 12m &middot; out of the building 30m &middot; not seen"
+          in row, True)
+    home = person("P7", "gone", 300, 60)
+    home["live"].update(label="Probably gone home",
+                        since=pd.Timestamp("2026-11-24 17:40"))
+    check("gone, said as likely as it is",
+          "Probably gone home" in pv.board_row(home, c)[0], True)
     late = person("P6", "desk", 100, 20)
     late["focus"]["first_in"] = pd.Timestamp("2026-11-24 10:40")
     check("in at 10:40 with the office from 10:00 is late",

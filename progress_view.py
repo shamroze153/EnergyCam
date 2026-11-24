@@ -24,12 +24,28 @@ def colours(mode):
               "later": t["t3"], "blocked": "#d03b3b",
               # what the employee was doing (progress_track kinds)
               "computer": "#2a9d63", "phone": "#e5383b",
-              "talking": "#8b5cf6", "unseen": "#e8a21a",
-              "deskread": "#6fbf8f"})
+              "talking": "#a23cb8", "unseen": "#e8a21a",
+              "deskread": "#6fbf8f",
+              # out through the gate: a neutral, they are not here
+              "left": "#6b7280"})
+    # Seen somewhere off the desk: one colour on the bar, the place in words
+    # under it (24 Nov: a colour a place was ten colours no eye could tell
+    # apart; the validator put talking's old violet too near this blue).
     for k in ("meeting", "own room", "office", "cafe", "smoking", "prayer",
               "corridor", "outside"):
-        t[k] = "#3987e5"
+        t[k] = "#2f6fd6"
     return t
+
+
+# Away from the desk, as the board says it (progress_data KINDS).
+AWAY_WORDS = [("meeting", "meetings"), ("cafe", "cafe"),
+              ("prayer", "prayer"), ("outside", "outside on campus"),
+              ("smoking", "smoking area"), ("office", "other rooms"),
+              ("own room", "own room"), ("corridor", "corridors"),
+              ("left", "out of the building"), ("unseen", "not seen")]
+SLOT_WORDS = dict([("computer", "at the computer"), ("phone", "on the phone"),
+                   ("talking", "talking at the desk"),
+                   ("desk", "at the desk")] + AWAY_WORDS)
 
 
 # The day's kinds, as the page names them, in the order the bar shows them.
@@ -81,7 +97,8 @@ def day_block(focus, c, frm=8, to=24):
     names = {"meeting": "meetings", "own room": "own room, not at desk",
              "office": "other offices", "cafe": "cafe / pantry",
              "smoking": "smoking area", "prayer": "prayer",
-             "corridor": "corridors / reception", "outside": "outside"}
+             "corridor": "corridors / reception", "outside": "outside",
+             "left": "out of the building"}
     went = " · ".join("%s %s" % (esc(names.get(k, k)), dur(v))
                       for k, v in sorted(places.items(), key=lambda x: -x[1]))
     n_possible = len(focus.get("possible") or [])
@@ -132,7 +149,8 @@ def stretch_list(focus, c):
             detail = "the loop or the laptop was off"
         else:
             colour, title = c["unseen"], "Away from the desk"
-            bits = ["in %s" % esc(r) for r in st.get("where") or []]
+            bits = [("%s" if r == "out of the building" else "in %s")
+                    % esc(r) for r in st.get("where") or []]
             bits += ["%s %s" % (HOW_WORDS.get(h, h), esc(r))
                      for r, h in st.get("seen") or []
                      if r not in (st.get("where") or [])]
@@ -168,12 +186,16 @@ def strip_svg(slots, c, frm=8, to=24):
     """A day as a bar of slots, with the hours marked under it."""
     n = max(1, len(slots))
     w = 100.0 / n
+    step = (to - frm) * 60.0 / n
     rects = []
     for i, s in enumerate(slots):
         if s == "unwatched":
             continue
+        m = int(round(frm * 60 + i * step))
         rects.append('<rect x="%.3f" y="0" width="%.3f" height="10" '
-                     'fill="%s"/>' % (i * w, w + 0.02, c[s]))
+                     'fill="%s"><title>%02d:%02d %s</title></rect>'
+                     % (i * w, w + 0.02, c.get(s, c["unseen"]),
+                        m // 60, m % 60, esc(SLOT_WORDS.get(s, s))))
     return ('<svg viewBox="0 0 100 10" preserveAspectRatio="none" '
             'class="pg-bar">%s</svg>' % "".join(rects))
 
@@ -524,13 +546,9 @@ def board_row(p, c, frm=8, to=24, start=10.0):
     first = first_t.strftime("%H:%M") if hasattr(first_t, "strftime") else "--"
     late = (hasattr(first_t, "hour") and first_t.hour + first_t.minute / 60.0
             > start + LATE_AFTER / 60.0)
-    # Away, and the gate named them on the way out after they left the
-    # desk: out of the building, not at the coffee machine.
-    left = ""
-    if state in ("away", "gone") and gate and hasattr(since, "strftime") \
-            and gate[-1][:5] >= since.strftime("%H:%M"):
-        left = gate[-1][:5]
-        now = "via the gate at %s" % left
+    # Out through the gate since they left the desk (progress_data.live):
+    # out of the building, not at the coffee machine.
+    left = lv.get("label") == "Out of the building"
     # The day's activity where the loop read it -- shared out over the
     # unread desk minutes the way the read ones were (progress_data).
     est = f.get("estimate") or {}
@@ -547,6 +565,15 @@ def board_row(p, c, frm=8, to=24, start=10.0):
                                                    ("phone", "phone"),
                                                    ("talking", "talking"))
                                       if est.get(k, 0) >= 1)))
+    # And where they were when not at the desk (24 Nov, Shamroze: "sirf
+    # computer pe baitha dikha rahe ho" -- the cafe, a meeting, out of the
+    # building): the campus cameras' faces and the gate's, in words.
+    gone_to = [(w, m.get(k, 0.0)) for k, w in AWAY_WORDS
+               if came and m.get(k, 0.0) >= 1]
+    if gone_to:
+        split += ('<div class="pg-mixt pg-away">away: %s</div>'
+                  % " &middot; ".join("%s %s" % (esc(w), dur(v))
+                                      for w, v in gone_to))
     if share is not None and early:
         vs = ('<b class="same">--</b><small>%s</small>'
               % ("usual %s" % pct(usual) if usual is not None
@@ -564,7 +591,9 @@ def board_row(p, c, frm=8, to=24, start=10.0):
     slots = f.get("slots") or []
     bar = (strip_svg(slots, c, frm, to) if slots else
            '<svg viewBox="0 0 100 10" class="pg-bar"></svg>')
-    word = "Out of the building" if left else STATE_WORDS.get(state, state)
+    word = "Out of the building" if left else (
+        lv.get("label") or "Gone home") if state == "gone" else \
+        STATE_WORDS.get(state, state)
     gate_line = ('<small class="pg-gate">gate out %s</small>'
                  % " &middot; ".join(t[:5] for t in gate[-3:])) if gate else ""
     run_line = []
@@ -753,6 +782,8 @@ def cases_block(people):
 
 def legend(c):
     items = [("desk", "at the desk"), ("away", "away from the desk"),
+             ("meeting", "away, seen somewhere (the place in words)"),
+             ("left", "out of the building (the gate)"),
              ("out", "not in yet / gone")]
     return ('<div class="ec-legend">%s<span><i class="box pg-hatch"></i>'
             'not watched</span></div>'
@@ -993,6 +1024,7 @@ background:var(--line)}
 .pg .pg-mix i{display:block;height:100%%}
 .pg .pg-mixt{font-size:10.5px;color:var(--t3);margin-top:3px;white-space:nowrap;
 overflow:hidden;text-overflow:ellipsis}
+.pg .pg-away{white-space:normal;color:var(--t2)}
 .pg .pg-vs{display:flex;flex-direction:column;align-items:flex-end;text-align:right}
 .pg .pg-vs b{font-size:14px;font-variant-numeric:tabular-nums}
 .pg .pg-vs b.up{color:%(desk)s}
