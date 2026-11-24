@@ -1474,3 +1474,8 @@ Two or three lines a round; picture file names, never pictures.
   of re-ID; the Progress scoreboard (gate leavings, late, longest
   sitting, breaks of 10+ minutes); the fortnight resent when
   progress.yaml changes.
+* 16:36, 24 Nov Round: field_audit 16:25 -- MISSED 0, GHOST 4, FAINT 1,
+  PASSING 5, FOLLOWING 13, DRIFT 13, 86 match; the 141 gym not opened.
+  The ghosts (140-H Reception, 141 Admin Room, 141 Finance Lobby, Admin
+  Room) are people coming and going, 0.71-0.93 at a new spot each pass --
+  the check a pass behind. Nothing changed.
