@@ -377,6 +377,18 @@ def check_guard(namespace):
         def rerun(self): self.reran = True; raise FakeStop()
         def stop(self): self.stopped = True; raise FakeStop()
 
+        # The door is a form (25 Nov: a real Enter button): the button is
+        # "pressed" whenever something was typed and sent.
+        def form(self, *a, **k):
+            import contextlib
+            return contextlib.nullcontext()
+
+        def form_submit_button(self, *a, **k):
+            self.button = a[0] if a else k.get("label")
+            return self.typed is not None
+
+        def empty(self): return self
+
     def run(password, typed=None, already=False, ticket=None):
         fake = Fake(typed)
         if already:
@@ -407,6 +419,14 @@ def check_guard(namespace):
     check("with one set, the page stops before drawing anything",
           shut.stopped)
     check("and says nothing about what was wrong", not shut.errors)
+    check("the door has a button to press, not only Enter",
+          "Enter" in (getattr(shut, "button", "") or ""))
+    check("  and Enter still sends it (a form that submits on Enter)",
+          "enter_to_submit=True" in source)
+    empty = run("hunter2", typed="")
+    check("pressing it with nothing typed asks for the word",
+          empty.stopped and bool(empty.errors)
+          and not empty.session_state.get("let_in"))
 
     wrong = run("hunter2", typed="letmein")
     check("a wrong word does not open it",

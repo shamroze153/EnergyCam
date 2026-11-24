@@ -33,7 +33,7 @@ from urllib.parse import quote
 import streamlit as st
 
 
-def boot_screen(mode, campus=None):
+def boot_screen(mode, campus=None, delay=.3):
     """The whole screen while a visit's first run builds the page.
 
     13 Nov, Shamroze: opening a campus sat on a black screen for seconds, and
@@ -66,7 +66,8 @@ def boot_screen(mode, campus=None):
         "@keyframes ecpulse{50%%{opacity:.45}}</style>"
         "<div style='position:fixed;inset:0;z-index:999990;background:%(page)s;"
         "display:flex;align-items:center;justify-content:center;opacity:0;"
-        "animation:ecin .35s .3s forwards;font-family:system-ui,-apple-system,"
+        "animation:ecin .35s %(delay)ss forwards;font-family:system-ui,"
+        "-apple-system,"
         "Segoe UI,Roboto,sans-serif'>"
         "<div style='width:min(440px,86vw);text-align:center;color:%(muted)s'>"
         "<div style='font-size:.74rem;letter-spacing:.34em;font-weight:800;"
@@ -83,7 +84,8 @@ def boot_screen(mode, campus=None):
         "background:%(line)s'><div style='width:38%%;height:100%%;"
         "border-radius:4px;background:linear-gradient(90deg,#3987e5,#2a9d63,"
         "#e8a21a);animation:ecslide 1.15s ease-in-out infinite'></div></div>"
-        "</div></div>" % dict(p, where=where, stack=stack))
+        "</div></div>" % dict(p, where=where, stack=stack,
+                              delay="%g" % delay))
 
 
 st.set_page_config(page_title="EnergyCam", layout="wide", page_icon="🏢")
@@ -92,8 +94,12 @@ st.set_page_config(page_title="EnergyCam", layout="wide", page_icon="🏢")
 _BOOT = st.empty()
 if not st.session_state.get("_booted"):
     st.session_state["_booted"] = True
+    # Straight after the password door there is no flicker to avoid: the
+    # door's form is what would show, so the curtain comes at once.
     _BOOT.markdown(boot_screen(st.query_params.get("theme", "light"),
-                               st.query_params.get("campus")),
+                               st.query_params.get("campus"),
+                               0 if st.session_state.pop("_from_door", False)
+                               else .3),
                    unsafe_allow_html=True)
 
 import numpy as np  # noqa: E402
@@ -456,6 +462,146 @@ def connection_hint(url):
     return ""
 
 
+_LOCK_SVG = (
+    "<svg width='24' height='24' viewBox='0 0 24 24' fill='none' "
+    "stroke='#fff' stroke-width='2' stroke-linecap='round' "
+    "stroke-linejoin='round' aria-hidden='true'><rect x='4.5' y='10.5' "
+    "width='15' height='10' rx='2.5'/><path d='M8 10.5V7.5a4 4 0 0 1 8 0v3'/>"
+    "<circle cx='12' cy='15.5' r='1.2' fill='#fff' stroke='none'/></svg>")
+
+
+def door_css(mode, whole_page=False):
+    """The look of a password door: one card, the box, a real button.
+
+    whole_page is the front door, drawn before the page's own chrome: it
+    also sets the page's background and holds everything to the card's
+    width in the middle. The Progress door sits inside a drawn page and
+    styles only its own card (the form that holds a password box).
+    """
+    t = THEMES.get(mode) or THEMES["light"]
+    card = "div[data-testid='stForm']:has(input[type='password'])"
+    page = ""
+    if whole_page:
+        page = (
+            ".stApp{background:%(page)s;}"
+            "header[data-testid='stHeader']{display:none!important;}"
+            "div[data-testid='stMainBlockContainer'],.block-container"
+            "{max-width:452px!important;padding:11vh 16px 3rem!important;}"
+            "div[data-testid='stElementContainer']:has(> div[data-testid="
+            "'stEmpty']),div[data-testid='stElementContainer']:has(div["
+            "data-testid='stMarkdownContainer'] > style:only-child)"
+            "{display:none!important;}" % t)
+    return (
+        "<style>" + page +
+        "%(card)s{max-width:420px;margin:3vh auto 0;padding:30px 28px 22px"
+        "!important;background:%(surface)s;border:1px solid %(line)s"
+        "!important;border-radius:22px!important;box-shadow:0 1px 2px "
+        "rgba(0,0,0,.05),0 18px 40px -18px rgba(0,0,0,.28);}"
+        ".door-head{text-align:center;margin:0 0 18px;font-family:system-ui,"
+        "-apple-system,'Segoe UI',Roboto,sans-serif;}"
+        ".door-lock{width:54px;height:54px;border-radius:17px;margin:0 auto "
+        "14px;display:flex;align-items:center;justify-content:center;"
+        "background:linear-gradient(135deg,#3987e5,#2a9d63);box-shadow:0 10px"
+        " 22px -10px rgba(57,135,229,.75);}"
+        ".door-brand{font-size:10.5px;letter-spacing:.32em;font-weight:800;"
+        "color:%(muted)s!important;}"
+        ".door-title{font-size:22px;font-weight:750;color:%(text)s!important;"
+        "margin:6px 0 5px;letter-spacing:-.01em;}"
+        ".door-note{font-size:13.5px;line-height:1.5;color:%(muted)s"
+        "!important;}"
+        "%(card)s [data-testid='stTextInputRootElement'],"
+        "%(card)s div[data-baseweb='input']{background:%(sunken)s!important;"
+        "border:1.5px solid %(line)s!important;border-radius:13px!important;"
+        "min-height:50px;transition:border-color .15s,box-shadow .15s;}"
+        "%(card)s [data-testid='stTextInputRootElement']:focus-within,"
+        "%(card)s div[data-baseweb='input']:focus-within{border-color:#3987e5"
+        "!important;box-shadow:0 0 0 4px rgba(57,135,229,.18)!important;}"
+        "%(card)s input{font-size:16px!important;color:%(text)s!important;"
+        "-webkit-text-fill-color:%(text)s!important;background:transparent"
+        "!important;caret-color:#3987e5;letter-spacing:.04em;}"
+        "%(card)s input::placeholder{color:%(muted)s!important;"
+        "-webkit-text-fill-color:%(muted)s!important;letter-spacing:0;}"
+        "%(card)s button[aria-label*='assword'] svg,"
+        "%(card)s [data-testid='stTextInputRootElement'] button svg"
+        "{fill:%(muted)s!important;color:%(muted)s!important;}"
+        "%(card)s [data-testid='InputInstructions']{display:none!important;}"
+        "%(card)s div[data-testid='stFormSubmitButton'] button{width:100%%;"
+        "min-height:50px;margin-top:6px;border:none!important;"
+        "border-radius:13px!important;background:linear-gradient(135deg,"
+        "#3987e5,#2f6fd6)!important;box-shadow:0 10px 22px -12px "
+        "rgba(47,111,214,.9);transition:transform .12s,filter .12s,"
+        "box-shadow .12s;}"
+        "%(card)s div[data-testid='stFormSubmitButton'] button:hover"
+        "{transform:translateY(-1px);filter:brightness(1.06);box-shadow:0 14px"
+        " 26px -12px rgba(47,111,214,.95);}"
+        "%(card)s div[data-testid='stFormSubmitButton'] button:active"
+        "{transform:translateY(0);filter:brightness(.97);}"
+        "%(card)s div[data-testid='stFormSubmitButton'] button p"
+        "{color:#fff!important;font-weight:700!important;font-size:15.5px"
+        "!important;letter-spacing:.01em;}"
+        ".door-hint{text-align:center;font-size:12px;color:%(muted)s"
+        "!important;margin-top:2px;}"
+        ".door-hint kbd{font:600 11px system-ui,sans-serif;padding:1px 6px;"
+        "border:1px solid %(line)s;border-bottom-width:2px;border-radius:6px;"
+        "background:%(sunken)s;color:%(text)s;}"
+        "%(card)s [data-testid='stAlert']{margin-top:4px;}"
+        "%(card)s [data-testid='stAlert'] > div{background:%(wrong_bg)s"
+        "!important;border:1px solid %(wrong_edge)s!important;"
+        "border-radius:12px!important;}"
+        "%(card)s [data-testid='stAlert'] p{color:%(wrong_fg)s!important;"
+        "font-size:13.5px;}"
+        "</style>" % dict(t, card=card, wrong_bg=t["ink"]["Red"]["bg"],
+                          wrong_fg=t["ink"]["Red"]["fg"],
+                          wrong_edge=t["ink"]["Red"]["edge"]))
+
+
+def door_head(title, note, brand="ENERGYCAM"):
+    """The card's top: a lock, the name, what is behind the door."""
+    return ("<div class='door-head'><div class='door-lock'>%s</div>"
+            "<div class='door-brand'>%s</div><div class='door-title'>%s</div>"
+            "<div class='door-note'>%s</div></div>"
+            % (_LOCK_SVG, html.escape(brand), html.escape(title),
+               html.escape(note)))
+
+
+def password_door(mode, key, title, note, wanted, whole_page=False,
+                  button="Unlock"):
+    """A password door; True once the word typed is the one wanted.
+
+    25 Nov, Shamroze: "password jab daalte hain to Enter wala koi button
+    nahi aata" -- on a phone there is no Enter to see, and Streamlit's own
+    "Press Enter to apply" hides inside the box. So the box sits in a form
+    with a real button under it, and Enter still opens it (a form submits
+    on Enter). The word is compared with compare_digest, as before: the
+    time it takes says nothing about how much of it was right.
+    """
+    st.markdown(door_css(mode, whole_page), unsafe_allow_html=True)
+    with st.form(key, border=False, enter_to_submit=True):
+        st.markdown(door_head(title, note), unsafe_allow_html=True)
+        typed = st.text_input("Password", type="password",
+                              key=key + "_typed",
+                              label_visibility="collapsed",
+                              placeholder="Password")
+        try:
+            pressed = st.form_submit_button(button + "  →",
+                                            type="primary", width="stretch")
+        except TypeError:
+            pressed = st.form_submit_button(button + "  →",
+                                            type="primary",
+                                            use_container_width=True)
+        st.markdown("<div class='door-hint'><kbd>Enter ↵</kbd> on the "
+                    "keyboard works too</div>", unsafe_allow_html=True)
+        slot = st.empty()
+    if not typed:
+        if pressed:
+            slot.error("Type the password first.")
+        return False
+    if hmac.compare_digest(str(typed), str(wanted)):
+        return True
+    slot.error("That is not the password. Try again.")
+    return False
+
+
 def guard():
     """Ask for the shared word before any of this is drawn.
 
@@ -499,21 +645,23 @@ def guard():
         return
 
     _BOOT.empty()                     # the curtain must not hide the door
-    st.markdown("### EnergyCam")
     # Both campuses' door (19 Nov: "whatever I open says 140-H" -- this
     # was the first thing every phone saw, whichever campus it opened).
-    st.caption("Disrupt · 140-H and 141-C/D")
-    typed = st.text_input("Password", type="password",
-                          label_visibility="collapsed",
-                          placeholder="password")
-    if typed:
-        # compare_digest so the time taken does not vary with how much of
-        # the word is right, which is the whole of a guessing attack.
-        if hmac.compare_digest(str(typed), str(wanted)):
-            st.session_state["let_in"] = True
-            st.query_params["k"] = entry_ticket(wanted)
-            st.rerun()
-        st.error("Not that.")
+    mode = st.query_params.get("theme", "light")
+    if password_door(mode if mode in THEMES else "light", "front_door",
+                     # non-breaking hyphens: "141-" and "C/D" on two
+                     # lines on a phone (25 Nov)
+                     "Disrupt · 140‑H and 141‑C/D",
+                     "Who is in, which air conditioners run, and what it "
+                     "costs — live from the cameras.", wanted,
+                     whole_page=True, button="Enter"):
+        st.session_state["let_in"] = True
+        st.query_params["k"] = entry_ticket(wanted)
+        # The page takes seconds to build, and meanwhile the door's form
+        # stayed on screen without its look: the curtain again, over it.
+        st.session_state["_booted"] = False
+        st.session_state["_from_door"] = True
+        st.rerun()
     st.stop()
 
 
@@ -5799,17 +5947,13 @@ def show_progress(now):
                     unsafe_allow_html=True)
         return
     if not st.session_state.get("progress_in"):
-        st.markdown(progress_view.locked(mode, "ask"), unsafe_allow_html=True)
-        typed = st.text_input("Progress password", type="password",
-                              key="progress_typed",
-                              label_visibility="collapsed",
-                              placeholder="Progress password")
-        if typed:
-            # compare_digest, as at the front door: no timing to guess by.
-            if hmac.compare_digest(str(typed), str(wanted)):
-                st.session_state["progress_in"] = True
-                st.rerun()
-            st.error("Not that.")
+        # Its own door, drawn like the front one (25 Nov: an Unlock button,
+        # and Enter still works); compare_digest inside, as there.
+        if password_door(mode, "progress_door", "Progress",
+                         "Private: the employees' time at their desks. "
+                         "Its own password, not the dashboard's.", wanted):
+            st.session_state["progress_in"] = True
+            st.rerun()
         return
     if not os.path.exists(progress_data.CONFIG):
         # The hosted page: the numbers the office laptop sent, nothing else
