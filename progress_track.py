@@ -426,6 +426,17 @@ def publish(connect, now=None, clock=time.time, force=False):
     except OSError:
         pass
     rows = pdx.to_payloads(cfg, people, hours, now.strftime("%d %b %H:%M"))
+    # Every desk, room by room (desks_data.room_summary): rooms and numbers
+    # only, never a name or a desk's code (24 Nov).
+    try:
+        import json
+        import desks_data
+        rooms = desks_data.room_summary(desks_data.load(), day)
+        if rooms:
+            rows.append(("_desks", json.dumps(pdx._jsonable(
+                {"day": day, "rooms": rooms}))))
+    except Exception:                                       # noqa: BLE001
+        pass
     import psycopg2
     try:
         conn = connect()

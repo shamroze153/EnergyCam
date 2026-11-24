@@ -769,6 +769,17 @@ def check_every_desk():
     got = dd_.assign_notes(notes2, both_desks)
     check("Every desk too: one note counts at one desk only",
           (len(got["A"]), len(got["B"])), (1, 0))
+    rs = dd_.room_summary(pd.DataFrame([
+        dict(day=DAY, code=c, room="Test Room", first=at("10:00"),
+             desk_min=300.0, desk_pct=0.6, focus_min=60.0,
+             **{"h%02d" % h: (60.0 if h == 11 else 0.0)
+                for h in range(8, 23)}) for c in ("A", "B")]), DAY)
+    check("room by room: desks, sat at today, usual hours, the 11:00 hour "
+          "full", (rs[0]["desks"], rs[0]["sat_today"], rs[0]["desk_h"],
+                   rs[0]["hourly"][3]), (2, 2, 5.0, 1.0))
+    back = pdx.from_payloads([("_desks", {"day": DAY, "rooms": rs})])[0]
+    check("the hosted page reads it back", back["desks"]["rooms"][0]["room"],
+          "Test Room")
     desks = [{"code": "dvr9.1-1", "recorder": "dvr9", "channel": 1,
               "seat": [500.0, 700.0]}]
     named = [{"recorder": "dvr9", "channel": "1", "x": "500", "y": "700",
@@ -1113,8 +1124,13 @@ def check_publish():
         pt._published.update(at=0.0, missing=False, told=False)
         sent = pt.publish(lambda: Conn(cur), clock=lambda: 1e9)
         check("every employee and the project, upserted",
-              (sent, len(cur.rows) >= 2, cur.rows[-1][1]),
-              (True, True, "_project"))
+              (sent, len(cur.rows) >= 2, "_project" in [r[1] for r in
+                                                       cur.rows]),
+              (True, True, True))
+        desks_rows = [r for r in cur.rows if r[1] == "_desks"]
+        check("every desk goes room by room, with no desk code or name in it",
+              all('"code"' not in r[2] and '"name"' not in r[2]
+                  for r in desks_rows), True)
         check("the payload goes in twice: no EXCLUDED column is read (the "
               "camera machine may read only day and code)",
               ("EXCLUDED" in pt.UPSERT, cur.rows[0][2] == cur.rows[0][3]),

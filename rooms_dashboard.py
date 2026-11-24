@@ -5190,6 +5190,45 @@ def cached_desks(stamp):
                                     named=desks_data.load_desk_names())
 
 
+def show_rooms_desks(mode, desks):
+    """Every desk at 140-H, room by room, as the laptop sent it (the hosted
+    page): rooms and numbers only, never a name."""
+    if not desks or not desks.get("rooms"):
+        return
+    rooms = desks["rooms"]
+    st.markdown(overview.css(mode) + '<div class="ec"><div class="ec-h">'
+                '<span class="t">Every desk at 140-H, room by room</span>'
+                '<span class="c">%s &middot; %d desks in %d rooms &middot; '
+                'the usual over the last seven working days</span></div>'
+                '</div>' % (desks.get("day", ""), sum(r["desks"] for r in
+                                                       rooms), len(rooms)),
+                unsafe_allow_html=True)
+    stretch(st.dataframe, pd.DataFrame([{
+        "Room": r["room"], "Desks": r["desks"],
+        "Sat at today": r["sat_today"], "At a desk, h a day": r["desk_h"],
+        "Desk %": r["desk_pct"], "Focus, h a day": r["focus_h"]}
+        for r in rooms]), hide_index=True)
+    with_h = [r for r in rooms if r.get("hourly")]
+    if with_h:
+        import plotly.graph_objects as go
+        ink = "#c3c2b7" if mode == "dark" else "#52514e"
+        fig = go.Figure(go.Heatmap(
+            z=[[round(100 * v) for v in r["hourly"]] for r in with_h],
+            x=["%02d" % h for h in range(8, 23)],
+            y=[r["room"] for r in with_h], zmin=0, zmax=100,
+            colorscale=[[0, "#e9e8e3" if mode != "dark" else "#262624"],
+                        [0.5, "#3987e5"],
+                        [1, "#184f95" if mode != "dark" else "#b7d3f6"]],
+            hovertemplate="%{y} at %{x}:00 -- %{z}% of its desks sat at"
+                          "<extra></extra>", colorbar=dict(title="%")))
+        fig.update_layout(height=40 + 28 * len(with_h),
+                          margin=dict(l=0, r=0, t=10, b=0),
+                          paper_bgcolor="rgba(0,0,0,0)",
+                          plot_bgcolor="rgba(0,0,0,0)", font=dict(color=ink))
+        st.plotly_chart(fig, use_container_width=True, theme=None,
+                        config={"displaylogo": False, "scrollZoom": False})
+
+
 def show_desk_naming(mode, day):
     """Name the desks by hand (Shamroze, 24 Nov: "tum picture lete raho,
     Progress mein daalo, aage naam aur employee ID main daal dunga -- 100%
@@ -5522,6 +5561,7 @@ def show_progress(now):
         st.markdown(progress_view.page(mode, cfg, people, made, hours_sent),
                     unsafe_allow_html=True)
         show_building(mode, people)
+        show_rooms_desks(mode, cfg.get("desks"))
         st.caption("Sent by the office laptop at %s (every five minutes). The "
                    "pictures, the day's videos and the sightings to check "
                    "stay on that laptop." % made)

@@ -1128,11 +1128,13 @@ def from_payloads(rows):
         data = payload if isinstance(payload, dict) else json.loads(payload)
         data = _restore(data)
         if code == "_project":
-            cfg = {"campus": data.get("campus", ""),
-                   "stages": data.get("stages") or [],
-                   "needs": data.get("needs") or []}
+            cfg.update({"campus": data.get("campus", ""),
+                        "stages": data.get("stages") or [],
+                        "needs": data.get("needs") or []})
             made = data.get("made", "")
             hours = tuple(data.get("hours") or (10.0, 20.0))
+        elif code == "_desks":
+            cfg["desks"] = data          # every desk, room by room
         else:
             people.append(data)
     people.sort(key=lambda p: str(p.get("code", "")))

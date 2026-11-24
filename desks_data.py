@@ -357,6 +357,40 @@ def load(path=OUT):
     return df
 
 
+def room_summary(df, day, days=7):
+    """Room by room, for the hosted page -- rooms and numbers only, never a
+    name or a desk's code: desks, desks sat at on `day`, the usual hours at
+    a desk and desk %, focus, and `day`'s hour-by-hour share of desks sat
+    at (h08..h22)."""
+    if df.empty:
+        return []
+    out = []
+    hours = ["h%02d" % h for h in range(8, 23)]
+    for room, g in df.groupby("room"):
+        came = g[g["first"].notna()]
+        recent = came[came["day"] > sorted(came["day"].unique())[-days - 1]] \
+            if came["day"].nunique() > days else came
+        today = g[(g["day"] == day) & g["first"].notna()]
+        n = int(g["code"].nunique())
+        row = {"room": room, "desks": n, "sat_today": int(today["code"]
+                                                          .nunique()),
+               "desk_h": round(float(recent["desk_min"].mean()) / 60.0, 1)
+               if len(recent) else None,
+               "desk_pct": round(100 * float(recent["desk_pct"].mean()))
+               if len(recent) and recent["desk_pct"].notna().any() else None,
+               "focus_h": round(float(pd.to_numeric(
+                   recent.get("focus_min"), errors="coerce").mean()) / 60.0,
+                   1) if "focus_min" in recent.columns and len(recent)
+               else None}
+        if all(h in g.columns for h in hours):
+            day_rows = g[g["day"] == day]
+            row["hourly"] = [round(min(1.0, float(day_rows[h].sum())
+                                       / (60.0 * n)), 2) if n else 0.0
+                             for h in hours]
+        out.append(row)
+    return sorted(out, key=lambda r: r["room"])
+
+
 def summary(df, days=7, names=None):
     """One row a desk: its usual over its last `days` days in -- the
     table the Progress tab shows. names: names_for()."""
