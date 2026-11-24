@@ -235,11 +235,11 @@ names a person is on this laptop only. Read this, then docs/night_log.md.
      out before matching in `progress_track` (reid runs on "people who
      are not at a regular seat of an office"; the reception desk slipped
      through).
-  4. Check the hosted page gets names: the loop restarted 12:29:56 with
-     `cloud_names: true`; its first publish (~12:35) should put a name,
-     ID and a 4-6 KB `photo` in P3's and P5's progress_days rows (read
-     them with DASHBOARD_DATABASE_URL; never print it). Streamlit Cloud
-     needs `pillow` from requirements.txt on its redeploy.
+  4. Done 12:34: the restarted loop's publish put a name, ID and a
+     3-4 KB `photo` in P3's and P5's progress_days rows, and
+     `progress_view.page` draws their icons from them. Not yet seen by
+     eye on Streamlit Cloud itself (its redeploy installs `pillow` from
+     requirements.txt) -- ask Shamroze to look on his phone.
   5. Waiting on Shamroze: whether to build a card like P1-P5's for every
      employee whose desk he names in Name the desks (laptop, and name and
      icon on the hosted page). He is naming desks now; his first three
