@@ -1284,6 +1284,15 @@ def check_now_and_history():
     # 24 Nov: gone home, still shown in the office.
     check("19:20, twenty minutes away: still away",
           state("19:20")["state"], "away")
+    # 24 Nov: the laptop slept 21:34-21:55; at 22:03 someone who left at
+    # 19:00 was "away" again, the hole having started the stretch afresh.
+    holed = pd.concat([passes_every("08:00", "21:30"),
+                       passes_every("21:55", "22:05")], ignore_index=True)
+    ah = pdx.day_activity(PERSON, DAY, rows=rows, notes=notes_at(seen),
+                          passes=holed, reviews={})
+    s = pdx.live(ah, at("22:03"), (10, 20))
+    check("after a hole in the watching, gone is still gone",
+          (s["state"], s["since"]), ("gone", at("19:00")))
     s = state("19:45")
     check("19:45, 45 min away after five, seen nowhere: probably gone home",
           (s["state"], s["label"], s["since"]),

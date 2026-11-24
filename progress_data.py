@@ -1076,9 +1076,13 @@ def live(day_act, now, hours=(10, 20)):
         elif out_at:
             state, label = "away", "Out of the building"
             place = "through the gate at %s" % out_at[-1].strftime("%H:%M")
-        elif now >= end and _minutes(since, now) >= 30:
+        # how long since they were last at the desk -- not since the away
+        # stretch began: a hole in the watching starts that afresh (24 Nov:
+        # the laptop slept 21:34-21:55, and at 22:03 people who left at six
+        # were "away" again)
+        elif now >= end and _minutes(came[-1][1], now) >= 30:
             state, label, since = "gone", "Gone for the day", came[-1][1]
-        elif now >= evening and _minutes(since, now) >= 30 \
+        elif now >= evening and _minutes(came[-1][1], now) >= 30 \
                 and not seen_since:
             # 24 Nov: Shamroze saw an employee who had gone home still "in
             # the office" -- half an hour away after five, seen nowhere
