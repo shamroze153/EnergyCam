@@ -167,11 +167,20 @@ def best_match(vec, galleries):
     return code, top, top - second
 
 
+# Desks outside the offices that somebody works at all day: their sitter is
+# that desk's, never a visiting employee. 24 Nov: the receptionist, at her
+# desk in 140-H Reception, was matched to P2 twice (0.73, 0.75) -- a
+# reception is not an office, so its regular seat was not left out. A share
+# of the day cannot tell it from a cafe table (reception 0.29, the cafes'
+# busiest tables 0.37), so the rooms are named.
+STAFFED = ("140-H Reception",)
+
+
 def candidates(room, key, persons, width, taken, spots):
     """The people on this camera who may be a visiting employee: not
     already an employee at their desk, big enough to tell, and not
-    sitting at a regular seat of an office."""
-    office = place_of(room) == "office"
+    sitting at a regular seat of an office or a staffed desk (STAFFED)."""
+    office = place_of(room) == "office" or room in STAFFED
     out = []
     for b in persons:
         if id(b) in taken or (b[5] - b[3]) < MIN_BOX_H:

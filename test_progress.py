@@ -310,6 +310,10 @@ def check_tracking():
     got = pt.candidates("Prompt Cafe", ("dvr9", 1), [seated], 1920, set(),
                         spots)
     check("in the cafe a regular seat is still a candidate", got, [seated])
+    got = pt.candidates("140-H Reception", ("dvr9", 1), [seated, standing],
+                        1920, set(), spots)
+    check("at the reception desk the sitter is the receptionist, never a "
+          "visiting employee (24 Nov, P2 matched twice)", got, [standing])
     pt._gallery.clear()
 
     # A day: at the desk 10:00-12:00 (computer, one phone read), away
