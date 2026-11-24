@@ -451,6 +451,29 @@ def save_review(day, time_, code, room, verdict, folder=None):
                     datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
 
 
+SIGHTING_NAMES = os.path.join("people", "sighting_names.csv")
+
+
+def save_sighting_name(day, time_, code, room, recorder, channel, picture,
+                       employee_id, path=None):
+    """Who a sighting's picture really shows, when a person said it is not
+    the employee the network guessed (Shamroze, 24 Nov: pick them from the
+    directory). An employee ID only -- the name is the roster's -- in
+    people/, which never leaves this laptop; ready to feed that person's
+    CCTV gallery."""
+    import csv
+    path = path or SIGHTING_NAMES
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    new = not os.path.exists(path)
+    with open(path, "a", newline="", encoding="utf-8") as fh:
+        w = csv.writer(fh)
+        if new:
+            w.writerow(["day", "time", "guessed", "room", "recorder",
+                        "channel", "picture", "employee_id", "at"])
+        w.writerow([day, time_, code, room, recorder, channel, picture or "",
+                    employee_id, datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
+
+
 def day_activity(person, day, rows=None, notes=None, passes=None,
                  seen_min=SEEN_MIN, reviews=None):
     """An employee's whole day, pass by pass, and its figures.

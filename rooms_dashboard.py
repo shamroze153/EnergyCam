@@ -5101,59 +5101,108 @@ def cached_progress(today, stamp, bucket, hours):
     return cfg, progress_data.build(cfg, today, hours)
 
 
+SIGHT_GUESS = "guess"                # the picker's "yes, it is them"
+SIGHT_NOBODY = "nobody"              # "not them, and I don't know who"
+
+
 def show_sightings(mode, people):
-    """The day's possible sightings, for a person to confirm (Shamroze, 23
-    Nov: "where did they go"). The network's best guesses, each beside the
-    employee at their desk; only a "yes" makes it a place in the day's
-    hours, a "no" forgets it. Pictures from this laptop only."""
+    """The day's possible sightings, for a person to say who it really is
+    (Shamroze, 23 Nov: "where did they go"; rebuilt 24 Nov the way Name
+    the desks works: "1 line me 1 image do or agay uska name dalne ka kaho
+    me choose krlunga"). One picture to a line -- the old row of five, each
+    with its own Yes and No under it, was the grid he could not follow --
+    and beside it "who is this?": the employee the network guessed, any
+    name in the directory, or "not them". Nothing is written until Save.
+    The guess (or their own employee ID) is a "yes" and the sighting
+    becomes a place in their day; anybody else is a "no" for the guess and
+    is kept as who the picture shows (people/sighting_names.csv, this
+    laptop only). Pictures from this laptop only."""
+    import desks_data
     import progress_data
     import progress_view
     todo = [(p, s) for p in people
             for s in ((p.get("focus") or {}).get("possible") or [])]
     if not todo:
         return
+    todo.sort(key=lambda ps: ps[1]["time"])
     day = next(p["focus"]["day"] for p in people if p.get("focus"))
     st.markdown(overview.css(mode) + '<div class="ec"><div class="ec-h">'
                 '<span class="t">Where did they go? Sightings to check'
-                '</span><span class="c">%d possible &middot; the re-ID '
-                'network&rsquo;s best guess on another camera while they were '
-                'away from the desk &middot; only a &ldquo;yes&rdquo; counts'
+                '</span><span class="c">%d to check &middot; the re-ID '
+                'network&rsquo;s best guess on another camera while somebody '
+                'was away from the desk &middot; say who it is, then Save'
                 '</span></div></div>' % len(todo), unsafe_allow_html=True)
+    roster = desks_data.load_roster() or []
+    person = {r["employee_id"]: r for r in roster}
+    directory = ["%s · %s · %s" % (r["employee_id"], r["name"],
+                                   r["designation"]) for r in roster]
 
-    def decide(code, s, verdict):
-        progress_data.save_review(day, s["time"], code, s["room"], verdict)
+    def save(p, s, key, picture):
+        pick = st.session_state.get(key) or ""
+        if not pick:
+            return
+        own = str(p.get("employee_id") or "")
+        eid = "" if pick in (SIGHT_GUESS, SIGHT_NOBODY) else \
+            pick.split(" · ")[0]
+        yes = pick == SIGHT_GUESS or (own and eid == own)
+        progress_data.save_review(day, s["time"], p["code"], s["room"],
+                                  "yes" if yes else "no")
+        if eid and not yes:
+            progress_data.save_sighting_name(
+                day, s["time"], p["code"], s["room"], s["recorder"],
+                s["channel"], picture, eid)
         cached_progress.clear()
 
-    for p in people:
-        items = sorted((p.get("focus") or {}).get("possible") or [],
-                       key=lambda s: s["time"])
-        if not items:
-            continue
-        st.markdown("**%s** · desk in %s · %d to check"
-                    % (progress_view.who(p), p["department"], len(items)))
-        shown = items[:5]
-        cols = st.columns(len(shown) + 1)
-        ref = progress_data.desk_picture(day, p["code"])
-        with cols[0]:
-            if ref:
-                stretch(st.image, ref, caption="at the desk")
-        for col, s in zip(cols[1:], shown):
-            with col:
-                pic = progress_data.seen_picture(day, p["code"], s["time"],
-                                                 s["recorder"], s["channel"])
+    for n, (p, s) in enumerate(todo):
+        pic = progress_data.seen_picture(day, p["code"], s["time"],
+                                         s["recorder"], s["channel"])
+        key = "sw_%s_%s_%s%s" % (p["code"], s["time"], s["recorder"],
+                                 s["channel"])
+        guess = "It is %s (the guess)" % progress_view.who(p)
+        options = ["", SIGHT_GUESS, SIGHT_NOBODY] + directory
+        with st.container(border=True):
+            left, right = st.columns([3, 2], gap="large")
+            with left:
                 if pic:
                     stretch(st.image, pic)
-                st.caption("%s · %s · %.2f" % (s["time"][:5], s["room"],
-                                               s["score"]))
-                k = "%s_%s_%s%s" % (p["code"], s["time"], s["recorder"],
-                                    s["channel"])
-                yes, no = st.columns(2)
-                with yes:
-                    stretch(st.button, "Yes", key="sy_" + k,
-                            on_click=decide, args=(p["code"], s, "yes"))
-                with no:
-                    stretch(st.button, "No", key="sn_" + k,
-                            on_click=decide, args=(p["code"], s, "no"))
+                else:
+                    st.caption("The picture is gone (kept a week).")
+            with right:
+                st.markdown("**%d of %d** &nbsp;·&nbsp; %s &nbsp;·&nbsp; %s "
+                            "&nbsp;·&nbsp; score %.2f  \nThe network thinks "
+                            "this is **%s** (desk in %s)."
+                            % (n + 1, len(todo), s["time"][:5], s["room"],
+                               s["score"], progress_view.who(p),
+                               p.get("department", "")))
+                ref = progress_data.desk_picture(day, p["code"])
+                if ref:
+                    st.image(ref, width=220, caption="%s at the desk"
+                             % progress_view.who(p))
+                st.selectbox(
+                    "Who is this?", options, key=key,
+                    format_func=lambda o, g=guess: (
+                        "Who is this? Choose" if not o else g
+                        if o == SIGHT_GUESS else "Not them, I don't know who"
+                        if o == SIGHT_NOBODY else o))
+                pick = st.session_state.get(key) or ""
+                if pick and pick not in (SIGHT_GUESS, SIGHT_NOBODY):
+                    eid = pick.split(" · ")[0]
+                    icon = progress_data.photo_icon(eid, size=160)
+                    r = person.get(eid) or {}
+                    ph, tx = st.columns([1, 2])
+                    with ph:
+                        if icon:
+                            st.markdown('<img src="' + icon + '" alt="" '
+                                        'style="width:100%;max-width:120px;'
+                                        'border-radius:10px">',
+                                        unsafe_allow_html=True)
+                    with tx:
+                        st.markdown("**%s**  \nID %s  \n%s"
+                                    % (r.get("name", ""), eid,
+                                       r.get("department", "")))
+                stretch(st.button, "✓ Save", key="save_" + key,
+                        type="primary", disabled=not pick, on_click=save,
+                        args=(p, s, key, pic))
 
 
 def twin(mode, employees=None, height=640):
