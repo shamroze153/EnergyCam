@@ -1464,3 +1464,13 @@ Two or three lines a round; picture file names, never pictures.
   Progress tab for a minute; the old grid then blanked his first three
   names. Loop restarted 12:29:56. Session handed over here -- what is
   open is in CLAUDE.md's Handoff.
+* 14:36, 24 Nov Round: field_audit 14:25 -- MISSED 0, GHOST 1, FAINT 3,
+  PASSING 2, FOLLOWING 13, DRIFT 6, 98 match. The ghost, 141 Room 11: a
+  man at the left desk and another at the bottom, the check scored
+  neither -- the page right. Nothing changed. Earlier today in this
+  session: the loop had stopped at 12:34 with the old session and was
+  restarted detached (12:49); P2's two receptionist sightings set to no;
+  Sightings to check one to a line; the reception desk's sitter left out
+  of re-ID; the Progress scoreboard (gate leavings, late, longest
+  sitting, breaks of 10+ minutes); the fortnight resent when
+  progress.yaml changes.
