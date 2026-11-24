@@ -85,6 +85,50 @@ def seat_samples(rec, ch, x, y, base=None):
     return np.vstack(vecs) if vecs else np.zeros((0, 128), np.float32)
 
 
+GATE = os.path.join("people", "entrance")   # entrance_watch: <day>.csv, <day>/
+GATE_DAYS = 5
+GATE_SAME = 0.55         # a gate picture joins a gallery only this sure ...
+GATE_MARGIN = 0.15       # ... and this clear of the next (faces.SAME, MARGIN)
+_gate_vec = {}
+
+
+def gate_samples(eids, days=None, folder=GATE, embed=None):
+    """{employee_id: (n, 128)}: the gate's frontal faces of these people --
+    entrance_watch keeps a small picture of each named passage -- only the
+    passages named far above the line (24 Nov: the gate sees a face close
+    and straight on, the desks from above; with the gate's pictures in it,
+    a gallery knows the face the cafe and the lobby see)."""
+    import cv2
+    embed = embed or (lambda p: faces.of_photo(cv2.imread(p)))
+    eids = {str(e) for e in eids}
+    days = days or sorted(f[:-4] for f in os.listdir(folder)
+                          if f.endswith(".csv"))[-GATE_DAYS:] \
+        if os.path.isdir(folder) else []
+    out = {}
+    for day in days:
+        path = os.path.join(folder, day + ".csv")
+        if not os.path.exists(path):
+            continue
+        with open(path, encoding="utf-8") as fh:
+            rows = [r for r in csv.DictReader(fh)
+                    if r.get("status") == "named"
+                    and r.get("employee_id") in eids
+                    and float(r.get("score") or 0) >= GATE_SAME
+                    and float(r.get("margin") or 0) >= GATE_MARGIN]
+        for r in rows:
+            pics = glob.glob(os.path.join(folder, day, "%s_ch*_%s.jpg" % (
+                r["time"].replace(":", ""), r["employee_id"])))
+            for p in pics[:1]:
+                if p not in _gate_vec:
+                    _gate_vec[p] = embed(p)
+                v = _gate_vec[p]
+                if v is not None:
+                    v = np.asarray(v, np.float32).reshape(1, -1)
+                    e = r["employee_id"]
+                    out[e] = np.vstack([out[e], v]) if e in out else v
+    return out
+
+
 def build(known, five_galleries=None, out=OUT, base=None):
     """The CCTV galleries of the people in `known` (known_desks), plus the
     five's desk faces ({employee_id: (n,128)}). Returns {id: samples}."""

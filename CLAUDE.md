@@ -138,7 +138,15 @@ Shamroze (24 Nov): `name_suggest.py [days]` matches each desk's face
 days, and suggests a name only where both pick each other; each comes as
 one picture (desk sitter | gate pictures | directory photo) in
 `frames/suggest/` for a yes / no (`name_suggest.save_answer`, a yes names
-the desk). The Progress tab's "Every desk at
+the desk). Where people go (24 Nov): the cafe, commons, smoking, parking,
+prayer and entry cameras are read at 640x360 by the pass (nvr1/nvr4 sub),
+too small for a face; `face_sweep.py`, from the loop's pulse, reads three
+of them a minute at full size (main stream, through fetch) for
+`cctv_faces`, and a known person's CCTV gallery now takes the gate's
+straight-on pictures of them too (`cctv_faces.gate_samples`, named at
+0.55 by 0.15). The offices on dvr2/xvr3 are read at 1920x1080 already:
+their desks fail by face because the cameras look down, not for size.
+The Progress tab's "Every desk at
 140-H" (laptop only) shows the day and the usual week; a desk has a name
 only where one is known. `desks_data.py` stays pandas-only for the
 dashboard (test_dashboard checks its imports).

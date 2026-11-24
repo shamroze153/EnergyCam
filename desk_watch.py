@@ -192,6 +192,7 @@ def rebuild(clock=time.time, now=None, build=None):
 def cctv_rebuild():
     """The named people's CCTV galleries (cctv_faces.py), from the desks
     whose sitter is certain and the five's desk faces."""
+    import numpy as np
     import cctv_faces
     import desks_data
     import faces
@@ -208,6 +209,14 @@ def cctv_rebuild():
     known = cctv_faces.known_desks(desks_data.load_desk_names(), desks,
                                    people, desks_data.load_seats_named(),
                                    desks_data.load_reviews())
+    # and the gate's straight-on faces of those same people (24 Nov)
+    try:
+        gate = cctv_faces.gate_samples({k[0] for k in known} | set(five))
+    except Exception:                                       # noqa: BLE001
+        gate = {}
+    for eid, g in gate.items():
+        five[eid] = np.vstack([five[eid], g]) if len(five.get(eid, [])) \
+            else g
     return cctv_faces.build(known, five)
 
 

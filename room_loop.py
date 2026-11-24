@@ -114,6 +114,14 @@ try:
     import cctv_faces
 except Exception:                                           # noqa: BLE001
     cctv_faces = None
+# Faces where people go, at full size (face_sweep.py, 24 Nov): the cafe,
+# commons, smoking, parking, prayer and entry cameras the pass reads at
+# 640x360, a few at a time from the main stream between batches, for
+# cctv_faces. Guarded the same way.
+try:
+    import face_sweep
+except Exception:                                           # noqa: BLE001
+    face_sweep = None
 
 PKT = timezone(timedelta(hours=5))
 
@@ -1253,6 +1261,9 @@ def examine(room, frames, model, imgsz, iou, ac_units=None,
         if wide is None:
             continue
         answered += 1
+        if face_sweep is not None and hasattr(wide, "shape"):
+            # the pass's picture size, to scale zones and seats by
+            face_sweep.PASS_SIZE[(key[0], int(key[1]))] = wide.shape[:2]
         boxes = people_boxes(wide, model,
                              conf=room.conf_for(after_hours, key),
                              imgsz=imgsz, iou=iou)
@@ -1995,6 +2006,36 @@ def main():
         counted = [b for b in boxes if not ignored(b, room.ignore.get(key), getattr(room, "keep", {}).get(key))]
         progress_track.observe(room.name, key, wide, counted, model)
 
+    def grab_main(room, key):
+        # One camera at full size, through the same gates and private hours
+        # as the pass (fetch), for face_sweep.
+        return fetch(SimpleNamespace(name=room.name, cameras=[key],
+                                     private=room.private, stream="main"),
+                     recorders, args.timeout).get(key)
+
+    def look_faces(room, key, big):
+        # People in the full-size picture; the pass's zones and seats are
+        # in its own pixels, so scaled. Only cctv_faces hears of them: the
+        # room's count and its seat notes are the pass's.
+        s = face_sweep.scale_to(key, big)
+        if s is None or cctv_faces is None:
+            return
+        after = not in_operations(datetime.now(PKT), hours)
+        boxes = people_boxes(big, model, conf=room.conf_for(after, key),
+                             imgsz=args.imgsz, iou=args.iou)
+        zones = room.ignore.get(key)
+        keep_ = getattr(room, "keep", {}).get(key)
+        counted = [b for b in boxes if not ignored(
+            (b[0] * s[0], b[1] * s[1], b[2] * s[0], b[3] * s[1]) + tuple(b[4:]),
+            zones, keep_)]
+        spots = []
+        if progress_track is not None:
+            day = datetime.now(PKT).strftime("%Y-%m-%d")
+            spots = [(x / s[0], y / s[1]) for x, y in
+                     progress_track.regular_seats(day).get(
+                         (key[0], int(key[1]))) or []]
+        cctv_faces.observe(room.name, key, big, counted, spots=spots)
+
     def pulse():
         # The heartbeat, at most once a HEARTBEAT_SECONDS, from inside the
         # pass as well as after it. A pass takes about four minutes, and a
@@ -2008,6 +2049,11 @@ def main():
             # its hours.
             progress_follow.step(rooms, recorders, grab_one, look_again,
                                  muffle=muffled)
+        if face_sweep is not None and cctv_faces is not None:
+            # Never raises; in office hours, a few cameras a minute.
+            face_sweep.step(rooms,
+                            lambda r, rec: wants_main(r, recorders[rec]),
+                            grab_main, look_faces, muffle=muffled)
     # A cycle that throws used to end the process, and with it the night. A
     # recorder rebooting, a switch dropping a packet, the database refusing a
     # connection for ten seconds -- any of them was the whole building

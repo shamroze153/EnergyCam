@@ -1028,6 +1028,69 @@ def check_cctv_faces():
     import faces
     import progress_track as pt
     from datetime import datetime as _dt
+    from types import SimpleNamespace as _NS
+    # 24 Nov: the gate's straight-on faces join a known person's gallery,
+    # only those named far above the line.
+    gdir = tempfile.mkdtemp()
+    try:
+        os.makedirs(os.path.join(gdir, "2026-11-24"))
+        with open(os.path.join(gdir, "2026-11-24.csv"), "w") as fh:
+            fh.write("time,recorder,channel,status,employee_id,best,score,"
+                     "margin,face_w\n"
+                     "13:03:47,nvr1,5,named,00042,,0.62,0.30,80\n"
+                     "13:05:37,nvr1,5,named,00042,,0.52,0.11,70\n"
+                     "13:06:00,nvr1,5,named,00099,,0.70,0.30,90\n")
+        for n in ("130347_ch05_00042", "130537_ch05_00042",
+                  "130600_ch05_00099"):
+            open(os.path.join(gdir, "2026-11-24", n + ".jpg"), "wb").close()
+        got = cf.gate_samples({"00042"}, ["2026-11-24"], gdir,
+                              embed=lambda p: np.ones(128, np.float32))
+        check("the gate's sure pictures of a known person join the gallery",
+              {k: len(v) for k, v in got.items()}, {"00042": 1})
+    finally:
+        shutil.rmtree(gdir)
+    # 24 Nov: the cafe, smoking, parking ... cameras the pass reads at
+    # 640x360 are read at full size between batches, a few at a time.
+    import face_sweep as fs
+    rooms_ = [_NS(name="140-H Commons", cameras=[("nvr1", 18), ("nvr1", 21)],
+                  stream=None),
+              _NS(name="H Smoking Area", cameras=[("nvr1", 12)], stream=None),
+              _NS(name="Basement", cameras=[("nvr4", 21)], stream="main"),
+              _NS(name="Marketing", cameras=[("dvr2", 3)], stream=None),
+              _NS(name="Outside H", cameras=[("nvr1", 27)], stream=None)]
+    cams = [(r.name, k) for r, k in fs.cameras(rooms_)]
+    check("where people go, at sub stream: the cafe and smoking twice a"
+          " round; not a main-stream room, not an office",
+          cams, [("140-H Commons", ("nvr1", 18)),
+                 ("140-H Commons", ("nvr1", 21)),
+                 ("H Smoking Area", ("nvr1", 12)),
+                 ("Outside H", ("nvr1", 27)),
+                 ("140-H Commons", ("nvr1", 18)),
+                 ("140-H Commons", ("nvr1", 21)),
+                 ("H Smoking Area", ("nvr1", 12))])
+    grabbed, looked = [], []
+    fs._state.update(at=0.0, i=0, slow=1.0)
+    when = _dt(2026, 11, 24, 13, 0, tzinfo=pt.PKT)
+    n1 = fs.step(rooms_, None, lambda r, k: grabbed.append(k) or 1,
+                 lambda r, k, f: looked.append(k), now=when, clock=lambda: 100.0)
+    n2 = fs.step(rooms_, None, lambda r, k: 1,
+                 lambda r, k, f: looked.append(k), now=when, clock=lambda: 130.0)
+    n3 = fs.step(rooms_, None, lambda r, k: 1,
+                 lambda r, k, f: looked.append(k), now=when, clock=lambda: 161.0)
+    check("three cameras a minute, the next three the minute after",
+          (n1, n2, n3, looked[3:]), (3, 0, 3, [("nvr1", 27), ("nvr1", 18),
+                                                ("nvr1", 21)]))
+    check("and nothing out of office hours",
+          fs.step(rooms_, None, lambda r, k: 1, lambda r, k, f: None,
+                  now=_dt(2026, 11, 24, 23, 0, tzinfo=pt.PKT),
+                  clock=lambda: 999.0), 0)
+    fs.PASS_SIZE[("nvr1", 18)] = (360, 640)
+    check("the pass's pixels per full-size pixel (640x360 in 2560x1440)",
+          fs.scale_to(("nvr1", 18), np.zeros((1440, 2560, 3), np.uint8)),
+          (0.25, 0.25))
+    check("unknown until the pass has read the camera",
+          fs.scale_to(("nvr1", 99), np.zeros((1440, 2560, 3), np.uint8)),
+          None)
 
     def unit(*v):
         v = np.array(v + (0.0,) * (128 - len(v)), np.float32)
