@@ -1405,3 +1405,10 @@ Two or three lines a round; picture file names, never pictures.
   40 min. Squat Wolf Room 1 ch5: a seat (sat at by day). H Street, 141-C
   Outside Area: far shapes on public streets, no unit -- left. Loop alive
   (04:43 pass), desk rows each pass.
+* 06:47 round: 8 GHOST, no MISSED -- dawn: each a single box at 06:43-
+  06:47 scoring 0.61-0.93 (Admin Room, UPS Room, Entry H, P1 Parking,
+  AutoOS, Room 17, 141 Reception Roof: cleaners and guards moving, the
+  loop a pass behind); RO Street's far shape 0.26-0.34, outdoors. Nothing
+  changed. The 02:47 zone holds: 141-D Squat Wolf Room 3 empty every pass
+  since 03:05 (it flipped 1/0 all night before), unknown only twice, for
+  one pass each, while the audit had its recorder busy.
