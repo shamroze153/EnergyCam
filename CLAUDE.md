@@ -153,6 +153,19 @@ look (OSNet, `progress/desk_looks/`, every 15 min), and
 known desks; suggest nothing from it until it is right there. Every desk
 has a report card on the laptop (unnamed: "Desk <code>"), and a desk
 named on the tab joins the board by itself (`progress_data.desk_people`).
+Far desks and old recordings (25 Nov night): rooms.yaml `zoom:` regions
+per camera are read again by `room_loop.detect` in 640-px tiles at twice
+the size, in office hours only (Basement ch 23/25's far rows), by the loop,
+verify_live and check_room alike. A desk seen by two cameras: `also:
+[[rec, ch, x, y]]` on a progress.yaml person. `replay_day.py <day> <from>
+<to>` reads the recorders' recordings (playback, read only, one login try,
+140-H only, never private hours) every 5 min and writes seat notes and
+one-camera passes to `seats/replay/`; progress_data reads them beside the
+loop's (the loop's gaps by default, `--all` for a camera the loop saw
+badly). Desk pictures for naming come from the same playback
+(Dahua `/cam/playback`, Hikvision `/Streaming/tracks/<ch>01`). The report
+card opens with a desk score (at the desk 50%, stretches of an hour+ 30%,
+on time 20%) -- time at the desk, not the work's worth.
 The Progress tab's "Every desk at
 140-H" (laptop only) shows the day and the usual week; a desk has a name
 only where one is known. `desks_data.py` stays pandas-only for the

@@ -1522,3 +1522,10 @@ Two or three lines a round; picture file names, never pictures.
   141-D MR01: nobody at 22:51 and the page not saying otherwise for long --
   people leaving, the loop a pass behind. Nothing changed. Gate recording
   of 19-20 Nov being read since 22:42 (gate_match after it).
+* 01:20, 25 Nov Far desks and old recordings: zoom regions (Basement ch
+  23/25 far rows, office hours only) in the loop and the audit tools; a
+  desk seen by two cameras (also:); replay_day.py reads the recorders'
+  recordings into seats/replay/ (a Basement window desk's 24 Nov: 44 min
+  from the loop's notes, 3h15m with both cameras replayed); the report
+  card's desk score. 23 Nov's gap (laptop asleep 12:05-19:01) being
+  replayed for every office camera.
