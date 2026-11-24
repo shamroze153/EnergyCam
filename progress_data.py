@@ -220,9 +220,18 @@ def timeline(person, day_notes, day_passes, min_score=None):
         mine |= {"%s:%d" % (a[0], int(a[1])) for a in person.get("also") or []}
         day_passes = day_passes[day_passes["camera"].isna()
                                 | day_passes["camera"].isin(mine)]
-        day_passes = day_passes.sort_values("start")
+        day_passes = day_passes.sort_values("end").reset_index(drop=True)
         if day_passes.empty:
             return []
+        # The loop's passes and a replay's overlap: each begins where the
+        # one before ended, so no minute is counted twice (25 Nov: a desk
+        # read both ways came to 689 minutes in a seven-hour day).
+        starts = list(day_passes["start"])
+        ends = list(day_passes["end"])
+        for k in range(1, len(starts)):
+            starts[k] = max(starts[k], ends[k - 1])
+        day_passes = pd.DataFrame({"start": starts, "end": ends})
+        day_passes = day_passes[day_passes["end"] > day_passes["start"]]
     seen_notes = desk_notes(person, day_notes, min_score)
     hits, sure = [], []
     if seen_notes is not None and not seen_notes.empty:

@@ -1837,6 +1837,28 @@ def check_board():
     check("the page in two parts, the card between them",
           ("Today, employee by employee" in top, "Every day" in top,
            "Today, employee by employee" in rest), (True, False, False))
+    # 25 Nov: a desk score -- time at the desk, long stretches, on time --
+    # its parts shown, and where the day stands on the board.
+    sp = {"code": "P8", "focus": {
+        "day": "2026-11-24", "first_in": pd.Timestamp("2026-11-24 10:40"),
+        "minutes": {"computer": 120.0},
+        "stretches": [{"what": "desk", "minutes": 90.0},
+                      {"what": "away", "minutes": 20.0},
+                      {"what": "desk", "minutes": 30.0}]}}
+    other = {"code": "P9", "focus": dict(sp["focus"],
+                                         minutes={"computer": 300.0})}
+    ds_ = pv.day_score(sp, 10.0, 20.0, None, [sp, other])
+    check("desk score: 20% of the office day at the desk, 75% of it in long "
+          "stretches, 25 min late past the grace (two quarters) -- 48.5, "
+          "2nd of 2",
+          ([round(v) for _, v, _, _ in ds_["parts"]], ds_["score"],
+           ds_["rank"], ds_["of"]), ([20, 75, 80], 48.5, 2, 2))
+    check("and on the card, never 'productive'",
+          ("desk score" in pv.score_card(sp, pv.colours("light"), team=[sp]),
+           "productive" in pv.score_card(sp, pv.colours("light")).lower()),
+          (True, False))
+    check("no score before they came in",
+          pv.day_score({"focus": {"first_in": None}}), None)
     # 25 Nov: a day read again from the recordings (replay_day.py) -- only
     # the loop's gaps, notes in the loop's own format, passes of one camera.
     import replay_day as rd

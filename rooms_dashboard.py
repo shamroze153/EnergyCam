@@ -5777,7 +5777,8 @@ def show_report_card(mode, people, hours, now, day=None):
             return
     local = now.tz_convert(PKT).tz_localize(None)
     st.markdown(progress_view.report_block(mode, p, view, float(hours[0]),
-                                           local), unsafe_allow_html=True)
+                                           local, float(hours[1]),
+                                           named), unsafe_allow_html=True)
 
 
 def show_progress(now):

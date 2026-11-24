@@ -10,6 +10,8 @@ and every card carries how its readings did when checked by eye.
 
 No Streamlit and no database: figures in, HTML out.
 """
+import math
+
 from overview import TOKENS, css, esc
 
 STATUS = {"done": "Done", "doing": "In progress", "next": "Next",
@@ -897,7 +899,96 @@ def report_rows(p, start=10.0):
     return rows, u
 
 
-def report(p, c, view=REPORT_VIEWS[0], start=10.0, now=None):
+FOCUS_MIN = 60           # min: a stretch at the desk this long is a long one
+SCORE_PARTS = (("At the desk", 0.5,
+                "share of office hours so far at the desk"),
+               ("Long stretches", 0.3,
+                "share of desk time in stretches of an hour or more"),
+               ("On time", 0.2,
+                "in by the start (+15 min); 10 off a quarter-hour late"))
+
+
+def day_score(p, start=10.0, end=20.0, now=None, team=None):
+    """A day's desk score (Shamroze, 25 Nov: "score card ko behtar
+    banana", the way workplace analytics put it -- time used, focus
+    blocks, punctuality; Viva Insights counts focus as blocks of an hour
+    or more): {parts: [(name, 0-100, weight, what)], score, focus_min,
+    short_min, rank, of}. None before they came in. What it scores is
+    time at the desk and how it came -- never the work itself."""
+    import datetime as _dt
+    f = p.get("focus") or {}
+    first = f.get("first_in")
+    if first is None:
+        return None
+    m = f.get("minutes") or {}
+    at = sum(m.get(k, 0.0) for k in AT_DESK_KINDS)
+    runs = [s["minutes"] for s in f.get("stretches") or []
+            if s.get("what") == "desk"]
+    long_ = sum(r for r in runs if r >= FOCUS_MIN)
+    day = pd_day = f.get("day")
+    base = _dt.datetime.fromisoformat(pd_day) if day else None
+    office = (end - start) * 60.0
+    if now is not None and base is not None and \
+            now.strftime("%Y-%m-%d") == day:
+        so_far = (now.hour + now.minute / 60.0 - start) * 60.0
+        office = max(60.0, min(office, so_far))
+    share = min(1.0, at / office) if office > 0 else 0.0
+    late = max(0.0, (first.hour + first.minute / 60.0 - start) * 60.0
+               - LATE_AFTER)
+    on_time = max(0.0, 100.0 - 10.0 * math.ceil(late / 15.0)) if late else 100.0
+    parts = [(SCORE_PARTS[0][0], 100.0 * share, SCORE_PARTS[0][1],
+              SCORE_PARTS[0][2]),
+             (SCORE_PARTS[1][0], 100.0 * long_ / at if at else 0.0,
+              SCORE_PARTS[1][1], SCORE_PARTS[1][2]),
+             (SCORE_PARTS[2][0], on_time, SCORE_PARTS[2][1],
+              SCORE_PARTS[2][2])]
+    score = sum(v * w for _, v, w, _ in parts)
+    rank = of = None
+    if team:
+        mins = []
+        for q in team:
+            fq = q.get("focus") or {}
+            if fq.get("first_in") is None or fq.get("day") != day:
+                continue
+            mq = fq.get("minutes") or {}
+            mins.append((sum(mq.get(k, 0.0) for k in AT_DESK_KINDS),
+                         q.get("code")))
+        mins.sort(reverse=True)
+        of = len(mins)
+        rank = next((i + 1 for i, (_, code) in enumerate(mins)
+                     if code == p.get("code")), None)
+    return {"parts": parts, "score": score, "focus_min": long_,
+            "short_min": max(0.0, at - long_), "rank": rank, "of": of}
+
+
+def score_card(p, c, start=10.0, end=20.0, now=None, team=None):
+    """day_score as a small card: the score, its parts as bars, where the
+    day stands among the board's people."""
+    s = day_score(p, start, end, now, team)
+    if not s:
+        return ""
+    bars = "".join(
+        '<div class="sp"><span>%s<em>%d%% weight</em></span><div class="m">'
+        '<i style="width:%.0f%%"></i></div><b>%.0f</b><small>%s</small></div>'
+        % (esc(name), round(w * 100), v, v, esc(what))
+        for name, v, w, what in s["parts"])
+    rank = ('<span class="rk">%s of %d on the board by time at the desk today'
+            '</span>' % (_ordinal(s["rank"]), s["of"])) \
+        if s.get("rank") and s.get("of") else ""
+    return ('<div class="pg-score"><div class="top"><b>%.0f</b><span>desk '
+            'score / 100</span>%s</div>%s<div class="split">long stretches '
+            '%s &middot; in shorter bits %s</div></div>'
+            % (s["score"], rank, bars, dur(s["focus_min"]),
+               dur(s["short_min"])))
+
+
+def _ordinal(n):
+    return "%d%s" % (n, "th" if 10 <= n % 100 <= 20 else
+                     {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th"))
+
+
+def report(p, c, view=REPORT_VIEWS[0], start=10.0, now=None, end=20.0,
+           team=None):
     """One employee's report card (one at a time, rooms_dashboard picks):
     the head, the figures today beside their usual, and the day chart --
     or, for the usual day, the hours they are usually at the desk."""
@@ -965,13 +1056,18 @@ def report(p, c, view=REPORT_VIEWS[0], start=10.0, now=None):
                 '<div class="pg-rsec">From&ndash;to</div>%s'
                 % (lanes or '<div class="pg-empty">Not at the desk yet today.'
                    '</div>', day_list(f, c)))
+    table = score_card(p, c, start, end, now, team) + table
     return ('<div class="ec-card pg-report">%s<div class="pg-rgrid"><div>%s'
             '</div><div>%s</div></div><div class="pg-rfoot">Measured: time '
             'at the desk (every pass of the loop) and where the employee was '
             'seen when away -- by face on the campus cameras and at the gate. '
             '"Not seen" is time on no camera. At the computer, on the phone '
             'and talking are read every few passes and shared out over the '
-            'rest.</div></div>' % (head, table, body))
+            'rest. The desk score weighs time at the desk, long stretches '
+            '(as workplace analytics count focus: an hour or more unbroken) '
+            'and coming in on time -- it says how the day was spent at the '
+            'desk, not what the work was worth.</div></div>'
+            % (head, table, body))
 
 
 def team_table(people, c, days_shown=10):
@@ -1112,12 +1208,13 @@ def legend(c):
                       '</span>' % (c[k], esc(t)) for k, t in items))
 
 
-def report_block(mode, p, view=REPORT_VIEWS[0], start=10.0, now=None):
+def report_block(mode, p, view=REPORT_VIEWS[0], start=10.0, now=None,
+                 end=20.0, team=None):
     """report() with the page's styles, for the dashboard to draw on its
     own between page(part="top") and page(part="rest")."""
     c = colours(mode)
     return (css(mode) + "\n" + _CSS % c + "\n" + '<div class="ec pg">'
-            + report(p, c, view, start, now) + "</div>")
+            + report(p, c, view, start, now, end, team) + "</div>")
 
 
 def page(mode, cfg, people, as_of, hours=(10, 20), frm=8, to=24, part=None):
@@ -1362,6 +1459,23 @@ background:var(--line)}
 overflow:hidden;text-overflow:ellipsis}
 .pg .pg-away{white-space:normal;color:var(--t2)}
 .pg .pg-report{padding:16px 18px;margin-top:8px}
+.pg .pg-score{border:1px solid var(--line);border-radius:12px;padding:12px 14px;
+margin-bottom:14px}
+.pg .pg-score .top{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;
+margin-bottom:8px}
+.pg .pg-score .top b{font-size:30px;font-variant-numeric:tabular-nums;line-height:1}
+.pg .pg-score .top span{font-size:12px;color:var(--t2)}
+.pg .pg-score .top .rk{flex-basis:100%%;color:var(--t3);font-size:11.5px}
+.pg .pg-score .sp{display:grid;grid-template-columns:118px minmax(0,1fr) 30px;
+gap:2px 8px;align-items:center;margin-top:6px}
+.pg .pg-score .sp span{font-size:12px;color:var(--t2)}
+.pg .pg-score .sp span em{display:block;font-style:normal;font-size:10.5px;
+color:var(--t3)}
+.pg .pg-score .sp .m{height:7px;border-radius:99px;background:var(--s2);overflow:hidden}
+.pg .pg-score .sp .m i{display:block;height:100%%;background:%(computer)s}
+.pg .pg-score .sp b{font-size:12.5px;text-align:right;font-variant-numeric:tabular-nums}
+.pg .pg-score .sp small{grid-column:2/4;font-size:10.5px;color:var(--t3)}
+.pg .pg-score .split{font-size:11.5px;color:var(--t3);margin-top:8px}
 .pg .pg-rhead{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .pg .pg-rhead .who{display:flex;flex-direction:column;flex:1;min-width:160px}
 .pg .pg-rhead .who b{font-size:17px}
