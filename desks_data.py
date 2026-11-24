@@ -398,6 +398,9 @@ def summary(df, days=7, names=None):
     out = []
     if df.empty:
         return pd.DataFrame()
+    # once, not a desk at a time (24 Nov: rooms.yaml read 164 times kept
+    # the Progress tab from ever reaching "Name the desks")
+    late_bar = LATE_AFTER[0] * 60 + LATE_AFTER[1] - pdx.office_hours()[0] * 60
     for code, g in df.groupby("code"):
         came = g[g["first"].notna()].sort_values("day")
         whole = came[~came["part"].astype(str).str.lower().eq("true")]
@@ -427,9 +430,7 @@ def summary(df, days=7, names=None):
             "Talking, min a day": avg("talking_min"),
             "Focus, h a day": avg("focus_min", 1 / 60.0, 1),
             "Core hours at desk %": avg("core_pct", 100),
-            "Late starts": int((late > (LATE_AFTER[0] * 60 + LATE_AFTER[1]
-                                        - pdx.office_hours()[0] * 60)).sum())
-            if len(late) else 0,
+            "Late starts": int((late > late_bar).sum()) if len(late) else 0,
             "After hours, min a day": avg("after_min"),
             "Longest break, min": avg("longest_break"),
             "Last day": came["day"].iloc[-1] if len(came) else "",
