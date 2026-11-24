@@ -1210,6 +1210,14 @@ def check_publish():
               len({r[0] for r in cur.rows}), 2)
         check("not again within five minutes",
               pt.publish(lambda: Conn(cur), clock=lambda: 1e9 + 60), False)
+        # 24 Nov: an employee added to progress.yaml belongs on the days
+        # already sent -- the fortnight goes again.
+        first_past = sorted({r[0] for r in cur.rows})[0]
+        again = Cur()
+        pt._published.update(at=0.0, cfg="changed")
+        pt.publish(lambda: Conn(again), clock=lambda: 1e9 + 400)
+        check("progress.yaml changed: the past days are sent again",
+              first_past in {r[0] for r in again.rows}, True)
         err = psycopg2.errors.UndefinedTable("no table")
         pt._published.update(at=0.0, missing=False, told=False)
         sent = pt.publish(lambda: Conn(Cur(fail=err)), clock=lambda: 2e9)

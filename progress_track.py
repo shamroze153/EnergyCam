@@ -415,6 +415,15 @@ def publish(connect, now=None, clock=time.time, force=False):
     cfg = pdx.load() or {}
     if not cfg.get("people"):
         return False
+    # A person added to progress.yaml (24 Nov: Shamroze names them one by
+    # one) belongs on the days already sent too: send the fortnight again.
+    try:
+        stamp = os.path.getmtime(pdx.CONFIG)
+    except OSError:
+        stamp = None
+    if stamp != _published.get("cfg"):
+        _published["cfg"] = stamp
+        _past_sent.clear()
     now = now or datetime.now(PKT)
     day = now.strftime("%Y-%m-%d")
     hours = pdx.office_hours()
