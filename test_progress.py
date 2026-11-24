@@ -618,9 +618,9 @@ def check_campus_faces():
                            now=night, spots=spots, out=folder),
                sfc.observe("R", ("cd_nvr1", 3), frame, [(450, 450, 550, 700)],
                            now=day, spots=spots, out=folder)), (0, 0))
-        check("numbers, never a picture",
-              [os.path.splitext(f)[1] for f in os.listdir(
-                  os.path.join(folder, "2026-11-20"))], [".f16"])
+        check("numbers, and one small picture of the seat for the check",
+              sorted(os.path.splitext(f)[1] for f in os.listdir(
+                  os.path.join(folder, "2026-11-20"))), [".f16", ".jpg"])
     finally:
         faces.of_person, faces.available = old
         shutil.rmtree(folder)

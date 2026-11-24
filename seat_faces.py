@@ -91,13 +91,36 @@ def _observe(room, key, frame, boxes, now, spots, out):
         if v is None:
             continue
         os.makedirs(folder, exist_ok=True)
-        with open(os.path.join(folder, _key(key[0], key[1], *seat) + ".f16"),
-                  "ab") as fh:
+        stem = os.path.join(folder, _key(key[0], key[1], *seat))
+        with open(stem + ".f16", "ab") as fh:
             fh.write(np.asarray(v, np.float16).tobytes())
+        _thumb(frame, b, stem + ".jpg")
         kept += 1
     if kept:
         _forget_old(out or OUT)
     return kept
+
+
+THUMB_EVERY = 3600        # s: a seat's picture for the check, renewed hourly
+
+
+def _thumb(frame, box, path):
+    """The seat's sitter's head, small, for the double check by eye beside
+    the directory photo -- one per seat, renewed every THUMB_EVERY."""
+    try:
+        if os.path.exists(path) and \
+                time.time() - os.path.getmtime(path) < THUMB_EVERY:
+            return
+        got = faces.head_crop(frame, box[:4])
+        if got is None:
+            return
+        import cv2
+        crop = got[0]
+        side = 200.0 / max(crop.shape[:2])
+        cv2.imwrite(path, cv2.resize(crop, None, fx=side, fy=side),
+                    [cv2.IMWRITE_JPEG_QUALITY, 85])
+    except Exception:                                       # noqa: BLE001
+        pass
 
 
 def _forget_old(base, days=KEEP_DAYS):
