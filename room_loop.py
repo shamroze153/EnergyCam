@@ -108,6 +108,12 @@ try:
     import entrance_watch
 except Exception:                                           # noqa: BLE001
     entrance_watch = None
+# Named people seen off their own seat (cctv_faces.py, 24 Nov): the cafe,
+# a lobby, a meeting room -- by their faces in our own cameras. Guarded.
+try:
+    import cctv_faces
+except Exception:                                           # noqa: BLE001
+    cctv_faces = None
 
 PKT = timezone(timedelta(hours=5))
 
@@ -1245,6 +1251,8 @@ def examine(room, frames, model, imgsz, iou, ac_units=None,
             seat_faces.observe(room.name, key, wide, counted)
         if desk_watch is not None:
             desk_watch.observe(room.name, key, wide, counted, model)
+        if cctv_faces is not None:
+            cctv_faces.observe(room.name, key, wide, counted)
         if keep is None or here > people:
             keep = wide
         people = max(people, here)

@@ -71,16 +71,24 @@ KEEP_DAYS = 14
 _threads = []
 
 
-def decide(vec, ids, vecs, recent, t, same=SAME, margin=MARGIN):
+def decide(vec, ids, vecs, recent, t, same=SAME, margin=MARGIN, cctv=None):
     """One face against the directory: ("named" | "unknown" | None,
     best_id, score, margin). None when it is the same passage as a recent
-    one (recent: [(t, id_or_None, vec)], newest last; updated here)."""
+    one (recent: [(t, id_or_None, vec)], newest last; updated here).
+    cctv: (ids, vecs) of the named people's faces in our own cameras
+    (cctv_faces.py) -- a person's score is the better of the photo's and
+    their CCTV gallery's."""
     if vec is None or not len(ids):
         return None, "", 0.0, 0.0
     s = vecs @ vec
-    order = np.argsort(-s)
-    best, top = str(ids[order[0]]), float(s[order[0]])
-    second = float(s[order[1]]) if len(order) > 1 else -1.0
+    sc = {str(i): float(v) for i, v in zip(ids, s)}
+    if cctv is not None and len(cctv[0]):
+        import cctv_faces
+        for eid, v in cctv_faces.scores(vec, cctv[0], cctv[1]).items():
+            sc[eid] = max(sc.get(eid, -1.0), v)
+    ranked = sorted(sc.items(), key=lambda kv: -kv[1])
+    best, top = ranked[0]
+    second = ranked[1][1] if len(ranked) > 1 else -1.0
     named = top >= same and top - second >= margin
     while recent and t - recent[0][0] > max(REPEAT, UNKNOWN_REPEAT):
         recent.pop(0)
@@ -220,8 +228,13 @@ class Watch(threading.Thread):
             aligned = rec.alignCrop(frame, full)
             v = rec.feature(aligned).astype(np.float32).ravel()
             v /= max(float(np.linalg.norm(v)), 1e-6)
+            try:
+                import cctv_faces
+                cctv = cctv_faces.load()
+            except Exception:                               # noqa: BLE001
+                cctv = None
             status, best, score, margin = decide(v, ids, vecs, self.recent,
-                                                 time.time())
+                                                 time.time(), cctv=cctv)
             if status is None:
                 continue
             x, y, fw, fh = (int(v_) for v_ in full[:4])

@@ -58,6 +58,8 @@ if getattr(room_loop, "desk_watch", None) is not None:
     room_loop.desk_watch.CROPS = _seat_tmp.mkdtemp()
 if getattr(room_loop, "seat_faces", None) is not None:
     room_loop.seat_faces.OUT = _seat_tmp.mkdtemp()
+if getattr(room_loop, "cctv_faces", None) is not None:
+    room_loop.cctv_faces.SIGHTINGS = _seat_tmp.mkdtemp()
 
 T0 = datetime.datetime(2026, 11, 5, 18, 0, tzinfo=PKT)
 FAILURES = []

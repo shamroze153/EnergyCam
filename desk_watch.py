@@ -122,7 +122,33 @@ def rebuild(clock=time.time, now=None, build=None):
     except Exception:                                       # noqa: BLE001
         pass
     desks_data.build(day, desks=desk_seats.find_desks(day))
+    try:
+        cctv_rebuild()
+    except Exception:                                       # noqa: BLE001
+        pass
     return True
+
+
+def cctv_rebuild():
+    """The named people's CCTV galleries (cctv_faces.py), from the desks
+    whose sitter is certain and the five's desk faces."""
+    import cctv_faces
+    import desks_data
+    import faces
+    import progress_data as pdx
+    df = desks_data.load()
+    desks = [{"code": c, "recorder": g["recorder"].iloc[0],
+              "channel": int(g["channel"].iloc[0]),
+              "seat": [float(g["x"].iloc[0]), float(g["y"].iloc[0])]}
+             for c, g in df.groupby("code")] if len(df) else []
+    people = [p for p in (pdx.load() or {}).get("people") or []
+              if p.get("employee_id")]
+    five = {str(p["employee_id"]): faces.load_gallery(p["code"])
+            for p in people}
+    known = cctv_faces.known_desks(desks_data.load_desk_names(), desks,
+                                   people, desks_data.load_seats_named(),
+                                   desks_data.load_reviews())
+    return cctv_faces.build(known, five)
 
 
 def _write(day, rows, folder, crops):

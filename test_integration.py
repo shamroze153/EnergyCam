@@ -82,6 +82,8 @@ if getattr(room_loop, "desk_watch", None) is not None:
     room_loop.desk_watch.CROPS = _seat_tmp.mkdtemp()
 if getattr(room_loop, "seat_faces", None) is not None:
     room_loop.seat_faces.OUT = _seat_tmp.mkdtemp()
+if getattr(room_loop, "cctv_faces", None) is not None:
+    room_loop.cctv_faces.SIGHTINGS = _seat_tmp.mkdtemp()
 from ac_detect import load_units  # noqa: E402
 
 room_loop.grab = fake_grab

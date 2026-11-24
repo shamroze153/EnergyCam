@@ -862,6 +862,92 @@ def check_entrance():
           and "not args.once" in source, True)
 
 
+def check_cctv_faces():
+    print("-- CCTV faces: a named person's face in our own cameras")
+    import numpy as np
+    import cctv_faces as cf
+    import entrance_watch as ew
+    import faces
+    import progress_track as pt
+    from datetime import datetime as _dt
+
+    def unit(*v):
+        v = np.array(v + (0.0,) * (128 - len(v)), np.float32)
+        return v / np.linalg.norm(v)
+    desks = [{"code": "A", "recorder": "dvr9", "channel": 1,
+              "seat": [500.0, 700.0]}]
+    known = cf.known_desks({"A": ("00010", "Ann")}, desks,
+                           [{"employee_id": "00011", "recorder": "dvr9",
+                             "channel": 2, "seat": [300, 600]}],
+                           [{"status": "named", "recorder": "dvr9",
+                             "channel": "3", "x": "100", "y": "100",
+                             "employee_id": "00012"}], reviews={})
+    check("certain desks: by hand, the five with an ID -- not a seat named "
+          "by face until confirmed", [k[0] for k in known],
+          ["00010", "00011"])
+    folder = tempfile.mkdtemp()
+    try:
+        base = os.path.join(folder, "seat_faces")
+        os.makedirs(os.path.join(base, "2026-11-20"))
+        np.array([unit(1, .02 * i, 0) for i in range(5)], np.float16) \
+            .tofile(os.path.join(base, "2026-11-20", "dvr9_1_500_700.f16"))
+        out = os.path.join(folder, "cctv.npz")
+        per = cf.build(known, {"00011": np.array([unit(0, 1, 0)] * 4)},
+                       out, base)
+        check("the desk's kept faces become its sitter's gallery",
+              sorted((k, len(v)) for k, v in per.items()),
+              [("00010", 5), ("00011", 4)])
+        ids, vecs = cf.load(out)
+        check("a face like Ann's in our cameras is Ann's",
+              cf.best(unit(1, .05, 0), ids, vecs)[0], "00010")
+        check("a face between two people is nobody's",
+              cf.best(unit(1, 1, 0), ids, vecs), None)
+        photos = np.array([unit(0, 0, 1), unit(0, .2, 1)])
+        got = ew.decide(unit(1, .05, 0), np.array(["00010", "00011"]),
+                        photos, [], 1000.0, cctv=(ids, vecs))
+        check("at the gate the CCTV gallery names somebody their photo "
+              "would not", (got[0], got[1]), ("named", "00010"))
+        old = faces.of_person, faces.available, cf._cache.copy()
+        try:
+            faces.of_person = lambda frame, box: unit(1, .05, 0)
+            faces.available = lambda: True
+            cf._cache.update(stamp=None)
+            cf.OUT_SAVED = out
+            frame = np.zeros((1080, 1920, 3), np.uint8)
+            now = _dt(2026, 11, 20, 13, 0, tzinfo=pt.PKT)
+            cf._seen.clear()
+            orig_load = cf.load
+            cf.load = lambda path=None: (ids, vecs)
+            n = cf.observe("Prompt Cafe", ("nvr4", 14), frame,
+                           [(900, 300, 1000, 600, .9), (450, 450, 550, 700)],
+                           now=now, spots=[(500, 700)],
+                           out=os.path.join(folder, "sightings"))
+            got = pd.read_csv(os.path.join(folder, "sightings", DAY + ".csv"),
+                              dtype=str)
+            check("a named person off any seat (the cafe) is a sighting; "
+                  "the one at a seat is left to seat_faces",
+                  (n, got["employee_id"].tolist(), got["room"].tolist()),
+                  (1, ["00010"], ["Prompt Cafe"]))
+            check("the same person on the same camera again soon is not "
+                  "written twice", cf.observe(
+                      "Prompt Cafe", ("nvr4", 14), frame,
+                      [(900, 300, 1000, 600, .9)], now=now, spots=[],
+                      out=os.path.join(folder, "sightings")), 0)
+            cf.load = orig_load
+        finally:
+            faces.of_person, faces.available = old[0], old[1]
+            cf._cache.clear()
+            cf._cache.update(old[2])
+    finally:
+        shutil.rmtree(folder)
+    source = open("room_loop.py", encoding="utf-8").read()
+    check("the loop looks for named people everywhere, guarded",
+          "cctv_faces.observe(room.name, key, wide, counted)" in source
+          and "cctv_faces = None" in source, True)
+    check("the galleries are rebuilt with every desk, hourly",
+          "cctv_rebuild()" in open("desk_watch.py").read(), True)
+
+
 def check_presence_rules():
     print("-- at the desk: the rules checked by eye on 24 Nov")
     p = passes_every("10:00", "11:00")
@@ -1319,6 +1405,7 @@ def main():
     check_campus_faces()
     check_every_desk()
     check_entrance()
+    check_cctv_faces()
     check_timeline()
     check_day()
     check_passes_and_usual()

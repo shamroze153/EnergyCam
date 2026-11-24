@@ -165,6 +165,42 @@ campus page) goes in `room_events.ac_units_on`, which an administrator adds
 once with `sql/09_ac_units.sql`. Until then the loop writes rooms without
 it and says so once; restart the loop after the SQL is run.
 
+## Handoff -- where the campus face work stands (24 Nov, ~11:30)
+
+For a new session: everything that runs is in the repo; everything that
+names a person is on this laptop only. Read this, then docs/night_log.md.
+
+* Runs in the loop (room_loop.examine / main): `progress_track` (the
+  five), `progress_follow` (desk cameras every minute; follows a leaver),
+  `seat_faces` (faces per regular seat), `desk_watch` (every desk's
+  activity -- pose: a hand to the head is a call; screen seen = computer,
+  else "desk"), `cctv_faces.observe` (named people seen off their seat ->
+  people/sightings/), `entrance_watch` (Entry H main stream on a thread:
+  faces on the way out, frontal only, names at 0.50 by 0.10, photo or CCTV
+  gallery), and hourly `desk_watch.rebuild` (seat names by face,
+  progress/desks.csv, the CCTV galleries).
+* By hand, at night: `python entrance_backfill.py <days>` (the recorder's
+  playback of Entry H, lunch 13:00-15:30 and evening 17:00-22:00, real
+  time, resumes from people/entrance/backfilled.txt), then
+  `python gate_match.py` (a desk for a person after 2+ votes over days).
+* Local only, never in git: progress.yaml (names of the five),
+  people/ (roster, photos, faces.npz, cctv_faces.npz, seat_faces/,
+  entrance/, sightings/, desk_names.csv, seat_reviews.csv,
+  seats_identified.csv, desks_by_gate.csv), progress/, frames/, .env.
+  A new machine has none of it: the code runs and names nobody.
+* The Progress tab (laptop): Who sits where (Yes/No on seats named by
+  face), Every desk (day, usual week, heatmap), Name the desks (a picker
+  of the directory -- names given there are certain and become CCTV
+  galleries). The hosted page gets codes and numbers, never a name.
+* Session schedules die with the session -- recreate in a new one: the
+  night audit every 2 h at :17; a resume check at :07 and :37; on 24 Nov
+  18:43 the day's seat-face match and review sheet, 22:37 the gate
+  backfill of 19, 20, 23, 24 Nov then gate_match, and the 21:33 Progress
+  accuracy report.
+* Next: as desks get named, check the gate's and the cameras' sightings
+  of those people by eye; then a validation set for pose and screen
+  (~100 desk pictures labelled by eye) before trusting the phone figures.
+
 ## Checking the counts are right
 
 * `python field_audit.py` — doctor, `verify_live` (the page against the
