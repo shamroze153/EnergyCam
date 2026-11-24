@@ -1447,3 +1447,10 @@ Two or three lines a round; picture file names, never pictures.
   1047.jpg). Gaming Area: people passing. Nothing changed. Loop restarted
   10:58 for the desk reading's pose and screen (98221aa) -- a hand held to
   the head is a call, no screen in sight is "desk", not "computer".
+* 11:20-12:00: checked the desk reading by eye on 72 hourly desk
+  pictures: presence at the campus's desks ~80% (the five 97%); "talking"
+  had called seated neighbours visitors -- now one person one desk and a
+  visitor must stand; the hourly pictures carry a ring on the true seat
+  (32 of 72 had it off-centre). CCTV galleries (P3 10, P5 35 faces) feed
+  the gate and sightings off the seat. The hosted page gets every desk
+  room by room (numbers only). Pushed up to this commit; loop restarted.
