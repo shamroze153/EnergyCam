@@ -2521,7 +2521,8 @@ def show_meters(df, recent, now):
         usage, {"since": a.get("solar_since"),
                 "full_from": a.get("solar_full_from"),
                 "kw": a.get("solar_kw")},
-        None, bills_inline=False), unsafe_allow_html=True)
+        None, bills_inline=False,
+        days=ev.day_series(readings, mine, solar)), unsafe_allow_html=True)
     # The bills' year as a Streamlit control: the page's 30-second refresh
     # put an HTML switch back to this year every time (20 Nov).
     years = ev.bill_years(my_bills, mine)

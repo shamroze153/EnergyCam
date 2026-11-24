@@ -141,6 +141,218 @@ def daily_table(readings, meters, solar):
     return table, kind
 
 
+CUT_HOUR = 18            # a day: 6 pm the evening before to 6 pm that day
+LONG_GAP_H = 30          # a day cut inside a longer gap is an estimate
+EPOCH = pd.Timestamp("1970-01-01")
+
+
+def day_series(readings, meters, solar, cut=CUT_HOUR):
+    """Every calendar day from the first reading to the last, each meter's
+    units from 6 pm the evening before to 6 pm that day -- the working day
+    it holds -- read off a line through every reading, the morning ones
+    too (Shamroze, 24 Nov: a Monday-morning reading after the weekend,
+    then 6 pm). A weekend between Friday's and Monday's readings is shared
+    at its own average, and a day cut inside a gap of over LONG_GAP_H
+    hours is marked an estimate. The panels' figure is the calendar day's
+    (the form asks for yesterday's, beside today's reading).
+
+    Returns one row a day: day, <meter>, <meter>_est for each meter,
+    solar."""
+    import numpy as np
+    codes = list(meters["code"]) if meters is not None and len(meters) else []
+    if readings is None or readings.empty or not codes:
+        return pd.DataFrame()
+    r = meters_view.last_of_each_burst(readings)
+    r = r[r["reading"].notna()]
+    per = {}
+    for code in codes:
+        mine = r[r["meter"] == code].sort_values("taken")
+        if len(mine) < 2:
+            continue
+        # seconds, local wall clock, whatever unit pandas keeps time in
+        # (24 Nov: microseconds, not nanoseconds -- every day fell outside)
+        t = (mine["taken"].dt.tz_convert(LOCAL).dt.tz_localize(None)
+             - EPOCH).dt.total_seconds().to_numpy()
+        v = mine["reading"].astype(float).to_numpy()
+        # a meter that went backwards (a typo, a new meter) ends the line
+        ok = np.concatenate([[True], np.diff(v) >= 0])
+        if not ok.all():
+            t, v = t[:int(np.argmin(ok))], v[:int(np.argmin(ok))]
+        if len(t) < 2:
+            continue
+        first = (EPOCH + pd.Timedelta(seconds=float(t[0]))).normalize()
+        last = (EPOCH + pd.Timedelta(seconds=float(t[-1]))).normalize()
+        day = first
+        while day <= last:
+            a = (day - pd.Timedelta(days=1) + pd.Timedelta(hours=cut)
+                 - EPOCH).total_seconds()
+            b = (day + pd.Timedelta(hours=cut) - EPOCH).total_seconds()
+            # an hour's slack either side: "at about six"
+            if a >= t[0] - 3600 and b <= t[-1] + 3600:
+                units = float(np.interp(b, t, v) - np.interp(a, t, v))
+
+                def gap(x):
+                    # a reading within two hours of the cut is the cut
+                    # ("at about six": 17:45 for 18:00 is no estimate)
+                    if np.min(np.abs(t - x)) <= 2 * 3600:
+                        return 0.0
+                    i = int(np.searchsorted(t, x))
+                    if i <= 0 or i >= len(t):
+                        return 0.0
+                    return (t[i] - t[i - 1]) / 3600.0
+                per.setdefault(day, {})[code] = units
+                per[day][code + "_est"] = (gap(a) > LONG_GAP_H
+                                           or gap(b) > LONG_GAP_H)
+            day += pd.Timedelta(days=1)
+    if not per:
+        return pd.DataFrame()
+    rows = []
+    for day in sorted(per):
+        row = {"day": day}
+        for code in codes:
+            row[code] = per[day].get(code)
+            row[code + "_est"] = bool(per[day].get(code + "_est", False))
+        rows.append(row)
+    out = pd.DataFrame(rows)
+    sun, _ = solar_per_day(solar)
+    if len(sun):
+        shifted = dict(zip(pd.to_datetime(sun["day"]).dt.tz_localize(None)
+                           - pd.Timedelta(days=1), sun["kwh"]))
+        out["solar"] = out["day"].map(shifted)
+    else:
+        out["solar"] = None
+    return out
+
+
+def bill_per_day(bills, meters):
+    """[(label, units a day)] from the bills, both meters together: the
+    last bill, the one before the panels, and this month a year ago."""
+    if bills is None or bills.empty:
+        return []
+    b = bills.copy()
+    codes = set(meters["code"]) if meters is not None and len(meters) else None
+    if codes:
+        b = b[b["meter"].isin(codes)]
+    if b.empty:
+        return []
+    b["period_start"] = pd.to_datetime(b["period_start"])
+    b["period_end"] = pd.to_datetime(b["period_end"])
+    b["key"] = b["period_end"].dt.to_period("M")
+    g = b.groupby("key").agg(units=("units", "sum"),
+                             start=("period_start", "min"),
+                             end=("period_end", "max"),
+                             n=("meter", "nunique")).sort_index()
+    g = g[g["n"] == g["n"].max()]                  # both meters billed
+    if g.empty:
+        return []
+    g["a_day"] = g["units"] / ((g["end"] - g["start"]).dt.days + 1)
+    out = []
+    last = g.index[-1]
+    out.append(("Last bill, %s" % last.strftime("%b %Y"),
+                float(g.loc[last, "a_day"])))
+    year_ago = (pd.Timestamp.now().to_period("M") - 12)
+    if year_ago in g.index and year_ago != last:
+        out.append(("%s, a year ago" % year_ago.strftime("%b %Y"),
+                    float(g.loc[year_ago, "a_day"])))
+    return out
+
+
+def daily_history(theme, ds, by_code, gf, ff, bills=None, meters=None,
+                  weeks=4):
+    """Every day since the first reading, one column a day, the newest at
+    the right and the page scrolled to it (Shamroze, 24 Nov: "purane units
+    ye aa rahe the, naye ye, weekend ke ye ... neeche date aa rahi ho, day
+    aa raha ho"): the grid units of both meters and the panels' kWh,
+    weekends shaded, estimates (a day inside the weekend's gap) paler;
+    above it, a usual weekday and weekend day against the bills."""
+    if ds is None or ds.empty:
+        return ""
+    c = SERIES[theme]
+
+    def grid(r):
+        vals = [r.get(k) for k in (gf, ff) if k]
+        if any(x is None or pd.isna(x) for x in vals):
+            return None
+        return sum(float(x) for x in vals)
+    ds = ds.copy()
+    ds["grid"] = [grid(r) for _, r in ds.iterrows()]
+    ds["est"] = [any(bool(r.get(k + "_est")) for k in (gf, ff) if k)
+                 for _, r in ds.iterrows()]
+    recent = ds[ds["day"] > ds["day"].max() - pd.Timedelta(weeks=weeks)]
+    wk = recent[(recent["day"].dt.dayofweek < 5) & ~recent["est"]
+                & recent["grid"].notna()]["grid"]
+    we = recent[(recent["day"].dt.dayofweek >= 5)
+                & recent["grid"].notna()]["grid"]
+    tiles = []
+    if len(wk):
+        tiles.append(tile("A weekday, usual", "%s units" % _n(wk.mean()),
+                          "from the grid, both meters · last %d weeks, %d "
+                          "day%s" % (weeks, len(wk), "" if len(wk) == 1
+                                     else "s")))
+    if len(we):
+        tiles.append(tile("A weekend day, usual", "%s units" % _n(we.mean()),
+                          "Saturday and Sunday, shared out from the "
+                          "readings either side"))
+    for label, a_day in bill_per_day(bills, meters):
+        tiles.append(tile(label, "%s units" % _n(a_day),
+                          "a day, from the K-Electric bill"))
+    def num(x):
+        return 0.0 if x is None or pd.isna(x) else float(x)
+    top = max([1.0] + [num(r.get(gf)) + num(r.get(ff)) + num(r.get("solar"))
+                       for _, r in ds.iterrows()])
+    high = top * 1.08
+    cols = []
+    for _, r in ds.iterrows():
+        d = pd.Timestamp(r["day"])
+        parts = [(r.get(gf) if gf else None, c["gf"], "Ground floor + "
+                  "basement, grid"),
+                 (r.get("solar"), c["solar"], "Solar"),
+                 (r.get(ff) if ff else None, c["ff"], "First floor + cafe, "
+                  "grid")]
+        segs, tip = [], ["%s · 6 pm the evening before to 6 pm"
+                         % d.strftime("%A %d %B")]
+        for value, colour, name in parts:
+            if value is None or pd.isna(value):
+                tip.append("%s —" % name)
+                continue
+            segs.append('<i style="height:%.2f%%;background:%s"></i>'
+                        % (100.0 * float(value) / high, colour))
+            tip.append("%s %s" % (name, _n(value)))
+        if r["grid"] is not None:
+            tip.append("grid, both meters %s units" % _n(r["grid"]))
+        if r["est"]:
+            tip.append("estimated: no reading that day, the gap's units "
+                       "shared at their average")
+        weekend = d.dayofweek >= 5
+        month = d.day == 1 or not cols
+        cols.append(
+            '<div class="d%s%s" title="%s"><div class="st"><b>%s</b>%s</div>'
+            '<span>%s</span><em>%s</em></div>'
+            % (" we" if weekend else "", " est" if r["est"] else "",
+               esc(" · ".join(tip)),
+               _n(r["grid"]) if r["grid"] is not None else "",
+               "".join(reversed(segs)), d.strftime("%a"),
+               d.strftime("%d") + (" " + d.strftime("%b") if month else "")))
+    # The scroller runs right to left, so it opens on the newest days; the
+    # days inside it run left to right, oldest first.
+    return (
+        '<div class="ec-h"><span class="t">Every day since the first reading'
+        '</span><span class="c">units a day, 6 pm to 6 pm · scroll back for '
+        'older days · hover a day</span>%s</div>'
+        '%s<div class="ec-card en-days"><div class="sc"><div class="row">%s'
+        '</div></div><div class="en-note">The number over a day is the '
+        'grid&rsquo;s, both meters (what K-Electric bills); the yellow is '
+        'what the panels made besides. Weekends are shaded; a paler day had '
+        'no reading of its own -- the units across the gap are shared at '
+        'their average.</div></div>'
+        % (legend([(c["gf"], "Ground floor + basement, grid"),
+                   (c["solar"], "Solar"),
+                   (c["ff"], "First floor + cafe, grid")]),
+           ('<div class="en-tiles" style="margin-bottom:12px">%s</div>'
+            % "".join(tiles)) if tiles else "",
+           "".join(cols)))
+
+
 def suspicious(readings, meters):
     """Readings that cannot be right, worth a second look by a person."""
     out = []
@@ -624,6 +836,22 @@ padding:6px 8px;border-bottom:1px solid var(--line)}
 .en-bt tr.tot td{font-weight:650;border-bottom:0;vertical-align:top}
 .en-bt tr.tot td span{font-size:11px;font-weight:400;color:var(--t3)}
 @media (max-width:760px){.en-bt{font-size:12px}.en-bt th,.en-bt td{padding:5px 4px}}
+.en-days{padding:14px 12px 12px}
+.en-days .sc{display:flex;flex-direction:row-reverse;overflow-x:auto;
+padding-bottom:6px}
+.en-days .row{display:flex;flex:none;gap:3px;align-items:flex-end;min-width:100%%}
+.en-days .d{flex:1 0 40px;max-width:72px;display:flex;flex-direction:column;
+align-items:center;border-radius:6px;padding:4px 0 3px}
+.en-days .d.we{background:var(--s2)}
+.en-days .st{height:170px;width:100%%;display:flex;flex-direction:column;
+justify-content:flex-end;align-items:center;padding-top:16px}
+.en-days .st i{display:block;width:22px;margin-top:1px;border-radius:2px}
+.en-days .d.est .st i{opacity:.45}
+.en-days .st b{font-size:10px;font-weight:600;color:var(--t2);margin-bottom:2px;
+font-variant-numeric:tabular-nums;white-space:nowrap}
+.en-days .d>span{font-size:10.5px;color:var(--t3);margin-top:4px}
+.en-days .d.we>span{color:var(--t1);font-weight:650}
+.en-days .d>em{font-style:normal;font-size:10.5px;color:var(--t2);white-space:nowrap}
 .en-more{margin-top:18px}.en-more>summary{cursor:pointer;font-weight:650;
 font-size:14px;color:var(--t2);padding:6px 0;list-style-position:inside}
 @media (max-width:760px){.ec-chart .xt.alt,.ec-chart .plab.mk.alt{display:none}
@@ -1289,10 +1517,12 @@ def pace_page(theme, readings, meters, rate):
 
 def meters_page(theme, table, kind, meters, bills, cooled_hours, rate,
                 problems, campus_has_meters, campus, usage=None,
-                solar=None, expected=None, bills_inline=True):
+                solar=None, expected=None, bills_inline=True, days=None):
     """The Meters view below the form: days, then months. `solar`: the
     array as rooms.yaml has it -- {since, full_from, kw}. `expected`: this
-    month's (start, units, Rs) at the readings' pace, for year_on_year."""
+    month's (start, units, Rs) at the readings' pace, for year_on_year.
+    `days`: day_series(), for the chart of every day since the first
+    reading (without it, the older chart of the last days)."""
     t = TOKENS[theme]
     c = SERIES[theme]
     h = [css(theme), '<div class="ec">']
@@ -1381,23 +1611,32 @@ def meters_page(theme, table, kind, meters, bills, cooled_hours, rate,
             if shared:
                 bits.append("a missed reading, shared out evenly")
             tips.append(" · ".join(bits))
-        h.append('<div class="ec-h"><span class="t">What the building used, '
-                 'day by day</span><span class="c">units; hover a day</span>%s'
-                 '</div>' % legend([(c["gf"], "Ground floor + basement, grid"),
-                                    (c["solar"], "Solar"),
-                                    (c["ff"], "First floor + cafe, grid")]))
-        h.append('<div class="ec-card" style="padding:16px 18px 26px">%s'
-                 '<div class="en-note">A reading at eleven covers eleven the '
-                 'day before to eleven that day, so it is drawn on the day '
-                 'before. Every day is put on a 24-hour footing, so a reading '
-                 'taken an hour early or late does not make a day look smaller '
-                 'or bigger: hover a day for the units as read and the hours '
-                 'they covered. "avg" is a day with no reading of its own: the '
-                 'units across the gap are shared out evenly.%s</div></div>'
-                 % (columns(labels, stacks, [c["gf"], c["solar"], c["ff"]],
-                            tips, height=230, marks=marks),
-                    " Solar was read as the inverter's running total and"
-                    " turned into days." if kind == "total" else ""))
+        if days is not None and len(days):
+            # 24 Nov: every day since the first reading, 6 pm to 6 pm,
+            # weekends shaded, against the bills (daily_history).
+            h.append(daily_history(theme, days, by_code, gf, ff, bills,
+                                   meters))
+        else:
+            h.append('<div class="ec-h"><span class="t">What the building '
+                     'used, day by day</span><span class="c">units; hover a '
+                     'day</span>%s</div>'
+                     % legend([(c["gf"], "Ground floor + basement, grid"),
+                               (c["solar"], "Solar"),
+                               (c["ff"], "First floor + cafe, grid")]))
+            h.append('<div class="ec-card" style="padding:16px 18px 26px">%s'
+                     '<div class="en-note">A reading at eleven covers eleven '
+                     'the day before to eleven that day, so it is drawn on '
+                     'the day before. Every day is put on a 24-hour footing, '
+                     'so a reading taken an hour early or late does not make '
+                     'a day look smaller or bigger: hover a day for the units '
+                     'as read and the hours they covered. "avg" is a day with '
+                     'no reading of its own: the units across the gap are '
+                     'shared out evenly.%s</div></div>'
+                     % (columns(labels, stacks, [c["gf"], c["solar"],
+                                                 c["ff"]],
+                                tips, height=230, marks=marks),
+                        " Solar was read as the inverter's running total and"
+                        " turned into days." if kind == "total" else ""))
 
         # The two charts that explain rather than report, folded away
         # (Shamroze, 20 Nov: "keep the important graphs, clean").

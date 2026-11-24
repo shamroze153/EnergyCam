@@ -149,6 +149,46 @@ def main():
           and table.loc[table["solar"].notna(), "day"].iloc[0]
           == (DAY - timedelta(days=2)).normalize(), table)
 
+    # 24 Nov: every day 6 pm to 6 pm, read off a line through every
+    # reading -- the Monday-morning one after the weekend too -- with the
+    # weekend shared at its own average and marked an estimate.
+    wk = pd.DataFrame([
+        {"meter": "gf_basement", "taken": pd.Timestamp(t, tz="Asia/Karachi")
+         .tz_convert("UTC").as_unit("us"), "reading": v, "units": None,
+         "max_temp": None}
+        for t, v in (("2026-11-19 17:55", 52801.0),
+                     ("2026-11-20 17:45", 53003.0),
+                     ("2026-11-23 09:30", 53268.0),
+                     ("2026-11-23 18:00", 53276.0),
+                     ("2026-11-24 18:00", 53422.0))])
+    ds = ev.day_series(wk, METERS[METERS["code"] == "gf_basement"], None)
+    got = {d.strftime("%a %d"): (round(u), e) for d, u, e in
+           zip(ds["day"], ds["gf_basement"], ds["gf_basement_est"])}
+    check("6 pm to 6 pm: Tuesday is Monday 6 pm to Tuesday 6 pm, as read",
+          got.get("Tue 24") == (146, False), got)
+    check("Friday read at 17:45 is Friday, not an estimate",
+          got.get("Fri 20") == (202, False), got)
+    check("the weekend shared at its own rate (265 units over 63.75 h)",
+          (got.get("Sat 21"), got.get("Sun 22")) == ((100, True),
+                                                     (100, True)), got)
+    check("Monday: Sunday 6 pm on the weekend's rate, then as read",
+          got.get("Mon 23") == (round(265 / 63.75 * 15.5 + 8), True), got)
+    tiles_html = ev.daily_history("light", ds, {}, "gf_basement", None)
+    shape = (tiles_html.count('<div class="d'),
+             tiles_html.count('<div class="d we'),
+             tiles_html.rindex("Tue") > tiles_html.rindex("Mon"))
+    check("the chart: a column a day, weekends shaded, the newest last",
+          shape == (len(ds), 2, True), shape)
+    two = pd.DataFrame([
+        {"meter": m, "period_start": s, "period_end": e, "units": u,
+         "amount_rs": 1.0}
+        for m, s, e, u in (("gf_basement", "2026-10-01", "2026-10-31", 9300),
+                           ("first_cafe", "2026-10-01", "2026-10-31", 6200),
+                           ("gf_basement", "2026-09-01", "2026-09-30", 9000))])
+    per_day = [(lab, round(v)) for lab, v in ev.bill_per_day(two, METERS)]
+    check("a bill as units a day, both meters together",
+          per_day == [("Last bill, Oct 2026", 500)], per_day)
+
     wrong = pd.concat([readings, pd.DataFrame([
         {"meter": "gf_basement", "taken": at(0, 15), "reading": 1700.0,
          "units": None, "max_temp": None},
