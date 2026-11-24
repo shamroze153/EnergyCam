@@ -162,21 +162,53 @@ def main():
                      ("2026-11-23 18:00", 53276.0),
                      ("2026-11-24 18:00", 53422.0))])
     ds = ev.day_series(wk, METERS[METERS["code"] == "gf_basement"], None)
-    got = {d.strftime("%a %d"): (round(u), e) for d, u, e in
-           zip(ds["day"], ds["gf_basement"], ds["gf_basement_est"])}
-    check("6 pm to 6 pm: Tuesday is Monday 6 pm to Tuesday 6 pm, as read",
-          got.get("Tue 24") == (146, False), got)
-    check("Friday read at 17:45 is Friday, not an estimate",
-          got.get("Fri 20") == (202, False), got)
-    check("the weekend shared at its own rate (265 units over 63.75 h)",
-          (got.get("Sat 21"), got.get("Sun 22")) == ((100, True),
-                                                     (100, True)), got)
-    check("Monday: Sunday 6 pm on the weekend's rate, then as read",
-          got.get("Mon 23") == (round(265 / 63.75 * 15.5 + 8), True), got)
+    got = {d.strftime("%a %d"): (round(u, 1), e, p) for d, u, e, p in
+           zip(ds["day"], ds["gf_basement"], ds["gf_basement_est"],
+               ds["gf_basement_part"])}
+    check("a day is its reading's: Monday 6 pm to Tuesday 6 pm is Tuesday",
+          got.get("Tue 24") == (146.0, False, False), got)
+    check("Thursday 17:55 to Friday 17:45 is Friday",
+          got.get("Fri 20") == (202.0, False, False), got)
+    check("Friday evening to Monday morning is the weekend, Sat and Sun",
+          (got.get("Sat 21"), got.get("Sun 22"))
+          == ((132.5, True, False), (132.5, True, False)), got)
+    check("Monday morning to evening is Monday, once, its daytime",
+          got.get("Mon 23") == (8.0, False, True), got)
+    check("the days add up to what the meter moved",
+          round(ds["gf_basement"].sum(), 6) == 53422.0 - 52801.0,
+          ds["gf_basement"].sum())
+    on = [d.strftime("%a") for d in ev.counted_as(
+        pd.Timestamp("2026-11-20 17:45", tz="Asia/Karachi"),
+        pd.Timestamp("2026-11-23 18:00", tz="Asia/Karachi"))]
+    check("no Monday-morning reading: Friday evening to Monday evening is"
+          " Saturday to Monday", on == ["Sat", "Sun", "Mon"], on)
+    # The bill under way, the 7th to the 7th: so far as read, the days
+    # before the first reading and the days to come at the usual weekday.
+    rows = []
+    for d in pd.date_range("2026-11-03", "2026-11-24", freq="D"):
+        rows.append({"day": d, "gf_basement": 100.0 if d.dayofweek < 5
+                     else 40.0, "gf_basement_est": False,
+                     "gf_basement_part": False})
+    cyc_ds = pd.DataFrame(rows)
+    cyc_ds = cyc_ds[cyc_ds["day"] >= "2026-11-10"]
+    rate_bills = pd.DataFrame([{"meter": "gf_basement",
+                                "period_start": "2026-10-01",
+                                "period_end": "2026-10-31", "units": 1000.0,
+                                "amount_rs": 80000.0}])
+    cyc = ev.cycle_estimate(cyc_ds, METERS[METERS["code"] == "gf_basement"],
+                            rate_bills, pd.Timestamp("2026-11-24 22:00"))
+    # read 10-24 Nov: 11 working days and 4 weekend days (1,260); before,
+    # Sat 7, Sun 8, Mon 9 (180); to come, 25 Nov - 6 Dec: 8 and 4 (960)
+    check("the bill 7 Nov to 7 Dec: as read, before and to come by weekday",
+          (cyc["start"].strftime("%d %b"), cyc["end"].strftime("%d %b"),
+           round(cyc["so_far"]), round(cyc["before"]),
+           round(cyc["to_come"]), round(cyc["rs"]))
+          == ("07 Nov", "07 Dec", 1260, 180, 960, 192000), cyc)
     tiles_html = ev.daily_history("light", ds, {}, "gf_basement", None)
     shape = (tiles_html.count('<div class="d'),
              tiles_html.count('<div class="d we'),
-             tiles_html.rindex("Tue") > tiles_html.rindex("Mon"))
+             tiles_html.index("<span>Tue</span>")
+             > tiles_html.index("<span>Mon</span>"))
     check("the chart: a column a day, weekends shaded, the newest last",
           shape == (len(ds), 2, True), shape)
     two = pd.DataFrame([

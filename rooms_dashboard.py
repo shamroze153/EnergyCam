@@ -2509,7 +2509,13 @@ def show_meters(df, recent, now):
     # bill at that pace, and units an hour reading to reading.
     my_bills = bills[bills["meter"].isin(codes)] if len(bills) else None
     est = ev.month_estimate(readings, mine, rates, av.peak_window(a))
-    month = ev.month_page(mode, est, mine, rates, my_bills)
+    # The bill under way, the 7th to the 7th (Shamroze, 24 Nov), when the
+    # readings give a day; else the older card, a month at the week's pace.
+    days_read = ev.day_series(readings, mine, solar)
+    cyc = ev.cycle_estimate(days_read, mine, my_bills, now,
+                            int(a.get("bill_day", ev.BILL_DAY) or ev.BILL_DAY))
+    month = ev.cycle_page(mode, cyc, mine, my_bills) or \
+        ev.month_page(mode, est, mine, rates, my_bills)
     paced = ev.pace_page(mode, readings, mine, rate)
     if month or paced:
         st.markdown(ev.css(mode) + '<div class="ec">' + month + paced
@@ -2521,8 +2527,7 @@ def show_meters(df, recent, now):
         usage, {"since": a.get("solar_since"),
                 "full_from": a.get("solar_full_from"),
                 "kw": a.get("solar_kw")},
-        None, bills_inline=False,
-        days=ev.day_series(readings, mine, solar)), unsafe_allow_html=True)
+        None, bills_inline=False, days=days_read), unsafe_allow_html=True)
     # The bills' year as a Streamlit control: the page's 30-second refresh
     # put an HTML switch back to this year every time (20 Nov).
     years = ev.bill_years(my_bills, mine)

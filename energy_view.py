@@ -141,77 +141,65 @@ def daily_table(readings, meters, solar):
     return table, kind
 
 
-CUT_HOUR = 18            # a day: 6 pm the evening before to 6 pm that day
-LONG_GAP_H = 30          # a day cut inside a longer gap is an estimate
-EPOCH = pd.Timestamp("1970-01-01")
+LONG_GAP_H = 30          # a stretch longer than this is shared out (weekend)
 
 
-def day_series(readings, meters, solar, cut=CUT_HOUR):
-    """Every calendar day from the first reading to the last, each meter's
-    units from 6 pm the evening before to 6 pm that day -- the working day
-    it holds -- read off a line through every reading, the morning ones
-    too (Shamroze, 24 Nov: a Monday-morning reading after the weekend,
-    then 6 pm). A weekend between Friday's and Monday's readings is shared
-    at its own average, and a day cut inside a gap of over LONG_GAP_H
-    hours is marked an estimate. The panels' figure is the calendar day's
-    (the form asks for yesterday's, beside today's reading).
+def counted_as(start, end):
+    """The days a stretch between two readings is put on (Shamroze, 24
+    Nov: "Friday ke baad Monday subah ki reading weekend ki hai, Monday
+    shaam ki Monday ki"): a day or less is its end's day -- 6 pm Monday to
+    6 pm Tuesday is Tuesday, 09:30 to 18:00 Monday is Monday; longer, the
+    days between its two readings -- Friday evening to Monday morning is
+    Saturday and Sunday, to Monday evening Saturday to Monday.
+    Returns [day] (naive local midnights)."""
+    a = pd.Timestamp(start).tz_convert(LOCAL).tz_localize(None)
+    b = pd.Timestamp(end).tz_convert(LOCAL).tz_localize(None)
+    if (b - a).total_seconds() / 3600.0 <= LONG_GAP_H:
+        return [b.normalize()]
+    first = a.normalize() + pd.Timedelta(days=1)
+    last = b.normalize() if b.hour >= 12 else \
+        b.normalize() - pd.Timedelta(days=1)
+    days = list(pd.date_range(first, last, freq="D")) if last >= first \
+        else [b.normalize()]
+    return days
 
-    Returns one row a day: day, <meter>, <meter>_est for each meter,
-    solar."""
-    import numpy as np
+
+def day_series(readings, meters, solar):
+    """Every day the readings cover, each meter's units as the meter moved,
+    put on the days counted_as() says: the days add up to the meter's own
+    count. A day shared out of a longer stretch (the weekend) is an
+    estimate (<meter>_est); a day holding only part of a day -- Monday
+    09:30 to 18:00 after a Monday-morning reading -- is <meter>_part. The
+    panels' figure is the calendar day's (the form asks for yesterday's,
+    beside today's reading).
+
+    Returns one row a day: day, and <meter>, <meter>_est, <meter>_part for
+    each meter, solar."""
     codes = list(meters["code"]) if meters is not None and len(meters) else []
     if readings is None or readings.empty or not codes:
         return pd.DataFrame()
-    r = meters_view.last_of_each_burst(readings)
-    r = r[r["reading"].notna()]
-    per = {}
-    for code in codes:
-        mine = r[r["meter"] == code].sort_values("taken")
-        if len(mine) < 2:
-            continue
-        # seconds, local wall clock, whatever unit pandas keeps time in
-        # (24 Nov: microseconds, not nanoseconds -- every day fell outside)
-        t = (mine["taken"].dt.tz_convert(LOCAL).dt.tz_localize(None)
-             - EPOCH).dt.total_seconds().to_numpy()
-        v = mine["reading"].astype(float).to_numpy()
-        # a meter that went backwards (a typo, a new meter) ends the line
-        ok = np.concatenate([[True], np.diff(v) >= 0])
-        if not ok.all():
-            t, v = t[:int(np.argmin(ok))], v[:int(np.argmin(ok))]
-        if len(t) < 2:
-            continue
-        first = (EPOCH + pd.Timedelta(seconds=float(t[0]))).normalize()
-        last = (EPOCH + pd.Timedelta(seconds=float(t[-1]))).normalize()
-        day = first
-        while day <= last:
-            a = (day - pd.Timedelta(days=1) + pd.Timedelta(hours=cut)
-                 - EPOCH).total_seconds()
-            b = (day + pd.Timedelta(hours=cut) - EPOCH).total_seconds()
-            # an hour's slack either side: "at about six"
-            if a >= t[0] - 3600 and b <= t[-1] + 3600:
-                units = float(np.interp(b, t, v) - np.interp(a, t, v))
-
-                def gap(x):
-                    # a reading within two hours of the cut is the cut
-                    # ("at about six": 17:45 for 18:00 is no estimate)
-                    if np.min(np.abs(t - x)) <= 2 * 3600:
-                        return 0.0
-                    i = int(np.searchsorted(t, x))
-                    if i <= 0 or i >= len(t):
-                        return 0.0
-                    return (t[i] - t[i - 1]) / 3600.0
-                per.setdefault(day, {})[code] = units
-                per[day][code + "_est"] = (gap(a) > LONG_GAP_H
-                                           or gap(b) > LONG_GAP_H)
-            day += pd.Timedelta(days=1)
-    if not per:
+    periods = meters_view.daily_units(readings, every=True)
+    if periods.empty:
         return pd.DataFrame()
+    per = {}
+    for _, p in periods.iterrows():
+        if p["meter"] not in codes:
+            continue
+        days = counted_as(p["from"], p["to"])
+        share = float(p["units"]) / len(days)
+        for day in days:
+            row = per.setdefault(day, {})
+            code = p["meter"]
+            row[code] = row.get(code, 0.0) + share
+            row[code + "_est"] = row.get(code + "_est", False) or len(days) > 1
+            row[code + "_part"] = len(days) == 1 and float(p["hours"]) < 18
     rows = []
     for day in sorted(per):
         row = {"day": day}
         for code in codes:
             row[code] = per[day].get(code)
             row[code + "_est"] = bool(per[day].get(code + "_est", False))
+            row[code + "_part"] = bool(per[day].get(code + "_part", False))
         rows.append(row)
     out = pd.DataFrame(rows)
     sun, _ = solar_per_day(solar)
@@ -222,6 +210,165 @@ def day_series(readings, meters, solar, cut=CUT_HOUR):
     else:
         out["solar"] = None
     return out
+
+
+BILL_DAY = 7             # K-Electric reads these meters on the 7th (Shamroze)
+
+
+def dow_means(ds, code, weeks=4):
+    """{0..6: units} -- a meter's usual Monday ... Sunday over the last
+    `weeks`, each day as day_series() puts it (a Monday after a morning
+    reading is its daytime; a weekend day a share of the weekend); a day
+    of the week with none borrows the usual working or weekend day."""
+    if ds is None or ds.empty or code not in ds:
+        return {}
+    d = ds[ds["day"] > ds["day"].max() - pd.Timedelta(weeks=weeks)]
+    d = d[d[code].notna()]
+    out = {}
+    for k, g in d.groupby(d["day"].dt.dayofweek):
+        out[int(k)] = float(g[code].mean())
+    work = [v for k, v in out.items() if k < 5]
+    rest = [v for k, v in out.items() if k >= 5]
+    for k in range(7):
+        if k not in out:
+            pool = (work if k < 5 else rest) or work or rest
+            if pool:
+                out[k] = sum(pool) / len(pool)
+    return out
+
+
+def cycle_estimate(ds, meters, bills, today, bill_day=BILL_DAY):
+    """The bill under way, the 7th to the 7th (Shamroze, 24 Nov: "K-Electric
+    7 se 7 tak ka bill deta hai ... ab tak ka average ye, bill ye
+    expected"): each meter's units so far as read, the days before the
+    first reading and the days still to come at that meter's usual day of
+    the week, and the whole at its own last bills' rate. None without a
+    day of readings."""
+    if ds is None or ds.empty or meters is None or not len(meters):
+        return None
+    today = pd.Timestamp(today)
+    today = (today.tz_convert(LOCAL).tz_localize(None) if today.tzinfo
+             else today).normalize()
+    start = today.replace(day=bill_day) if today.day >= bill_day else \
+        (today - pd.DateOffset(months=1)).replace(day=bill_day)
+    end = start + pd.DateOffset(months=1)            # the next reading day
+    rates = bill_rates(bills, meters)
+    out = {"start": start, "end": end, "meters": {}, "units": 0.0,
+           "rs": 0.0, "so_far": 0.0, "before": 0.0, "to_come": 0.0}
+    have = ds[(ds["day"] >= start) & (ds["day"] < end)]
+    last = None
+    for code in meters["code"]:
+        if code not in ds:
+            continue
+        mine = have[have[code].notna()]
+        if not len(mine):
+            continue
+        usual = dow_means(ds, code)
+        if not usual:
+            continue
+        first_read, last_read = mine["day"].min(), mine["day"].max()
+        last = last_read if last is None else min(last, last_read)
+        so_far = float(mine[code].sum())
+        before = sum(usual[d.dayofweek] for d in pd.date_range(
+            start, first_read - pd.Timedelta(days=1), freq="D"))
+        to_come = sum(usual[d.dayofweek] for d in pd.date_range(
+            last_read + pd.Timedelta(days=1), end - pd.Timedelta(days=1),
+            freq="D"))
+        units = so_far + before + to_come
+        rate = rates.get(code, (None,))[0]
+        out["meters"][code] = {"so_far": so_far, "before": before,
+                               "to_come": to_come, "units": units,
+                               "rate": rate,
+                               "rs": units * rate if rate else None,
+                               "first": first_read, "last": last_read,
+                               "usual": usual}
+        out["units"] += units
+        out["so_far"] += so_far
+        out["before"] += before
+        out["to_come"] += to_come
+        out["rs"] += units * rate if rate else 0.0
+    if not out["meters"]:
+        return None
+    out["last"] = last
+    out["rated"] = all(m["rate"] for m in out["meters"].values())
+    out["days"] = (end - start).days
+    out["days_done"] = (last - start).days + 1
+    first = min(m["first"] for m in out["meters"].values())
+    out["first"] = first
+    both = [m["usual"] for m in out["meters"].values()]
+    out["weekday"] = sum(sum(u[k] for k in range(1, 5)) / 4 for u in both)
+    out["weekend"] = sum((u[5] + u[6]) / 2 for u in both)
+    out["monday"] = sum(u[0] for u in both)
+    return out
+
+
+def cycle_page(theme, cyc, meters, bills=None):
+    """The card for cycle_estimate: so far, a usual day, the bill to expect,
+    and each meter's part."""
+    if not cyc:
+        return ""
+    by_code = {m["code"]: m for _, m in meters.iterrows()}
+    s, e, last = cyc["start"], cyc["end"], cyc["last"]
+    span = "%s to %s" % (s.strftime("%d %b"), e.strftime("%d %b"))
+    left = (e - last).days - 1
+    tiles = [
+        tile("This bill so far", "%s units" % _n(cyc["so_far"]
+                                                 + cyc["before"]),
+             "%s to %s, %d of its %d days%s"
+             % (s.strftime("%d %b"), last.strftime("%d %b"),
+                cyc["days_done"], cyc["days"],
+                ("<br>%s of them (%s to %s, before the first reading) at "
+                 "the usual day" % (_n(cyc["before"]), s.strftime("%d"),
+                                     (cyc["first"] - pd.Timedelta(days=1))
+                                     .strftime("%d %b")))
+                if cyc["before"] >= 1 else "")),
+        tile("A usual day now", "%s units" % _n(cyc["weekday"]),
+             "a working day, both meters<br>a weekend day %s · a Monday "
+             "(its daytime, after a morning reading) %s"
+             % (_n(cyc["weekend"]), _n(cyc["monday"]))),
+        tile("This bill, expected", ("Rs %s" % _n(cyc["rs"]))
+             if cyc["rated"] else "%s units" % _n(cyc["units"]),
+             "%s units for %s: so far, and %d day%s to come at the usual "
+             "day of the week%s"
+             % (_n(cyc["units"]), span, left, "" if left == 1 else "s",
+                "; each meter at its own last bills' rate"
+                if cyc["rated"] else "")),
+    ]
+    rows = []
+    for code, m in cyc["meters"].items():
+        rows.append('<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td>'
+                    '<td>%s</td><td>%s</td></tr>'
+                    % (esc(by_code[code]["label"] if code in by_code
+                           else code),
+                       _n(m["so_far"] + m["before"]), _n(m["to_come"]),
+                       _n(m["units"]),
+                       ("Rs %.0f" % m["rate"]) if m["rate"] else "—",
+                       ("Rs %s" % _n(m["rs"])) if m["rs"] else "—"))
+    last_bill = ""
+    if bills is not None and len(bills):
+        bl = bills.copy()
+        bl["end_"] = pd.to_datetime(bl["period_end"])
+        lastb = bl[bl["end_"].dt.to_period("M")
+                   == bl["end_"].max().to_period("M")]
+        last_bill = (" The last bill (%s): %s units, Rs %s."
+                     % (bl["end_"].max().strftime("%b %Y"),
+                        _n(lastb["units"].astype(float).sum()),
+                        _n(lastb["amount_rs"].astype(float).sum())))
+    return "".join([
+        '<div class="ec-h"><span class="t">This bill, %s</span><span '
+        'class="c">K-Electric reads these meters on the %dth: the units so '
+        'far, and what the rest of the bill will be</span></div>'
+        % (span, s.day),
+        '<div class="en-tiles">', "".join(tiles), "</div>",
+        '<table class="en-bt" style="margin-top:10px"><tr><th></th><th>So '
+        'far</th><th>To come</th><th>The bill</th><th>A unit</th><th>Rs'
+        '</th></tr>%s</table>' % "".join(rows),
+        '<div class="en-note" style="margin-top:6px">The days to come are '
+        'each meter&rsquo;s usual Monday, Tuesday ... Sunday over the last '
+        'four weeks, counted the way the readings are: Friday evening to '
+        'Monday morning is the weekend, Monday morning to evening is Monday. '
+        'The ground floor meter is after the solar panels, so this is what '
+        'the grid will bill.%s</div>' % last_bill])
 
 
 def bill_per_day(bills, meters):
@@ -278,9 +425,11 @@ def daily_history(theme, ds, by_code, gf, ff, bills=None, meters=None,
     ds["grid"] = [grid(r) for _, r in ds.iterrows()]
     ds["est"] = [any(bool(r.get(k + "_est")) for k in (gf, ff) if k)
                  for _, r in ds.iterrows()]
+    ds["part"] = [any(bool(r.get(k + "_part")) for k in (gf, ff) if k)
+                  for _, r in ds.iterrows()]
     recent = ds[ds["day"] > ds["day"].max() - pd.Timedelta(weeks=weeks)]
     wk = recent[(recent["day"].dt.dayofweek < 5) & ~recent["est"]
-                & recent["grid"].notna()]["grid"]
+                & ~recent["part"] & recent["grid"].notna()]["grid"]
     we = recent[(recent["day"].dt.dayofweek >= 5)
                 & recent["grid"].notna()]["grid"]
     tiles = []
@@ -309,8 +458,7 @@ def daily_history(theme, ds, by_code, gf, ff, bills=None, meters=None,
                  (r.get("solar"), c["solar"], "Solar"),
                  (r.get(ff) if ff else None, c["ff"], "First floor + cafe, "
                   "grid")]
-        segs, tip = [], ["%s · 6 pm the evening before to 6 pm"
-                         % d.strftime("%A %d %B")]
+        segs, tip = [], [d.strftime("%A %d %B")]
         for value, colour, name in parts:
             if value is None or pd.isna(value):
                 tip.append("%s —" % name)
@@ -321,8 +469,11 @@ def daily_history(theme, ds, by_code, gf, ff, bills=None, meters=None,
         if r["grid"] is not None:
             tip.append("grid, both meters %s units" % _n(r["grid"]))
         if r["est"]:
-            tip.append("estimated: no reading that day, the gap's units "
-                       "shared at their average")
+            tip.append("a share of the weekend: Friday evening to the next "
+                       "reading, shared over the days between")
+        elif r["part"]:
+            tip.append("its daytime only: the morning reading closed the "
+                       "weekend, and its night is the next day's")
         weekend = d.dayofweek >= 5
         month = d.day == 1 or not cols
         cols.append(
@@ -337,14 +488,16 @@ def daily_history(theme, ds, by_code, gf, ff, bills=None, meters=None,
     # days inside it run left to right, oldest first.
     return (
         '<div class="ec-h"><span class="t">Every day since the first reading'
-        '</span><span class="c">units a day, 6 pm to 6 pm · scroll back for '
+        '</span><span class="c">units as the meters moved · scroll back for '
         'older days · hover a day</span>%s</div>'
         '%s<div class="ec-card en-days"><div class="sc"><div class="row">%s'
-        '</div></div><div class="en-note">The number over a day is the '
+        '</div></div><div class="en-note">A day is its reading&rsquo;s: '
+        'Monday 6 pm to Tuesday 6 pm is Tuesday. Friday evening to Monday '
+        'morning is the weekend, shared over Saturday and Sunday (paler); '
+        'Monday morning to evening is Monday, its daytime only. The days add '
+        'up to what the meters moved. The number over a day is the '
         'grid&rsquo;s, both meters (what K-Electric bills); the yellow is '
-        'what the panels made besides. Weekends are shaded; a paler day had '
-        'no reading of its own -- the units across the gap are shared at '
-        'their average.</div></div>'
+        'what the panels made besides.</div></div>'
         % (legend([(c["gf"], "Ground floor + basement, grid"),
                    (c["solar"], "Solar"),
                    (c["ff"], "First floor + cafe, grid")]),
@@ -1474,17 +1627,22 @@ def pace_page(theme, readings, meters, rate):
     for s in reversed(spans):
         total = sum(s["units"].get(k, 0.0) for k in codes)
         per = total / s["hours"] if s["hours"] else 0.0
+        days = counted_as(s["from"], s["to"])
+        on = days[0].strftime("%a %d") if len(days) == 1 else "%s – %s" % (
+            days[0].strftime("%a %d"), days[-1].strftime("%a %d"))
         rows.append(
             '<tr style="border-top:1px solid var(--line)"><td style="padding:'
             '6px 8px 6px 0">%s<br><span style="color:var(--t3);font-size:12px">'
-            "to %s</span></td><td>%s</td><td style=\"text-align:right\">%.1f h"
+            "to %s</span></td><td>%s<br><span style=\"color:var(--t3);"
+            'font-size:12px">counted as %s</span></td><td style="text-align:'
+            'right">%.1f h'
             '</td>%s<td style="text-align:right;font-weight:700">%.1f</td><td '
             'style="text-align:right">%s</td></tr>'
             % (esc(pd.Timestamp(s["from"]).tz_convert(LOCAL)
                    .strftime("%a %d, %H:%M")),
                esc(pd.Timestamp(s["to"]).tz_convert(LOCAL)
                    .strftime("%a %d, %H:%M")),
-               esc(_span_kind(s["from"], s["to"])), s["hours"],
+               esc(_span_kind(s["from"], s["to"])), esc(on), s["hours"],
                "".join('<td style="text-align:right">%s</td>'
                        % (format(int(round(s["units"][k])), ",")
                           if k in s["units"] else "—") for k in codes),
