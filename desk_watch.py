@@ -108,6 +108,14 @@ def rebuild(clock=time.time, now=None, build=None):
         return True
     import desk_seats
     import desks_data
+    import progress_data as pdx
+    import seat_faces
+    # the seats' faces matched again first (the names "Every desk" shows),
+    # over today and the working day before
+    try:
+        seat_faces.refresh(pdx.working_days(day, 2) or [day])
+    except Exception:                                       # noqa: BLE001
+        pass
     desks_data.build(day, desks=desk_seats.find_desks(day))
     return True
 

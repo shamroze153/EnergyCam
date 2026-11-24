@@ -36,9 +36,64 @@ OUT = os.path.join("progress", "desks.csv")         # git-ignored (progress/)
 # OpenCV): this module stays pandas-only, so the dashboard can read it.
 
 
-def names_for(desks, people=None, seats_named=None, reach=60.0):
+SEATS_NAMED = os.path.join("people", "seats_identified.csv")  # seat_faces
+SEAT_REVIEWS = os.path.join("people", "seat_reviews.csv")
+SEAT_FACES = os.path.join("people", "seat_faces")
+PHOTOS = os.path.join("people", "photos")
+
+
+def load_seats_named(path=SEATS_NAMED):
+    import csv
+    if not os.path.exists(path):
+        return []
+    with open(path, encoding="utf-8") as fh:
+        return list(csv.DictReader(fh))
+
+
+def load_reviews(path=SEAT_REVIEWS):
+    """A person's word on each seat named by face: {(recorder, channel, x,
+    y, employee_id): "yes" | "no"}, the latest for each."""
+    import csv
+    if not os.path.exists(path):
+        return {}
+    out = {}
+    with open(path, encoding="utf-8") as fh:
+        for r in csv.DictReader(fh):
+            out[(r["recorder"], str(r["channel"]), str(r["x"]), str(r["y"]),
+                 r["employee_id"])] = r["verdict"]
+    return out
+
+
+def save_review(recorder, channel, x, y, employee_id, verdict,
+                path=SEAT_REVIEWS):
+    """One yes/no on a seat's name (the Progress tab), on this laptop."""
+    import csv
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    new = not os.path.exists(path)
+    with open(path, "a", newline="", encoding="utf-8") as fh:
+        w = csv.writer(fh)
+        if new:
+            w.writerow(["recorder", "channel", "x", "y", "employee_id",
+                        "verdict", "at"])
+        w.writerow([recorder, channel, x, y, employee_id, verdict,
+                    datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
+
+
+def seat_picture(recorder, channel, x, y, base=SEAT_FACES):
+    """The newest picture kept of a seat's sitter (seat_faces), or None."""
+    import glob
+    hits = sorted(glob.glob(os.path.join(base, "*", "%s_%s_%s_%s.jpg"
+                                         % (recorder, channel, x, y))))
+    return hits[-1] if hits else None
+
+
+def names_for(desks, people=None, seats_named=None, reach=60.0,
+              reviews=None):
     """{desk code: (name, employee_id, how)}: the five by their seat, and
-    seats named by face (people/seats_identified.csv, "named")."""
+    seats named by face (people/seats_identified.csv, "named") -- "by
+    face, confirmed" once a person said yes on the Progress tab, gone once
+    they said no (reviews: seat_faces.load_reviews())."""
+    reviews = reviews or {}
     out = {}
     for p in people or []:
         for d in desks:
@@ -53,15 +108,20 @@ def names_for(desks, people=None, seats_named=None, reach=60.0):
     for r in seats_named or []:
         if r.get("status") != "named":
             continue
+        word = reviews.get((r["recorder"], str(r["channel"]), str(r["x"]),
+                            str(r["y"]), r.get("employee_id", "")), "")
+        if word == "no":
+            continue
         for d in desks:
             if (d["recorder"], d["channel"]) != (r["recorder"],
                                                  int(r["channel"])):
                 continue
             if (d["seat"][0] - float(r["x"])) ** 2 + \
                     (d["seat"][1] - float(r["y"])) ** 2 <= reach ** 2:
-                out.setdefault(d["code"], (r.get("name", ""),
-                                           r.get("employee_id", ""),
-                                           "by face, to confirm"))
+                out.setdefault(d["code"], (
+                    r.get("name", ""), r.get("employee_id", ""),
+                    "by face, confirmed" if word == "yes"
+                    else "by face, to confirm"))
     return out
 
 

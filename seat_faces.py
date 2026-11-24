@@ -184,6 +184,16 @@ def match(seat_vecs, ids, photo_vecs, min_samples=MIN_SAMPLES, same=SAME,
     return out
 
 
+def refresh(days, result=RESULT):
+    """Match every seat again over `days` and write the result (the loop,
+    hourly: desk_watch.rebuild). Returns the rows."""
+    import staff_faces
+    ids, vecs = staff_faces.load_faces()
+    rows = match(samples(days), ids, vecs)
+    write_result(rows, staff_faces.load_roster(), result)
+    return rows
+
+
 def write_result(rows, roster, path=RESULT):
     """The seats, named or not, to people/seats_identified.csv (local)."""
     import csv

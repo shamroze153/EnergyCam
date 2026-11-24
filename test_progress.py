@@ -716,6 +716,31 @@ def check_every_desk():
         dw._rebuilt["at"] = old_at
     check("the loop rebuilds them, guarded",
           "desk_watch.rebuild()" in source, True)
+    desks = [{"code": "dvr9.1-1", "recorder": "dvr9", "channel": 1,
+              "seat": [500.0, 700.0]}]
+    named = [{"recorder": "dvr9", "channel": "1", "x": "500", "y": "700",
+              "status": "named", "employee_id": "09999",
+              "name": "Test Person"}]
+    key = ("dvr9", "1", "500", "700", "09999")
+    check("a seat named by face is 'to confirm' until somebody says",
+          dd.names_for(desks, [], named)["dvr9.1-1"][2],
+          "by face, to confirm")
+    check("a yes confirms it; a no takes the name away",
+          (dd.names_for(desks, [], named, reviews={key: "yes"})["dvr9.1-1"][2],
+           dd.names_for(desks, [], named, reviews={key: "no"})),
+          ("by face, confirmed", {}))
+    folder = tempfile.mkdtemp()
+    try:
+        path = os.path.join(folder, "r.csv")
+        dd.save_review("dvr9", 1, 500, 700, "09999", "yes", path)
+        dd.save_review("dvr9", 1, 500, 700, "09999", "no", path)
+        check("the latest word on a seat stands", dd.load_reviews(path),
+              {key: "no"})
+    finally:
+        shutil.rmtree(folder)
+    check("the review is in the dashboard",
+          "def show_seat_review" in open("rooms_dashboard.py",
+                                         encoding="utf-8").read(), True)
 
 
 def check_presence_rules():

@@ -5179,17 +5179,77 @@ def cached_desks(stamp):
     import progress_data
     df = desks_data.load()
     people = (progress_data.load() or {}).get("people") or []
-    named = []
-    path = os.path.join("people", "seats_identified.csv")
-    if os.path.exists(path):
-        import csv
-        with open(path, encoding="utf-8") as fh:
-            named = list(csv.DictReader(fh))
     desks = [{"code": c, "recorder": g["recorder"].iloc[0],
               "channel": int(g["channel"].iloc[0]),
               "seat": [float(g["x"].iloc[0]), float(g["y"].iloc[0])]}
              for c, g in df.groupby("code")] if len(df) else []
-    return df, desks_data.names_for(desks, people, named)
+    return df, desks_data.names_for(desks, people,
+                                    desks_data.load_seats_named(),
+                                    reviews=desks_data.load_reviews())
+
+
+def show_seat_review(mode):
+    """Who sits where, by face (seat_faces.py): each seat named today
+    beside the directory photo of the person it was matched to, for a yes
+    or a no -- the double check before a name counts (Shamroze, 24 Nov).
+    Pictures from this laptop only."""
+    import desks_data
+    named = [r for r in desks_data.load_seats_named()
+             if r.get("status") == "named"]
+    if not named:
+        return
+    reviews = desks_data.load_reviews()
+    try:
+        import building
+        rooms = building.cameras()
+    except Exception:                                       # noqa: BLE001
+        rooms = {}
+    todo = [r for r in named
+            if not reviews.get((r["recorder"], str(r["channel"]), str(r["x"]),
+                                str(r["y"]), r["employee_id"]))]
+    done = len(named) - len(todo)
+    st.markdown(overview.css(mode) + '<div class="ec"><div class="ec-h">'
+                '<span class="t">Who sits where, by face</span><span class="c">'
+                '%d seats named by their sitters&rsquo; faces against the '
+                'directory &middot; %d checked &middot; a name counts once you '
+                'say yes; seats seen from above stay unnamed</span></div></div>'
+                % (len(named), done), unsafe_allow_html=True)
+
+    def decide(r, verdict):
+        desks_data.save_review(r["recorder"], r["channel"], r["x"], r["y"],
+                               r["employee_id"], verdict)
+        cached_desks.clear()
+    for i in range(0, len(todo), 3):
+        cols = st.columns(3)
+        for col, r in zip(cols, todo[i:i + 3]):
+            with col:
+                a, b = st.columns(2)
+                seat_pic = desks_data.seat_picture(r["recorder"],
+                                                   r["channel"], r["x"],
+                                                   r["y"])
+                photo = os.path.join(desks_data.PHOTOS,
+                                     "%s.jpg" % r["employee_id"])
+                with a:
+                    if seat_pic:
+                        stretch(st.image, seat_pic, caption="at the seat")
+                with b:
+                    if os.path.exists(photo):
+                        stretch(st.image, photo, caption="directory")
+                room = rooms.get((r["recorder"], int(r["channel"])), "")
+                st.caption("**%s** · %s · %s · %s ch%s · %s (by %s) · %s faces"
+                           % (r["name"], r["employee_id"],
+                              r.get("designation", ""), r["recorder"],
+                              r["channel"], room and room or "", r["score"],
+                              r["margin"], r["samples"]))
+                k = "%s_%s_%s_%s_%s" % (r["recorder"], r["channel"], r["x"],
+                                        r["y"], r["employee_id"])
+                y, n = st.columns(2)
+                with y:
+                    stretch(st.button, "Yes, that is them", key="sfy_" + k,
+                            on_click=decide, args=(r, "yes"))
+                with n:
+                    stretch(st.button, "No", key="sfn_" + k,
+                            on_click=decide, args=(r, "no"))
 
 
 def show_desks(mode, day):
@@ -5201,9 +5261,9 @@ def show_desks(mode, day):
     path = desks_data.OUT
     if not os.path.exists(path):
         return
-    named_path = os.path.join("people", "seats_identified.csv")
-    stamp = (os.path.getmtime(path), os.path.getmtime(named_path)
-             if os.path.exists(named_path) else 0)
+    stamp = tuple(os.path.getmtime(p) if os.path.exists(p) else 0
+                  for p in (path, desks_data.SEATS_NAMED,
+                            desks_data.SEAT_REVIEWS))
     df, names = cached_desks(stamp)
     if df.empty:
         return
@@ -5424,6 +5484,7 @@ def show_progress(now):
                                    local.strftime("%d %b %H:%M"), hours),
                 unsafe_allow_html=True)
     show_building(mode, people)
+    show_seat_review(mode)
     show_desks(mode, day_key)
     show_sightings(mode, people)
     # Each employee's day as a video (progress_video.py): pictures of the
