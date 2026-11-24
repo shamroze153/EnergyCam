@@ -75,6 +75,13 @@ room_loop.AC_KEEP_DIR = _seat_tmp.mkdtemp()
 if getattr(room_loop, "progress_track", None) is not None:
     room_loop.progress_track.OUT = _seat_tmp.mkdtemp()
     room_loop.progress_track.CROPS = _seat_tmp.mkdtemp()
+# And every desk's rows and the seats' faces (24 Nov: this test's pass
+# wrote 1,289 "away" rows into the day's real desks_activity file).
+if getattr(room_loop, "desk_watch", None) is not None:
+    room_loop.desk_watch.OUT = _seat_tmp.mkdtemp()
+    room_loop.desk_watch.CROPS = _seat_tmp.mkdtemp()
+if getattr(room_loop, "seat_faces", None) is not None:
+    room_loop.seat_faces.OUT = _seat_tmp.mkdtemp()
 from ac_detect import load_units  # noqa: E402
 
 room_loop.grab = fake_grab

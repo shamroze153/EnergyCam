@@ -2059,6 +2059,14 @@ def main():
                         progress_track.publish(connect)
                     except Exception as e:                  # noqa: BLE001
                         print(">> progress numbers: %s" % safe_error(e))
+                # Every desk's days (progress/desks.csv) worked out again,
+                # at most hourly (desk_watch.rebuild; ~40 s): the Progress
+                # tab's "Every desk" stays within the hour.
+                if desk_watch is not None:
+                    try:
+                        desk_watch.rebuild()
+                    except Exception as e:                  # noqa: BLE001
+                        print(">> every desk: %s" % safe_error(e))
 
             if args.once:
                 return

@@ -51,6 +51,13 @@ room_loop.STILL_STATE = _seat_tmp.mktemp(suffix=".npz")
 if getattr(room_loop, "progress_track", None) is not None:
     room_loop.progress_track.OUT = _seat_tmp.mkdtemp()
     room_loop.progress_track.CROPS = _seat_tmp.mkdtemp()
+# And every desk's rows and the seats' faces (24 Nov: a test pass wrote
+# 1,289 "away" rows into the day's real desks_activity file).
+if getattr(room_loop, "desk_watch", None) is not None:
+    room_loop.desk_watch.OUT = _seat_tmp.mkdtemp()
+    room_loop.desk_watch.CROPS = _seat_tmp.mkdtemp()
+if getattr(room_loop, "seat_faces", None) is not None:
+    room_loop.seat_faces.OUT = _seat_tmp.mkdtemp()
 
 T0 = datetime.datetime(2026, 11, 5, 18, 0, tzinfo=PKT)
 FAILURES = []

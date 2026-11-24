@@ -703,6 +703,19 @@ def check_every_desk():
     check("the loop reads every desk, guarded",
           "desk_watch.observe(room.name, key, wide, counted, model)" in source
           and "desk_watch = None" in source, True)
+    ran = []
+    old_at = dw._rebuilt["at"]
+    try:
+        dw._rebuilt["at"] = 0.0
+        first = dw.rebuild(clock=lambda: 1e9, build=ran.append)
+        again = dw.rebuild(clock=lambda: 1e9 + 600, build=ran.append)
+        later = dw.rebuild(clock=lambda: 1e9 + 3700, build=ran.append)
+        check("every desk's days worked out again at most hourly",
+              (first, again, later, len(ran)), (True, False, True, 2))
+    finally:
+        dw._rebuilt["at"] = old_at
+    check("the loop rebuilds them, guarded",
+          "desk_watch.rebuild()" in source, True)
 
 
 def check_presence_rules():

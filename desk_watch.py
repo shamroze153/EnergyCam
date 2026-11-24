@@ -90,6 +90,28 @@ def _observe(room, key, frame, boxes, model, now, out, crops, finder):
     return len(rows)
 
 
+REBUILD_EVERY = 3600
+_rebuilt = {"at": 0.0}
+
+
+def rebuild(clock=time.time, now=None, build=None):
+    """progress/desks.csv worked out again (desks_data.build), at most
+    every REBUILD_EVERY seconds. True when it ran."""
+    t = clock()
+    if t - _rebuilt["at"] < REBUILD_EVERY:
+        return False
+    _rebuilt["at"] = t
+    from progress_track import PKT
+    day = (now or datetime.now(PKT)).strftime("%Y-%m-%d")
+    if build is not None:
+        build(day)
+        return True
+    import desk_seats
+    import desks_data
+    desks_data.build(day, desks=desk_seats.find_desks(day))
+    return True
+
+
 def _write(day, rows, folder, crops):
     if not rows:
         return
