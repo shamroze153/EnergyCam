@@ -50,8 +50,8 @@ import cv2
 from dotenv import load_dotenv
 
 from privacy_blur import DETECT_CONF, DETECTOR, people_boxes
-from room_loop import (BATCH, DETECT_IOU, DETECT_SIZE, PKT, WORKERS, fetch,
-                       ignored, load_rooms, recorder_login, set_gates)
+from room_loop import (BATCH, DETECT_IOU, DETECT_SIZE, PKT, WORKERS, detect,
+                       fetch, ignored, load_rooms, recorder_login, set_gates)
 from schedule import WORKING, describe, period
 
 OUT_DIR = "frames"
@@ -115,8 +115,11 @@ def look(rooms, recorders, model, args, say):
                                      "counted": [], "conf": conf})
                     continue
                 zones = room.ignore.get(key)
-                boxes = people_boxes(frame, model, conf=conf,
-                                     imgsz=args.imgsz, iou=args.iou)
+                # the loop's zoom on far desks too (room_loop.detect)
+                boxes = detect(frame, model, room, key, conf=conf,
+                               imgsz=args.imgsz, iou=args.iou,
+                               after_hours=getattr(args, "after_hours",
+                                                   False))
                 findings.append({
                     "room": room, "camera": key, "frame": frame,
                     "boxes": boxes, "conf": conf,

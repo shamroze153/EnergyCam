@@ -1837,6 +1837,22 @@ def check_board():
     check("the page in two parts, the card between them",
           ("Today, employee by employee" in top, "Every day" in top,
            "Today, employee by employee" in rest), (True, False, False))
+    # 25 Nov: one desk seen by two cameras (also:): a note on either counts.
+    nts = pd.DataFrame([
+        {"recorder": "nvr4", "channel": 23, "cx": 1185, "cy": 250, "w": 40,
+         "h": 72, "score": 0.6, "frame_w": 1920,
+         "at": pd.Timestamp("2026-11-24 12:15")},
+        {"recorder": "nvr4", "channel": 25, "cx": 890, "cy": 535, "w": 120,
+         "h": 50, "score": 0.4, "frame_w": 1920,
+         "at": pd.Timestamp("2026-11-24 13:30")},
+        {"recorder": "nvr4", "channel": 25, "cx": 300, "cy": 535, "w": 120,
+         "h": 50, "score": 0.9, "frame_w": 1920,
+         "at": pd.Timestamp("2026-11-24 13:35")}])
+    one = {"recorder": "nvr4", "channel": 23, "seat": [1185, 286]}
+    both = dict(one, also=[["nvr4", 25, 890, 560]])
+    check("a desk seen from two cameras: a note on either is the desk",
+          (len(pdx.desk_notes(one, nts)), len(pdx.desk_notes(both, nts))),
+          (1, 2))
     # 24 Nov: every desk named on the tab joins the board by itself; a
     # desk that is a listed employee's own seat, or their ID, does not.
     listed = [{"code": "P1", "employee_id": "00042", "recorder": "dvr2",

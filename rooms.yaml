@@ -1383,6 +1383,17 @@ rooms:
     zone: Basement
     recorder: nvr4
     channels: [21, 23, 24, 25]
+    # 25 Nov: the far rows are read again, larger, in office hours
+    # (room_loop.detect). On 24 Nov's recording a sitter at the window
+    # desk on ch 23's far end showed a head over her chair and was in 17
+    # of 58 passes; on ch 25 she faces the camera over a partition and the
+    # zoom found her where the whole frame did not (16:15, 0.47). In the
+    # main stream's 1920x1080 pixels; tiles of 640 read at twice the size.
+    zoom:
+      23:
+        - [700, 30, 1750, 380]    # the far end and the window corner
+      25:
+        - [150, 120, 1500, 600]   # the far rows, beyond the near desks
     # 19 Nov: the camera team brought units into frame (Shamroze). In the
     # 10:33 frames: ch 25 a Haier, top right, its display plainly lit
     # ("24"); ch 24 a Haier, top left, whole, display showing; ch 23 a

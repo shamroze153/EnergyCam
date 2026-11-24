@@ -54,7 +54,7 @@ from dotenv import load_dotenv
 
 from check_room import OUT_DIR, draw
 from room_loop import (DETECT_IOU, DETECT_SIZE, STILL_FILE, STILL_GAP,
-                       STILL_IOU, box_iou, fetch, ignored, load_rooms,
+                       STILL_IOU, box_iou, detect, fetch, ignored, load_rooms,
                        muffled, recorder_login, set_gates)
 from privacy_blur import DETECT_CONF, DETECTOR, people_boxes
 from schedule import PKT
@@ -129,9 +129,12 @@ def count_now(room, recorders, model, timeout):
         answered += 1
         # The bar the loop is using at this hour, or the two would argue
         # about Creative Room every evening and agree about nothing.
-        boxes = people_boxes(frame, model,
-                             conf=room.conf_for(AFTER_HOURS[0], key),
-                             imgsz=DETECT_SIZE, iou=DETECT_IOU)
+        # ... and the loop's zoom on far desks (room_loop.detect), or a far
+        # sitter the loop counts would read here as a ghost.
+        boxes = detect(frame, model, room, key,
+                       conf=room.conf_for(AFTER_HOURS[0], key),
+                       imgsz=DETECT_SIZE, iou=DETECT_IOU,
+                       after_hours=AFTER_HOURS[0])
         # And what the loop is leaving out as furniture at night, drawn as
         # a zone: the same verdict on the same chair.
         aside = still.get("%s:%d" % key) or []

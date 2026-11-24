@@ -763,6 +763,53 @@ def main():
           room_loop.ignored((100, 100, 100, 100, 0.4), [poster]), False)
     check("half in, half out is kept",
           room_loop.ignored((100, 100, 300, 300, 0.4), [poster]), False)
+    # 25 Nov: far desks read again, larger (room_loop.detect's zoom).
+    import numpy as _np
+    import types as _types
+    tiles = room_loop.zoom_tiles([150, 120, 1500, 600], 1920, 1080, 640)
+    check("a wide zoom region is cut into tiles the detector reads larger",
+          (len(tiles), all(t[2] - t[0] <= 640 and t[3] - t[1] <= 640
+                           for t in tiles),
+           min(t[0] for t in tiles), max(t[2] for t in tiles)),
+          (3, True, 150, 1500))
+    calls = []
+
+    def fake_find(img, model, conf=None, imgsz=None, iou=None):
+        calls.append(img.shape[:2])
+        if img.shape[0] == 1080:                 # the whole frame
+            return [(100, 100, 200, 300, 0.9)]
+        # in each tile: one person at the same place, one sliver
+        return [(40, 40, 120, 200, 0.5), (300, 300, 304, 310, 0.3)]
+    frame = _np.zeros((1080, 1920, 3), _np.uint8)
+    zroom = _types.SimpleNamespace(zoom={("nvr4", 25): [[600, 380, 1200,
+                                                         700]]})
+    # this file's OpenCV is a stub whose resize returns nothing: a real one
+    # for the zoom, by repeating pixels
+    _cv2 = room_loop.cv2
+    room_loop.cv2 = _types.SimpleNamespace(
+        INTER_CUBIC=2, resize=lambda img, dsize, fx=1, fy=1, interpolation=0:
+        _np.repeat(_np.repeat(img, int(fy), 0), int(fx), 1))
+    got = room_loop.detect(frame, None, zroom, ("nvr4", 25), conf=0.25,
+                           imgsz=1280, find=fake_find)
+    room_loop.cv2 = _cv2
+    check("zoom: the frame's people, and a far one found larger, mapped "
+          "back; a sliver is no person",
+          [tuple(b[:4]) for b in got], [(100, 100, 200, 300), (620, 400, 660, 480)])
+    check("zoom: not after hours (a far chair in infrared, larger, is a "
+          "person too)",
+          len(room_loop.detect(frame, None, zroom, ("nvr4", 25), conf=0.25,
+                               imgsz=1280, after_hours=True, find=fake_find)),
+          1)
+    check("a zoomed box that is somebody already found is not counted twice",
+          room_loop.merge_boxes([(100, 100, 200, 300, 0.9)],
+                                [(110, 120, 190, 290, 0.5),
+                                 (400, 100, 450, 200, 0.4)]),
+          [(100, 100, 200, 300, 0.9), (400, 100, 450, 200, 0.4)])
+    import yaml as _yaml
+    _b = next(r for r in _yaml.safe_load(open("rooms.yaml", encoding="utf-8"))
+              ["rooms"] if r["name"] == "Basement")
+    check("the Basement's far rows are zoomed on ch 23 and 25",
+          sorted((_b.get("zoom") or {}).keys()), [23, 25])
     # 24 Nov, HR Room: a seat inside a zone that is the room's own.
     check("a box ending at a keep seat inside the zone is counted",
           room_loop.ignored((120, 140, 180, 260, 0.4), [poster], [[150, 255]]),

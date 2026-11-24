@@ -121,6 +121,19 @@ def desk_notes(person, day_notes, min_score=None):
     "away"."""
     if day_notes is None or day_notes.empty:
         return day_notes.iloc[0:0] if day_notes is not None else None
+    # The same desk seen by another camera too (`also: [[recorder, channel,
+    # x, y], ...]`): 24 Nov, a Basement desk at the far end of one camera,
+    # its sitter's back a head over a chair, faces the next camera -- the
+    # two together saw her where one alone missed two passes in three.
+    if person.get("also"):
+        parts = [desk_notes(dict(person, also=None), day_notes, min_score)]
+        for alt in person["also"]:
+            rec, ch, x, y = alt[:4]
+            parts.append(desk_notes(dict(person, also=None, recorder=rec,
+                                         channel=int(ch), seat=[x, y],
+                                         reach=None), day_notes, min_score))
+        parts = [p for p in parts if p is not None and len(p)]
+        return pd.concat(parts) if parts else day_notes.iloc[0:0]
     min_score = DESK_MIN_SCORE if min_score is None else min_score
     cam = day_notes[(day_notes["recorder"] == person["recorder"])
                     & (day_notes["channel"] == int(person["channel"]))]

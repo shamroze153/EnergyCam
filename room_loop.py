@@ -637,6 +637,12 @@ class Room:
         self.keep = {self.camera_key(ch):
                      [[float(v) for v in pt[:2]] for pt in pts]
                      for ch, pts in (cfg.get("keep") or {}).items()}
+        # Far parts of a camera's picture, read again at twice the size
+        # (detect(): 24 Nov, a Basement desk at the far end was counted in
+        # 17 of 58 passes with its sitter there all day).
+        self.zoom = {self.camera_key(ch):
+                     [[int(v) for v in box[:4]] for box in boxes]
+                     for ch, boxes in (cfg.get("zoom") or {}).items()}
         self.empty_after = cfg.get("empty_after_minutes")
         # Hours in which this room's cameras are never opened: no frame, no
         # count, no picture. 141's gym is ladies-only 15:00-20:00 (Shamroze,
@@ -902,6 +908,105 @@ def bar_text(bar):
 
 
 KEEP_REACH = 70             # px: a box ending this near a `keep:` seat stays
+ZOOM_SCALE = 2.0            # a zoom region is read at twice its size
+ZOOM_SAME = 0.3             # IoU at which a box from a zoom is one seen already
+
+
+ZOOM_OVERLAP = 0.25         # tiles of a zoom region overlap by this share
+ZOOM_MIN = (16, 24)         # px: a zoomed box smaller than this is no person
+
+
+def zoom_tiles(region, width, height, size):
+    """A region (x1, y1, x2, y2) cut into tiles no bigger than `size` px a
+    side, overlapping by ZOOM_OVERLAP, held inside the frame. A region read
+    larger than the detector's own size is shrunk back by it: 1,350 px at
+    twice is 2,700 px, read at 1,280 -- no larger than the frame read it
+    (24 Nov, a far sitter found in a 600 px region and not in a 1,350)."""
+    x1, y1 = max(0, int(region[0])), max(0, int(region[1]))
+    x2, y2 = min(width, int(region[2])), min(height, int(region[3]))
+    if x2 - x1 < 16 or y2 - y1 < 16:
+        return []
+
+    def cuts(a, b):
+        if b - a <= size:
+            return [(a, b)]
+        step = max(1, int(size * (1 - ZOOM_OVERLAP)))
+        out, s = [], a
+        while True:
+            e = min(b, s + size)
+            out.append((max(a, e - size), e))
+            if e >= b:
+                return out
+            s += step
+    return [(xa, ya, xb, yb) for ya, yb in cuts(y1, y2)
+            for xa, xb in cuts(x1, x2)]
+
+
+def zoom_boxes(frame, regions, model, conf=None, imgsz=None, iou=None,
+               scale=None, find=None):
+    """People inside each region (frame pixels), each tile of it read at
+    `scale` (ZOOM_SCALE) times its size, as boxes in the frame's own pixels.
+    find: people_boxes, or a stand-in for a test."""
+    find = find or people_boxes
+    scale = scale or ZOOM_SCALE
+    out = []
+    if frame is None or not hasattr(frame, "shape"):
+        return out
+    H, W = frame.shape[:2]
+    size = int((imgsz or DETECT_SIZE) / scale)
+    for region in regions or []:
+        for x1, y1, x2, y2 in zoom_tiles(region, W, H, size):
+            big = cv2.resize(frame[y1:y2, x1:x2], None, fx=scale, fy=scale,
+                             interpolation=cv2.INTER_CUBIC)
+            for b in find(big, model, conf=conf, imgsz=imgsz, iou=iou):
+                box = (int(round(x1 + b[0] / scale)),
+                       int(round(y1 + b[1] / scale)),
+                       int(round(x1 + b[2] / scale)),
+                       int(round(y1 + b[3] / scale)), float(b[4]))
+                # a sliver is no person (24 Nov: 5 x 13 px, a chair's edge)
+                if box[2] - box[0] >= ZOOM_MIN[0] and \
+                        box[3] - box[1] >= ZOOM_MIN[1]:
+                    out.append(box)
+    # one person seen in two overlapping tiles is one person, the surer box
+    return merge_boxes([], sorted(out, key=lambda b: -b[4]))
+
+
+def _iou(a, b):
+    ix = max(0.0, min(a[2], b[2]) - max(a[0], b[0]))
+    iy = max(0.0, min(a[3], b[3]) - max(a[1], b[1]))
+    inter = ix * iy
+    union = ((a[2] - a[0]) * (a[3] - a[1]) + (b[2] - b[0]) * (b[3] - b[1])
+             - inter)
+    return inter / union if union > 0 else 0.0
+
+
+def merge_boxes(boxes, extra, same=ZOOM_SAME):
+    """The frame's boxes, and each zoomed box that is nobody already found:
+    not overlapping one by `same` or more, its middle not inside one (a
+    person cut by the region's edge is one person)."""
+    out = list(boxes)
+    for e in extra:
+        cx, cy = (e[0] + e[2]) / 2.0, (e[1] + e[3]) / 2.0
+        if any(_iou(e, b) >= same or (b[0] <= cx <= b[2] and b[1] <= cy <= b[3])
+               for b in out):
+            continue
+        out.append(e)
+    return out
+
+
+def detect(frame, model, room, key, conf=None, imgsz=None, iou=None,
+           after_hours=False, find=None):
+    """The people in one camera's picture: the whole frame, and in office
+    hours each of the room's `zoom:` regions for this camera, read larger
+    (far desks: a seated person half behind a chair is a few dozen pixels).
+    Not at night: a far chair in infrared read larger is a person too."""
+    find = find or people_boxes
+    boxes = find(frame, model, conf=conf, imgsz=imgsz, iou=iou)
+    regions = (getattr(room, "zoom", None) or {}).get(key)
+    if after_hours or not regions:
+        return boxes
+    return merge_boxes(boxes, zoom_boxes(frame, regions, model, conf, imgsz,
+                                         iou, find=find))
 
 
 def ignored(box, zones, keep=None):
@@ -1264,9 +1369,9 @@ def examine(room, frames, model, imgsz, iou, ac_units=None,
         if face_sweep is not None and hasattr(wide, "shape"):
             # the pass's picture size, to scale zones and seats by
             face_sweep.PASS_SIZE[(key[0], int(key[1]))] = wide.shape[:2]
-        boxes = people_boxes(wide, model,
-                             conf=room.conf_for(after_hours, key),
-                             imgsz=imgsz, iou=iou)
+        boxes = detect(wide, model, room, key,
+                       conf=room.conf_for(after_hours, key),
+                       imgsz=imgsz, iou=iou, after_hours=after_hours)
         counted = [b for b in boxes if not ignored(b, room.ignore.get(key), getattr(room, "keep", {}).get(key))]
         counted = drop_still(room, key, wide, counted, after_hours)
         here = len(counted)
@@ -2001,8 +2106,8 @@ def main():
         # Counted as examine() counts it, but only handed to progress_track:
         # the room's own count and its seat notes are the pass's.
         after = not in_operations(datetime.now(PKT), hours)
-        boxes = people_boxes(wide, model, conf=room.conf_for(after, key),
-                             imgsz=args.imgsz, iou=args.iou)
+        boxes = detect(wide, model, room, key, conf=room.conf_for(after, key),
+                       imgsz=args.imgsz, iou=args.iou, after_hours=after)
         counted = [b for b in boxes if not ignored(b, room.ignore.get(key), getattr(room, "keep", {}).get(key))]
         progress_track.observe(room.name, key, wide, counted, model)
 
