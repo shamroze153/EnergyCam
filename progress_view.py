@@ -336,7 +336,10 @@ def tiles(people, c):
 def who(p):
     """The employee as the page names them: the name kept in progress.yaml
     on the office laptop where there is one, else "Employee P1"."""
-    return p.get("name") or "Employee %s" % p.get("code", "?")
+    code = str(p.get("code", "?"))
+    if not p.get("name") and "." in code:
+        return "Desk %s" % code           # a desk of 140-H, sitter not named
+    return p.get("name") or "Employee %s" % code
 
 
 def tag(p):
@@ -933,7 +936,10 @@ def report(p, c, view=REPORT_VIEWS[0], start=10.0, now=None):
                esc(" · ".join(x for x in (
                    p.get("department", ""),
                    ("ID %s" % p["employee_id"]) if p.get("employee_id")
-                   else "", label) if x)),
+                   else "", label,
+                   "sitter not named yet -- Name the desks, below"
+                   if not p.get("name") and "." in str(p.get("code", ""))
+                   else "") if x)),
                dur(at) if came else "--",
                (" &middot; %s of time in" % pct(share)) if share is not None
                else "", vs, LIVE_COLOURS.get(state, "#898781"),

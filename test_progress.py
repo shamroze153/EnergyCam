@@ -1777,6 +1777,28 @@ def check_board():
     check("the page in two parts, the card between them",
           ("Today, employee by employee" in top, "Every day" in top,
            "Today, employee by employee" in rest), (True, False, False))
+    # 24 Nov: every desk named on the tab joins the board by itself; a
+    # desk that is a listed employee's own seat, or their ID, does not.
+    listed = [{"code": "P1", "employee_id": "00042", "recorder": "dvr2",
+               "channel": 9, "seat": [1425, 993]}]
+    hand = {"dvr2.9-1": ("00042", "Listed Already"),
+            "dvr2.9-2": ("00077", "New Person"),
+            "dvr2.9-5": ("00088", "Own Seat Of P1")}
+    seats_ = {"dvr2.9-1": ("dvr2", 9, 1426.0, 997.0),
+              "dvr2.9-2": ("dvr2", 9, 692.0, 1054.0),
+              "dvr2.9-5": ("dvr2", 9, 1430.0, 1000.0)}
+    got = pdx.desk_people(listed, hand, seats_, {"dvr2.9-2": "Admin Room"},
+                          {"00077": {"designation": "Officer",
+                                     "department": "Workplace Services"}})
+    check("a named desk joins the board, its days by place, its activity"
+          " from every desk's reading",
+          [(g["code"], g["name"], g["department"], g["role"], g["since"],
+            g["activity"]) for g in got],
+          [("dvr2.9-2", "New Person", "Admin Room",
+            "Officer, Workplace Services", pdx.DESK_SINCE, pdx.DESK_ACTIVITY)])
+    check("a desk with no name says it is a desk",
+          (pv.who({"code": "dvr2.9-3"}), pv.who({"code": "P4"})),
+          ("Desk dvr2.9-3", "Employee P4"))
     home = person("P7", "gone", 300, 60)
     home["live"].update(label="Probably gone home",
                         since=pd.Timestamp("2026-11-24 17:40"))

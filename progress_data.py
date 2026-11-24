@@ -1102,6 +1102,45 @@ def live(day_act, now, hours=(10, 20)):
             "place": place}
 
 
+# Every desk named on the tab joins the board (Shamroze, 24 Nov: "sare
+# employees ki productivity ... jaise pehle banaya waise"): its days from
+# the seat notes by place, its activity from desk_watch's reading of every
+# desk, from DESK_SINCE -- the day the camera team re-aimed the cameras.
+DESK_ACTIVITY = os.path.join("progress", "desks_activity")
+DESK_SINCE = "2026-11-19"
+
+
+def desk_people(people, hand, seats, rooms, roster=None):
+    """The board's people for desks named by hand (desks_data.
+    load_desk_names) whose employee progress.yaml does not already have,
+    and that are not a listed person's own seat: [{code (the desk's), name,
+    employee_id, role, department (the room), recorder, channel, seat,
+    since, activity, why}]."""
+    have = {str(p.get("employee_id")) for p in people if p.get("employee_id")}
+    out = []
+    for code, (eid, name) in sorted((hand or {}).items()):
+        s = (seats or {}).get(code)
+        if not s or not eid or str(eid) in have:
+            continue
+        if any((p.get("recorder"), int(p.get("channel") or 0)) == (s[0], s[1])
+               and (float(p["seat"][0]) - s[2]) ** 2
+               + (float(p["seat"][1]) - s[3]) ** 2 <= 60.0 ** 2
+               for p in people if p.get("seat")):
+            continue
+        r = (roster or {}).get(str(eid), {})
+        out.append({"code": code, "name": name or r.get("name", ""),
+                    "employee_id": str(eid),
+                    "role": ", ".join(x for x in (r.get("designation"),
+                                                  r.get("department")) if x),
+                    "department": (rooms or {}).get(code, ""),
+                    "recorder": s[0], "channel": int(s[1]),
+                    "seat": [s[2], s[3]], "since": DESK_SINCE,
+                    "activity": DESK_ACTIVITY,
+                    "why": "desk %s, named on the Progress tab" % code})
+        have.add(str(eid))
+    return out
+
+
 def build(cfg, today, hours=(10, 20), count=5, folder=SEATS, frm=8, to=24,
           now=None, history_days=20):
     """Everything the Progress page draws, desk by desk: the last `count`
@@ -1123,7 +1162,7 @@ def build(cfg, today, hours=(10, 20), count=5, folder=SEATS, frm=8, to=24,
         cams = {}
     # Desks named by hand on the tab (desks_data.load_desk_names) name the
     # five too, where progress.yaml has no name yet.
-    hand, seats = {}, {}
+    hand, seats, rooms, roster = {}, {}, {}, {}
     try:
         import desks_data
         hand = desks_data.load_desk_names()
@@ -1131,9 +1170,15 @@ def build(cfg, today, hours=(10, 20), count=5, folder=SEATS, frm=8, to=24,
         for c, g in (dd.groupby("code") if len(dd) else []):
             seats[c] = (g["recorder"].iloc[0], int(g["channel"].iloc[0]),
                         float(g["x"].iloc[0]), float(g["y"].iloc[0]))
+            rooms[c] = str(g["room"].iloc[0])
+        roster = {r["employee_id"]: r for r in desks_data.load_roster()} \
+            if hand else {}
     except Exception:                                       # noqa: BLE001
-        hand, seats = {}, {}
+        hand, seats, rooms, roster = {}, {}, {}, {}
     gate = gate_passages(focus)
+    everyone = list(cfg.get("people") or [])
+    if cfg.get("auto_desks", True):
+        everyone += desk_people(everyone, hand, seats, rooms, roster)
 
     def by_hand(person):
         for code, (eid, name) in hand.items():
@@ -1145,10 +1190,14 @@ def build(cfg, today, hours=(10, 20), count=5, folder=SEATS, frm=8, to=24,
             if (s[2] - px) ** 2 + (s[3] - py) ** 2 <= 60.0 ** 2:
                 return name, eid
         return "", ""
-    for person in cfg.get("people") or []:
+    for person in everyone:
         hand_name, hand_id = by_hand(person)
         name = person.get("name") or hand_name
         eid = str(person.get("employee_id") or hand_id or "")
+        # what they do at the desk: the five's own reading (progress/), or
+        # every desk's (desk_watch) for a desk named on the tab
+        acts = person.get("activity")
+        rows_today = load_activity(focus, acts) if acts else None
         summaries = week(person, days, hours, cache)
         state = {"state": "out", "label": "Not in today", "since": None,
                  "minutes": None, "place": ""}
@@ -1164,7 +1213,7 @@ def build(cfg, today, hours=(10, 20), count=5, folder=SEATS, frm=8, to=24,
                                 gate_rows(focus, eid, person.get("code")))
                     if len(x)] if eid else []
             the_day = day_activity(
-                person, focus, notes=n, passes=p,
+                person, focus, rows=rows_today, notes=n, passes=p,
                 extra=pd.concat(seen, ignore_index=True) if seen else None)
             if focus == now.strftime("%Y-%m-%d"):
                 state = live(the_day, now, hours)
@@ -1176,7 +1225,9 @@ def build(cfg, today, hours=(10, 20), count=5, folder=SEATS, frm=8, to=24,
         except Exception:                                   # noqa: BLE001
             the_day = None
         try:
-            past = history(person, today, history_days, folder, cache, stored)
+            past = history(person, today, history_days, folder, cache, stored,
+                           rows_for=(lambda d, a=acts: load_activity(d, a))
+                           if acts else None)
         except Exception:                                   # noqa: BLE001
             past = []
         out.append({
@@ -1192,6 +1243,11 @@ def build(cfg, today, hours=(10, 20), count=5, folder=SEATS, frm=8, to=24,
             "gate": gate.get(eid, []) if eid and person.get("department")
             not in GATE_BLIND else [],
             "department": person.get("department", ""),
+            # where the desk is (numbers): the dashboard knows a listed
+            # employee's own desk from every other desk by it
+            "recorder": person.get("recorder"),
+            "channel": person.get("channel"),
+            "seat": person.get("seat"),
             "why": person.get("why", ""),
             "check": person.get("check") or {},
             "days": [{k: v for k, v in s.items() if k != "line"}

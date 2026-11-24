@@ -5694,11 +5694,36 @@ def show_building(mode, people):
         st.caption("**%s** · %s · %s" % (code, now_at, way))
 
 
-def show_report_card(mode, people, hours, now):
+@st.cache_data(ttl=300, show_spinner=False)
+def cached_desk_card(code, day, bucket, hours):
+    """One desk nobody has named yet, worked out like an employee's card
+    (progress_data.build for that desk alone): its day and its days, by
+    place, and what desk_watch read there. `bucket` only keys the cache."""
+    import desks_data
+    import progress_data
+    df = desks_data.load()
+    g = df[df["code"] == code] if len(df) else df
+    if not len(g):
+        return None
+    person = {"code": code, "name": "", "department": str(g["room"].iloc[0]),
+              "recorder": str(g["recorder"].iloc[0]),
+              "channel": int(g["channel"].iloc[0]),
+              "seat": [float(g["x"].iloc[0]), float(g["y"].iloc[0])],
+              "since": progress_data.DESK_SINCE,
+              "activity": progress_data.DESK_ACTIVITY,
+              "why": "desk %s, its sitter not named yet" % code}
+    got = progress_data.build({"people": [person], "auto_desks": False}, day,
+                              hours)
+    return got[0] if got else None
+
+
+def show_report_card(mode, people, hours, now, day=None):
     """One employee's report card (Shamroze, 24 Nov: "ek employee ka ...
     report card uski aaj ke din ki", the day from-to, "average ka option
     bhi"): who, and today or a usual day -- one at a time, the way he
-    follows best -- drawn by progress_view.report()."""
+    follows best -- drawn by progress_view.report(). On the office laptop
+    every desk of 140-H is in the list too (Shamroze, 24 Nov: "sare
+    employees ki productivity"), its sitter's name once it is known."""
     import progress_view
     if not people:
         return
@@ -5708,12 +5733,42 @@ def show_report_card(mode, people, hours, now):
     label = {p.get("code", "?"): "%s%s" % (
         progress_view.who(p), (" · %s" % p["department"])
         if p.get("department") else "") for p in named}
+    if day:
+        import desks_data
+        df = desks_data.load()
+        seen = set(codes)
+
+        def theirs(g):
+            # a listed employee's own desk is theirs, not a desk unnamed
+            rec, ch = str(g["recorder"].iloc[0]), int(g["channel"].iloc[0])
+            x, y = float(g["x"].iloc[0]), float(g["y"].iloc[0])
+            return any((p.get("recorder"), int(p.get("channel") or 0))
+                       == (rec, ch) and p.get("seat")
+                       and (float(p["seat"][0]) - x) ** 2
+                       + (float(p["seat"][1]) - y) ** 2 <= 60.0 ** 2
+                       for p in named)
+        for code, g in (sorted(df.groupby("code"),
+                               key=lambda kv: (str(kv[1]["room"].iloc[0]),
+                                               desks_data.desk_key(kv[0])))
+                        if len(df) else []):
+            if code not in seen and not theirs(g):
+                codes.append(code)
+                label[code] = "Desk %s · %s (name not known yet)" % (
+                    code, g["room"].iloc[0])
     left, right = st.columns([3, 2])
-    pick = left.selectbox("Report card", codes, key="progress_report_who",
+    pick = left.selectbox("Report card (%d)" % len(codes), codes,
+                          key="progress_report_who",
                           format_func=lambda c: label.get(c, c))
     view = right.radio("Show", progress_view.REPORT_VIEWS, horizontal=True,
                        key="progress_report_view")
-    p = next(x for x in named if x.get("code") == pick)
+    p = next((x for x in named if x.get("code") == pick), None)
+    if p is None:
+        with st.spinner("Working out desk %s..." % pick):
+            p = cached_desk_card(pick, day, _to_5min(now).isoformat(),
+                                 tuple(hours))
+        if p is None:
+            st.info("No days kept for desk %s yet." % pick)
+            return
     local = now.tz_convert(PKT).tz_localize(None)
     st.markdown(progress_view.report_block(mode, p, view, float(hours[0]),
                                            local), unsafe_allow_html=True)
@@ -5793,7 +5848,7 @@ def show_progress(now):
     st.markdown(progress_view.page(mode, cfg, people,
                                    local.strftime("%d %b %H:%M"), hours,
                                    part="top"), unsafe_allow_html=True)
-    show_report_card(mode, people, hours, now)
+    show_report_card(mode, people, hours, now, day_key)
     st.markdown(progress_view.page(mode, cfg, people,
                                    local.strftime("%d %b %H:%M"), hours,
                                    part="rest"), unsafe_allow_html=True)
