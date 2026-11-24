@@ -775,10 +775,11 @@ def store_history(records, path=None):
 
 
 def history(person, upto, count=20, folder=SEATS, cache=None, stored=None,
-            reviews_for=None):
+            reviews_for=None, rows_for=None):
     """The employee's working days up to `upto`, newest last: worked out
     from the seat notes where they are still kept, else as the history
-    file kept them."""
+    file kept them. rows_for(day): that day's activity rows, where they
+    are not the five's own file (desks_data: every desk's)."""
     cache = {} if cache is None else cache
     since = str(person.get("since") or "")
     code = person.get("code", "?")
@@ -791,6 +792,7 @@ def history(person, upto, count=20, folder=SEATS, cache=None, stored=None,
             cache[day] = (notes(day), passes(day))
         n, p = cache[day]
         rec, _ = day_record(person, day, n, p,
+                            rows=rows_for(day) if rows_for else None,
                             reviews=(reviews_for or {}).get(day))
         rec["code"] = code
         out[day] = rec

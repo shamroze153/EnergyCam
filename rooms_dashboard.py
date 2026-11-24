@@ -5171,6 +5171,124 @@ def show_twin():
     twin(mode, height=680)
 
 
+@st.cache_data(ttl=300, show_spinner=False)
+def cached_desks(stamp):
+    """progress/desks.csv (desks_data.py) and the names known for its
+    desks. `stamp` (the files' times) only keys the cache."""
+    import desks_data
+    import progress_data
+    df = desks_data.load()
+    people = (progress_data.load() or {}).get("people") or []
+    named = []
+    path = os.path.join("people", "seats_identified.csv")
+    if os.path.exists(path):
+        import csv
+        with open(path, encoding="utf-8") as fh:
+            named = list(csv.DictReader(fh))
+    desks = [{"code": c, "recorder": g["recorder"].iloc[0],
+              "channel": int(g["channel"].iloc[0]),
+              "seat": [float(g["x"].iloc[0]), float(g["y"].iloc[0])]}
+             for c, g in df.groupby("code")] if len(df) else []
+    return df, desks_data.names_for(desks, people, named)
+
+
+def show_desks(mode, day):
+    """Every desk at 140-H (Shamroze, 24 Nov: "140 ke sab employees ka --
+    jo desk par baithte hain -- kaun kitni der baitha"): the chosen day,
+    desk by desk, and each desk's usual week. On this laptop only: the
+    names come from progress.yaml and the seats named by face."""
+    import desks_data
+    path = desks_data.OUT
+    if not os.path.exists(path):
+        return
+    named_path = os.path.join("people", "seats_identified.csv")
+    stamp = (os.path.getmtime(path), os.path.getmtime(named_path)
+             if os.path.exists(named_path) else 0)
+    df, names = cached_desks(stamp)
+    if df.empty:
+        return
+    st.markdown(overview.css(mode) + '<div class="ec"><div class="ec-h">'
+                '<span class="t">Every desk at 140-H</span><span class="c">'
+                '%d desks in %d rooms &middot; each regular seat of an office '
+                'camera, by the same rules as the five &middot; a name only '
+                'where it is known (the five; seats named by face, to '
+                'confirm) &middot; two cameras of one room can show a desk '
+                'twice</span></div></div>'
+                % (df["code"].nunique(), df["room"].nunique()),
+                unsafe_allow_html=True)
+    rooms = ["All rooms"] + sorted(df["room"].unique())
+    room = st.selectbox("Room", rooms, key="desks_room")
+    one, usual = st.tabs(["That day", "The usual week"])
+    with one:
+        d = df[df["day"] == day]
+        if room != "All rooms":
+            d = d[d["room"] == room]
+        if d.empty:
+            st.caption("No desk watched on %s." % day)
+        else:
+            def col(name, k=1.0, nd=0):
+                if name not in d.columns:
+                    return None
+                return (pd.to_numeric(d[name], errors="coerce") * k).round(nd)
+            t = pd.DataFrame({
+                "Room": d["room"], "Desk": d["code"],
+                "Who": [names.get(c, ("", "", ""))[0] for c in d["code"]],
+                "Employee ID": [names.get(c, ("", "", ""))[1]
+                                for c in d["code"]],
+                "First in": d["first"].dt.strftime("%H:%M"),
+                "Last out": d["last"].dt.strftime("%H:%M"),
+                "At the desk, h": col("desk_min", 1 / 60.0, 1),
+                "Desk %": col("desk_pct", 100),
+                "Computer %": col("computer_pct", 100),
+                "Phone, min": col("phone_min"),
+                "Talking, min": col("talking_min"),
+                "Focus, h": col("focus_min", 1 / 60.0, 1),
+                "Core hours %": col("core_pct", 100),
+                "After hours, min": col("after_min"),
+                "Breaks": d["breaks"],
+                "Longest break, min": col("longest_break"),
+                "Part of the day": d["part"]})
+            t = t[t["First in"].notna()]
+            st.caption("%d desks with somebody at them on %s -- computer and "
+                       "phone only from 24 Nov, when every desk's activity "
+                       "began to be read" % (len(t), day))
+            stretch(st.dataframe, t.sort_values(["Room", "Desk"]),
+                    hide_index=True)
+            hours_cols = ["h%02d" % h for h in range(8, 23)]
+            if all(c in d.columns for c in hours_cols):
+                import plotly.graph_objects as go
+                g = d.groupby("room")[hours_cols].sum()
+                n = d.groupby("room")["code"].nunique()
+                share = (g.div(n, axis=0) / 60.0).clip(0, 1)
+                ink = "#c3c2b7" if mode == "dark" else "#52514e"
+                fig = go.Figure(go.Heatmap(
+                    z=(100 * share).round().values,
+                    x=["%02d" % h for h in range(8, 23)],
+                    y=list(share.index), zmin=0, zmax=100,
+                    colorscale=[[0, "#e9e8e3" if mode != "dark" else
+                                 "#262624"], [0.5, "#3987e5"],
+                                [1, "#184f95" if mode != "dark" else
+                                 "#b7d3f6"]],
+                    hovertemplate="%{y} at %{x}:00 -- %{z}% of its desks "
+                                  "occupied<extra></extra>",
+                    colorbar=dict(title="% at desk")))
+                fig.update_layout(height=40 + 28 * len(share),
+                                  margin=dict(l=0, r=0, t=10, b=0),
+                                  paper_bgcolor="rgba(0,0,0,0)",
+                                  plot_bgcolor="rgba(0,0,0,0)",
+                                  font=dict(color=ink))
+                st.caption("Each room, hour by hour: the share of its desks "
+                           "with somebody at them")
+                st.plotly_chart(fig, use_container_width=True, theme=None,
+                                config={"displaylogo": False,
+                                        "scrollZoom": False})
+    with usual:
+        s = desks_data.summary(df, 7, names)
+        if room != "All rooms":
+            s = s[s["Room"] == room]
+        stretch(st.dataframe, s, hide_index=True)
+
+
 def pick_progress_day(days):
     """A row of the days kept (newest first), to look at any one of them
     (Shamroze, 23 Nov: "kal dekhna chahun, parson dekhna chahun").
@@ -5306,6 +5424,7 @@ def show_progress(now):
                                    local.strftime("%d %b %H:%M"), hours),
                 unsafe_allow_html=True)
     show_building(mode, people)
+    show_desks(mode, day_key)
     show_sightings(mode, people)
     # Each employee's day as a video (progress_video.py): pictures of the
     # desk, so -- like everything here -- only on this laptop. Made in a

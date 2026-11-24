@@ -632,6 +632,79 @@ def check_campus_faces():
           True)
 
 
+def check_every_desk():
+    print("-- every desk: the world's measures, and each desk's activity")
+    import numpy as np
+    import desk_watch as dw
+    import desks_data as dd
+    import progress_track as pt
+    from datetime import datetime as _dt
+    p = passes_every("09:00", "17:00")
+    sat = notes_at([t.strftime("%H:%M") for t in pd.date_range(
+        at("10:01"), at("12:30"), freq="5min")]
+        + [t.strftime("%H:%M") for t in pd.date_range(
+            at("13:01"), at("13:40"), freq="5min")])
+    x = dd.extras(PERSON, DAY, sat, p, hours=(10.0, 20.0))
+    check("one focus block (10:00-12:30, unbroken); 40 minutes is not one",
+          (x["focus_blocks"], round(x["focus_min"])), (1, 150))
+    check("in on time, nothing after hours, the hour 10-11 full",
+          (round(x["late_min"]), x["after_min"], round(x["h10"])),
+          (0, 0.0, 60))
+    check("core hours (11-17) at the desk: 130 of 360 minutes",
+          round(100 * x["core_pct"]), 36)
+    folder = tempfile.mkdtemp()
+    old = dict(dw._desks), dict(dw._count)
+    try:
+        dw._desks.update(day=None, by_cam={})
+        dw._count.clear()
+        desk = {"code": "dvr9.1-1", "room": "Test Room", "recorder": "dvr2",
+                "channel": 15, "seat": [500, 700], "share": 0.5}
+        frame = np.zeros((1080, 1920, 3), np.uint8)
+        now = _dt(2026, 11, 20, 11, 0, tzinfo=pt.PKT)
+        n = dw.observe("Test Room", ("dvr2", 15), frame,
+                       [(450, 450, 550, 700, .9)], None, now,
+                       out=os.path.join(folder, "act"),
+                       crops=os.path.join(folder, "crops"),
+                       finder=lambda day: [desk])
+        got = pd.read_csv(os.path.join(folder, "act", DAY + ".csv"))
+        check("a sitter with no phone look this pass is 'desk' (not read)",
+              (n, got["state"].tolist(), got["code"].tolist()),
+              (1, ["desk"], ["dvr9.1-1"]))
+        dw.observe("Test Room", ("dvr2", 15), frame, [], None, now,
+                   out=os.path.join(folder, "act"),
+                   crops=os.path.join(folder, "crops"),
+                   finder=lambda day: [desk])
+        got = pd.read_csv(os.path.join(folder, "act", DAY + ".csv"))
+        check("nobody at it: away", got["state"].tolist()[-1], "away")
+        check("one picture of the desk an hour",
+              len(os.listdir(os.path.join(folder, "crops", DAY))), 1)
+        check("not at night", dw.observe(
+            "Test Room", ("dvr2", 15), frame, [], None,
+            _dt(2026, 11, 20, 23, 30, tzinfo=pt.PKT),
+            out=os.path.join(folder, "act"), finder=lambda day: [desk]), 0)
+    finally:
+        dw._desks.clear()
+        dw._desks.update(old[0])
+        dw._count.clear()
+        dw._count.update(old[1])
+        shutil.rmtree(folder)
+    df = pd.DataFrame([dict(day=DAY, code="dvr9.1-1", room="Test Room",
+                            first=at("10:00"), last=at("18:00"), part=False,
+                            desk_min=300.0, desk_pct=0.6, computer_pct=0.5,
+                            phone_min=10.0, talking_min=5.0, focus_min=120.0,
+                            core_pct=0.7, late_min=45.0, after_min=0.0,
+                            longest_break=30.0)])
+    s = dd.summary(df, 7, {"dvr9.1-1": ("Test Person", "09999", "x")})
+    check("the desk's usual: who, in, hours, computer, focus, late starts",
+          (s["Who"][0], s["Usual in"][0], s["At the desk, h a day"][0],
+           s["Computer %"][0], s["Focus, h a day"][0], s["Late starts"][0]),
+          ("Test Person", "10:00", 5.0, 50.0, 2.0, 1))
+    source = open("room_loop.py", encoding="utf-8").read()
+    check("the loop reads every desk, guarded",
+          "desk_watch.observe(room.name, key, wide, counted, model)" in source
+          and "desk_watch = None" in source, True)
+
+
 def check_presence_rules():
     print("-- at the desk: the rules checked by eye on 24 Nov")
     p = passes_every("10:00", "11:00")
@@ -1087,6 +1160,7 @@ def main():
     check_average()
     check_cases()
     check_campus_faces()
+    check_every_desk()
     check_timeline()
     check_day()
     check_passes_and_usual()

@@ -96,6 +96,12 @@ try:
     import seat_faces
 except Exception:                                           # noqa: BLE001
     seat_faces = None
+# Every desk's sitter, pass by pass (desk_watch.py, 24 Nov): computer,
+# phone, talking or away, by the five's rules. Guarded the same way.
+try:
+    import desk_watch
+except Exception:                                           # noqa: BLE001
+    desk_watch = None
 
 PKT = timezone(timedelta(hours=5))
 
@@ -1231,6 +1237,8 @@ def examine(room, frames, model, imgsz, iou, ac_units=None,
         if seat_faces is not None:
             # Never raises; only 140-H's cameras, in office hours.
             seat_faces.observe(room.name, key, wide, counted)
+        if desk_watch is not None:
+            desk_watch.observe(room.name, key, wide, counted, model)
         if keep is None or here > people:
             keep = wide
         people = max(people, here)
