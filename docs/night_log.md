@@ -1445,5 +1445,5 @@ Two or three lines a round; picture file names, never pictures.
   now and then -- but technicians stand there (0.79-0.85 on 15 and 22
   Nov), so no zone; for Shamroze (ghost_141_Data_Centre_ch11_cd_nvr1_
   1047.jpg). Gaming Area: people passing. Nothing changed. Loop restarted
-  11:0x for the desk reading's pose and screen (98221aa) -- a hand held to
+  10:58 for the desk reading's pose and screen (98221aa) -- a hand held to
   the head is a call, no screen in sight is "desk", not "computer".
