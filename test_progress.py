@@ -714,6 +714,30 @@ def check_every_desk():
           (0, 0.0, 60))
     check("core hours (11-17) at the desk: 130 of 360 minutes",
           round(100 * x["core_pct"]), 36)
+    # 24 Nov 18:00: codes numbered busiest-first moved from day to day;
+    # now a desk keeps its number by place.
+    import desk_seats as ds
+    reg = {}
+    check("first day: numbered in the order found",
+          ds.stable_numbers("dvr2.2", [(1550, 182), (1091, 789)], reg),
+          [1, 2])
+    check("next day, busiest first the other way round: same numbers",
+          ds.stable_numbers("dvr2.2", [(1085, 785), (1548, 190)], reg),
+          [2, 1])
+    check("a new seat gets the next number; one gone frees none",
+          ds.stable_numbers("dvr2.2", [(700, 600), (1090, 788)], reg),
+          [3, 2])
+    check("and the desk follows its seat's small moves",
+          reg["dvr2.2"][1][1:], [1090.0, 788.0])
+    check("two seats near one desk: the nearer keeps it",
+          ds.stable_numbers("dvr2.2", [(1120, 790), (1095, 789)], reg),
+          [4, 2])
+    since_f = os.path.join(tempfile.mkdtemp(), "codes.json")
+    check("no codes file, nothing to leave out", dd.codes_since(since_f), "")
+    with open(since_f, "w") as fh:
+        fh.write('{"since": "2026-11-24 18:20:00", "desks": {}}')
+    check("the codes file says from when",
+          dd.codes_since(since_f), "2026-11-24 18:20:00")
     folder = tempfile.mkdtemp()
     old = dict(dw._desks), dict(dw._count)
     try:

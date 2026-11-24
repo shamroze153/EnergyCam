@@ -127,7 +127,12 @@ a close look every third pass / "desk" (not read) / away -- into
 `progress/desks_activity/`, an hourly picture under `frames/desks/`, and
 rebuilds `progress/desks.csv` hourly (`desks_data.build`: the five's
 rules, plus focus blocks of 60+ min, core hours 11-17, late starts,
-after hours, an hourly heatmap). The Progress tab's "Every desk at
+after hours, an hourly heatmap). Desk codes are kept by place
+(`progress/desk_codes.json`, `desk_seats.stable_numbers`, since 24 Nov
+18:09): before that they were renumbered busiest-first every day and at
+every restart, so names, pictures and activity given to a code moved
+(the old pictures are in `frames/desks_before_codes/`, not to be named
+from). The Progress tab's "Every desk at
 140-H" (laptop only) shows the day and the usual week; a desk has a name
 only where one is known. `desks_data.py` stays pandas-only for the
 dashboard (test_dashboard checks its imports).

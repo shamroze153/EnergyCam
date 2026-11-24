@@ -34,6 +34,21 @@ CAMPUS = {"nvr1", "nvr4", "dvr2", "xvr3"}
 OUT = os.path.join("progress", "desks.csv")         # git-ignored (progress/)
 # The desks themselves are found by desk_seats.find_desks (seat_map, with
 # OpenCV): this module stays pandas-only, so the dashboard can read it.
+# Each desk's code, kept by place from day to day (desk_seats.
+# stable_numbers): codes and pixels only, this laptop (progress/ is
+# git-ignored).
+CODES = os.path.join("progress", "desk_codes.json")
+
+
+def codes_since(path=CODES):
+    """"YYYY-MM-DD HH:MM:SS" from when a desk code means one place, or ""
+    (before 24 Nov 18:00 codes were renumbered daily and at each restart)."""
+    import json
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return str(json.load(fh).get("since") or "")
+    except (OSError, ValueError):
+        return ""
 
 
 SEATS_NAMED = os.path.join("people", "seats_identified.csv")  # seat_faces
@@ -349,17 +364,24 @@ def assign_notes(day_notes, desks):
 
 
 def build(upto=None, count=20, folder=pdx.SEATS, out=OUT, desks=None,
-          activity=ACTIVITY):
+          activity=ACTIVITY, codes=None):
     """Every desk's working days up to `upto` to progress/desks.csv: one
     row a desk a day (the history's columns, the world's measures, and the
-    desk's own)."""
+    desk's own). With `codes` (CODES), the activity rows written before
+    the codes were kept by place are left out: their code meant another
+    desk (presence comes from the seat notes, by place, and stands)."""
     upto = upto or datetime.now().strftime("%Y-%m-%d")
     desks = desks or []              # desk_seats.find_desks(upto)
     cache, rows, acts = {}, [], {}
+    since = codes_since(codes) if codes else ""
 
     def rows_for(day):
         if day not in acts:
-            acts[day] = pdx.load_activity(day, activity)
+            a = pdx.load_activity(day, activity)
+            if since and len(a) and day <= since[:10]:
+                a = a[a["at"] >= pd.Timestamp(since)] if day == since[:10] \
+                    else a.iloc[0:0]
+            acts[day] = a
         return acts[day]
     hours = pdx.office_hours()
     # each day's notes shared out among the desks, one person one desk

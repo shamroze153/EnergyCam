@@ -34,7 +34,9 @@ def desks_for(day, finder=None):
     """{(recorder, channel): [desk]} for the day, found once a day."""
     if _desks["day"] != day:
         import desk_seats
-        found = (finder or desk_seats.find_desks)(day)
+        import desks_data
+        found = finder(day) if finder else desk_seats.find_desks(
+            day, codes=desks_data.CODES)   # codes kept by place
         by = {}
         for d in found:
             by.setdefault((d["recorder"], int(d["channel"])), []).append(d)
@@ -178,7 +180,8 @@ def rebuild(clock=time.time, now=None, build=None):
         seat_faces.refresh(pdx.working_days(day, 2) or [day])
     except Exception:                                       # noqa: BLE001
         pass
-    desks_data.build(day, desks=desk_seats.find_desks(day))
+    desks_data.build(day, desks=desk_seats.find_desks(
+        day, codes=desks_data.CODES), codes=desks_data.CODES)
     try:
         cctv_rebuild()
     except Exception:                                       # noqa: BLE001
