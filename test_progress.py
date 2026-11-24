@@ -743,6 +743,53 @@ def check_every_desk():
                                          encoding="utf-8").read(), True)
 
 
+def check_entrance():
+    print("-- the turnstile: frontal faces only, one row a passage")
+    import numpy as np
+    import entrance_watch as ew
+
+    def row(rx, lx, nx):
+        r = np.zeros(15, np.float32)
+        r[4], r[6], r[8] = rx, lx, nx
+        return r
+    check("a face straight on is compared; a profile, or a tiny one, not",
+          (ew.frontal(row(100, 160, 131)), ew.frontal(row(100, 160, 175)),
+           ew.frontal(row(100, 110, 105))), (True, False, False))
+
+    def unit(*v):
+        v = np.array(v + (0.0,) * (128 - len(v)), np.float32)
+        return v / np.linalg.norm(v)
+    ids = np.array(["00010", "00011"])
+    photos = np.array([unit(1, 0, 0), unit(0, 1, 0)])
+    recent = []
+    got = ew.decide(unit(1, .1, 0), ids, photos, recent, 1000.0)
+    check("a face clearly one photo's names its passer",
+          (got[0], got[1]), ("named", "00010"))
+    check("the same person a minute later is the same passage",
+          ew.decide(unit(1, .1, 0), ids, photos, recent, 1060.0)[0], None)
+    check("and two minutes later a new one",
+          ew.decide(unit(1, .1, 0), ids, photos, recent, 1200.0)[0], "named")
+    check("a face like neither photo is unknown, its best guess kept",
+          ew.decide(unit(.7, .7, .3), ids, photos, [], 1300.0)[0], "unknown")
+    folder = tempfile.mkdtemp()
+    try:
+        ew.write(DAY, ("10:22:51", "nvr1", 5, "named", "00010", "00010",
+                       0.52, 0.16, 147), None, folder)
+        got = pd.read_csv(os.path.join(folder, DAY + ".csv"), dtype=str)
+        check("a passage is a row: time, camera, who, how sure",
+              (got["employee_id"][0], got["channel"][0], got["score"][0]),
+              ("00010", "5", "0.520"))
+    finally:
+        shutil.rmtree(folder)
+    check("Entry H only (the building door's camera sees backs)",
+          ew.CAMERAS, [("nvr1", 5)])
+    source = open("room_loop.py", encoding="utf-8").read()
+    check("the loop starts it, guarded, never on --once",
+          "entrance_watch.start(recorders, build_url)" in source
+          and "entrance_watch = None" in source
+          and "not args.once" in source, True)
+
+
 def check_presence_rules():
     print("-- at the desk: the rules checked by eye on 24 Nov")
     p = passes_every("10:00", "11:00")
@@ -1199,6 +1246,7 @@ def main():
     check_cases()
     check_campus_faces()
     check_every_desk()
+    check_entrance()
     check_timeline()
     check_day()
     check_passes_and_usual()

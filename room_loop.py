@@ -102,6 +102,12 @@ try:
     import desk_watch
 except Exception:                                           # noqa: BLE001
     desk_watch = None
+# The turnstile's faces (entrance_watch.py, 24 Nov): Entry H's main stream
+# watched in office hours on a thread of its own. Guarded the same way.
+try:
+    import entrance_watch
+except Exception:                                           # noqa: BLE001
+    entrance_watch = None
 
 PKT = timezone(timedelta(hours=5))
 
@@ -1846,6 +1852,11 @@ def main():
         user, password = recorder_login(key, recorders[key])
         recorders[key]["user"], recorders[key]["password"] = user, password
     set_gates(recorders, args.per_recorder)
+    if entrance_watch is not None and not args.once:
+        started = entrance_watch.start(recorders, build_url)
+        if started:
+            print(">> watching %d turnstile camera(s) for faces (people/"
+                  "entrance/)" % started)
 
     ac_units = load_units()
     calibrated = check_ac_units(ac_units, rooms)
