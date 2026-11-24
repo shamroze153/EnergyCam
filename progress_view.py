@@ -653,6 +653,321 @@ def today_board(people, c, as_of="", frm=8, to=24, start=10.0):
                else "", "".join(r[0] for r in rows)))
 
 
+# ------------------------------------------------ one employee's report card
+#
+# Shamroze, 24 Nov: "ek employee ka ... chhota sa table card, report card
+# uski aaj ke din ki", and "pura chart -- itne time se itne time tak yahan
+# gaya, itne time se itne time tak wahan", with "average ka option bhi".
+# One employee at a time (rooms_dashboard picks who, and today or a usual
+# day): the day's figures beside their usual, the day as lanes -- at the
+# desk, each place, out of the building, not seen -- and the day from-to.
+
+LANES = [("desk", "At the desk", AT_DESK_KINDS),
+         ("meeting", "Meetings", ("meeting",)),
+         ("cafe", "Cafe", ("cafe",)),
+         ("prayer", "Prayer", ("prayer",)),
+         ("outside", "Outside on campus", ("outside", "smoking")),
+         ("rooms", "Other rooms", ("office", "own room", "corridor")),
+         ("left", "Out of the building", ("left",)),
+         ("unseen", "Away, not seen", ("unseen",))]
+REPORT_VIEWS = ("Today", "Usual day (average)")
+
+
+def _span(segs, frm=8, to=22):
+    """The hours a day chart runs: the day's own, an hour either side,
+    at least eight hours."""
+    import math
+    if not segs:
+        return frm, to
+    a = min(s[0] for s in segs)
+    b = max(s[1] for s in segs)
+    lo = max(0, math.floor(a.hour + a.minute / 60.0) - 1)
+    hi = min(24, math.ceil(b.hour + b.minute / 60.0 + 0.01) + 1)
+    if hi - lo < 8:
+        hi = min(24, lo + 8)
+        lo = max(0, hi - 8)
+    return lo, hi
+
+
+def _ticks(lo, hi):
+    step = 1 if hi - lo <= 10 else 2
+    return "".join('<span style="left:%.2f%%">%s</span>'
+                   % (100.0 * (h - lo) / (hi - lo), hhmm(h)[:5])
+                   for h in range(lo, hi + 1, step))
+
+
+def day_lanes(focus, c, now=None):
+    """The day as lanes, one a place: a bar wherever they were there, its
+    from-to and minutes on hover; "now" marked."""
+    segs = [s for s in (focus or {}).get("segments") or []
+            if s[2] not in ("out",)]
+    if not segs:
+        return ""
+    lo, hi = _span(segs)
+    base = segs[0][0].normalize()
+    span = (hi - lo) * 60.0
+
+    def x(t):
+        return max(0.0, min(100.0, 100.0 * ((t - base).total_seconds() / 60.0
+                                            - lo * 60) / span))
+    rows = []
+    for key, label, kinds in LANES:
+        mine = [s for s in segs if s[2] in kinds]
+        if not mine:
+            continue
+        total = sum((s[1] - s[0]).total_seconds() / 60.0 for s in mine)
+        bars = []
+        for s, e, k, room in mine:
+            col = c["deskread"] if k == "desk" else c.get(k, c["unseen"])
+            what = SLOT_WORDS.get(k, k) + (
+                " (%s)" % room if room and k not in AT_DESK_KINDS
+                and k != "left" else "")
+            bars.append('<i style="left:%.2f%%;width:%.2f%%;background:%s" '
+                        'title="%s-%s %s, %s"></i>'
+                        % (x(s), max(0.25, x(e) - x(s)), col,
+                           s.strftime("%H:%M"), e.strftime("%H:%M"),
+                           esc(what), dur((e - s).total_seconds() / 60.0)))
+        rows.append('<div class="pg-lane"><span class="l">%s<em>%s</em>'
+                     '</span><div class="b">%s</div></div>'
+                     % (esc(label), dur(total), "".join(bars)))
+    mark = ""
+    if now is not None and lo * 60 <= (now - base).total_seconds() / 60.0 \
+            <= hi * 60:
+        mark = '<b class="pg-nowl" style="left:%.2f%%" title="now"></b>' % x(now)
+    return ('<div class="pg-lanes">%s<div class="pg-lane ax"><span class="l">'
+            '</span><div class="b">%s%s</div></div></div>'
+            % ("".join(rows), _ticks(lo, hi), mark))
+
+
+def day_list(focus, c):
+    """The day from-to, oldest first: where, how long, and what."""
+    import progress_data as pdx
+    items = (focus or {}).get("stretches") or []
+    out = []
+    words = dict(KIND_WORDS, desk="activity not read")
+    for st in items:
+        if st["what"] == "desk":
+            col, where = c["computer"], "At the desk"
+            kinds = sorted(((k, v) for k, v in st["kinds"].items() if v >= 1),
+                           key=lambda kv: -kv[1])
+            detail = ", ".join("%s %s" % (words.get(k, k), dur(v))
+                               for k, v in kinds)
+        elif st["what"] == "unwatched":
+            if (st.get("minutes") or 0) < 10:
+                continue                  # a short hole: the chart shows it
+            col, where, detail = c["t3"], "Not watched", "the loop was off"
+        else:
+            places = [("out through the gate" if r == pdx.GATE_ROOM else r)
+                      for r in st.get("where") or []]
+            left = "out of the building" in places or \
+                "out through the gate" in places
+            col = c["left"] if left else (c["meeting"] if places
+                                          else c["unseen"])
+            where = ("Out of the building" if left else
+                     ("Away: %s" % ", ".join(places)) if places
+                     else "Away, not seen")
+            seen = [r for r, h in st.get("seen") or [] if r not in places]
+            detail = ("possibly %s" % ", ".join(seen)) if seen else ""
+        out.append('<tr><td class="t"><i style="background:%s"></i>%s&ndash;%s'
+                   '</td><td class="n">%s</td><td><b>%s</b>%s</td></tr>'
+                   % (col, st["from"].strftime("%H:%M"),
+                      st["to"].strftime("%H:%M"), dur(st["minutes"]),
+                      esc(where), (' <span>%s</span>' % esc(detail))
+                      if detail else ""))
+    if not out:
+        return ""
+    return ('<table class="pg-list"><thead><tr><th>From&ndash;to</th>'
+            '<th>How long</th><th>Where</th></tr></thead><tbody>%s</tbody>'
+            '</table>' % "".join(out))
+
+
+def usual_hours(p, c, frm=8, to=22):
+    """A usual day hour by hour: how often they were at the desk in each
+    hour over their last working days (bars), today as a dot."""
+    days = p.get("days") or []
+    slots = p.get("slots") or []
+    focus_day = (p.get("focus") or {}).get("day")
+    per = 6                                      # 10-minute slots an hour
+    past = [sl for d, sl in zip(days, slots)
+            if not d.get("before") and d.get("day") != focus_day]
+    today = next((sl for d, sl in zip(days, slots)
+                  if d.get("day") == focus_day), None)
+    if not past:
+        return ""
+    cols = []
+    for h in range(frm, to):
+        i = (h - 8) * per                       # strips start at 08:00
+        if i < 0:
+            continue
+        desk = sum(sl[i:i + per].count("desk") for sl in past)
+        inside = sum(sum(1 for s in sl[i:i + per] if s in ("desk", "away"))
+                     for sl in past)
+        share = desk / float(len(past) * per)
+        here = inside / float(len(past) * per)
+        dot = ""
+        seg = today[i:i + per] if today is not None else []
+        if any(s in ("desk", "away") for s in seg):
+            # only hours they were in today -- not before, after or to come
+            t_desk = seg.count("desk") / float(per)
+            dot = '<b style="bottom:%.0f%%" title="today %s"></b>' % (
+                100 * t_desk, pct(t_desk))
+        cols.append('<div class="c" title="%s-%s: at the desk %s of the '
+                    'time, in the office %s"><span class="in" style="height:'
+                    '%.0f%%"></span><span class="d" style="height:%.0f%%">'
+                    '</span>%s<small>%s</small></div>'
+                    % (hhmm(h), hhmm(h + 1), pct(share), pct(here),
+                       100 * here, 100 * share, dot,
+                       str(h) if h % 2 == 0 else ""))
+    return ('<div class="pg-hours">%s</div><div class="pg-hkey"><span><i '
+            'style="background:%s"></i>at the desk, usually</span><span><i '
+            'style="background:var(--line)"></i>in the office, usually</span>'
+            '<span><b></b>today</span><span>over %d working day%s</span></div>'
+            % ("".join(cols), c["computer"], len(past),
+               "" if len(past) == 1 else "s"))
+
+
+def report_rows(p, start=10.0):
+    """The report card's lines: (label, today, usual)."""
+    import progress_data as pdx
+    f = p.get("focus") or {}
+    m = f.get("minutes") or {}
+    came = f.get("first_in") is not None
+    at = sum(m.get(k, 0.0) for k in AT_DESK_KINDS) if came else 0.0
+    away = sum(v for k, v in m.items()
+               if k not in AT_DESK_KINDS and k not in ("out", "unwatched")) \
+        if came else 0.0
+    est = f.get("estimate") or {}
+    past = [r for r in p.get("history") or [] if r.get("day") != f.get("day")]
+    u = pdx.average(past, 7) or {}
+    late, of = late_days(past, 7, start)
+    stretches_ = f.get("stretches") or []
+    runs = [s["minutes"] for s in stretches_ if s.get("what") == "desk"]
+    breaks = [s for s in stretches_ if s.get("what") not in ("desk",
+                                                             "unwatched")
+              and (s.get("minutes") or 0) >= BREAK_MIN]
+
+    def t(x):
+        return x.strftime("%H:%M") if hasattr(x, "strftime") else "--"
+
+    def clock(v):
+        return hhmm(v / 60.0) if v is not None else "--"
+
+    def mins(v):
+        return dur(v) if v is not None else "--"
+    lv = p.get("live") or {}
+    still = lv.get("state") in ("desk", "away")
+    first = f.get("first_in")
+    is_late = hasattr(first, "hour") and \
+        first.hour + first.minute / 60.0 > start + LATE_AFTER / 60.0
+    read = bool(f.get("read")) and sum(est.get(k, 0.0) for k in
+                                       ("computer", "phone", "talking")) > 0
+    rows = [
+        ("Came in (first at the desk)", t(first) if came else "not in",
+         clock(u.get("first"))),
+        ("Left (last at the desk)", ("still in" if still else t(
+            f.get("last_out"))) if came else "--", clock(u.get("last"))),
+        ("Late (after %s)" % hhmm(start + LATE_AFTER / 60.0),
+         ("yes" if is_late else "no") if came else "--",
+         "%d of %d days" % (late, of) if of else "--"),
+        ("In the office (watched)", mins(at + away) if came else "--",
+         mins(u.get("in_min"))),
+        ("At the desk", ("%s &middot; %s" % (dur(at), pct(at / (at + away))))
+         if came and at + away > 0 else "--",
+         ("%s &middot; %s" % (mins(u.get("desk_min")), pct(u.get("desk_pct"))))
+         if u.get("desk_min") is not None else "--"),
+        ("&nbsp;&nbsp;at the computer", mins(est.get("computer")) if read
+         else "--", mins(u.get("computer_min"))),
+        ("&nbsp;&nbsp;on the phone", mins(est.get("phone")) if read else "--",
+         mins(u.get("phone_min"))),
+        ("&nbsp;&nbsp;talking at the desk", mins(est.get("talking")) if read
+         else "--", mins(u.get("talking_min"))),
+        ("Longest sitting", mins(max(runs)) if runs else "--", "--"),
+        ("Breaks of %d+ min" % BREAK_MIN, "%d" % len(breaks) if came else "--",
+         ("%.1f" % u["breaks"]) if u.get("breaks") is not None else "--"),
+        ("Away from the desk", mins(away) if came else "--",
+         mins(u["in_min"] - u["desk_min"]) if u.get("in_min") is not None
+         and u.get("desk_min") is not None else "--"),
+    ]
+    for k, w in AWAY_WORDS:
+        if came and m.get(k, 0.0) >= 1:
+            rows.append(("&nbsp;&nbsp;%s" % esc(w), dur(m[k]), ""))
+    return rows, u
+
+
+def report(p, c, view=REPORT_VIEWS[0], start=10.0, now=None):
+    """One employee's report card (one at a time, rooms_dashboard picks):
+    the head, the figures today beside their usual, and the day chart --
+    or, for the usual day, the hours they are usually at the desk."""
+    import datetime as _dt
+    f = p.get("focus") or {}
+    lv = p.get("live") or {}
+    rows, u = report_rows(p, start)
+    m = f.get("minutes") or {}
+    came = f.get("first_in") is not None
+    at = sum(m.get(k, 0.0) for k in AT_DESK_KINDS) if came else 0.0
+    away = sum(v for k, v in m.items()
+               if k not in AT_DESK_KINDS and k not in ("out", "unwatched")) \
+        if came else 0.0
+    share = at / (at + away) if at + away > 0 else None
+    usual = u.get("desk_pct")
+    vs = ""
+    if share is not None and usual is not None and at + away >= 60:
+        d = 100 * (share - usual)
+        vs = '<span class="%s">%s %+.0f vs usual %s</span>' % (
+            "up" if d >= 3 else "down" if d <= -3 else "same",
+            "&#9650;" if d >= 3 else "&#9660;" if d <= -3 else "&#9679;", d,
+            pct(usual))
+    day = f.get("day")
+    label = _dt.date.fromisoformat(day).strftime("%a %d %b") if day else ""
+    state = lv.get("state", "out")
+    since = lv.get("since")
+    now_txt = (lv.get("label") or STATE_WORDS.get(state, state)) + (
+        " &middot; %s" % since.strftime("%H:%M") if hasattr(since, "strftime")
+        else "") + (" &middot; %s" % esc(lv["place"]) if lv.get("place")
+                    else "")
+    head = ('<div class="pg-rhead">%s<div class="who"><b>%s</b><span>%s</span>'
+            '</div><div class="big"><b>%s</b><span>at the desk%s</span>%s</div>'
+            '</div><div class="pg-rnow"><em style="background:%s">%s</em>'
+            '<span>%s</span></div>'
+            % (badge(p), esc(who(p)),
+               esc(" · ".join(x for x in (
+                   p.get("department", ""),
+                   ("ID %s" % p["employee_id"]) if p.get("employee_id")
+                   else "", label) if x)),
+               dur(at) if came else "--",
+               (" &middot; %s of time in" % pct(share)) if share is not None
+               else "", vs, LIVE_COLOURS.get(state, "#898781"),
+               esc(STATE_WORDS.get(state, state)), now_txt))
+    table = ('<table class="pg-rep"><thead><tr><th></th><th>%s</th><th>Usual'
+             '<small>%s</small></th></tr></thead><tbody>%s</tbody></table>'
+             % ("Today" if day == (now or _dt.datetime.now()).strftime(
+                 "%Y-%m-%d") else esc(label),
+                ("average, last %d whole day%s" % (
+                    u["days"], "" if u["days"] == 1 else "s"))
+                if u.get("days") else "no days yet",
+                "".join('<tr><td>%s</td><td>%s</td><td>%s</td></tr>'
+                        % (a, b, cc) for a, b, cc in rows)))
+    if view == REPORT_VIEWS[1]:
+        chart = usual_hours(p, c)
+        body = ('<div class="pg-rsec">A usual day, hour by hour</div>%s'
+                % (chart or '<div class="pg-empty">No past days watched yet.'
+                   '</div>'))
+    else:
+        lanes = day_lanes(f, c, now)
+        body = ('<div class="pg-rsec">The day, place by place '
+                '<span>hover a bar for its from&ndash;to</span></div>%s'
+                '<div class="pg-rsec">From&ndash;to</div>%s'
+                % (lanes or '<div class="pg-empty">Not at the desk yet today.'
+                   '</div>', day_list(f, c)))
+    return ('<div class="ec-card pg-report">%s<div class="pg-rgrid"><div>%s'
+            '</div><div>%s</div></div><div class="pg-rfoot">Measured: time '
+            'at the desk (every pass of the loop) and where the employee was '
+            'seen when away -- by face on the campus cameras and at the gate. '
+            '"Not seen" is time on no camera. At the computer, on the phone '
+            'and talking are read every few passes and shared out over the '
+            'rest.</div></div>' % (head, table, body))
+
+
 def team_table(people, c, days_shown=10):
     """Every employee against every day kept: desk % (and computer % where
     the activity was read), first in and last out."""
@@ -791,7 +1106,15 @@ def legend(c):
                       '</span>' % (c[k], esc(t)) for k, t in items))
 
 
-def page(mode, cfg, people, as_of, hours=(10, 20), frm=8, to=24):
+def report_block(mode, p, view=REPORT_VIEWS[0], start=10.0, now=None):
+    """report() with the page's styles, for the dashboard to draw on its
+    own between page(part="top") and page(part="rest")."""
+    c = colours(mode)
+    return (css(mode) + "\n" + _CSS % c + "\n" + '<div class="ec pg">'
+            + report(p, c, view, start, now) + "</div>")
+
+
+def page(mode, cfg, people, as_of, hours=(10, 20), frm=8, to=24, part=None):
     """The whole page. people: [{code, department, why, check, days,
     slots, usual}], one per desk, days and slots oldest first."""
     c = colours(mode)
@@ -828,8 +1151,15 @@ def page(mode, cfg, people, as_of, hours=(10, 20), frm=8, to=24):
     # The scoreboard took the "Right now" strip's place (24 Nov): it says
     # where everybody is too, beside their day.
     board = today_board(people, c, as_of, frm, to, float(hours[0]))
-    return (css(mode) + "\n" + _CSS % c + "\n" + '<div class="ec pg">' + head
-            + (board or live_strip(people, c, as_of)) + tiles(people, c)
+    style = css(mode) + "\n" + _CSS % c + "\n"
+    top = head + (board or live_strip(people, c, as_of))
+    # The dashboard puts one employee's report card (report(), with its own
+    # pickers) between the board and the rest: part "top", then "rest".
+    if part == "top":
+        return style + '<div class="ec pg">' + top + "</div>"
+    if part == "rest":
+        top = ""
+    return (style + '<div class="ec pg">' + top + tiles(people, c)
             + team_table(people, c)
             + averages_table(people, start=float(hours[0]))
             + cases_block(people)
@@ -1025,6 +1355,84 @@ background:var(--line)}
 .pg .pg-mixt{font-size:10.5px;color:var(--t3);margin-top:3px;white-space:nowrap;
 overflow:hidden;text-overflow:ellipsis}
 .pg .pg-away{white-space:normal;color:var(--t2)}
+.pg .pg-report{padding:16px 18px;margin-top:8px}
+.pg .pg-rhead{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.pg .pg-rhead .who{display:flex;flex-direction:column;flex:1;min-width:160px}
+.pg .pg-rhead .who b{font-size:17px}
+.pg .pg-rhead .who span{font-size:12px;color:var(--t3)}
+.pg .pg-rhead .big{display:flex;flex-direction:column;align-items:flex-end}
+.pg .pg-rhead .big b{font-size:26px;font-variant-numeric:tabular-nums;line-height:1.1}
+.pg .pg-rhead .big span{font-size:12px;color:var(--t2)}
+.pg .pg-rhead .big .up{color:#2a9d63;font-weight:600}
+.pg .pg-rhead .big .down{color:#d03b3b;font-weight:600}
+.pg .pg-rnow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0 14px;
+font-size:12.5px;color:var(--t2)}
+.pg .pg-rnow em{font-style:normal;color:#fff;border-radius:10px;padding:2px 9px;
+font-size:11.5px;font-weight:600}
+.pg .pg-rgrid{display:grid;grid-template-columns:minmax(250px,330px) minmax(0,1fr);
+gap:22px;align-items:start}
+.pg .pg-rgrid>div{min-width:0}
+.pg .pg-rep{width:100%%;border-collapse:collapse;font-size:12.5px}
+.pg .pg-rep th{font-size:11px;color:var(--t3);font-weight:600;text-align:right;
+padding:4px 6px;border-bottom:1px solid var(--line)}
+.pg .pg-rep th small{display:block;font-weight:400}
+.pg .pg-rep th:first-child{text-align:left}
+.pg .pg-rep td{padding:5px 6px;border-bottom:1px solid var(--line);text-align:right;
+font-variant-numeric:tabular-nums;white-space:nowrap}
+.pg .pg-rep td:first-child{text-align:left;color:var(--t2);white-space:normal}
+.pg .pg-rep td:nth-child(2){font-weight:600;color:var(--t1)}
+.pg .pg-rep td:nth-child(3){color:var(--t3)}
+.pg .pg-rsec{font-size:12px;font-weight:600;color:var(--t2);margin:2px 0 8px}
+.pg .pg-rsec span{font-weight:400;color:var(--t3);margin-left:6px}
+.pg .pg-lanes{margin-bottom:16px}
+.pg .pg-lane{display:grid;grid-template-columns:150px minmax(0,1fr);align-items:center;
+gap:8px;height:24px}
+.pg .pg-lane .l{font-size:12px;color:var(--t2);display:flex;justify-content:space-between;
+gap:6px;white-space:nowrap;overflow:hidden}
+.pg .pg-lane .l em{font-style:normal;color:var(--t3);font-variant-numeric:tabular-nums}
+.pg .pg-lane .b{position:relative;height:14px;background:var(--s2);border-radius:3px}
+.pg .pg-lane .b i{position:absolute;top:0;bottom:0;border-radius:2px}
+.pg .pg-lane.ax{height:18px}
+.pg .pg-lane.ax .b{background:none;height:16px}
+.pg .pg-lane.ax .b span{position:absolute;top:2px;transform:translateX(-50%%);
+font-size:10px;color:var(--t3)}
+.pg .pg-nowl{position:absolute;top:-3px;width:2px;height:9px;margin-left:-1px;
+background:%(crit)s}
+.pg .pg-list{width:100%%;border-collapse:collapse;font-size:12.5px}
+.pg .pg-list th{text-align:left;font-size:11px;color:var(--t3);font-weight:600;
+padding:4px 6px;border-bottom:1px solid var(--line)}
+.pg .pg-list td{padding:5px 6px;border-bottom:1px solid var(--line);vertical-align:top;
+color:var(--t1)}
+.pg .pg-list td b{color:var(--t1)}
+.pg .pg-list td.t{white-space:nowrap;font-variant-numeric:tabular-nums}
+.pg .pg-list td.t i{display:inline-block;width:8px;height:8px;border-radius:2px;
+margin-right:6px}
+.pg .pg-list td.n{white-space:nowrap;color:var(--t2)}
+.pg .pg-list td span{color:var(--t3);font-size:11.5px}
+.pg .pg-hours{display:flex;align-items:flex-end;gap:3px;height:150px;
+margin-bottom:18px}
+.pg .pg-hours .c{flex:1;position:relative;height:100%%}
+.pg .pg-hours .c span{position:absolute;left:0;right:0;bottom:0;border-radius:3px 3px 0 0}
+.pg .pg-hours .c .in{background:var(--line)}
+.pg .pg-hours .c .d{background:%(computer)s}
+.pg .pg-hours .c b{position:absolute;left:50%%;width:9px;height:9px;margin:0 0 -5px -5px;
+border-radius:50%%;background:var(--t1);border:2px solid var(--s1)}
+.pg .pg-hours .c small{position:absolute;bottom:-17px;left:0;right:0;text-align:center;
+font-size:10px;color:var(--t3)}
+.pg .pg-hkey{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--t3)}
+.pg .pg-hkey i{display:inline-block;width:10px;height:10px;border-radius:2px;
+margin-right:5px;vertical-align:-1px}
+.pg .pg-hkey b{display:inline-block;width:8px;height:8px;border-radius:50%%;
+background:var(--t1);margin-right:5px}
+.pg .pg-empty{font-size:12.5px;color:var(--t3);padding:10px 0}
+.pg .pg-rfoot{font-size:11px;color:var(--t3);margin-top:12px;border-top:1px solid var(--line);
+padding-top:8px}
+@media (max-width:760px){
+.pg .pg-rgrid{grid-template-columns:minmax(0,1fr)}
+.pg .pg-lane{grid-template-columns:104px minmax(0,1fr)}
+.pg .pg-lane .l em{display:none}
+.pg .pg-rhead .big{align-items:flex-start;width:100%%}
+}
 .pg .pg-vs{display:flex;flex-direction:column;align-items:flex-end;text-align:right}
 .pg .pg-vs b{font-size:14px;font-variant-numeric:tabular-nums}
 .pg .pg-vs b.up{color:%(desk)s}

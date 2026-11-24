@@ -1660,6 +1660,60 @@ def check_board():
     check("and where they were away, in words",
           "away: cafe 12m &middot; out of the building 30m &middot; not seen"
           in row, True)
+    # 24 Nov: one employee's report card -- today beside the usual, the
+    # day place by place and from-to, and a usual day hour by hour.
+    segs = pdx.segments([
+        (t, t + pd.Timedelta(minutes=5), "computer", "Room"),
+        (t + pd.Timedelta(minutes=5), t + pd.Timedelta(minutes=10),
+         "computer", "Room"),
+        (t + pd.Timedelta(minutes=10), t + pd.Timedelta(minutes=40), "cafe",
+         "Prompt Cafe"),
+        (t + pd.Timedelta(minutes=40), t + pd.Timedelta(minutes=60), "left",
+         "out of the building")])
+    check("the day's passes joined into runs, one kind in one place",
+          [(s[2], round((s[1] - s[0]).total_seconds() / 60)) for s in segs],
+          [("computer", 10), ("cafe", 30), ("left", 20)])
+    card_p = person("P8", "away", 100, 40)
+    card_p["focus"].update(
+        segments=segs, minutes={"computer": 100.0, "cafe": 30.0,
+                                "left": 10.0},
+        stretches=[{"from": t, "to": t + pd.Timedelta(minutes=10),
+                    "minutes": 10.0, "what": "desk",
+                    "kinds": {"computer": 10.0}, "where": [], "seen": []},
+                   {"from": t + pd.Timedelta(minutes=10),
+                    "to": t + pd.Timedelta(minutes=40), "minutes": 30.0,
+                    "what": "away", "kinds": {"cafe": 30.0},
+                    "where": ["Prompt Cafe"], "seen": []},
+                   {"from": t + pd.Timedelta(minutes=40),
+                    "to": t + pd.Timedelta(minutes=43), "minutes": 3.0,
+                    "what": "unwatched", "kinds": {}, "where": [],
+                    "seen": []}])
+    card_p["days"] = [{"day": d, "watched_min": 600, "first": t,
+                       "desk_min": 300, "total_min": 300}
+                      for d in ("2026-11-23", "2026-11-24")]
+    card_p["slots"] = [["desk"] * 6 * 16, ["out"] * 6 + ["desk"] * 6]
+    today_html = pv.report(card_p, c, pv.REPORT_VIEWS[0])
+    check("the card: today beside the usual, each place a lane",
+          all(x in today_html for x in (">Usual<", "Came in", "At the desk",
+                                        "Cafe<em>", "Out of the building",
+                                        "&nbsp;&nbsp;cafe")), True)
+    check("from-to, oldest first, a short hole in the watching left out",
+          (today_html.index("09:00&ndash;09:10")
+           < today_html.index("Away: Prompt Cafe"),
+           "Not watched" in today_html), (True, False))
+    check("never says productive",
+          "productive" in today_html.lower(), False)
+    usual_html = pv.report(card_p, c, pv.REPORT_VIEWS[1])
+    check("the usual day: hour by hour over the past days, today as dots"
+          " only where they were in",
+          ("over 1 working day" in usual_html,
+           usual_html.count('title="today ')), (True, 1))
+    top = pv.page("light", {"campus": "140-H"}, [card_p], "now", part="top")
+    rest = pv.page("light", {"campus": "140-H"}, [card_p], "now",
+                   part="rest")
+    check("the page in two parts, the card between them",
+          ("Today, employee by employee" in top, "Every day" in top,
+           "Today, employee by employee" in rest), (True, False, False))
     home = person("P7", "gone", 300, 60)
     home["live"].update(label="Probably gone home",
                         since=pd.Timestamp("2026-11-24 17:40"))

@@ -729,6 +729,20 @@ def stretches(day_act, cams=None):
     return out
 
 
+def segments(line):
+    """The day's line, pass by pass, joined into runs of one kind in one
+    place: [(start, end, kind, room)] -- what the report card's day chart
+    draws (from-to, here, then there), small enough for the hosted page."""
+    out = []
+    for s, e, k, room in line or []:
+        if out and out[-1][2] == k and out[-1][3] == room \
+                and s - out[-1][1] <= JOINED:
+            out[-1][1] = e
+        else:
+            out.append([s, e, k, room])
+    return [tuple(x) for x in out]
+
+
 def route(day_act, desk_place, cams=None):
     """The day as stops through the building, for building_view: each
     stretch at the desk {"t", "until", "place": desk_place, "how": "desk"},
@@ -1157,6 +1171,7 @@ def build(cfg, today, hours=(10, 20), count=5, folder=SEATS, frm=8, to=24,
             the_day["slots"] = kind_slots(the_day, frm, to)
             way = route(the_day, desk_place, cams)
             the_day["stretches"] = stretches(the_day, cams)
+            the_day["segments"] = segments(the_day["line"])
             the_day.pop("line", None)
         except Exception:                                   # noqa: BLE001
             the_day = None

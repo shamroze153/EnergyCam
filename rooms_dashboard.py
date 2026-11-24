@@ -5694,6 +5694,31 @@ def show_building(mode, people):
         st.caption("**%s** · %s · %s" % (code, now_at, way))
 
 
+def show_report_card(mode, people, hours, now):
+    """One employee's report card (Shamroze, 24 Nov: "ek employee ka ...
+    report card uski aaj ke din ki", the day from-to, "average ka option
+    bhi"): who, and today or a usual day -- one at a time, the way he
+    follows best -- drawn by progress_view.report()."""
+    import progress_view
+    if not people:
+        return
+    named = sorted(people, key=lambda p: (not p.get("name"),
+                                          progress_view.who(p)))
+    codes = [p.get("code", "?") for p in named]
+    label = {p.get("code", "?"): "%s%s" % (
+        progress_view.who(p), (" · %s" % p["department"])
+        if p.get("department") else "") for p in named}
+    left, right = st.columns([3, 2])
+    pick = left.selectbox("Report card", codes, key="progress_report_who",
+                          format_func=lambda c: label.get(c, c))
+    view = right.radio("Show", progress_view.REPORT_VIEWS, horizontal=True,
+                       key="progress_report_view")
+    p = next(x for x in named if x.get("code") == pick)
+    local = now.tz_convert(PKT).tz_localize(None)
+    st.markdown(progress_view.report_block(mode, p, view, float(hours[0]),
+                                           local), unsafe_allow_html=True)
+
+
 def show_progress(now):
     """Progress (Shamroze, 23 Nov): the employee-productivity project --
     its stages, and time at the desk for the desks HR approved watching.
@@ -5736,8 +5761,11 @@ def show_progress(now):
                         unsafe_allow_html=True)
             return
         cfg, people, made, hours_sent = got
-        st.markdown(progress_view.page(mode, cfg, people, made, hours_sent),
-                    unsafe_allow_html=True)
+        st.markdown(progress_view.page(mode, cfg, people, made, hours_sent,
+                                       part="top"), unsafe_allow_html=True)
+        show_report_card(mode, people, hours_sent, now)
+        st.markdown(progress_view.page(mode, cfg, people, made, hours_sent,
+                                       part="rest"), unsafe_allow_html=True)
         show_building(mode, people)
         show_rooms_desks(mode, cfg.get("desks"))
         st.caption("Sent by the office laptop at %s (every five minutes). The "
@@ -5763,8 +5791,12 @@ def show_progress(now):
              else 0),
             _to_5min(now).isoformat(), hours)
     st.markdown(progress_view.page(mode, cfg, people,
-                                   local.strftime("%d %b %H:%M"), hours),
-                unsafe_allow_html=True)
+                                   local.strftime("%d %b %H:%M"), hours,
+                                   part="top"), unsafe_allow_html=True)
+    show_report_card(mode, people, hours, now)
+    st.markdown(progress_view.page(mode, cfg, people,
+                                   local.strftime("%d %b %H:%M"), hours,
+                                   part="rest"), unsafe_allow_html=True)
     show_building(mode, people)
     show_seat_review(mode)
     show_desks(mode, day_key)
