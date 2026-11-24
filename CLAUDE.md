@@ -114,6 +114,19 @@ git-ignored: never a name, ID, photo or face number in the repo, nor on
 the hosted page. A named seat is shown beside its directory photo for a
 person to confirm before anything is built on it.
 
+Every desk (24 Nov, Shamroze: "140 ke sab employees ka, jo desk par
+baithte hain"): `desk_seats.find_desks` -- every regular seat of 140-H's
+office cameras (167 desks, 13 rooms); `desk_watch.py` (from
+`room_loop.examine`) reads each desk every pass -- talking / the phone in
+a close look every third pass / "desk" (not read) / away -- into
+`progress/desks_activity/`, an hourly picture under `frames/desks/`, and
+rebuilds `progress/desks.csv` hourly (`desks_data.build`: the five's
+rules, plus focus blocks of 60+ min, core hours 11-17, late starts,
+after hours, an hourly heatmap). The Progress tab's "Every desk at
+140-H" (laptop only) shows the day and the usual week; a desk has a name
+only where one is known. `desks_data.py` stays pandas-only for the
+dashboard (test_dashboard checks its imports).
+
 Savings & peak (18 Nov): the dashboard's "Savings & peak" tab is
 `savings.py` -- the scoreboard (meters against the last bill and the same
 month a year ago; what cooling empty rooms cost, this week against the
