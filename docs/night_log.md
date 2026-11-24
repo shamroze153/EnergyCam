@@ -1486,3 +1486,9 @@ Two or three lines a round; picture file names, never pictures.
   of 170 moved since 23 Nov). Codes are now kept by place
   (progress/desk_codes.json); the 921 older desk pictures moved to
   frames/desks_before_codes/; the three named desks re-checked by place.
+* 18:55, 24 Nov Progress: away time now says where -- the campus
+  cameras' faces (0.20+ clear) and the gate's exits: cafe, meetings,
+  outside, out of the building, not seen; "Gone home" after five through
+  the gate, "Probably gone home" after 30 min seen nowhere. Names for
+  desks are now suggested camera against camera (name_suggest.py): 3
+  sheets sent for a yes/no; the receptionist's (already known) held back.
