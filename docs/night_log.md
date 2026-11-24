@@ -1395,3 +1395,13 @@ Two or three lines a round; picture file names, never pictures.
   9-13 passes a night since 20 Nov -- zoned [0,12,44,96] (its boxes wholly
   inside; a person at the door or a desk still counted, checked). Tests
   green; pushed 602e04f; loop restarted 03:06.
+* 04:47 round: 5 GHOST, no MISSED; nothing changed. 141 Room 25: the
+  white chair at the left desk reads as a person every pass tonight
+  (0.32-0.86, 27 passes) -- a seat (120+ real sittings a day there), so
+  no zone; the movement check is not setting it aside, its box swapping
+  between two shapes -- for Shamroze
+  (ghost_141_Room_25__2nd_floor__ch08_cd_xvr1_0447.jpg). Marketing ch3
+  (1720,573): a chair new tonight from 04:28 -- the movement check's in
+  40 min. Squat Wolf Room 1 ch5: a seat (sat at by day). H Street, 141-C
+  Outside Area: far shapes on public streets, no unit -- left. Loop alive
+  (04:43 pass), desk rows each pass.
