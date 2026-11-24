@@ -484,13 +484,27 @@ STATE_WORDS = {"desk": "At the desk", "away": "Away", "out": "Not in",
                "gone": "Gone home", "unwatched": "Not watched"}
 
 
-def board_row(p, c, frm=8, to=24):
-    """One employee's line on the scoreboard: (html, sort key)."""
+LATE_AFTER = 15          # minutes past the office's start that count as late
+BREAK_MIN = 10           # minutes away that make a break
+
+
+def board_row(p, c, frm=8, to=24, start=10.0):
+    """One employee's line on the scoreboard: (html, sort key). `start`:
+    the office's first hour (rooms.yaml), for "late"."""
     import progress_data as pdx
     f = p.get("focus") or {}
     m = f.get("minutes") or {}
     lv = p.get("live") or {}
     state = lv.get("state", "out")
+    stretches_ = f.get("stretches") or []
+    desk_runs = [s["minutes"] for s in stretches_ if s.get("what") == "desk"]
+    longest = max(desk_runs) if desk_runs else None
+    # A break is ten minutes or more away: shorter is the detector blinking
+    # or a word at the next desk (24 Nov: "13 breaks" from flicker).
+    breaks = sum(1 for s in stretches_
+                 if s.get("what") not in ("desk", "unwatched")
+                 and (s.get("minutes") or 0) >= BREAK_MIN)
+    gate = [str(t) for t in p.get("gate") or []]
     came = f.get("first_in") is not None
     at = sum(m.get(k, 0.0) for k in AT_DESK_KINDS) if came else 0.0
     away = sum(v for k, v in m.items()
@@ -506,8 +520,17 @@ def board_row(p, c, frm=8, to=24):
     when = since.strftime("%H:%M") if hasattr(since, "strftime") else ""
     now = ("since %s" % when if state in ("desk", "away") and when else
            "at %s" % when if state == "gone" and when else "")
-    first = f.get("first_in")
-    first = first.strftime("%H:%M") if hasattr(first, "strftime") else "--"
+    first_t = f.get("first_in")
+    first = first_t.strftime("%H:%M") if hasattr(first_t, "strftime") else "--"
+    late = (hasattr(first_t, "hour") and first_t.hour + first_t.minute / 60.0
+            > start + LATE_AFTER / 60.0)
+    # Away, and the gate named them on the way out after they left the
+    # desk: out of the building, not at the coffee machine.
+    left = ""
+    if state in ("away", "gone") and gate and hasattr(since, "strftime") \
+            and gate[-1][:5] >= since.strftime("%H:%M"):
+        left = gate[-1][:5]
+        now = "via the gate at %s" % left
     # The day's activity where the loop read it -- shared out over the
     # unread desk minutes the way the read ones were (progress_data).
     est = f.get("estimate") or {}
@@ -541,31 +564,42 @@ def board_row(p, c, frm=8, to=24):
     slots = f.get("slots") or []
     bar = (strip_svg(slots, c, frm, to) if slots else
            '<svg viewBox="0 0 100 10" class="pg-bar"></svg>')
+    word = "Out of the building" if left else STATE_WORDS.get(state, state)
+    gate_line = ('<small class="pg-gate">gate out %s</small>'
+                 % " &middot; ".join(t[:5] for t in gate[-3:])) if gate else ""
+    run_line = []
+    if longest and longest >= 15:
+        run_line.append("longest sitting %s" % dur(longest))
+    if came and breaks:
+        run_line.append("%d break%s" % (breaks, "" if breaks == 1 else "s"))
     html = (
         '<div class="pg-row %s">'
         '<div class="pg-who">%s<div><b>%s</b><span>%s</span></div></div>'
         '<div class="pg-now"><em style="background:%s">%s</em><small>%s%s'
-        '</small></div>'
-        '<div class="pg-in"><small>in</small><b>%s</b></div>'
+        '</small>%s</div>'
+        '<div class="pg-in"><small>in</small><b>%s</b>%s</div>'
         '<div class="pg-desk"><b>%s</b><small>at the desk%s</small>'
-        '<div class="pg-meter"><i style="width:%.0f%%"></i></div></div>'
+        '<div class="pg-meter"><i style="width:%.0f%%"></i></div>%s</div>'
         '<div class="pg-line">%s%s</div>'
         '<div class="pg-vs">%s</div></div>'
         % (state, badge(p, "sm"), esc(who(p)),
            esc(" · ".join(x for x in (p.get("department", ""),
                                       ("ID %s" % p["employee_id"])
                                       if p.get("employee_id") else "") if x)),
-           LIVE_COLOURS.get(state, "#898781"), STATE_WORDS.get(state, state),
+           LIVE_COLOURS.get(state, "#898781"), word,
            esc(now), (" &middot; %s" % esc(lv["place"]))
-           if lv.get("place") else "",
-           first, dur(at) if at else "--",
+           if lv.get("place") else "", gate_line,
+           first, '<small class="pg-late">late</small>' if late else "",
+           dur(at) if at else "--",
            (" &middot; %s of time in" % pct(share)) if share is not None
-           else "", 100 * (share or 0), bar, split, vs))
+           else "", 100 * (share or 0),
+           ('<small class="pg-run">%s</small>' % " &middot; ".join(run_line))
+           if run_line else "", bar, split, vs))
     order = {"desk": 0, "away": 1, "gone": 2, "out": 3}.get(state, 4)
     return html, (order, -(share or 0))
 
 
-def today_board(people, c, as_of="", frm=8, to=24):
+def today_board(people, c, as_of="", frm=8, to=24, start=10.0):
     """Today, one line an employee (Shamroze, 24 Nov: a tracker for the
     people he names, "bht acha sa"): where they are now, when they came
     in, their time at the desk so far and that as a share of their time
@@ -574,7 +608,7 @@ def today_board(people, c, as_of="", frm=8, to=24):
     measure is time at the desk -- never called "productive"."""
     if not any(p.get("focus") or p.get("live") for p in people):
         return ""
-    rows = sorted((board_row(p, c, frm, to) for p in people),
+    rows = sorted((board_row(p, c, frm, to, start) for p in people),
                   key=lambda r: r[1])
     here = sum(1 for p in people
                if (p.get("live") or {}).get("state") == "desk")
@@ -643,17 +677,28 @@ def team_table(people, c, days_shown=10):
             '</table></div>' % (head, "".join(rows)))
 
 
-def averages_table(people, days=7):
+def late_days(history, days=7, start=10.0):
+    """(late, of): the days in among the last `days` whose first-in came
+    more than LATE_AFTER minutes after the office's start."""
+    seen = [r for r in history or [] if r.get("first") is not None][-days:]
+    late = sum(1 for r in seen if hasattr(r["first"], "hour")
+               and r["first"].hour + r["first"].minute / 60.0
+               > start + LATE_AFTER / 60.0)
+    return late, len(seen)
+
+
+def averages_table(people, days=7, start=10.0):
     """Each employee's usual over their last seven days in: in, out, the
-    office and the desk, computer and phone, breaks (progress_data.average).
-    Shamroze, 23 Nov: "per day ya 7 din ka average"."""
+    office and the desk, computer and phone, breaks (progress_data.average)
+    and the days they came in late (24 Nov). Shamroze, 23 Nov: "per day ya
+    7 din ka average"."""
     import progress_data as pdx
     rows = []
     for p in people:
         a = pdx.average(p.get("history"), days)
         if a is None:
             rows.append('<tr><th class="who">%s%s<span>%s</span></th>'
-                        '<td colspan="9" class="none">no day in yet</td></tr>'
+                        '<td colspan="10" class="none">no day in yet</td></tr>'
                         % (face(p, "xs"), esc(tag(p)),
                            esc(p.get("department", ""))))
             continue
@@ -661,13 +706,16 @@ def averages_table(people, days=7):
                 % (pct(a["computer_pct"]), a["read_days"],
                    "" if a["read_days"] == 1 else "s")
                 if a["read_days"] else '<small>not read yet</small>')
+        late, of = late_days(p.get("history"), days, start)
         rows.append(
             '<tr><th class="who">%s%s<span>%s</span></th><td>%d</td>'
-            '<td><b>%s</b></td><td><b>%s</b></td><td>%s</td><td>%s</td>'
-            '<td><b>%s</b></td><td>%s</td><td>%s</td><td>%s</td></tr>'
+            '<td><b>%s</b></td><td>%s</td><td><b>%s</b></td><td>%s</td>'
+            '<td>%s</td><td><b>%s</b></td><td>%s</td><td>%s</td><td>%s</td>'
+            '</tr>'
             % (face(p, "xs"), esc(tag(p)), esc(p.get("department", "")),
                a["days"], hhmm(a["first"] / 60.0 if a["first"] is not None
                                else None),
+               ("%d of %d days" % (late, of)) if of else "--",
                hhmm(a["last"] / 60.0 if a["last"] is not None else None),
                dur(a["in_min"]), dur(a["desk_min"]), pct(a["desk_pct"]),
                comp, dur(a["phone_min"]) if a["read_days"] else "--",
@@ -679,7 +727,8 @@ def averages_table(people, days=7):
             'and phone only on the days the activity was read (from 23 Nov)'
             '</span></div><div class="ec-card pg-tablewrap"><table '
             'class="pg-team pg-avg"><thead><tr><th></th><th>days</th>'
-            '<th>in</th><th>out</th><th>in the office</th><th>at the desk'
+            '<th>in</th><th>late</th><th>out</th><th>in the office</th>'
+            '<th>at the desk'
             '</th><th>desk %%</th><th>computer %%</th><th>phone</th>'
             '<th>breaks a day</th></tr></thead><tbody>%s</tbody></table>'
             '</div>' % (days, "".join(rows)))
@@ -747,11 +796,11 @@ def page(mode, cfg, people, as_of, hours=(10, 20), frm=8, to=24):
     # it, invisible (23 Nov, the first look in the dashboard).
     # The scoreboard took the "Right now" strip's place (24 Nov): it says
     # where everybody is too, beside their day.
-    board = today_board(people, c, as_of, frm, to)
+    board = today_board(people, c, as_of, frm, to, float(hours[0]))
     return (css(mode) + "\n" + _CSS % c + "\n" + '<div class="ec pg">' + head
             + (board or live_strip(people, c, as_of)) + tiles(people, c)
             + team_table(people, c)
-            + averages_table(people)
+            + averages_table(people, start=float(hours[0]))
             + cases_block(people)
             + tracker(cfg.get("stages") or [], c, cfg.get("needs"))
             + body + note + "</div>")
@@ -926,8 +975,13 @@ text-overflow:ellipsis}
 color:#fff;padding:2px 9px;border-radius:99px;white-space:nowrap}
 .pg .pg-now small,.pg .pg-in small,.pg .pg-desk small,.pg .pg-vs small{font-size:10.5px;
 color:var(--t3)}
-.pg .pg-in{display:flex;flex-direction:column}
+.pg .pg-in{display:flex;flex-direction:column;align-items:flex-start}
 .pg .pg-in b{font-size:14px;font-variant-numeric:tabular-nums}
+.pg .pg-in .pg-late{font-size:10px;font-weight:700;color:#fff;background:%(away)s;
+border-radius:99px;padding:0 6px;margin-top:2px}
+.pg .pg-now .pg-gate{font-size:10.5px;color:var(--t3);white-space:nowrap}
+.pg .pg-desk .pg-run{font-size:10.5px;color:var(--t3);margin-top:3px;white-space:nowrap;
+overflow:hidden;text-overflow:ellipsis}
 .pg .pg-desk{display:flex;flex-direction:column;min-width:0}
 .pg .pg-desk b{font-size:17px;font-weight:720;font-variant-numeric:tabular-nums}
 .pg .pg-meter{height:6px;border-radius:3px;background:var(--line);overflow:hidden;

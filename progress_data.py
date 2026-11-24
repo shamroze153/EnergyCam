@@ -1012,6 +1012,7 @@ def build(cfg, today, hours=(10, 20), count=5, folder=SEATS, frm=8, to=24,
                         float(g["x"].iloc[0]), float(g["y"].iloc[0]))
     except Exception:                                       # noqa: BLE001
         hand, seats = {}, {}
+    gate = gate_passages(focus)
 
     def by_hand(person):
         for code, (eid, name) in hand.items():
@@ -1059,6 +1060,7 @@ def build(cfg, today, hours=(10, 20), count=5, folder=SEATS, frm=8, to=24,
             "name": name,
             "employee_id": eid,
             "photo": photo_icon(eid) if eid else "",
+            "gate": gate.get(eid, []) if eid else [],
             "department": person.get("department", ""),
             "why": person.get("why", ""),
             "check": person.get("check") or {},
@@ -1069,6 +1071,30 @@ def build(cfg, today, hours=(10, 20), count=5, folder=SEATS, frm=8, to=24,
                            whole),
         })
     return out
+
+
+GATE = os.path.join("people", "entrance")
+
+
+def gate_passages(day, folder=None):
+    """{employee_id: ["HH:MM:SS", ...]}: when the gate camera (Entry H,
+    entrance_watch.py) named somebody that day, oldest first. It sees a
+    face only on the way OUT -- going in it sees a back -- so these are
+    leavings: lunch, a smoke, home (Shamroze, 24 Nov: "in aur out to gate
+    se dekhna chahiye"). Named only far above the line, as the gate names
+    anybody; empty without the day's file."""
+    path = os.path.join(folder or GATE, day + ".csv")
+    if not os.path.exists(path):
+        return {}
+    try:
+        d = pd.read_csv(path, dtype=str).fillna("")
+    except (OSError, ValueError):
+        return {}
+    if not {"status", "employee_id", "time"} <= set(d.columns):
+        return {}
+    d = d[(d["status"] == "named") & (d["employee_id"] != "")]
+    return {eid: sorted(g["time"].tolist()) for eid, g in
+            d.groupby("employee_id")}
 
 
 # A small round picture beside a name (Shamroze, 24 Nov: "chota sa icon

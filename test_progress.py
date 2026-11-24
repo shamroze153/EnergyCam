@@ -1553,6 +1553,37 @@ def check_board():
     check("somebody not in shows no desk time",
           pv.board_row(person("P4", "out", 5, 0, first=False), c)[0].count(
               "<b>--</b>") >= 2, True)
+    # The gate (Entry H) names people on the way out: away, and named at
+    # the gate after leaving the desk, is out of the building.
+    gone = person("P5", "away", 100, 40)
+    gone["gate"] = ["08:30:00", "09:20:00"]
+    gone["live"]["since"] = pd.Timestamp("2026-11-24 09:10")
+    row = pv.board_row(gone, c)[0]
+    check("away and named at the gate since: out of the building",
+          "Out of the building" in row and "via the gate at 09:20" in row
+          and "gate out 08:30" in row, True)
+    late = person("P6", "desk", 100, 20)
+    late["focus"]["first_in"] = pd.Timestamp("2026-11-24 10:40")
+    check("in at 10:40 with the office from 10:00 is late",
+          "pg-late" in pv.board_row(late, c, start=10.0)[0]
+          and "pg-late" not in pv.board_row(late, c, start=10.5)[0], True)
+    blinky = person("P7", "desk", 100, 20)
+    blinky["focus"]["stretches"] = [
+        {"what": "desk", "minutes": 50}, {"what": "away", "minutes": 4},
+        {"what": "desk", "minutes": 30}, {"what": "away", "minutes": 25}]
+    row = pv.board_row(blinky, c)[0]
+    check("a break is ten minutes away or more; the longest sitting shown",
+          "1 break<" in row.replace("1 break</small>", "1 break<")
+          and "longest sitting 50m" in row, True)
+    import tempfile
+    tmp = tempfile.mkdtemp()
+    with open(os.path.join(tmp, "2026-11-24.csv"), "w") as fh:
+        fh.write("time,recorder,channel,status,employee_id,best,score,"
+                 "margin,face_w\n09:20:00,nvr1,5,named,00001,00001,0.6,0.2,"
+                 "60\n09:30:00,nvr1,5,unknown,,00002,0.4,0.0,50\n")
+    check("the gate's named passages, by employee ID; unknown faces left out",
+          pdx.gate_passages("2026-11-24", tmp), {"00001": ["09:20:00"]})
+    shutil.rmtree(tmp)
 
 
 def main():
