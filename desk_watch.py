@@ -18,6 +18,8 @@ import os
 import time
 from datetime import datetime
 
+import numpy as np
+
 import desk_activity as da
 
 OUT = os.path.join("progress", "desks_activity")
@@ -91,6 +93,8 @@ def _observe(room, key, frame, boxes, model, now, out, crops, finder):
                                                else "desk")
             else:
                 state = "desk"
+            if state != "talking":
+                keep_look(day, d["code"], frame, me[2:6], now, out)
             path = os.path.join(crops or CROPS, day, "%s_%s.jpg"
                                 % (d["code"], now.strftime("%H")))
             if not os.path.exists(path):
@@ -102,6 +106,54 @@ def _observe(room, key, frame, boxes, model, now, out, crops, finder):
                        else (0, 0, 0, 0)))
     _write(day, rows, out or OUT, crops or CROPS)
     return len(rows)
+
+
+# The sitter's look -- clothes and build as OSNet (reid.py) sees them --
+# a few times an hour per desk (24 Nov: the offices' cameras look down and
+# see no face, but the gate names people with their clothes on; the same
+# day's clothes say whose desk it is -- clothes_match.py). Numbers only,
+# under progress/desk_looks/<day>/<code>.f16 (+ .txt, the times).
+LOOKS = os.path.join("progress", "desk_looks")
+LOOK_EVERY = 900          # s between a desk's looks
+EMBED = None              # tests put their own here
+_looked = {}
+
+
+def keep_look(day, code, frame, box, now, out=None, embed=None):
+    """Keep the desk's sitter's look, at most every LOOK_EVERY. Never
+    raises; nothing without the re-ID weights. `out` (the activity folder
+    a test gives) puts the looks in <out>/looks."""
+    try:
+        t = now.timestamp()
+        if t - _looked.get(code, 0.0) < LOOK_EVERY:
+            return False
+        embed = embed or EMBED
+        if embed is None:
+            import reid
+            if not reid.available():
+                return False
+            embed = reid.embed
+        v = embed(frame, [box])[0]
+        if not np.any(v):
+            return False
+        _looked[code] = t
+        base = os.path.join(out, "looks") if out else LOOKS
+        folder = os.path.join(base, day)
+        if not os.path.isdir(folder):
+            cutoff = time.time() - KEEP_DAYS * 86400
+            for name in os.listdir(base) if os.path.isdir(base) else []:
+                old = os.path.join(base, name)
+                if os.path.isdir(old) and os.path.getmtime(old) < cutoff:
+                    import shutil
+                    shutil.rmtree(old, ignore_errors=True)
+        os.makedirs(folder, exist_ok=True)
+        with open(os.path.join(folder, code + ".f16"), "ab") as fh:
+            fh.write(np.asarray(v, np.float16).tobytes())
+        with open(os.path.join(folder, code + ".txt"), "a") as fh:
+            fh.write(now.strftime("%H:%M:%S") + "\n")
+        return True
+    except Exception:                                       # noqa: BLE001
+        return False
 
 
 def _square(shape, seat, share=0.30):

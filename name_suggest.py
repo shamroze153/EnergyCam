@@ -59,7 +59,7 @@ def gate_gallery(days, folder=GATE_PICS, embed=None):
     for day in days:
         for path in sorted(glob.glob(os.path.join(folder, day, "*.jpg"))):
             eid = os.path.splitext(os.path.basename(path))[0].split("_")[-1]
-            if eid != "unknown":
+            if eid not in ("unknown", "body"):        # body: the clothes
                 pics.setdefault(eid, []).append(path)
     ids, vecs, used = [], [], {}
     for eid, paths in sorted(pics.items()):

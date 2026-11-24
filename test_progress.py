@@ -732,6 +732,50 @@ def check_every_desk():
     check("two seats near one desk: the nearer keeps it",
           ds.stable_numbers("dvr2.2", [(1120, 790), (1095, 789)], reg),
           [4, 2])
+    # 24 Nov: the same day's clothes -- the gate keeps a named passer's,
+    # each desk its sitter's look -- pair a desk with a passer.
+    import clothes_match as cm
+    import desk_watch as dw_
+    import entrance_watch as ew_
+
+    def u512(*v):
+        x = np.zeros(512, np.float32)
+        x[:len(v)] = v
+        return x / np.linalg.norm(x)
+    looks = {"dvr2.13-1": np.array([u512(1, 0.1), u512(1, 0), u512(0.9, 0.1)]),
+             "dvr2.13-2": np.array([u512(0.1, 1), u512(0, 1), u512(0.1, 0.9)]),
+             "dvr2.13-3": np.array([u512(0.7, 0.7)] * 3),     # like both
+             "dvr2.13-4": np.array([u512(0, 0, 1)])}          # too few looks
+    gate_ = {"A": np.array([u512(1, 0)]), "B": np.array([u512(0, 1)]),
+             "C": np.array([u512(0, 0, 0, 1)])}
+    pairs = cm.day_pairs(looks, gate_)
+    check("clothes: a desk and a passer that pick each other; a look like"
+          " two passers, or too few looks, pairs nobody",
+          sorted((c, e) for c, (e, _, _) in pairs.items()),
+          [("dvr2.13-1", "A"), ("dvr2.13-2", "B")])
+    check("checked on the desks whose sitter is known",
+          cm.evaluate(pairs, {"dvr2.13-1": "A", "dvr2.13-2": "X"}), (1, 1))
+    check("over days: the passer a desk got most, and how often another",
+          cm.combine([pairs, {"dvr2.13-1": ("A", .7, .1)},
+                      {"dvr2.13-1": ("Z", .7, .1)}])[0],
+          ("dvr2.13-1", "A", 2, 1))
+    check("the gate's clothes box: under the face, three faces wide",
+          ew_.body_box((100, 50, 40, 50), 2560, 1440), (60, 40, 180, 375))
+    lk = tempfile.mkdtemp()
+    try:
+        when = pd.Timestamp("2026-11-24 11:00", tz="Asia/Karachi")
+        dw_._looked.clear()
+        kept = [dw_.keep_look("2026-11-24", "dvr2.13-1", None, (0, 0, 9, 9),
+                              when + pd.Timedelta(minutes=m), lk,
+                              embed=lambda f, b: [u512(1, 0)])
+                for m in (0, 5, 16)]
+        v = np.fromfile(os.path.join(lk, "looks", "2026-11-24",
+                                     "dvr2.13-1.f16"), np.float16)
+        check("a desk's sitter's look kept every 15 minutes, as numbers",
+              (kept, len(v) // 512), ([True, False, True], 2))
+    finally:
+        shutil.rmtree(lk)
+        dw_._looked.clear()
     # 24 Nov: names suggested camera against camera -- each desk's face
     # against the gate's faces -- only where the two pick each other.
     import numpy as np
@@ -757,9 +801,11 @@ def check_every_desk():
           dd.codes_since(since_f), "2026-11-24 18:20:00")
     folder = tempfile.mkdtemp()
     old = dict(dw._desks), dict(dw._count)
+    old_embed = dw.EMBED
     try:
         dw._desks.update(day=None, by_cam={})
         dw._count.clear()
+        dw.EMBED = lambda f, b: [u512(0, 1)]       # no network in a test
         desk = {"code": "dvr9.1-1", "room": "Test Room", "recorder": "dvr2",
                 "channel": 15, "seat": [500, 700], "share": 0.5}
         frame = np.zeros((1080, 1920, 3), np.uint8)
@@ -785,7 +831,12 @@ def check_every_desk():
             "Test Room", ("dvr2", 15), frame, [], None,
             _dt(2026, 11, 20, 23, 30, tzinfo=pt.PKT),
             out=os.path.join(folder, "act"), finder=lambda day: [desk]), 0)
+        check("the sitter's look kept beside the reading",
+              os.path.exists(os.path.join(folder, "act", "looks", DAY,
+                                          "dvr9.1-1.f16")), True)
     finally:
+        dw.EMBED = old_embed
+        dw._looked.clear()
         dw._desks.clear()
         dw._desks.update(old[0])
         dw._count.clear()

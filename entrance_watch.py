@@ -102,8 +102,20 @@ def decide(vec, ids, vecs, recent, t, same=SAME, margin=MARGIN, cctv=None):
     return ("named" if named else "unknown"), best, top, top - second
 
 
-def write(day, row, crop=None, out=None):
-    """One passage to people/entrance/<day>.csv (+ its face picture)."""
+def body_box(face, w, h):
+    """Where a passer's clothes are, from their face (x, y, fw, fh): from
+    just above the face down six and a half faces, three faces wide --
+    the shirt and what shows below it, as the gate sees them."""
+    x, y, fw, fh = (float(v) for v in face[:4])
+    return (int(max(0, x - 1.0 * fw)), int(max(0, y - 0.2 * fh)),
+            int(min(w, x + 2.0 * fw)), int(min(h, y + 6.5 * fh)))
+
+
+def write(day, row, crop=None, out=None, body=None):
+    """One passage to people/entrance/<day>.csv (+ its face picture, and
+    for a named one the clothes: <time>_ch.._<id>_body.jpg -- 24 Nov, the
+    same day's clothes say which desk is theirs where the desk's camera
+    sees no face)."""
     folder = out or OUT
     os.makedirs(folder, exist_ok=True)
     path = os.path.join(folder, day + ".csv")
@@ -119,6 +131,12 @@ def write(day, row, crop=None, out=None):
             row[0].replace(":", ""), row[2], row[4] or "unknown"))
         os.makedirs(os.path.dirname(pic), exist_ok=True)
         cv2.imwrite(pic, crop, [cv2.IMWRITE_JPEG_QUALITY, 85])
+    if body is not None and getattr(body, "size", 0) and row[4]:
+        import cv2
+        pic = os.path.join(folder, day, "%s_ch%02d_%s_body.jpg" % (
+            row[0].replace(":", ""), row[2], row[4]))
+        os.makedirs(os.path.dirname(pic), exist_ok=True)
+        cv2.imwrite(pic, body, [cv2.IMWRITE_JPEG_QUALITY, 85])
     if new:
         _forget_old(folder)
 
@@ -244,10 +262,19 @@ class Watch(threading.Thread):
             if crop.size:
                 crop = cv2.resize(crop, (160, int(160 * crop.shape[0]
                                                   / max(1, crop.shape[1]))))
+            body = None
+            if status == "named":
+                bx1, by1, bx2, by2 = body_box(full, w, h)
+                body = frame[by1:by2, bx1:bx2]
+                if body.size:
+                    body = cv2.resize(body, (int(256 * body.shape[1]
+                                                 / max(1, body.shape[0])),
+                                             256))
             write(now.strftime("%Y-%m-%d"),
                   (now.strftime("%H:%M:%S"), self.recorder, self.channel,
                    status, best if status == "named" else "", best, score,
-                   margin, int(full[2])), crop if crop.size else None, out)
+                   margin, int(full[2])), crop if crop.size else None, out,
+                  body=body)
             self.passages += 1
             n += 1
         return n
