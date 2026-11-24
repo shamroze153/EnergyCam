@@ -1440,3 +1440,10 @@ Two or three lines a round; picture file names, never pictures.
   over days. A test had written 1,289 fake rows into the day's desk file
   -- removed, tests now write to temporary folders. Pose + screen left
   for a validation set first. Pushed up to 505597f.
+* 10:47 round (day): 2 GHOST, 6 DRIFT (crowds -- both say occupied), no
+  MISSED. 141 Data Centre ch11: the server cabinet's left edge, 0.25-0.36
+  now and then -- but technicians stand there (0.79-0.85 on 15 and 22
+  Nov), so no zone; for Shamroze (ghost_141_Data_Centre_ch11_cd_nvr1_
+  1047.jpg). Gaming Area: people passing. Nothing changed. Loop restarted
+  11:0x for the desk reading's pose and screen (98221aa) -- a hand held to
+  the head is a call, no screen in sight is "desk", not "computer".
