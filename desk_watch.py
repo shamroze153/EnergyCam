@@ -93,7 +93,7 @@ def _observe(room, key, frame, boxes, model, now, out, crops, finder):
                                 % (d["code"], now.strftime("%H")))
             if not os.path.exists(path):
                 desk_crop(frame, d["seat"], path)
-                mark_seat(path, frame.shape, d["seat"])
+                mark_seat(path, frame.shape, d["seat"], me[2:6])
         rows.append((hms, d["code"], "desk", state, room, key[0],
                      int(key[1]), 1.0 if me is not None else 0.0)
                     + (tuple(int(v) for v in me[2:]) if me is not None
@@ -102,27 +102,50 @@ def _observe(room, key, frame, boxes, model, now, out, crops, finder):
     return len(rows)
 
 
-def seat_in_crop(shape, seat, share=0.30, size=480):
-    """Where a desk's seat falls in progress_track.desk_crop's square --
-    not always its middle: at a frame's edge the square is held inside the
-    frame (24 Nov: 32 of 72 desk pictures had the seat well off-centre)."""
+def _square(shape, seat, share=0.30):
+    """progress_track.desk_crop's square in the frame: (X1, Y1, side)."""
     H, W = shape[:2]
     side = int(share * W)
     x, y = (float(v) for v in seat)
     X1 = min(max(0, x - side // 2), max(0, W - side))
     Y1 = min(max(0, y - int(0.75 * side)), max(0, H - side))
+    return X1, Y1, side
+
+
+def seat_in_crop(shape, seat, share=0.30, size=480):
+    """Where a desk's seat falls in progress_track.desk_crop's square --
+    not always its middle: at a frame's edge the square is held inside the
+    frame (24 Nov: 32 of 72 desk pictures had the seat well off-centre)."""
+    X1, Y1, side = _square(shape, seat, share)
+    x, y = (float(v) for v in seat)
     return (int((x - X1) / side * size), int((y - Y1) / side * size))
 
 
-def mark_seat(path, shape, seat):
-    """A small ring on the desk's picture where its seat is, so the person
-    naming the desk names the right sitter."""
+def box_in_crop(shape, seat, box, share=0.30, size=480):
+    """A person's box (frame pixels) in the desk picture's pixels, held
+    inside the picture."""
+    X1, Y1, side = _square(shape, seat, share)
+
+    def f(v, o):
+        return int(min(size - 1, max(0, (float(v) - o) / side * size)))
+    return f(box[0], X1), f(box[1], Y1), f(box[2], X1), f(box[3], Y1)
+
+
+def mark_seat(path, shape, seat, box=None):
+    """On the desk's picture: a box round the person sitting at the desk
+    (24 Nov: naming the desks, Shamroze could not tell which person a
+    picture was for) and a small ring where its seat is."""
     try:
         import cv2
         img = cv2.imread(path)
         if img is None:
             return
-        cv2.circle(img, seat_in_crop(shape, seat, size=img.shape[0]), 14,
+        size = img.shape[0]
+        if box is not None:
+            x1, y1, x2, y2 = box_in_crop(shape, seat, box, size=size)
+            if x2 - x1 > 4 and y2 - y1 > 4:
+                cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 255), 3)
+        cv2.circle(img, seat_in_crop(shape, seat, size=size), 14,
                    (0, 255, 255), 2)
         cv2.imwrite(path, img, [cv2.IMWRITE_JPEG_QUALITY, 80])
     except Exception:                                       # noqa: BLE001

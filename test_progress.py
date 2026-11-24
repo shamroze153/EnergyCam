@@ -793,7 +793,42 @@ def check_every_desk():
           "inside the frame at an edge)",
           (dw.seat_in_crop((1080, 1920), (960, 700)),
            dw.seat_in_crop((1080, 1920), (960, 60))), ((240, 360), (240, 50)))
+    check("and a box round the person sitting there, in the picture's "
+          "pixels, held inside it",
+          (dw.box_in_crop((1080, 1920), (960, 700), (860, 400, 1060, 720)),
+           dw.box_in_crop((1080, 1920), (960, 700), (0, 0, 5000, 5000))),
+          ((156, 110, 323, 376), (0, 0, 479, 479)))
     import desks_data as dd_
+    pics = tempfile.mkdtemp()
+    try:
+        for d_, f_ in (("2026-11-23", "dvr9.1-2_10.jpg"),
+                       ("2026-11-24", "dvr9.1-2_09.jpg"),
+                       ("2026-11-24", "dvr9.1-2_13.jpg"),
+                       ("2026-11-24", "dvr9.1-10_13.jpg"),
+                       ("2026-11-24", "notes.txt")):
+            os.makedirs(os.path.join(pics, d_), exist_ok=True)
+            open(os.path.join(pics, d_, f_), "wb").close()
+        got = dd_.all_desk_pictures(pics)
+        check("naming the desks: each desk's pictures, every day's, newest "
+              "first", ([os.path.basename(p) for p in got["dvr9.1-2"]],
+                        sorted(got)),
+              (["dvr9.1-2_13.jpg", "dvr9.1-2_09.jpg", "dvr9.1-2_10.jpg"],
+               ["dvr9.1-10", "dvr9.1-2"]))
+        check("and when each was taken",
+              dd_.picture_when(got["dvr9.1-2"][0]), "Tue 24 Nov, 13:00")
+    finally:
+        shutil.rmtree(pics)
+    rooms_of = {"a.1-2": "R1", "a.1-10": "R1", "a.1-1": "R1", "b.2-1": "R2",
+                "a.1-3": "R1"}
+    seen = {c: ["x.jpg"] for c in ("a.1-2", "a.1-10", "a.1-1", "b.2-1")}
+    hand = {"a.1-2": ("00001", "Some One")}
+    check("it walks the desks with a picture, room by room, in desk order",
+          dd_.naming_list(rooms_of, seen, {}, dd_.ALL_ROOMS, True),
+          ["a.1-1", "a.1-2", "a.1-10", "b.2-1"])
+    check("one room; a named desk left out until every desk is asked for",
+          (dd_.naming_list(rooms_of, seen, hand, "R1", True),
+           dd_.naming_list(rooms_of, seen, hand, "R1", False)),
+          (["a.1-1", "a.1-10"], ["a.1-1", "a.1-2", "a.1-10"]))
     notes2 = pd.DataFrame([
         dict(time="10:00:00", recorder="dvr9", channel=1, cx=500, cy=600,
              w=100, h=200, score=.9, frame_w=1920, frame_h=1080,

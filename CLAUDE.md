@@ -194,9 +194,12 @@ names a person is on this laptop only. Read this, then docs/night_log.md.
   seats_identified.csv, desks_by_gate.csv), progress/, frames/, .env.
   A new machine has none of it: the code runs and names nobody.
 * The Progress tab (laptop): Who sits where (Yes/No on seats named by
-  face), Every desk (day, usual week, heatmap), Name the desks (a picker
-  of the directory -- names given there are certain and become CCTV
-  galleries). The hosted page gets codes and numbers, and the
+  face), Every desk (day, usual week, heatmap), Name the desks (one desk
+  at a time, 24 Nov: its hourly pictures with the sitter in a yellow box
+  -- `desk_watch.mark_seat` -- the directory picker, and the chosen
+  person's directory photo beside it; it saves only on "Save", never on
+  a change -- the old grid wrote blanks when the page errored. Names
+  given there are certain and become CCTV galleries). The hosted page gets codes and numbers, and the
   named employees' name, ID and directory-photo icon (`cloud_names: true`
   in progress.yaml) -- never a camera picture.
 * Session schedules die with the session -- recreate in a new one: the

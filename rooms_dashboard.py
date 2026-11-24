@@ -2703,6 +2703,22 @@ def app_chrome(mode):
         " border: 1px solid %(line)s !important; }"
         " div[data-testid='stMainBlockContainer'] button[kind='primary']"
         ":disabled p { color: %(muted)s !important; }"
+        # Every other button (Back, Skip, Yes, No, Lock Progress) kept
+        # config.toml's dark fill under the page's dark ink: black on black
+        # in the light theme (24 Nov, naming the desks). The page's colours.
+        " div[data-testid='stMainBlockContainer'] div[data-testid='stButton']"
+        " button[kind='secondary'] { background: %(surface)s !important;"
+        " border: 1px solid %(line)s !important;"
+        " border-radius: 10px !important; }"
+        " div[data-testid='stMainBlockContainer'] div[data-testid='stButton']"
+        " button[kind='secondary'] p { color: %(text)s !important;"
+        " font-weight: 600; }"
+        " div[data-testid='stMainBlockContainer'] div[data-testid='stButton']"
+        " button[kind='secondary']:hover { background: %(sunken)s"
+        " !important; }"
+        # And a progress bar's empty track, which read as a full black bar.
+        " .stApp [data-testid='stProgress'] [role='progressbar'] > div"
+        " { background: %(line)s !important; }"
         " div[data-testid='stPopover'] button { background: %(surface)s"
         " !important; border: 1px solid %(line)s !important;"
         " border-radius: 12px !important; min-height: 44px; }"
@@ -5229,13 +5245,24 @@ def show_rooms_desks(mode, desks):
                         config={"displaylogo": False, "scrollZoom": False})
 
 
+NAMING_ALL = "All rooms"            # desks_data.ALL_ROOMS
+NAMING_TODO = "Not named yet"
+NAMING_EVERY = "Every desk"
+
+
 def show_desk_naming(mode, day):
     """Name the desks by hand (Shamroze, 24 Nov: "tum picture lete raho,
     Progress mein daalo, aage naam aur employee ID main daal dunga -- 100%
-    match, phir track karte rehna"): each desk of a room with its newest
-    picture and a picker of the whole directory. A name given here stands
-    above every guess, and that desk's days are that person's."""
+    match, phir track karte rehna"). One desk at a time -- the first try
+    was a grid, where each picker sat under one picture and over the next
+    ("konsi image ka konsa arha smjh nai araha"): the desk's pictures, big,
+    the person sitting there in a yellow box (desk_watch.mark_seat), and
+    beside them the directory, with the chosen person's directory photo to
+    compare. A name given here stands above every guess, and the desk's
+    days are that person's. The pictures are every day's, not only `day`'s.
+    """
     import desks_data
+    import progress_data
     path = desks_data.OUT
     if not os.path.exists(path):
         return
@@ -5248,46 +5275,148 @@ def show_desk_naming(mode, day):
     if df.empty or not roster:
         return
     hand = desks_data.load_desk_names()
+    first = df.drop_duplicates("code")
+    rooms_of = dict(zip(first["code"], first["room"]))
+    pictures = desks_data.all_desk_pictures()
+    no_pic = sum(1 for c in rooms_of if not pictures.get(c))
+    done = sum(1 for c in hand if c in rooms_of)
     st.markdown(overview.css(mode) + '<div class="ec"><div class="ec-h">'
                 '<span class="t">Name the desks</span><span class="c">'
-                '%d of %d desks named by hand &middot; pick who sits at each '
-                'from the directory (type a name or an ID) &middot; a name '
-                'given here is certain, and that desk&rsquo;s days are theirs'
-                '</span></div></div>' % (len(hand), df["code"].nunique()),
+                '%d of %d desks named &middot; one desk at a time: its '
+                'pictures, the person sitting there in the yellow box, and '
+                'who it is from the directory &middot; %d desk%s with no '
+                'picture yet will come once somebody sits there'
+                '</span></div></div>'
+                % (done, len(rooms_of), no_pic, "" if no_pic == 1 else "s"),
                 unsafe_allow_html=True)
-    rooms = sorted(df["room"].unique())
-    room = st.selectbox("Room to name", rooms, key="name_room")
+    st.progress(min(1.0, done / float(max(1, len(rooms_of)))))
+    rooms = sorted(set(rooms_of.values()))
+    a, b = st.columns([3, 2])
+    with a:
+        room = st.selectbox("Room", [NAMING_ALL] + rooms, key="dn_room")
+    with b:
+        show = st.radio("Show", [NAMING_TODO, NAMING_EVERY], key="dn_show",
+                        horizontal=True)
+    todo_only = show == NAMING_TODO
+    codes = desks_data.naming_list(rooms_of, pictures, hand, room, todo_only)
+    scope = "%s|%s" % (room, show)
+    if st.session_state.get("dn_scope") != scope:
+        st.session_state["dn_scope"] = scope
+        st.session_state["dn_at"] = 0
     options = [""] + ["%s · %s · %s" % (r["employee_id"], r["name"],
                                          r["designation"]) for r in roster]
     by_id = {o.split(" · ")[0]: o for o in options[1:]}
+    person = {r["employee_id"]: r for r in roster}
 
-    def chose(code):
+    def move(step):
+        st.session_state["dn_at"] = st.session_state.get("dn_at", 0) + step
+
+    def save(code, advance):
         pick = st.session_state.get("dn_" + code) or ""
-        eid = pick.split(" · ")[0] if pick else ""
-        name = pick.split(" · ")[1] if pick else ""
+        if not pick:
+            return
+        eid, name = pick.split(" · ")[:2]
         desks_data.save_desk_name(code, eid, name)
         cached_desks.clear()
-    codes = sorted(df[df["room"] == room]["code"].unique())
-    for i in range(0, len(codes), 3):
-        cols = st.columns(3)
-        for col, code in zip(cols, codes[i:i + 3]):
-            with col:
-                pic = desks_data.desk_picture(code, day)
-                if pic:
-                    stretch(st.image, pic, caption=code)
-                else:
-                    st.caption("%s · no picture yet" % code)
+        if advance:              # "not named yet": the desk leaves the list
+            move(1)
+
+    def go_to(code):
+        where = rooms_of[code]
+        st.session_state["dn_room"] = where
+        st.session_state["dn_show"] = NAMING_EVERY
+        st.session_state["dn_scope"] = "%s|%s" % (where, NAMING_EVERY)
+        every = desks_data.naming_list(rooms_of, pictures, {}, where, False)
+        st.session_state["dn_at"] = every.index(code) if code in every else 0
+
+    if not codes:
+        st.success("Every desk with a picture%s is named. More come as "
+                   "people sit at the others."
+                   % ("" if room == NAMING_ALL else " in %s" % room))
+    else:
+        i = st.session_state.get("dn_at", 0) % len(codes)
+        st.session_state["dn_at"] = i
+        code = codes[i]
+        now = hand.get(code)
+        key = "dn_" + code
+        if key not in st.session_state:
+            st.session_state[key] = by_id.get(now[0], "") if now else ""
+        pics = pictures[code]
+        with st.container(border=True):
+            top, back, skip = st.columns([6, 1, 1])
+            with top:
+                st.markdown("**Desk %d of %d** &nbsp;·&nbsp; %s &nbsp;·&nbsp; "
+                            "`%s`%s" % (i + 1, len(codes), rooms_of[code], code,
+                                        " &nbsp;·&nbsp; named **%s** (%s)"
+                                        % (now[1], now[0]) if now else ""))
+            with back:
+                stretch(st.button, "◀ Back", key="dn_back", on_click=move,
+                        args=(-1,))
+            with skip:
+                stretch(st.button, "Skip ▶", key="dn_skip", on_click=move,
+                        args=(1,))
+            left, right = st.columns([3, 2], gap="large")
+            with left:
+                stretch(st.image, pics[0],
+                        caption=desks_data.picture_when(pics[0]))
+                more = pics[1:4]
+                if more:
+                    for col, p in zip(st.columns(3), more):
+                        with col:
+                            stretch(st.image, p,
+                                    caption=desks_data.picture_when(p))
+            with right:
+                st.markdown("**Who sits here?**  \nThe person in the yellow "
+                            "box (older pictures: at the yellow ring). The "
+                            "small pictures are the same desk at other hours "
+                            "-- name the one who is there most. Type a name "
+                            "or an employee ID.")
                 guess = names.get(code, ("", "", ""))
-                if guess[0] and code not in hand:
-                    st.caption("guess: %s (%s)" % (guess[0], guess[2]))
-                now = hand.get(code)
-                key = "dn_" + code
-                if key not in st.session_state:
-                    st.session_state[key] = by_id.get(now[0], "") if now \
-                        else ""
+                if guess[0] and not now:
+                    st.caption("A guess (%s): %s -- pick them only if it is "
+                               "them" % (guess[2], guess[0]))
                 st.selectbox("Who sits here", options, key=key,
-                             on_change=chose, args=(code,),
-                             label_visibility="collapsed")
+                             label_visibility="collapsed",
+                             format_func=lambda o: o or
+                             "Choose from the directory")
+                pick = st.session_state.get(key) or ""
+                if pick:
+                    eid = pick.split(" · ")[0]
+                    r = person.get(eid) or {}
+                    icon = progress_data.photo_icon(eid, size=200)
+                    ph, tx = st.columns([1, 2])
+                    with ph:
+                        if icon:
+                            st.markdown('<img src="' + icon + '" alt="" '
+                                        'style="width:100%;max-width:170px;'
+                                        'border-radius:12px">',
+                                        unsafe_allow_html=True)
+                            st.caption("directory photo")
+                    with tx:
+                        st.markdown("**%s**  \nID %s  \n%s  \n%s"
+                                    % (r.get("name", ""), eid,
+                                       r.get("designation", ""),
+                                       r.get("department", "")))
+                stretch(st.button, "✓ Save, next desk", key="dn_save",
+                        type="primary", disabled=not pick, on_click=save,
+                        args=(code, not todo_only))
+    named_here = sorted((c for c in hand
+                         if c in rooms_of and room in (NAMING_ALL,
+                                                       rooms_of[c])),
+                        key=lambda c: (rooms_of[c], desks_data.desk_key(c)))
+    if named_here:
+        with st.expander("Named so far: %d%s -- open to change one"
+                         % (len(named_here), "" if room == NAMING_ALL
+                            else " in %s" % room)):
+            for c in named_here:
+                eid, nm = hand[c]
+                x, y = st.columns([5, 1])
+                with x:
+                    st.markdown("`%s` · %s · **%s** · %s"
+                                % (c, rooms_of[c], nm, eid))
+                with y:
+                    st.button("Change", key="dn_go_" + c, on_click=go_to,
+                              args=(c,))
 
 
 def show_seat_review(mode):

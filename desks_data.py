@@ -95,6 +95,54 @@ def desk_picture(code, day=None, base=DESK_PICS):
     return None
 
 
+ALL_ROOMS = "All rooms"
+
+
+def desk_key(code):
+    """dvr2.9-10 after dvr2.9-9: the numbers in a desk's code as numbers."""
+    import re
+    return [int(t) if t.isdigit() else t for t in re.split(r"(\d+)", code)]
+
+
+def naming_list(rooms_of, pictures, hand, room, todo_only):
+    """The desks "Name the desks" walks through, one at a time: those with
+    a picture (a desk nobody has sat at yet cannot be named by eye), in
+    `room` (or ALL_ROOMS), and not named yet unless `todo_only` is False --
+    by room, then desk."""
+    return sorted((c for c in rooms_of
+                   if pictures.get(c) and room in (ALL_ROOMS, rooms_of[c])
+                   and not (todo_only and c in hand)),
+                  key=lambda c: (rooms_of[c], desk_key(c)))
+
+
+def all_desk_pictures(base=DESK_PICS):
+    """{desk code: [its hourly pictures, newest first]} -- one look at the
+    folder, not one a desk."""
+    import glob
+    out = {}
+    for path in glob.glob(os.path.join(base, "*", "*.jpg")):
+        day = os.path.basename(os.path.dirname(path))
+        code, _, hour = os.path.splitext(os.path.basename(path))[0] \
+            .rpartition("_")
+        if code and hour.isdigit():
+            out.setdefault(code, []).append((day, hour, path))
+    return {c: [p for _, _, p in sorted(v, reverse=True)]
+            for c, v in out.items()}
+
+
+def picture_when(path):
+    """"Tue 24 Nov, 13:00" for frames/desks/<day>/<code>_<HH>.jpg."""
+    import datetime as _dt
+    day = os.path.basename(os.path.dirname(path))
+    hour = os.path.splitext(os.path.basename(path))[0].rpartition("_")[2]
+    try:
+        d = _dt.date.fromisoformat(day)
+    except ValueError:
+        return ""
+    return "%s %d %s, %s:00" % (d.strftime("%a"), d.day, d.strftime("%b"),
+                                hour)
+
+
 def load_by_gate(path=BY_GATE):
     """{desk code: (name, employee_id)} from the gate's matching."""
     import csv
