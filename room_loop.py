@@ -89,6 +89,13 @@ try:
     import progress_follow
 except Exception:                                           # noqa: BLE001
     progress_follow = None
+# Who sits where, by face (seat_faces.py, 24 Nov: HR's approval for the
+# campus, staff told): the face of whoever sits at each regular seat of a
+# 140-H camera, kept as numbers for that seat. Guarded the same way.
+try:
+    import seat_faces
+except Exception:                                           # noqa: BLE001
+    seat_faces = None
 
 PKT = timezone(timedelta(hours=5))
 
@@ -1221,6 +1228,9 @@ def examine(room, frames, model, imgsz, iou, ac_units=None,
             # Never raises; does nothing unless progress.yaml names a desk
             # on this camera (or, later, tracking elsewhere is switched on).
             progress_track.observe(room.name, key, wide, counted, model)
+        if seat_faces is not None:
+            # Never raises; only 140-H's cameras, in office hours.
+            seat_faces.observe(room.name, key, wide, counted)
         if keep is None or here > people:
             keep = wide
         people = max(people, here)

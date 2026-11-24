@@ -97,6 +97,23 @@ sighting -- through `fetch` (gates, private hours) and
 Progress tab draws `building_view.py`'s 3D building: everybody now, and
 the day's way (also on the hosted page: codes and room names only).
 
+Campus faces (24 Nov: Shamroze -- HR approved face recognition for the
+whole campus, and the staff have been told). `staff_faces.py`: the
+members directory (life.disrupt.com, read by the signed-in app browser)
+as `people/roster.csv` -- employee ID, name, designation, department,
+project; no emails; the Gadits left out, as Shamroze asked -- the
+directory photos in `people/photos/` (for the double check by eye) and
+their face numbers in `people/faces.npz`. `seat_faces.py`, called from
+`room_loop.examine`: the face of whoever sits at each regular seat of a
+140-H camera, as numbers per seat and day (`people/seat_faces/`, 14
+days); `python seat_faces.py match <days>` names a seat only from 8+
+faces whose mean is far above the line (0.45) and clear of the next
+(0.10) -- tested on 24 Nov: P3's seat named right (0.53, by 0.12), the
+seats seen from above or blurred left unnamed, never wrong. People/ is
+git-ignored: never a name, ID, photo or face number in the repo, nor on
+the hosted page. A named seat is shown beside its directory photo for a
+person to confirm before anything is built on it.
+
 Savings & peak (18 Nov): the dashboard's "Savings & peak" tab is
 `savings.py` -- the scoreboard (meters against the last bill and the same
 month a year ago; what cooling empty rooms cost, this week against the

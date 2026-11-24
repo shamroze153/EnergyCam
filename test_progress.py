@@ -548,6 +548,90 @@ def check_cases():
           (sent["name"], sent["employee_id"]), ("", ""))
 
 
+def check_campus_faces():
+    print("-- campus faces: the roster, and who sits where")
+    import json
+    import numpy as np
+    import faces
+    import seat_faces as sfc
+    import staff_faces as stf
+    from datetime import datetime as _dt
+    import progress_track as pt
+    folder = tempfile.mkdtemp()
+    try:
+        raw = os.path.join(folder, "raw.json")
+        json.dump([["00001", "Some Gadit", "Partner", "Ex", "D"],
+                   ["00010", "Ann One", "Engineer", "Tech", "Lab"],
+                   ["00010", "Ann One", "Engineer", "Tech", "Lab"],
+                   ["00011", "Bo Two", "Manager", "GTM", "W"]],
+                  open(raw, "w"))
+        rows = stf.make_roster(raw, os.path.join(folder, "roster.csv"))
+        check("the roster leaves out the Gadits and repeats",
+              [r["employee_id"] for r in rows], ["00010", "00011"])
+        check("no email column in it", "email" in " ".join(stf.FIELDS), False)
+        got, failed = stf.fetch_photos(
+            rows, os.path.join(folder, "photos"), pause=0,
+            opener=lambda url: b"\xff\xd8 jpeg" if "00010" in url else b"<html>")
+        check("a photo is kept only when it is a JPEG",
+              (got, [f[0] for f in failed]), (1, ["00011"]))
+    finally:
+        shutil.rmtree(folder)
+    check("no portrait, no face", faces.of_photo(None), None)
+    spots = [(500, 700), (900, 700)]
+    check("a box on a seat is that seat; one between seats is none",
+          (sfc.seat_of((450, 450, 550, 700), spots, 1920),
+           sfc.seat_of((660, 450, 740, 700), spots, 1920)),
+          ((500, 700), None))
+
+    def unit(*v):
+        v = np.array(v + (0.0,) * (128 - len(v)), np.float32)
+        return v / np.linalg.norm(v)
+    ids = np.array(["00010", "00011"])
+    photos = np.array([unit(1, 0, 0), unit(0, 1, 0)])
+    seats = {"dvr9_1_500_700": np.array([unit(1, .05 * i, 0)
+                                         for i in range(10)]),
+             "dvr9_1_900_700": np.array([unit(1, 1, 0)] * 10),
+             "dvr9_2_300_600": np.array([unit(1, 0, 0)] * 3)}
+    got = {r["seat"]: (r["status"], r["best"]) for r in
+           sfc.match(seats, ids, photos)}
+    check("a seat clearly one person's is named; between two is unsure; "
+          "three faces are too few",
+          (got["dvr9_1_500_700"], got["dvr9_1_900_700"][0],
+           got["dvr9_2_300_600"][0]),
+          (("named", "00010"), "unsure", "few faces"))
+    folder = tempfile.mkdtemp()
+    old = faces.of_person, faces.available
+    try:
+        faces.of_person = lambda frame, box: unit(1, 0, 0)
+        faces.available = lambda: True
+        frame = np.zeros((1080, 1920, 3), np.uint8)
+        day = _dt(2026, 11, 20, 11, 0, tzinfo=pt.PKT)
+        night = _dt(2026, 11, 20, 23, 0, tzinfo=pt.PKT)
+        n = sfc.observe("R", ("dvr2", 15), frame, [(450, 450, 550, 700, .9)],
+                        now=day, spots=spots, out=folder)
+        kept = sfc.samples(["2026-11-20"], folder)
+        check("a seated face is kept as numbers for its seat",
+              (n, list(kept), kept["dvr2_15_500_700"].shape),
+              (1, ["dvr2_15_500_700"], (1, 128)))
+        check("not at night, not off the campus",
+              (sfc.observe("R", ("dvr2", 15), frame, [(450, 450, 550, 700)],
+                           now=night, spots=spots, out=folder),
+               sfc.observe("R", ("cd_nvr1", 3), frame, [(450, 450, 550, 700)],
+                           now=day, spots=spots, out=folder)), (0, 0))
+        check("numbers, never a picture",
+              [os.path.splitext(f)[1] for f in os.listdir(
+                  os.path.join(folder, "2026-11-20"))], [".f16"])
+    finally:
+        faces.of_person, faces.available = old
+        shutil.rmtree(folder)
+    source = open("room_loop.py", encoding="utf-8").read()
+    check("the loop keeps seat faces, guarded",
+          "seat_faces.observe(room.name, key, wide, counted)" in source
+          and "seat_faces = None" in source, True)
+    check("people/ never goes to git", "people/" in open(".gitignore").read(),
+          True)
+
+
 def check_presence_rules():
     print("-- at the desk: the rules checked by eye on 24 Nov")
     p = passes_every("10:00", "11:00")
@@ -1002,6 +1086,7 @@ def main():
     check_stretches()
     check_average()
     check_cases()
+    check_campus_faces()
     check_timeline()
     check_day()
     check_passes_and_usual()

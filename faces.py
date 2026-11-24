@@ -1,4 +1,6 @@
-"""Faces -- for the five Progress employees only, on this machine only.
+"""Faces -- on this machine only. First (23 Nov) for the five Progress
+employees; from 24 Nov for the campus's staff too (HR's approval, the
+staff told; staff_faces.py, seat_faces.py) -- their numbers under people/.
 
 Shamroze, 23 Nov 2026: "HR ne face recognition ki permission de di hai --
 in 5 employees ki face recognition karke project proceed karo." The body
@@ -123,6 +125,29 @@ def of_person(frame, box):
     if got is None:
         return None
     return feature(*got)
+
+
+def of_photo(img, long_side=640):
+    """The face numbers of a portrait (the members directory's photos,
+    staff_faces.py): the largest clear face in the whole picture, or
+    None."""
+    det, _ = _load()
+    if det is None or img is None or img.size == 0:
+        return None
+    import cv2
+    scale = long_side / float(max(img.shape[:2]))
+    if scale > 1.0:
+        img = cv2.resize(img, None, fx=scale, fy=scale,
+                         interpolation=cv2.INTER_CUBIC)
+    det.setInputSize((img.shape[1], img.shape[0]))
+    ok, rows = det.detect(img)
+    if rows is None or not len(rows):
+        return None
+    rows = [r for r in rows if r[-1] >= FACE_SCORE]
+    if not rows:
+        return None
+    best = max(rows, key=lambda r: r[2] * r[3])
+    return feature(img, best)
 
 
 # --------------------------------------------------------------- galleries
