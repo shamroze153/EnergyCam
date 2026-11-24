@@ -74,8 +74,13 @@ def _observe(room, key, frame, boxes, model, now, out, crops, finder):
             if da.visitor(persons, me):
                 state = "talking"
             elif model is not None and n % PHONE_EVERY == 0:
-                state = "phone" if da.phone_close_look(frame, me, model) \
-                    else "computer"
+                # one close look: a phone, and a screen; a hand held to the
+                # head is a call (pose, 24 Nov)
+                phone, screen = da.close_look(frame, me, model)
+                if phone is None and da.hand_at_head(frame, me):
+                    phone = "call"
+                state = "phone" if phone else ("computer" if screen
+                                               else "desk")
             else:
                 state = "desk"
             path = os.path.join(crops or CROPS, day, "%s_%s.jpg"

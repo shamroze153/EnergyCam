@@ -977,6 +977,29 @@ def build(cfg, today, hours=(10, 20), count=5, folder=SEATS, frm=8, to=24,
         cams = building.cameras()
     except Exception:                                       # noqa: BLE001
         cams = {}
+    # Desks named by hand on the tab (desks_data.load_desk_names) name the
+    # five too, where progress.yaml has no name yet.
+    hand, seats = {}, {}
+    try:
+        import desks_data
+        hand = desks_data.load_desk_names()
+        dd = desks_data.load() if hand else pd.DataFrame()
+        for c, g in (dd.groupby("code") if len(dd) else []):
+            seats[c] = (g["recorder"].iloc[0], int(g["channel"].iloc[0]),
+                        float(g["x"].iloc[0]), float(g["y"].iloc[0]))
+    except Exception:                                       # noqa: BLE001
+        hand, seats = {}, {}
+
+    def by_hand(person):
+        for code, (eid, name) in hand.items():
+            s = seats.get(code)
+            if not s or (s[0], s[1]) != (person.get("recorder"),
+                                         int(person.get("channel") or 0)):
+                continue
+            px, py = (float(v) for v in person.get("seat") or (0, 0))
+            if (s[2] - px) ** 2 + (s[3] - py) ** 2 <= 60.0 ** 2:
+                return name, eid
+        return "", ""
     for person in cfg.get("people") or []:
         summaries = week(person, days, hours, cache)
         state = {"state": "out", "label": "Not in today", "since": None,
@@ -1007,8 +1030,9 @@ def build(cfg, today, hours=(10, 20), count=5, folder=SEATS, frm=8, to=24,
             "desk_place": desk_place,
             "history": past,
             "code": person.get("code", "?"),
-            "name": person.get("name") or "",
-            "employee_id": str(person.get("employee_id") or ""),
+            "name": person.get("name") or by_hand(person)[0],
+            "employee_id": str(person.get("employee_id")
+                               or by_hand(person)[1] or ""),
             "department": person.get("department", ""),
             "why": person.get("why", ""),
             "check": person.get("check") or {},

@@ -245,6 +245,28 @@ def check_desk_activity():
     check("a phone elsewhere is not",
           da.phone_near([(da.PHONE, 0.4, 1500, 400, 1520, 430)], me), None)
 
+    def kp(**pts):
+        k = [[0.0, 0.0, 0.0] for _ in range(17)]
+        names = {"nose": 0, "rear": 3, "lear": 4, "rsh": 5, "lsh": 6,
+                 "rwr": 9, "lwr": 10}
+        for n, (x, y) in pts.items():
+            k[names[n]] = [x, y, 0.9]
+        return k
+    head = dict(nose=(100, 100), rear=(80, 95), lear=(120, 95),
+                rsh=(60, 160), lsh=(140, 160))
+    check("a hand held to the ear is a call (pose)",
+          da.on_a_call(kp(rwr=(78, 100), **head)), True)
+    check("hands down at the keyboard are not",
+          da.on_a_call(kp(rwr=(85, 260), lwr=(115, 262), **head)), False)
+    check("no sure head or hand: no call",
+          da.on_a_call(kp(nose=(100, 100))), False)
+    check("the pose network is the one downloaded on 23 Nov",
+          da.POSE_MODEL, "yolov8s-pose.pt")
+    check("the loop's desk reading uses the one close look and the pose",
+          ("da.close_look(frame, me, model)" in open("progress_track.py")
+           .read() and "da.hand_at_head(frame, me)" in open(
+               "desk_watch.py").read()), True)
+
 
 def check_tracking():
     print("-- the whole day, and the loop's hook")

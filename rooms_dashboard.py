@@ -5186,7 +5186,69 @@ def cached_desks(stamp):
     return df, desks_data.names_for(desks, people,
                                     desks_data.load_seats_named(),
                                     reviews=desks_data.load_reviews(),
-                                    by_gate=desks_data.load_by_gate())
+                                    by_gate=desks_data.load_by_gate(),
+                                    named=desks_data.load_desk_names())
+
+
+def show_desk_naming(mode, day):
+    """Name the desks by hand (Shamroze, 24 Nov: "tum picture lete raho,
+    Progress mein daalo, aage naam aur employee ID main daal dunga -- 100%
+    match, phir track karte rehna"): each desk of a room with its newest
+    picture and a picker of the whole directory. A name given here stands
+    above every guess, and that desk's days are that person's."""
+    import desks_data
+    path = desks_data.OUT
+    if not os.path.exists(path):
+        return
+    stamp = tuple(os.path.getmtime(p) if os.path.exists(p) else 0
+                  for p in (path, desks_data.SEATS_NAMED,
+                            desks_data.SEAT_REVIEWS, desks_data.BY_GATE,
+                            desks_data.DESK_NAMES))
+    df, names = cached_desks(stamp)
+    roster = desks_data.load_roster()
+    if df.empty or not roster:
+        return
+    hand = desks_data.load_desk_names()
+    st.markdown(overview.css(mode) + '<div class="ec"><div class="ec-h">'
+                '<span class="t">Name the desks</span><span class="c">'
+                '%d of %d desks named by hand &middot; pick who sits at each '
+                'from the directory (type a name or an ID) &middot; a name '
+                'given here is certain, and that desk&rsquo;s days are theirs'
+                '</span></div></div>' % (len(hand), df["code"].nunique()),
+                unsafe_allow_html=True)
+    rooms = sorted(df["room"].unique())
+    room = st.selectbox("Room to name", rooms, key="name_room")
+    options = [""] + ["%s · %s · %s" % (r["employee_id"], r["name"],
+                                         r["designation"]) for r in roster]
+    by_id = {o.split(" · ")[0]: o for o in options[1:]}
+
+    def chose(code):
+        pick = st.session_state.get("dn_" + code) or ""
+        eid = pick.split(" · ")[0] if pick else ""
+        name = pick.split(" · ")[1] if pick else ""
+        desks_data.save_desk_name(code, eid, name)
+        cached_desks.clear()
+    codes = sorted(df[df["room"] == room]["code"].unique())
+    for i in range(0, len(codes), 3):
+        cols = st.columns(3)
+        for col, code in zip(cols, codes[i:i + 3]):
+            with col:
+                pic = desks_data.desk_picture(code, day)
+                if pic:
+                    stretch(st.image, pic, caption=code)
+                else:
+                    st.caption("%s · no picture yet" % code)
+                guess = names.get(code, ("", "", ""))
+                if guess[0] and code not in hand:
+                    st.caption("guess: %s (%s)" % (guess[0], guess[2]))
+                now = hand.get(code)
+                key = "dn_" + code
+                if key not in st.session_state:
+                    st.session_state[key] = by_id.get(now[0], "") if now \
+                        else ""
+                st.selectbox("Who sits here", options, key=key,
+                             on_change=chose, args=(code,),
+                             label_visibility="collapsed")
 
 
 def show_seat_review(mode):
@@ -5264,7 +5326,8 @@ def show_desks(mode, day):
         return
     stamp = tuple(os.path.getmtime(p) if os.path.exists(p) else 0
                   for p in (path, desks_data.SEATS_NAMED,
-                            desks_data.SEAT_REVIEWS, desks_data.BY_GATE))
+                            desks_data.SEAT_REVIEWS, desks_data.BY_GATE,
+                            desks_data.DESK_NAMES))
     df, names = cached_desks(stamp)
     if df.empty:
         return
@@ -5487,6 +5550,7 @@ def show_progress(now):
     show_building(mode, people)
     show_seat_review(mode)
     show_desks(mode, day_key)
+    show_desk_naming(mode, day_key)
     show_sightings(mode, people)
     # Each employee's day as a video (progress_video.py): pictures of the
     # desk, so -- like everything here -- only on this laptop. Made in a

@@ -275,12 +275,17 @@ def _observe(room, key, frame, boxes, model, now):
         state = "away"
         if me is not None:
             taken.add(id(me))
-            phone = da.phone_near([], me)
+            # One close look finds a phone and a screen (24 Nov); a hand
+            # held to the head is a call the phone detector cannot see
+            # (pose); with no screen in sight it is "desk", not "computer".
+            phone, screen = da.phone_near([], me), True
             if phone is None and model is not None:
-                phone = da.phone_close_look(frame, me, model)
+                phone, screen = da.close_look(frame, me, model)
+                if phone is None and da.hand_at_head(frame, me):
+                    phone = "call"
             guest = da.visitor(persons, me)
-            state = "phone" if phone else ("talking" if guest
-                                           else "computer")
+            state = "phone" if phone else ("talking" if guest else (
+                "computer" if screen else "desk"))
             if TRACK_ELSEWHERE:
                 learn(day, p["code"], reid.embed(frame, [me[2:]])[0])
             if FACES_ON:

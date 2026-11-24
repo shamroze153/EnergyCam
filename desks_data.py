@@ -38,6 +38,61 @@ OUT = os.path.join("progress", "desks.csv")         # git-ignored (progress/)
 
 SEATS_NAMED = os.path.join("people", "seats_identified.csv")  # seat_faces
 BY_GATE = os.path.join("people", "desks_by_gate.csv")          # gate_match
+DESK_NAMES = os.path.join("people", "desk_names.csv")  # named on the tab
+ROSTER = os.path.join("people", "roster.csv")          # staff_faces
+DESK_PICS = os.path.join("frames", "desks")            # desk_watch, hourly
+
+
+def load_roster(path=ROSTER):
+    """[{employee_id, name, designation, department, project}] (the
+    directory as staff_faces.py saved it), the Gadits left out."""
+    import csv
+    if not os.path.exists(path):
+        return []
+    with open(path, encoding="utf-8") as fh:
+        return [r for r in csv.DictReader(fh)
+                if not r["name"].strip().lower().endswith("gadit")]
+
+
+def load_desk_names(path=DESK_NAMES):
+    """{desk code: (employee_id, name)} as named on the Progress tab, the
+    latest word for each ("" clears it)."""
+    import csv
+    if not os.path.exists(path):
+        return {}
+    out = {}
+    with open(path, encoding="utf-8") as fh:
+        for r in csv.DictReader(fh):
+            if r["employee_id"]:
+                out[r["code"]] = (r["employee_id"], r["name"])
+            else:
+                out.pop(r["code"], None)
+    return out
+
+
+def save_desk_name(code, employee_id, name, path=DESK_NAMES):
+    """Shamroze names a desk (Shamroze, 24 Nov: "picture dalo, aage naam
+    aur ID main daal dunga -- 100% match")."""
+    import csv
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    new = not os.path.exists(path)
+    with open(path, "a", newline="", encoding="utf-8") as fh:
+        w = csv.writer(fh)
+        if new:
+            w.writerow(["code", "employee_id", "name", "at"])
+        w.writerow([code, employee_id or "", name or "",
+                    datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
+
+
+def desk_picture(code, day=None, base=DESK_PICS):
+    """The newest hourly picture of a desk (that day's, else any day's)."""
+    import glob
+    for pattern in ([os.path.join(base, day, "%s_*.jpg" % code)] if day
+                    else []) + [os.path.join(base, "*", "%s_*.jpg" % code)]:
+        hits = sorted(glob.glob(pattern))
+        if hits:
+            return hits[-1]
+    return None
 
 
 def load_by_gate(path=BY_GATE):
@@ -99,13 +154,16 @@ def seat_picture(recorder, channel, x, y, base=SEAT_FACES):
 
 
 def names_for(desks, people=None, seats_named=None, reach=60.0,
-              reviews=None, by_gate=None):
-    """{desk code: (name, employee_id, how)}: the five by their seat, and
-    seats named by face (people/seats_identified.csv, "named") -- "by
-    face, confirmed" once a person said yes on the Progress tab, gone once
-    they said no (reviews: seat_faces.load_reviews())."""
+              reviews=None, by_gate=None, named=None):
+    """{desk code: (name, employee_id, how)}: first the desks Shamroze
+    named on the tab (named: load_desk_names()), then the five by their
+    seat, then seats named by face (people/seats_identified.csv, "named")
+    -- "by face, confirmed" once a person said yes, gone once they said no
+    (reviews: load_reviews()) -- and last the gate's matching."""
     reviews = reviews or {}
     out = {}
+    for code, (eid, name) in (named or {}).items():
+        out[code] = (name, eid, "named by hand")
     for p in people or []:
         for d in desks:
             if (d["recorder"], d["channel"]) != (p.get("recorder"),
@@ -113,6 +171,8 @@ def names_for(desks, people=None, seats_named=None, reach=60.0,
                 continue
             sx, sy = (float(v) for v in p.get("seat") or (0, 0))
             if (d["seat"][0] - sx) ** 2 + (d["seat"][1] - sy) ** 2 <= reach ** 2:
+                if d["code"] in out:          # named by hand: that stands
+                    continue
                 out[d["code"]] = (p.get("name") or p.get("code", ""),
                                   str(p.get("employee_id") or ""),
                                   "followed (%s)" % p.get("code", ""))

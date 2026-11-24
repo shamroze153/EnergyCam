@@ -89,6 +89,104 @@ def phone_near(things, box):
     return None
 
 
+POSE_MODEL = "yolov8s-pose.pt"
+_pose = {"model": None, "failed": False}
+# COCO keypoints: 0 nose, 1-2 eyes, 3-4 ears, 5-6 shoulders, 9-10 wrists.
+KP_CONF = 0.4
+EAR_REACH = 0.6          # a wrist this close to an ear or the nose, in
+                         # face widths, is a hand held to the head: a call
+
+
+def pose_model():
+    """The pose network (yolov8s-pose, loaded once), or None."""
+    if _pose["model"] is None and not _pose["failed"]:
+        try:
+            import os
+            from ultralytics import YOLO
+            if not os.path.exists(POSE_MODEL):
+                raise FileNotFoundError(POSE_MODEL)
+            _pose["model"] = YOLO(POSE_MODEL)
+        except Exception:                                   # noqa: BLE001
+            _pose["failed"] = True
+    return _pose["model"]
+
+
+def on_a_call(keypoints):
+    """A hand held to the head (one person's 17 COCO keypoints, rows of
+    x, y, conf): a phone at the ear, often hidden by the hand itself --
+    the call the phone detector cannot see (24 Nov)."""
+    kp = keypoints
+    head = [kp[i] for i in (0, 3, 4) if kp[i][2] >= KP_CONF]
+    hands = [kp[i] for i in (9, 10) if kp[i][2] >= KP_CONF]
+    if not head or not hands:
+        return False
+    if kp[3][2] >= KP_CONF and kp[4][2] >= KP_CONF:
+        face = abs(kp[3][0] - kp[4][0])
+    elif kp[5][2] >= KP_CONF and kp[6][2] >= KP_CONF:
+        face = 0.45 * abs(kp[5][0] - kp[6][0])
+    else:
+        return False
+    face = max(face, 8.0)
+    for hx, hy, _ in hands:
+        for px, py, _ in head:
+            if ((hx - px) ** 2 + (hy - py) ** 2) ** 0.5 <= EAR_REACH * face:
+                return True
+    return False
+
+
+def hand_at_head(frame, box, scale=2.0):
+    """The employee's box, blown up, through the pose network: True when a
+    hand is held to the head (on_a_call). None without the network."""
+    model = pose_model()
+    if model is None:
+        return None
+    _, _, x1, y1, x2, y2 = box
+    h, w = frame.shape[:2]
+    pad_x, pad_y = 0.15 * (x2 - x1), 0.1 * (y2 - y1)
+    X1, Y1 = int(max(0, x1 - pad_x)), int(max(0, y1 - pad_y))
+    X2, Y2 = int(min(w, x2 + pad_x)), int(min(h, y2 + pad_y))
+    crop = frame[Y1:Y2, X1:X2]
+    if crop.size == 0:
+        return None
+    import cv2
+    crop = cv2.resize(crop, None, fx=scale, fy=scale)
+    res = model(crop, conf=0.3, verbose=False)
+    best = None
+    for r in res:
+        if r.keypoints is None or r.boxes is None or not len(r.boxes):
+            continue
+        confs = r.boxes.conf.tolist()
+        i = max(range(len(confs)), key=lambda k: confs[k])
+        best = r.keypoints.data[i].tolist()
+    return on_a_call(best) if best else None
+
+
+def close_look(frame, box, model, scale=2.0):
+    """The employee's box, blown up, searched once for a phone AND for a
+    screen (laptop, monitor, keyboard): (phone box or None, screen seen).
+    The same one inference the phone look took before (24 Nov)."""
+    _, _, x1, y1, x2, y2 = box
+    h, w = frame.shape[:2]
+    pad_x, pad_y = 0.15 * (x2 - x1), 0.1 * (y2 - y1)
+    X1, Y1 = int(max(0, x1 - pad_x)), int(max(0, y1 - pad_y))
+    X2, Y2 = int(min(w, x2 + pad_x)), int(min(h, y2 + pad_y))
+    crop = frame[Y1:Y2, X1:X2]
+    if crop.size == 0:
+        return None, False
+    import cv2
+    big = cv2.resize(crop, None, fx=scale, fy=scale,
+                     interpolation=cv2.INTER_CUBIC)
+    found = detect(big, model, imgsz=max(320, min(1280, max(big.shape[:2]))),
+                   conf=0.25, classes=[PHONE, LAPTOP, TV, KEYBOARD])
+    phones = [t for t in found if t[0] == PHONE]
+    screen = any(t[0] in (LAPTOP, TV, KEYBOARD) for t in found)
+    if not phones:
+        return None, screen
+    c, s, a, b, cc, d = max(phones, key=lambda t: t[1])
+    return (c, s, X1 + a / scale, Y1 + b / scale, X1 + cc / scale,
+            Y1 + d / scale), screen
+
+
 def phone_close_look(frame, box, model, scale=2.0):
     """The employee's box, blown up, searched for a phone alone."""
     _, _, x1, y1, x2, y2 = box
