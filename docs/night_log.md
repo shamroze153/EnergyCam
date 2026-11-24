@@ -1511,3 +1511,9 @@ Two or three lines a round; picture file names, never pictures.
   the gate keeps a named passer's clothes, every desk its sitter's look
   every 15 min; clothes_match.py pairs them and is scored on the known
   desks at 14:23 and 18:53 on 25 Nov before anything is suggested.
+* 21:58, 24 Nov Round: field_audit 20:55 -- MISSED 0, GHOST 0; DRIFT and
+  FAINT only. The night check at 21:20 counted 147 people, but the building
+  was still in use (verify agreed with the page), so none taken as ghosts.
+  One zone (Room on cd ch 20, fan and bags) reaches 9 px past its 704x576
+  frame -- harmless, left. Gate recording of 23 Nov read: 1,284 passages,
+  44 people named; 19-20 Nov at 22:37 (never 24 Nov, watched live).
