@@ -208,6 +208,46 @@ def phone_close_look(frame, box, model, scale=2.0):
             Y1 + d / scale)
 
 
+STANDING = 2.0          # a box this much taller than wide is standing
+
+
+def assign_desks(persons, seats, width, reach_of=None):
+    """One person, one desk (24 Nov, checked by eye on 62 desk pictures:
+    17 empty desks read as sat at, a neighbour counted at two desks).
+    persons: [(cls, conf, x1, y1, x2, y2)]; seats: {key: (x, y)}. Each
+    person goes to the nearest seat within its reach (SEAT_RADIUS of the
+    width or SEAT_REACH of the box's height), nearest pairs first; a seat
+    with nobody left near is empty. Returns {key: person or None}."""
+    import progress_data as pdx
+    pairs = []
+    for i, p in enumerate(persons):
+        _, _, x1, y1, x2, y2 = p
+        r = max(pdx.SEAT_RADIUS * width, pdx.SEAT_REACH * (y2 - y1))
+        bx, by = (x1 + x2) / 2.0, y2
+        for k, (sx, sy) in seats.items():
+            d = ((bx - sx) ** 2 + (by - sy) ** 2) ** 0.5
+            if d <= r:
+                pairs.append((d / r, i, k))
+    out = {k: None for k in seats}
+    used = set()
+    for _, i, k in sorted(pairs):
+        if i in used or out[k] is not None:
+            continue
+        out[k] = persons[i]
+        used.add(i)
+    return out
+
+
+def standing_visitor(persons, box, seated):
+    """A visitor at a desk among many: somebody standing (STANDING) who is
+    not sitting at another desk (seated: the people assign_desks gave a
+    desk), touching the desk's sitter and head above (visitor())."""
+    free = [p for p in persons if p is box or (
+        not any(p is s for s in seated)
+        and (p[5] - p[3]) >= STANDING * max(1.0, p[4] - p[2]))]
+    return visitor(free, box)
+
+
 def visitor(persons, box):
     """Somebody standing at the employee's desk: their box touches the
     employee's (widened a little), they are taller in the picture, and

@@ -264,6 +264,42 @@ def extras(person, day, n, p, hours=None):
     return out
 
 
+def assign_notes(day_notes, desks):
+    """Each seat note to one desk at most: on each camera, pass by pass,
+    notes and desks matched one to one, nearest first -- the rule
+    desk_activity.assign_desks keeps live (24 Nov, checked by eye: a
+    neighbour had been counted at an empty desk beside his own).
+    Returns {desk code: that desk's notes}."""
+    out = {d["code"]: [] for d in desks}
+    if day_notes is None or day_notes.empty:
+        return {c: day_notes for c in out}
+    by_cam = {}
+    for d in desks:
+        by_cam.setdefault((d["recorder"], int(d["channel"])), []).append(d)
+    for (rec, ch, _), g in day_notes.groupby(["recorder", "channel", "time"]):
+        ds = by_cam.get((rec, int(ch)))
+        if not ds:
+            continue
+        width = float(g["frame_w"].iloc[0]) or 1.0
+        pairs = []
+        for idx, r in g.iterrows():
+            reach = max(pdx.SEAT_RADIUS * width, pdx.SEAT_REACH * float(r["h"]))
+            bx, by = float(r["cx"]), float(r["cy"]) + float(r["h"]) / 2.0
+            for d in ds:
+                dist = ((bx - d["seat"][0]) ** 2 + (by - d["seat"][1]) ** 2) \
+                    ** 0.5
+                if dist <= reach:
+                    pairs.append((dist / reach, idx, d["code"]))
+        used_i, used_d = set(), set()
+        for _, idx, code in sorted(pairs):
+            if idx in used_i or code in used_d:
+                continue
+            used_i.add(idx)
+            used_d.add(code)
+            out[code].append(idx)
+    return {c: day_notes.loc[ix] for c, ix in out.items()}
+
+
 def build(upto=None, count=20, folder=pdx.SEATS, out=OUT, desks=None,
           activity=ACTIVITY):
     """Every desk's working days up to `upto` to progress/desks.csv: one
@@ -278,10 +314,17 @@ def build(upto=None, count=20, folder=pdx.SEATS, out=OUT, desks=None,
             acts[day] = pdx.load_activity(day, activity)
         return acts[day]
     hours = pdx.office_hours()
+    # each day's notes shared out among the desks, one person one desk
+    per_desk = {d["code"]: {} for d in desks}
+    for day in pdx.working_days(upto, count, folder):
+        n_all, p_all = pdx.notes(day), pdx.passes(day)
+        for code, n_desk in assign_notes(n_all, desks).items():
+            per_desk[code][day] = (n_desk, p_all)
     for d in desks:
         person = {"code": d["code"], "recorder": d["recorder"],
                   "channel": d["channel"], "seat": d["seat"],
                   "department": d["room"]}
+        cache = per_desk.get(d["code"], {})
         try:
             past = pdx.history(person, upto, count, folder, cache, stored={},
                                rows_for=rows_for)

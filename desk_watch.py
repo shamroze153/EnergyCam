@@ -66,12 +66,18 @@ def _observe(room, key, frame, boxes, model, now, out, crops, finder):
                 float(b[0]), float(b[1]), float(b[2]), float(b[3]))
                for b in boxes]
     rows = []
+    # one person, one desk; a visitor stands and sits at no desk (24 Nov,
+    # checked by eye: neighbours had been read at empty desks, and seated
+    # neighbours as visitors)
+    sat = da.assign_desks(persons, {d["code"]: tuple(d["seat"])
+                                    for d in mine}, frame.shape[1])
+    seated = [p for p in sat.values() if p is not None]
     for d in mine:
-        me = da.employee(persons, d["seat"], frame.shape[1])
+        me = sat.get(d["code"])
         state = "away"
         if me is not None:
             n = _count[d["code"]] = _count.get(d["code"], 0) + 1
-            if da.visitor(persons, me):
+            if da.standing_visitor(persons, me, seated):
                 state = "talking"
             elif model is not None and n % PHONE_EVERY == 0:
                 # one close look: a phone, and a screen; a hand held to the
@@ -87,12 +93,40 @@ def _observe(room, key, frame, boxes, model, now, out, crops, finder):
                                 % (d["code"], now.strftime("%H")))
             if not os.path.exists(path):
                 desk_crop(frame, d["seat"], path)
+                mark_seat(path, frame.shape, d["seat"])
         rows.append((hms, d["code"], "desk", state, room, key[0],
                      int(key[1]), 1.0 if me is not None else 0.0)
                     + (tuple(int(v) for v in me[2:]) if me is not None
                        else (0, 0, 0, 0)))
     _write(day, rows, out or OUT, crops or CROPS)
     return len(rows)
+
+
+def seat_in_crop(shape, seat, share=0.30, size=480):
+    """Where a desk's seat falls in progress_track.desk_crop's square --
+    not always its middle: at a frame's edge the square is held inside the
+    frame (24 Nov: 32 of 72 desk pictures had the seat well off-centre)."""
+    H, W = shape[:2]
+    side = int(share * W)
+    x, y = (float(v) for v in seat)
+    X1 = min(max(0, x - side // 2), max(0, W - side))
+    Y1 = min(max(0, y - int(0.75 * side)), max(0, H - side))
+    return (int((x - X1) / side * size), int((y - Y1) / side * size))
+
+
+def mark_seat(path, shape, seat):
+    """A small ring on the desk's picture where its seat is, so the person
+    naming the desk names the right sitter."""
+    try:
+        import cv2
+        img = cv2.imread(path)
+        if img is None:
+            return
+        cv2.circle(img, seat_in_crop(shape, seat, size=img.shape[0]), 14,
+                   (0, 255, 255), 2)
+        cv2.imwrite(path, img, [cv2.IMWRITE_JPEG_QUALITY, 80])
+    except Exception:                                       # noqa: BLE001
+        pass
 
 
 REBUILD_EVERY = 3600

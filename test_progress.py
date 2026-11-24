@@ -738,6 +738,37 @@ def check_every_desk():
         dw._rebuilt["at"] = old_at
     check("the loop rebuilds them, guarded",
           "desk_watch.rebuild()" in source, True)
+    import desk_activity as da_
+    a = (0, .9, 450, 450, 550, 700)          # sits at seat A
+    seats = {"A": (500, 700), "B": (560, 700)}
+    got = da_.assign_desks([a], seats, 1920)
+    check("one person, one desk: the nearer seat has him, the other none",
+          (got["A"] is a, got["B"]), (True, None))
+    neighbour = (0, .9, 560, 440, 650, 705)   # seated at B, box touching
+    standing = (0, .9, 470, 250, 560, 720)    # tall, head above, touching
+    sat = da_.assign_desks([a, neighbour], seats, 1920)
+    check("a neighbour seated at the next desk is no visitor; somebody "
+          "standing over the desk is",
+          (da_.standing_visitor([a, neighbour], a, list(sat.values())),
+           da_.standing_visitor([a, neighbour, standing], a,
+                                list(sat.values())) is standing),
+          (None, True))
+    check("the desk's picture marks its seat where it really is (held "
+          "inside the frame at an edge)",
+          (dw.seat_in_crop((1080, 1920), (960, 700)),
+           dw.seat_in_crop((1080, 1920), (960, 60))), ((240, 360), (240, 50)))
+    import desks_data as dd_
+    notes2 = pd.DataFrame([
+        dict(time="10:00:00", recorder="dvr9", channel=1, cx=500, cy=600,
+             w=100, h=200, score=.9, frame_w=1920, frame_h=1080,
+             at=at("10:00"))])
+    both_desks = [{"code": "A", "recorder": "dvr9", "channel": 1,
+                   "seat": [500, 700]},
+                  {"code": "B", "recorder": "dvr9", "channel": 1,
+                   "seat": [540, 700]}]
+    got = dd_.assign_notes(notes2, both_desks)
+    check("Every desk too: one note counts at one desk only",
+          (len(got["A"]), len(got["B"])), (1, 0))
     desks = [{"code": "dvr9.1-1", "recorder": "dvr9", "channel": 1,
               "seat": [500.0, 700.0]}]
     named = [{"recorder": "dvr9", "channel": "1", "x": "500", "y": "700",

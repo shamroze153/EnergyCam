@@ -197,9 +197,17 @@ names a person is on this laptop only. Read this, then docs/night_log.md.
   18:43 the day's seat-face match and review sheet, 22:37 the gate
   backfill of 19, 20, 23, 24 Nov then gate_match, and the 21:33 Progress
   accuracy report.
+* Checked by eye on 24 Nov (72 hourly desk pictures): presence at the
+  campus's desks ~80% (36 pictures whose seat could be judged; the five's
+  desks 97%); the "talking" rule called seated neighbours visitors on all
+  6 read passes -- now one person one desk (desk_activity.assign_desks,
+  desks_data.assign_notes) and a visitor must stand and sit at no desk.
+  32 of the 72 pictures had the seat off-centre (desk_crop holds the
+  square inside the frame): the hourly pictures now carry a ring on the
+  seat (desk_watch.mark_seat) -- judge a desk by the ring.
 * Next: as desks get named, check the gate's and the cameras' sightings
-  of those people by eye; then a validation set for pose and screen
-  (~100 desk pictures labelled by eye) before trusting the phone figures.
+  of those people by eye; label a fresh set of ringed desk pictures to
+  measure computer / phone / talking at the campus's desks.
 
 ## Checking the counts are right
 
