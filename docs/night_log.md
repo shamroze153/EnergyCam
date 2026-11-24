@@ -1492,3 +1492,9 @@ Two or three lines a round; picture file names, never pictures.
   the gate, "Probably gone home" after 30 min seen nowhere. Names for
   desks are now suggested camera against camera (name_suggest.py): 3
   sheets sent for a yes/no; the receptionist's (already known) held back.
+* 19:02, 24 Nov Round: field_audit 18:50 -- MISSED 0, GHOST 0; FOLLOWING,
+  DRIFT and one FAINT (Prompt Cafe Gate, 0.49) only; the 141 gym not
+  opened (private hours). Nothing changed. Seat faces matched over 23-24
+  Nov: 2 of 196 seats named by directory photo (a Room 17 desk already
+  known, and the Basement desk the gate's suggestion S4 named the same
+  person) -- for Shamroze to confirm on the tab.
