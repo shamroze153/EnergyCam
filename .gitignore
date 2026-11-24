@@ -99,3 +99,7 @@ progress/
 # model's (yolov8s-pose.pt, under *.pt above)
 models/
 *.pth
+# The staff roster for campus face recognition (24 Nov: HR's approval,
+# staff told): names, employee IDs, directory photos and face numbers --
+# this laptop only, never in git.
+people/
