@@ -1479,3 +1479,10 @@ Two or three lines a round; picture file names, never pictures.
   The ghosts (140-H Reception, 141 Admin Room, 141 Finance Lobby, Admin
   Room) are people coming and going, 0.71-0.93 at a new spot each pass --
   the check a pass behind. Nothing changed.
+* 18:15, 24 Nov Desks: HR Room's keep seat (dvr2.2-2) taken out -- the
+  17:56 frame showed it is a person in the next room beyond the glass;
+  the HR desk sought is the front laptop desk (2-1). Found why: desk
+  codes were renumbered busiest-first each day and at every restart (126
+  of 170 moved since 23 Nov). Codes are now kept by place
+  (progress/desk_codes.json); the 921 older desk pictures moved to
+  frames/desks_before_codes/; the three named desks re-checked by place.
