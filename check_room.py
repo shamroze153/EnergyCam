@@ -120,7 +120,8 @@ def look(rooms, recorders, model, args, say):
                 findings.append({
                     "room": room, "camera": key, "frame": frame,
                     "boxes": boxes, "conf": conf,
-                    "counted": [b for b in boxes if not ignored(b, zones)]})
+                    "counted": [b for b in boxes if not ignored(
+                        b, zones, getattr(room, "keep", {}).get(key))]})
         frames.clear()
     return findings
 
@@ -156,7 +157,9 @@ def describe_finding(f, say):
             " in this frame's pixels." % (list(z), f["frame"].shape[1],
                                           f["frame"].shape[0]))
     for n, (x1, y1, x2, y2, score) in enumerate(f["boxes"], 1):
-        mark = "ignored" if ignored((x1, y1, x2, y2, score), zones) \
+        mark = "ignored" if ignored((x1, y1, x2, y2, score), zones,
+                                     getattr(room, "keep", {}).get(
+                                         f["camera"])) \
             else ("faint  " if score < FAINT else "counted")
         say("        %d  %s  %.2f  box %4d,%4d %4d,%4d  (%dx%d)"
             % (n, mark, score, x1, y1, x2, y2, x2 - x1, y2 - y1))

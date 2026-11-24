@@ -625,6 +625,10 @@ class Room:
         self.ignore = {self.camera_key(ch):
                        [[int(v) for v in box] for box in boxes]
                        for ch, boxes in (cfg.get("ignore") or {}).items()}
+        # Seats inside a zone that belong to this room (ignored()'s keep).
+        self.keep = {self.camera_key(ch):
+                     [[float(v) for v in pt[:2]] for pt in pts]
+                     for ch, pts in (cfg.get("keep") or {}).items()}
         self.empty_after = cfg.get("empty_after_minutes")
         # Hours in which this room's cameras are never opened: no frame, no
         # count, no picture. 141's gym is ladies-only 15:00-20:00 (Shamroze,
@@ -889,13 +893,27 @@ def bar_text(bar):
     return "%.2f" % bar
 
 
-def ignored(box, zones):
+KEEP_REACH = 70             # px: a box ending this near a `keep:` seat stays
+
+
+def ignored(box, zones, keep=None):
     """Is this detection one of the room's known false people?
 
     Judged by how much of the box lies inside the zone, not by whether it
     touches it. Blanking the pixels instead would be simpler and wrong: a real
     person who walks in front of the poster would vanish with it.
+
+    `keep`: seats ([x, y], where a sitter's box ends) inside a zone whose
+    sitter belongs to this room after all. 24 Nov, HR Room: the frosted
+    glass's far side is zoned (the next room's people, 19 Nov), but one of
+    its desks is an HR employee's (Shamroze: "HR ka banda hai ... HR me le
+    ao") -- the zone stays for everybody else.
     """
+    if keep:
+        bx, by = (box[0] + box[2]) / 2.0, box[3]
+        if any((bx - x) ** 2 + (by - y) ** 2 <= KEEP_REACH ** 2
+               for x, y in keep):
+            return False
     for zone in zones or []:
         if overlap_fraction(box, zone) >= IGNORE_OVERLAP:
             return True
@@ -1238,7 +1256,7 @@ def examine(room, frames, model, imgsz, iou, ac_units=None,
         boxes = people_boxes(wide, model,
                              conf=room.conf_for(after_hours, key),
                              imgsz=imgsz, iou=iou)
-        counted = [b for b in boxes if not ignored(b, room.ignore.get(key))]
+        counted = [b for b in boxes if not ignored(b, room.ignore.get(key), getattr(room, "keep", {}).get(key))]
         counted = drop_still(room, key, wide, counted, after_hours)
         here = len(counted)
         note_seats(room.name, key, counted, getattr(wide, "shape", (0, 0)))
@@ -1471,7 +1489,7 @@ def keep_evidence(room, frames, model, imgsz, iou, folder, now):
                                          conf=night(True) if night
                                          else room.conf,
                                          imgsz=imgsz, iou=iou)
-                 if not ignored(b, room.ignore.get(key))]
+                 if not ignored(b, room.ignore.get(key), getattr(room, "keep", {}).get(key))]
         if not boxes:
             continue
         shot = wide.copy()
@@ -1974,7 +1992,7 @@ def main():
         after = not in_operations(datetime.now(PKT), hours)
         boxes = people_boxes(wide, model, conf=room.conf_for(after, key),
                              imgsz=args.imgsz, iou=args.iou)
-        counted = [b for b in boxes if not ignored(b, room.ignore.get(key))]
+        counted = [b for b in boxes if not ignored(b, room.ignore.get(key), getattr(room, "keep", {}).get(key))]
         progress_track.observe(room.name, key, wide, counted, model)
 
     def pulse():

@@ -763,6 +763,19 @@ def main():
           room_loop.ignored((100, 100, 100, 100, 0.4), [poster]), False)
     check("half in, half out is kept",
           room_loop.ignored((100, 100, 300, 300, 0.4), [poster]), False)
+    # 24 Nov, HR Room: a seat inside a zone that is the room's own.
+    check("a box ending at a keep seat inside the zone is counted",
+          room_loop.ignored((120, 140, 180, 260, 0.4), [poster], [[150, 255]]),
+          False)
+    check("one ending elsewhere in the zone is still left out",
+          room_loop.ignored((120, 140, 180, 200, 0.4), [poster], [[150, 300]]),
+          True)
+    import yaml
+    hr = yaml.safe_load(open("rooms.yaml", encoding="utf-8"))
+    hr = next(r for r in hr["rooms"] if r["name"] == "HR Room")
+    check("HR Room keeps its desk beyond the glass, and its zones",
+          (hr.get("keep", {}).get(2), len(hr["ignore"][2]) >= 5),
+          ([[1550, 182]], True))
 
     # And the same rule where it actually runs.
     seen = []

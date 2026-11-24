@@ -560,6 +560,13 @@ rooms:
         - [1290, 0, 1520, 290]   # the next room, beyond the glass
         - [1400, 0, 1600, 330]   # the next room, through the frosted glass
         - [1480, 0, 1920, 400]   # the next room, above the lattice
+    # 24 Nov: one desk beyond the glass is HR's -- its sitter (named on the
+    # Progress tab) is an HR employee (Shamroze: "HR ka banda hai ... HR me
+    # le ao"). A box ending within 70 px of it is counted here despite the
+    # zones; everybody else over there stays left out.
+    keep:
+      2:
+        - [1550, 182]            # desk dvr2.2-2
     # 7 Nov: no unit in any of this room's frames, read at full width
     # across the upper part of the picture, where a split unit is
     # mounted. It was labelled visible from the survey contact sheet,

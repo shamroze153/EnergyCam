@@ -136,7 +136,7 @@ def count_now(room, recorders, model, timeout):
         # a zone: the same verdict on the same chair.
         aside = still.get("%s:%d" % key) or []
         zones = (room.ignore.get(key) or []) + aside
-        kept = [b for b in boxes if not ignored(b, zones)
+        kept = [b for b in boxes if not ignored(b, zones, getattr(room, "keep", {}).get(key))
                 and not set_aside(b, aside)]
         # The MAXIMUM across cameras, not the sum -- which is what the loop
         # does, because two cameras watching one room see the same people
