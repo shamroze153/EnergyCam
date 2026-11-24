@@ -334,6 +334,13 @@ rooms:
         # afternoon, 17 Nov 15:56-16:21, plainly open), shut 0.78+. The
         # narrowest of the six; it agrees with the contrast on every frame.
         dark_max: 0.74
+        # 24 Nov morning round: at 02:07 the cafe's lights changed (a glare
+        # from the right; every tower's ring moved at once) and this tower
+        # read "running" 02:45-07:52 by its ring (0.63-0.73) with nothing
+        # switched. Measured against its own face below the louvre instead
+        # (as tower 6), 22-24 Nov's kept frames: shut 0.78-0.98 -- that
+        # night 0.81-0.94 -- and running 0.36-0.42 (23 Nov 10:55-12:04).
+        dark_ref: [391, 190, 402, 204]
         # 17 Nov: view check moved to the wall above the people (Shamroze, 16 Nov 16:42: four running, page said two or three).
         # Every kept frame 0.82+ (the old view check failed 8); a 50 px nudge 0.23.
         anchor_roi: [60, 140, 220, 260]
