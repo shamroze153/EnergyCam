@@ -146,6 +146,13 @@ of them a minute at full size (main stream, through fetch) for
 straight-on pictures of them too (`cctv_faces.gate_samples`, named at
 0.55 by 0.15). The offices on dvr2/xvr3 are read at 1920x1080 already:
 their desks fail by face because the cameras look down, not for size.
+For the desks seen from above: the gate keeps a named passer's clothes
+(`<time>_ch.._<id>_body.jpg`), desk_watch keeps every desk's sitter's
+look (OSNet, `progress/desk_looks/`, every 15 min), and
+`clothes_match.py <day>` pairs them the same day -- first scored on the
+known desks; suggest nothing from it until it is right there. Every desk
+has a report card on the laptop (unnamed: "Desk <code>"), and a desk
+named on the tab joins the board by itself (`progress_data.desk_people`).
 The Progress tab's "Every desk at
 140-H" (laptop only) shows the day and the usual week; a desk has a name
 only where one is known. `desks_data.py` stays pandas-only for the

@@ -1505,3 +1505,9 @@ Two or three lines a round; picture file names, never pictures.
   (640x360 in the pass) read three a minute at full size for cctv_faces;
   the gate's sure faces join known people's galleries. Gate recording of
   23 Nov being read (entrance_backfill) for more names in the morning.
+* 20:55, 24 Nov Every employee: each of 140-H's desks has a report card on
+  the laptop (152 not named yet), and a desk named on the tab joins the
+  board by itself. For the desks seen from above, the same day's clothes:
+  the gate keeps a named passer's clothes, every desk its sitter's look
+  every 15 min; clothes_match.py pairs them and is scored on the known
+  desks at 14:23 and 18:53 on 25 Nov before anything is suggested.
