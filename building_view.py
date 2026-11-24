@@ -156,6 +156,7 @@ def figure(b, people, mode="dark", height=640):
     for i, p in enumerate(people):
         code = p.get("code", "?")
         col = colour(code, mode, order)
+        code = (p.get("name") or "").split(" ")[0] or code   # the label
         xs, ys, zs = path_points(b, p.get("route"))
         if len(xs) > 1:
             fig.add_trace(go.Scatter3d(
@@ -223,6 +224,6 @@ def way_lines(people):
         place, how = where_now(p)
         now = ("now: %s (%s)" % (place, HOW.get(how, how))) if place \
             else "now: %s" % how
-        out.append((p.get("code", "?"), now, " -> ".join(bits) or
-                    "no way recorded today"))
+        out.append((p.get("name") or p.get("code", "?"), now,
+                    " -> ".join(bits) or "no way recorded today"))
     return out

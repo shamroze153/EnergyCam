@@ -5208,7 +5208,9 @@ def show_building(mode, people):
     for p in people:
         place, how = building_view.where_now(p)
         if place:
-            here.append({"code": p.get("code", "?"), "place": place,
+            # the first name on the laptop, the code on the hosted page
+            here.append({"code": (p.get("name") or "").split(" ")[0]
+                         or p.get("code", "?"), "place": place,
                          "how": how, "colour": building_view.colour(
                              p.get("code"), mode, order)})
     st.markdown(overview.css(mode) + '<div class="ec"><div class="ec-h">'

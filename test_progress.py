@@ -536,6 +536,16 @@ def check_cases():
           pdx.cases(people[:1] + people[2:]), [])
     check("the page has them", "Cases for the boss" in pv.cases_block(people),
           True)
+    people[0].update(name="Test Person", employee_id="09999")
+    check("on the laptop a name (and ID) stands where the code stood",
+          (pv.tag(people[0]), pv.tag(people[1]),
+           "Test Person sits at the desk" in pv.cases_block(people)),
+          ("Test Person · 09999", "P2", True))
+    sent = pdx.from_payloads(pdx.to_payloads({}, [dict(people[0], focus=None,
+                                                       live={})], (10, 20),
+                                             "now"))[1][0]
+    check("the hosted page gets neither the name nor the employee ID",
+          (sent["name"], sent["employee_id"]), ("", ""))
 
 
 def check_presence_rules():

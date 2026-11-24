@@ -317,6 +317,25 @@ def who(p):
     return p.get("name") or "Employee %s" % p.get("code", "?")
 
 
+def tag(p):
+    """Short label where a code stood (Shamroze, 24 Nov: "P3 ki jagah naam
+    aur employee ID"): "<name> · <employee ID>" on the laptop, where
+    progress.yaml has the name; the code wherever it has not (the hosted
+    page gets no names)."""
+    if not p.get("name"):
+        return p.get("code", "?")
+    eid = p.get("employee_id")
+    return "%s · %s" % (p["name"], eid) if eid else p["name"]
+
+
+def named(text, people):
+    """A sentence with each employee's code put as their name, where known."""
+    for p in people:
+        if p.get("name") and p.get("code"):
+            text = text.replace(p["code"], p["name"])
+    return text
+
+
 def day_label(day):
     import datetime as _dt
     d = _dt.date.fromisoformat(day)
@@ -379,7 +398,9 @@ def card(p, c, frm=8, to=24, whole=480):
             '<div class="pg-facts">%s</div>%s<div class="pg-days">%s%s</div>'
             '<div class="pg-why">%s</div></div>'
             % (esc(p["code"]), esc(who(p)),
-               esc("desk in %s · %s" % (p["department"], basis)), big,
+               esc("desk in %s%s · %s" % (
+                   p["department"], (" · ID %s" % p["employee_id"])
+                   if p.get("employee_id") else "", basis)), big,
                day_block(p.get("focus"), c, frm, to),
                "".join('<span class="ec-pill">%s</span>' % esc(f)
                        for f in facts if f),
@@ -410,12 +431,15 @@ def live_strip(people, c, as_of=""):
             when = ""
         if state == "gone" and hasattr(since, "strftime"):
             when = "left at %s" % since.strftime("%H:%M")
+        title = p.get("name") or lv.get("label", "")
+        sub = (lv.get("label", "") + (" · " if when else "")) \
+            if p.get("name") else ""
         chips.append(
             '<div class="pg-live" style="border-left-color:%s">'
-            '<span class="pg-code sm">%s</span><div><b>%s</b><span>%s%s'
+            '<span class="pg-code sm">%s</span><div><b>%s</b><span>%s%s%s'
             '</span></div></div>'
             % (LIVE_COLOURS.get(state, "#898781"), esc(p.get("code", "?")),
-               esc(lv.get("label", "")), esc(when),
+               esc(title), esc(sub), esc(when),
                (" · %s" % esc(lv["place"])) if lv.get("place") else ""))
     return ('<div class="ec-h"><span class="t">Right now</span><span class="c">'
             '%s</span></div><div class="pg-lives">%s</div>'
@@ -467,7 +491,7 @@ def team_table(people, c, days_shown=10):
         avg = sum(shares) / len(shares) if shares else None
         rows.append('<tr><th class="who">%s<span>%s</span></th>%s'
                     '<td class="avg"><b>%s</b></td></tr>'
-                    % (esc(p.get("code", "?")), esc(p.get("department", "")),
+                    % (esc(tag(p)), esc(p.get("department", "")),
                        "".join(cells), pct(avg)))
     return ('<div class="ec-h"><span class="t">Every day</span><span class="c">'
             'desk %% = time at the desk of the time in the office (first in to '
@@ -489,8 +513,7 @@ def averages_table(people, days=7):
         if a is None:
             rows.append('<tr><th class="who">%s<span>%s</span></th>'
                         '<td colspan="9" class="none">no day in yet</td></tr>'
-                        % (esc(p.get("code", "?")),
-                           esc(p.get("department", ""))))
+                        % (esc(tag(p)), esc(p.get("department", ""))))
             continue
         comp = ("%s <small>%d day%s read</small>"
                 % (pct(a["computer_pct"]), a["read_days"],
@@ -500,7 +523,7 @@ def averages_table(people, days=7):
             '<tr><th class="who">%s<span>%s</span></th><td>%d</td>'
             '<td><b>%s</b></td><td><b>%s</b></td><td>%s</td><td>%s</td>'
             '<td><b>%s</b></td><td>%s</td><td>%s</td><td>%s</td></tr>'
-            % (esc(p.get("code", "?")), esc(p.get("department", "")),
+            % (esc(tag(p)), esc(p.get("department", "")),
                a["days"], hhmm(a["first"] / 60.0 if a["first"] is not None
                                else None),
                hhmm(a["last"] / 60.0 if a["last"] is not None else None),
@@ -529,7 +552,8 @@ def cases_block(people):
         return ""
     cards = "".join(
         '<div class="ec-card pg-case"><span class="k">%s</span><p>%s</p>'
-        '</div>' % (esc(c["title"]), esc(c["text"])) for c in items)
+        '</div>' % (esc(c["title"]), esc(named(c["text"], people)))
+        for c in items)
     return ('<div class="ec-h"><span class="t">Cases for the boss</span>'
             '<span class="c">from the last seven days in &middot; what the '
             'cameras measured, at the desk or away -- not the work itself'

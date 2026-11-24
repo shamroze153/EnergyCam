@@ -1006,6 +1006,7 @@ def build(cfg, today, hours=(10, 20), count=5, folder=SEATS, frm=8, to=24,
             "history": past,
             "code": person.get("code", "?"),
             "name": person.get("name") or "",
+            "employee_id": str(person.get("employee_id") or ""),
             "department": person.get("department", ""),
             "why": person.get("why", ""),
             "check": person.get("check") or {},
@@ -1082,6 +1083,7 @@ def to_payloads(cfg, people, hours, made):
     for p in people:
         q = dict(p)
         q["name"] = ""
+        q["employee_id"] = ""            # nor the employee ID
         rows.append((str(p.get("code", "?")), json.dumps(_jsonable(q))))
     project = {"campus": cfg.get("campus", ""),
                "stages": cfg.get("stages") or [],
