@@ -839,6 +839,69 @@ def average(past, days=7):
     }
 
 
+def cases(people, days=7):
+    """The boss's cases (the project's stage 6): a few plain sentences
+    from the last `days` days in, each about what the cameras measured --
+    "at the desk", never "productive" (CLAUDE.md). [{"title", "text",
+    "codes"}], at most four; [] before two employees have a day in."""
+    rows = []
+    for p in people:
+        a = average(p.get("history"), days)
+        if a is not None and a.get("desk_min") is not None:
+            rows.append((p.get("code", "?"), a))
+    if len(rows) < 2:
+        return []
+
+    def hm(m):
+        return "--" if m is None else "%02d:%02d" % (int(m) // 60 % 24,
+                                                     int(m) % 60)
+
+    def h(m):
+        return "%.1f h" % (m / 60.0) if m is not None else "--"
+    out = []
+    most = max(rows, key=lambda r: r[1]["desk_min"])
+    out.append({"title": "Longest at the desk", "codes": [most[0]],
+                "text": "%s sits at the desk about %s a day -- %s of the "
+                        "office day -- over %d day%s in." % (
+                            most[0], h(most[1]["desk_min"]),
+                            "%.0f%%" % (100 * most[1]["desk_pct"])
+                            if most[1]["desk_pct"] is not None else "--",
+                            most[1]["days"],
+                            "" if most[1]["days"] == 1 else "s")})
+    least = min(rows, key=lambda r: r[1]["desk_pct"]
+                if r[1]["desk_pct"] is not None else 1.0)
+    if least[0] != most[0]:
+        out.append({"title": "Most away from the desk", "codes": [least[0]],
+                    "text": "%s is at the desk %s of the office day; the "
+                            "longest break is usually %s, about %.1f breaks "
+                            "a day." % (
+                                least[0], "%.0f%%" % (100 * least[1][
+                                    "desk_pct"]) if least[1]["desk_pct"]
+                                is not None else "--",
+                                h(least[1]["longest_break"]),
+                                least[1]["breaks"] or 0)})
+    early = min(rows, key=lambda r: r[1]["first"]
+                if r[1]["first"] is not None else 9e9)
+    late = max(rows, key=lambda r: r[1]["last"]
+               if r[1]["last"] is not None else -1)
+    out.append({"title": "First in, last out", "codes": [early[0], late[0]],
+                "text": "%s is usually first in (about %s); %s usually the "
+                        "last out (about %s)." % (
+                            early[0], hm(early[1]["first"]), late[0],
+                            hm(late[1]["last"]))})
+    read = [(c, a) for c, a in rows if a.get("read_days")]
+    if read:
+        best = max(read, key=lambda r: r[1]["computer_pct"] or 0)
+        bits = ", ".join("%s %.0f%%" % (c, 100 * (a["computer_pct"] or 0))
+                         for c, a in sorted(read, key=lambda r: -(
+                             r[1]["computer_pct"] or 0)))
+        out.append({"title": "At the computer", "codes": [best[0]],
+                    "text": "Of the office day, at the computer: %s (on the "
+                            "days the activity was read, from 23 Nov)."
+                            % bits})
+    return out[:4]
+
+
 def live(day_act, now, hours=(10, 20)):
     """What the employee is doing right now, from today's passes:
     {"state": desk | away | out | gone | unwatched, "label", "since",

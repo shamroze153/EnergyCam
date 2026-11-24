@@ -508,6 +508,36 @@ def check_average():
           "10:10" in html and "20:10" in html and "1 day read" in html, True)
 
 
+def check_cases():
+    print("-- the boss's cases: plain sentences from the week")
+
+    def rec(d, first, last, desk, comp=None):
+        return {"day": d, "first": pd.Timestamp("%s %s" % (d, first)),
+                "last": pd.Timestamp("%s %s" % (d, last)), "in_min": 600.0,
+                "desk_min": desk, "desk_pct": desk / 600.0, "part": False,
+                "computer_pct": comp, "computer_min": None, "phone_min": 5.0,
+                "talking_min": 0.0, "breaks": 3, "longest_break": 40.0}
+    people = [
+        {"code": "P1", "history": [rec("2026-11-20", "09:30", "19:00", 480,
+                                       0.7)]},
+        {"code": "P2", "history": [rec("2026-11-20", "10:30", "21:00", 240,
+                                       0.3)]},
+        {"code": "P3", "history": []}]
+    got = pdx.cases(people)
+    check("longest at the desk, most away, first in and last out, computer",
+          [c["title"] for c in got],
+          ["Longest at the desk", "Most away from the desk",
+           "First in, last out", "At the computer"])
+    check("who, in each", [c["codes"] for c in got],
+          [["P1"], ["P2"], ["P1", "P2"], ["P1"]])
+    check("never 'productive'",
+          any("productiv" in c["text"].lower() for c in got), False)
+    check("one employee with a day in is no case yet",
+          pdx.cases(people[:1] + people[2:]), [])
+    check("the page has them", "Cases for the boss" in pv.cases_block(people),
+          True)
+
+
 def check_presence_rules():
     print("-- at the desk: the rules checked by eye on 24 Nov")
     p = passes_every("10:00", "11:00")
@@ -961,6 +991,7 @@ def main():
     check_night()
     check_stretches()
     check_average()
+    check_cases()
     check_timeline()
     check_day()
     check_passes_and_usual()

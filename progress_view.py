@@ -520,6 +520,22 @@ def averages_table(people, days=7):
             '</div>' % (days, "".join(rows)))
 
 
+def cases_block(people):
+    """The boss's cases: a few plain sentences from the last week, in
+    cards (progress_data.cases)."""
+    import progress_data as pdx
+    items = pdx.cases(people)
+    if not items:
+        return ""
+    cards = "".join(
+        '<div class="ec-card pg-case"><span class="k">%s</span><p>%s</p>'
+        '</div>' % (esc(c["title"]), esc(c["text"])) for c in items)
+    return ('<div class="ec-h"><span class="t">Cases for the boss</span>'
+            '<span class="c">from the last seven days in &middot; what the '
+            'cameras measured, at the desk or away -- not the work itself'
+            '</span></div><div class="pg-cases">%s</div>' % cards)
+
+
 def legend(c):
     items = [("desk", "at the desk"), ("away", "away from the desk"),
              ("out", "not in yet / gone")]
@@ -567,6 +583,7 @@ def page(mode, cfg, people, as_of, hours=(10, 20), frm=8, to=24):
             + live_strip(people, c, as_of) + tiles(people, c)
             + team_table(people, c)
             + averages_table(people)
+            + cases_block(people)
             + tracker(cfg.get("stages") or [], c, cfg.get("needs"))
             + body + note + "</div>")
 
@@ -658,6 +675,12 @@ color:var(--t2)}
 margin-right:5px;vertical-align:-1px}
 .pg .pg-leg em{font-style:normal;font-weight:650;color:var(--t1)}
 .pg .pg-sub{font-size:11.5px;color:var(--t3);margin-top:8px}
+.pg .pg-cases{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+gap:12px;margin-bottom:14px}
+.pg .pg-case{padding:14px 16px}
+.pg .pg-case .k{font-size:11.5px;font-weight:650;color:var(--t3);text-transform:uppercase;
+letter-spacing:.04em}
+.pg .pg-case p{margin:6px 0 0;font-size:14px;line-height:1.45;color:var(--t1)}
 .pg .pg-stretch{margin:2px 0 8px;font-size:12px}
 .pg .pg-stretch summary{cursor:pointer;font-weight:650;color:var(--t1);padding:4px 0}
 .pg .pg-stretch summary span{font-weight:500;color:var(--t3);margin-left:4px}
