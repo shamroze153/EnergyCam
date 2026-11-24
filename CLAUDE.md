@@ -170,7 +170,7 @@ campus page) goes in `room_events.ac_units_on`, which an administrator adds
 once with `sql/09_ac_units.sql`. Until then the loop writes rooms without
 it and says so once; restart the loop after the SQL is run.
 
-## Handoff -- where the campus face work stands (24 Nov, ~11:30)
+## Handoff -- where the campus face work stands (24 Nov, 12:35)
 
 For a new session: everything that runs is in the repo; everything that
 names a person is on this laptop only. Read this, then docs/night_log.md.
@@ -215,9 +215,40 @@ names a person is on this laptop only. Read this, then docs/night_log.md.
   32 of the 72 pictures had the seat off-centre (desk_crop holds the
   square inside the frame): the hourly pictures now carry a ring on the
   seat (desk_watch.mark_seat) -- judge a desk by the ring.
-* Next: as desks get named, check the gate's and the cameras' sightings
-  of those people by eye; label a fresh set of ringed desk pictures to
-  measure computer / phone / talking at the campus's desks.
+* Open when the session ended (24 Nov 12:35), in this order:
+  1. Shamroze: the two "Sightings to check" of P2 at 140-H Reception
+     (12:14 and 12:19, scores 0.73 and 0.75) are the receptionist, not
+     P2. Write "no" for both (`progress_data.save_review(day, time,
+     "P2", "140-H Reception", "no")`; the exact HH:MM:SS times are in
+     P2's `focus["possible"]` from `progress_data.build`).
+  2. Rebuild `rooms_dashboard.show_sightings` the way Name the desks is
+     built (Shamroze: "1 line me 1 image do or agay uska name dalne ka
+     kaho me choose krlunga"): one picture to a line, and beside it "who
+     is this?" -- the directory picker, saved only on a button. A pick
+     that is the employee the network guessed (their ID known from
+     progress.yaml or a named desk) is a "yes"; any other pick is a "no",
+     and is kept as who that picture shows (a local file under people/),
+     ready to feed that person's CCTV gallery.
+  3. False body re-ID matches: somebody sitting at a regular seat (any
+     desk `desk_seats.find_desks` found, the reception desk included) is
+     that seat's sitter, never a sighting of somebody else -- leave them
+     out before matching in `progress_track` (reid runs on "people who
+     are not at a regular seat of an office"; the reception desk slipped
+     through).
+  4. Check the hosted page gets names: the loop restarted 12:29:56 with
+     `cloud_names: true`; its first publish (~12:35) should put a name,
+     ID and a 4-6 KB `photo` in P3's and P5's progress_days rows (read
+     them with DASHBOARD_DATABASE_URL; never print it). Streamlit Cloud
+     needs `pillow` from requirements.txt on its redeploy.
+  5. Waiting on Shamroze: whether to build a card like P1-P5's for every
+     employee whose desk he names in Name the desks (laptop, and name and
+     icon on the hosted page). He is naming desks now; his first three
+     (Admin Room dvr2.9-1, -2, -4) were blanked at 12:16 and need
+     picking again.
+  6. Recreate the session schedules listed above.
+  Later: check the gate's and the cameras' sightings of named people by
+  eye; label a fresh set of boxed desk pictures to measure computer /
+  phone / talking at the campus's desks.
 
 ## Checking the counts are right
 

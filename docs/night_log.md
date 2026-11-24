@@ -1454,3 +1454,13 @@ Two or three lines a round; picture file names, never pictures.
   (32 of 72 had it off-centre). CCTV galleries (P3 10, P5 35 faces) feed
   the gate and sightings off the seat. The hosted page gets every desk
   room by room (numbers only). Pushed up to this commit; loop restarted.
+* 12:00-12:35 (Shamroze at the laptop): the Progress tab took so long
+  that "Name the desks" never showed (rooms.yaml read once a desk) --
+  fixed (eba8939). The hosted page now gets the named employees' name,
+  ID and directory-photo icon (cloud_names: true, 34a410e). "Name the
+  desks" is one desk at a time with the chosen person's directory photo
+  beside it, saving only on Save; new hourly desk pictures box the sitter
+  (55bbaf5). A CSS "50%" (unescaped in a %-formatted string) broke the
+  Progress tab for a minute; the old grid then blanked his first three
+  names. Loop restarted 12:29:56. Session handed over here -- what is
+  open is in CLAUDE.md's Handoff.
