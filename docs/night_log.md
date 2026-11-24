@@ -1517,3 +1517,8 @@ Two or three lines a round; picture file names, never pictures.
   One zone (Room on cd ch 20, fan and bags) reaches 9 px past its 704x576
   frame -- harmless, left. Gate recording of 23 Nov read: 1,284 passages,
   44 people named; 19-20 Nov at 22:37 (never 24 Nov, watched live).
+* 22:55, 24 Nov Round: field_audit 22:25 -- MISSED 0, GHOST 2. Attendance
+  Machine H: a person seated by the turnstile at 22:48 (a guard), real;
+  141-D MR01: nobody at 22:51 and the page not saying otherwise for long --
+  people leaving, the loop a pass behind. Nothing changed. Gate recording
+  of 19-20 Nov being read since 22:42 (gate_match after it).
