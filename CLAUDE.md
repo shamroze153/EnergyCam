@@ -132,7 +132,13 @@ after hours, an hourly heatmap). Desk codes are kept by place
 18:09): before that they were renumbered busiest-first every day and at
 every restart, so names, pictures and activity given to a code moved
 (the old pictures are in `frames/desks_before_codes/`, not to be named
-from). The Progress tab's "Every desk at
+from). Naming desks by hand from their pictures was too hard for
+Shamroze (24 Nov): `name_suggest.py [days]` matches each desk's face
+(seat_faces) against the gate's frontal faces of named people, the same
+days, and suggests a name only where both pick each other; each comes as
+one picture (desk sitter | gate pictures | directory photo) in
+`frames/suggest/` for a yes / no (`name_suggest.save_answer`, a yes names
+the desk). The Progress tab's "Every desk at
 140-H" (laptop only) shows the day and the usual week; a desk has a name
 only where one is known. `desks_data.py` stays pandas-only for the
 dashboard (test_dashboard checks its imports).

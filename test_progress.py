@@ -732,6 +732,23 @@ def check_every_desk():
     check("two seats near one desk: the nearer keeps it",
           ds.stable_numbers("dvr2.2", [(1120, 790), (1095, 789)], reg),
           [4, 2])
+    # 24 Nov: names suggested camera against camera -- each desk's face
+    # against the gate's faces -- only where the two pick each other.
+    import numpy as np
+    import name_suggest as ns
+
+    def unit(*v):
+        v = np.array(v + (0.0,) * (128 - len(v)), np.float32)
+        return v / np.linalg.norm(v)
+    G = np.array([unit(1, 0, 0), unit(0, 1, 0), unit(0.6, 0.8, 0)])
+    seats = {"dvr2_9_1425_1000": (unit(1, 0.05, 0), 20),
+             "dvr2_9_700_1050": (unit(0.3, 0.95, 0), 12),   # B or C?
+             "nvr1_11_1375_500": (unit(0.9, 0.1, 0), 9)}
+    got = ns.suggest(seats, ["A", "B", "C"], G)
+    check("the desk and the person pick each other; the person's second"
+          " desk and a near tie are not suggested",
+          [(s["seat"], s["employee_id"]) for s in got],
+          [("dvr2_9_1425_1000", "A")])
     since_f = os.path.join(tempfile.mkdtemp(), "codes.json")
     check("no codes file, nothing to leave out", dd.codes_since(since_f), "")
     with open(since_f, "w") as fh:
