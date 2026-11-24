@@ -743,6 +743,14 @@ def check_every_desk():
                                          encoding="utf-8").read(), True)
 
 
+def desks_data_names_gate():
+    import desks_data as dd
+    got = dd.names_for([{"code": "A", "recorder": "dvr2", "channel": 15,
+                         "seat": [500, 700]}], [], [],
+                       by_gate={"A": ("Test Person", "00010")})
+    return got["A"][2]
+
+
 def check_entrance():
     print("-- the turnstile: frontal faces only, one row a passage")
     import numpy as np
@@ -783,6 +791,48 @@ def check_entrance():
         shutil.rmtree(folder)
     check("Entry H only (the building door's camera sees backs)",
           ew.CAMERAS, [("nvr1", 5)])
+    import gate_match as gm
+    import entrance_backfill as eb
+    check("the recording read in windows: lunch and evening, 50-min stretches",
+          [(a.strftime("%H:%M"), b.strftime("%H:%M"))
+           for a, b in eb.chunks(DAY, [("13:00", "14:30")])],
+          [("13:00", "13:50"), ("13:50", "14:30")])
+    p_ = passes_every("09:00", "14:00")
+    sat_a = notes_at([t.strftime("%H:%M") for t in pd.date_range(
+        at("10:01"), at("12:00"), freq="5min")], x=500)
+    sat_b = notes_at([t.strftime("%H:%M") for t in pd.date_range(
+        at("10:01"), at("12:40"), freq="5min")], x=900)
+    both = pd.concat([sat_a, sat_b], ignore_index=True)
+    desks_ = [{"code": "A", "recorder": "dvr2", "channel": 15,
+               "seat": [500, 700]},
+              {"code": "B", "recorder": "dvr2", "channel": 15,
+               "seat": [900, 700]}]
+    folder = tempfile.mkdtemp()
+    try:
+        for d in ("2026-11-19", DAY):
+            with open(os.path.join(folder, d + ".csv"), "w") as fh:
+                fh.write("time,recorder,channel,status,employee_id,best,"
+                         "score,margin,face_w\n12:05:00,nvr1,5,named,00010,"
+                         "00010,0.5,0.1,90\n")
+
+        def shifted(day):
+            k = pd.Timestamp(day) - pd.Timestamp(DAY)
+            return both.assign(at=both["at"] + k)
+
+        def passes_of(day):
+            k = pd.Timestamp(day) - pd.Timestamp(DAY)
+            return p_.assign(start=p_["start"] + k, end=p_["end"] + k)
+        v = gm.votes(["2026-11-19", DAY], desks_, folder, shifted, passes_of)
+        check("a passer at 12:05 votes for the desk left at 12:00, not the "
+              "one still sat at", v, {"00010": {"A": 2.0}})
+        check("two days of it give the desk; one person, one desk",
+              gm.assign(v), [("00010", "A", 2.0, 0.0)])
+        check("one passage alone gives nothing",
+              gm.assign({"00010": {"A": 1.0}}), [])
+    finally:
+        shutil.rmtree(folder)
+    check("a desk named by the gate is to be confirmed",
+          desks_data_names_gate(), "by the gate, to confirm")
     source = open("room_loop.py", encoding="utf-8").read()
     check("the loop starts it, guarded, never on --once",
           "entrance_watch.start(recorders, build_url)" in source

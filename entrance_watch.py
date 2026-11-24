@@ -39,8 +39,12 @@ HOURS = ("07:00", "22:30")
 FACE_SCORE = 0.85
 MIN_FACE = 40            # px wide in the full picture
 DETECT_WIDTH = 1280      # the picture is searched at this width
-SAME = 0.45
-MARGIN = 0.08
+# Stricter than a seat's: 24 Nov's playback of 23 Nov named two passers at
+# 0.48-0.53 whose faces, bowed, did not plainly match their photos by eye,
+# and one photo was the best guess for several bearded men -- so a gate
+# names only at 0.50, by 0.10; gate_match.py's votes over days do the rest.
+SAME = 0.50
+MARGIN = 0.10
 # Only a face turned to the camera is compared (24 Nov trial: the frontal
 # face of a passer, yaw -0.16, matched one photo at 0.52 by 0.16, and the
 # near-frontal one, 0.28, the same photo; his profiles, yaw 0.6-4.7,

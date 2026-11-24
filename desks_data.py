@@ -37,6 +37,17 @@ OUT = os.path.join("progress", "desks.csv")         # git-ignored (progress/)
 
 
 SEATS_NAMED = os.path.join("people", "seats_identified.csv")  # seat_faces
+BY_GATE = os.path.join("people", "desks_by_gate.csv")          # gate_match
+
+
+def load_by_gate(path=BY_GATE):
+    """{desk code: (name, employee_id)} from the gate's matching."""
+    import csv
+    if not os.path.exists(path):
+        return {}
+    with open(path, encoding="utf-8") as fh:
+        return {r["code"]: (r["name"], r["employee_id"])
+                for r in csv.DictReader(fh)}
 SEAT_REVIEWS = os.path.join("people", "seat_reviews.csv")
 SEAT_FACES = os.path.join("people", "seat_faces")
 PHOTOS = os.path.join("people", "photos")
@@ -88,7 +99,7 @@ def seat_picture(recorder, channel, x, y, base=SEAT_FACES):
 
 
 def names_for(desks, people=None, seats_named=None, reach=60.0,
-              reviews=None):
+              reviews=None, by_gate=None):
     """{desk code: (name, employee_id, how)}: the five by their seat, and
     seats named by face (people/seats_identified.csv, "named") -- "by
     face, confirmed" once a person said yes on the Progress tab, gone once
@@ -122,6 +133,9 @@ def names_for(desks, people=None, seats_named=None, reach=60.0,
                     r.get("name", ""), r.get("employee_id", ""),
                     "by face, confirmed" if word == "yes"
                     else "by face, to confirm"))
+    # last: the gate's matching (gate_match.py), where nothing else named it
+    for code, (name, eid) in (by_gate or {}).items():
+        out.setdefault(code, (name, eid, "by the gate, to confirm"))
     return out
 
 

@@ -5185,7 +5185,8 @@ def cached_desks(stamp):
              for c, g in df.groupby("code")] if len(df) else []
     return df, desks_data.names_for(desks, people,
                                     desks_data.load_seats_named(),
-                                    reviews=desks_data.load_reviews())
+                                    reviews=desks_data.load_reviews(),
+                                    by_gate=desks_data.load_by_gate())
 
 
 def show_seat_review(mode):
@@ -5263,7 +5264,7 @@ def show_desks(mode, day):
         return
     stamp = tuple(os.path.getmtime(p) if os.path.exists(p) else 0
                   for p in (path, desks_data.SEATS_NAMED,
-                            desks_data.SEAT_REVIEWS))
+                            desks_data.SEAT_REVIEWS, desks_data.BY_GATE))
     df, names = cached_desks(stamp)
     if df.empty:
         return
