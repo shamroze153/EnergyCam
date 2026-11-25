@@ -5494,35 +5494,109 @@ def cached_photo_icons(stamp, ids):
     import progress_data
     out = {}
     for eid in ids:
-        icon = progress_data.photo_icon(eid, size=48)
+        icon = progress_data.photo_icon(eid, size=64)
         if icon:
             out[str(eid).lstrip("0") or "0"] = icon
     return out
 
 
+def show_profile(mode, e, emps, key):
+    """One employee's profile (the CEO, 25 Nov: click a person -- their
+    check-in and check-out, where the time went, the map, the score, and
+    how they stand with their department's colleagues)."""
+    import productivity_view
+    import progress_view
+    st.markdown(productivity_view.profile_html(mode, e, emps),
+                unsafe_allow_html=True)
+    p = e.get("board")
+    if p and p.get("focus"):
+        # their day as the cameras saw it: at the desk, away, where
+        try:
+            st.markdown(progress_view.report(p, progress_view.colours(mode),
+                                             progress_view.REPORT_VIEWS[0]),
+                        unsafe_allow_html=True)
+        except Exception:                                   # noqa: BLE001
+            pass
+        if st.toggle("Where they went today, on the building map",
+                     key="pf_map_%s" % key):
+            show_building(mode, [p])
+
+
 def productivity_section(mode, emps, days, made, visitors=0):
-    """Progress -> Productivity (Shamroze, 25 Nov: "CEO dekhe to usko acha
-    lage ... 100% employees"): the campus in figures, its departments, and
-    every employee, one department at a time or all, with a CSV."""
+    """Progress -> Productivity (Shamroze and the CEO, 25 Nov: "CEO dekhe to
+    usko acha lage ... 100% employees"; then "department-wise, open a
+    department and its people come; every person a profile; BU filter"):
+    the campus in figures for the business unit and department chosen, the
+    departments to open one by one, a profile for anybody, and a CSV."""
     import productivity_view
     if not emps:
         return
-    st.markdown(productivity_view.summary_html(mode, emps, days, made,
+    bus = sorted({e["bu"] for e in emps})
+    c1, c2, c3 = st.columns([1, 1, 1.3])
+    all_bu = "All business units (%d)" % len(bus)
+    bu = c1.selectbox("Business unit", [all_bu] + bus, key="prod_bu")
+    pool = emps if bu == all_bu else [e for e in emps if e["bu"] == bu]
+    depts = sorted({e["dept"] for e in pool})
+    all_d = "All departments (%d)" % len(depts)
+    dp = c2.selectbox("Department", [all_d] + depts, key="prod_dept")
+    pool = pool if dp == all_d else [e for e in pool if e["dept"] == dp]
+    people_sorted = sorted(pool, key=lambda e: e["name"])
+    labels = ["%s  ·  %s" % (e["name"], e["dept"]) for e in people_sorted]
+    who = c3.selectbox("Find an employee", ["Find an employee..."] + labels,
+                       key="prod_find")
+    if who != "Find an employee...":
+        st.markdown(overview.css(mode) + '<div class="ec"><div class="ec-h">'
+                    '<span class="t">Profile</span></div></div>',
+                    unsafe_allow_html=True)
+        show_profile(mode, people_sorted[labels.index(who)], emps, "find")
+    st.markdown(productivity_view.summary_html(mode, pool, days, made,
                                                visitors),
                 unsafe_allow_html=True)
     st.markdown(overview.css(mode) + '<div class="ec"><div class="ec-h">'
-                '<span class="t">Every employee</span><span class="c">'
-                'highest productivity first, by department</span></div>'
-                '</div>', unsafe_allow_html=True)
-    all_word = "All departments (%d employees)" % len(emps)
-    depts = sorted({e["dept"] for e in emps})
-    pick = st.selectbox("Department", [all_word] + depts,
-                        key="productivity_dept", label_visibility="collapsed")
-    st.markdown(productivity_view.table_html(
-        mode, emps, None if pick == all_word else pick),
-        unsafe_allow_html=True)
+                '<span class="t">Departments and their people</span><span '
+                'class="c">open a department; click a person for their '
+                'profile</span></div></div>', unsafe_allow_html=True)
+    for name, es, _ in productivity_view.group_rows(pool, "dept"):
+        es = sorted(es, key=lambda e: -(e["productivity"] or 0))
+        avg = productivity_view._mean([e["productivity"] for e in es])
+        seen = sum(1 for e in es if e["desk"] is not None)
+        with st.expander("%s  —  %d %s  ·  productivity %s  ·  %d desk%s in "
+                         "a camera" % (name, len(es), "person" if len(es) == 1
+                                       else "people",
+                                       "%d" % round(avg) if avg is not None
+                                       else "-", seen,
+                                       "" if seen == 1 else "s")):
+            df = pd.DataFrame([{
+                "Photo": e["photo"] or None, "Employee": e["name"],
+                "Role": e["role"], "BU": e["bu"],
+                "Productivity": e["productivity"],
+                "Attendance": e["attendance"], "Desk": e["desk"],
+                "Activity": e["activity"], "Days in": e["days_in"],
+                "Usual in": productivity_view._hhmm(e["usual_in"]).replace(
+                    "&ndash;", ""),
+                "Usual out": productivity_view._hhmm(e["usual_out"]).replace(
+                    "&ndash;", ""),
+                "Hours a day": round(e["hours"], 1)
+                if e["hours"] is not None else None} for e in es])
+            ev = st.dataframe(
+                df, hide_index=True, width="stretch", on_select="rerun",
+                selection_mode="single-row", key="prod_df_%s" % name,
+                height=min(38 + 36 * len(es), 520), row_height=36,
+                column_config={
+                    "Photo": st.column_config.ImageColumn(" ", width="small"),
+                    "Productivity": st.column_config.ProgressColumn(
+                        "Productivity", min_value=0, max_value=100,
+                        format="%d"),
+                    "Hours a day": st.column_config.NumberColumn(
+                        format="%.1f h")})
+            rows = list(getattr(getattr(ev, "selection", None), "rows", [])
+                        or [])
+            if rows and rows[0] < len(es):
+                show_profile(mode, es[rows[0]], emps, "dept_%s" % name)
+    emps = pool
     rows = [{"Employee": e["name"], "Employee ID": e["id"],
              "Designation": e["role"], "Department": e["dept"],
+             "Business unit": e["bu"],
              "Productivity": e["productivity"], "Attendance": e["attendance"],
              "Desk": e["desk"], "Activity": e["activity"],
              "On the computer, % of desk time": round(e["act"]["computer"])
@@ -5590,6 +5664,7 @@ def show_productivity_sent(mode, sent, people, hours, now):
                          "employee_id": r.get("employee_id", ""),
                          "designation": r.get("designation", ""),
                          "department": r.get("department", ""),
+                         "project": r.get("project", ""),
                          "photo": r.get("photo", "")} for r in rows}
     emps = productivity_view.employees(rows, roster, people, hours, now)
     productivity_section(mode, emps, sent.get("days") or [],

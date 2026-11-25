@@ -2370,6 +2370,16 @@ def check_attendance():
     check("  4 of 6 punches at 141-D: a visitor at 140-H, left out",
           ([r["eid"] for r in att2.summary(data=vis2_, workdays=[DAY])],
            att2.visitors(data=vis2_)), (["90060"], 1))
+    # the CEO (25 Nov): business units and departments; a profile each,
+    # with their colleagues beside them
+    for e_ in em_:
+        e_["bu"] = "Unit A"
+    by_bu_ = prv.group_rows(em_, "bu")
+    prof_ = prv.profile_html("light", by_["90042"], em_)
+    check("units and departments grouped; a profile with colleagues",
+          ([n for n, _, _ in by_bu_], "with colleagues in Testing" in prof_,
+           "1st" in prof_, "Other One" in prof_, "frames" in prof_),
+          (["Unit A"], True, True, True, False))
     top_ = prv.summary_html("light", em_, ["2026-11-20", "2026-11-21"])
     tab2_ = prv.table_html("light", em_)
     check("  the page: figures, departments, the table, no camera picture",

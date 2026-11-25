@@ -25,6 +25,7 @@ rows in, HTML out. Names, IDs and directory-photo icons only where the
 caller passes them (cloud_names); never a camera picture.
 """
 from collections import defaultdict
+from datetime import datetime
 
 import attendance_view as av
 import progress_view as pv
@@ -93,7 +94,9 @@ def employees(rows, roster, people=None, hours=(10.0, 20.0), now=None,
             "name": ro.get("name") or "Code %s" % eid,
             "role": ro.get("designation") or "",
             "dept": ro.get("department") or "Other",
+            "bu": ro.get("project") or "Other",
             "photo": photos.get(eid) or ro.get("photo") or "",
+            "days": (r or {}).get("days") or {}, "board": p,
             "attendance": att, "desk": ds, "activity": ac,
             "desk_parts": d["parts"] if d else None,
             "desk_days": d["days"] if d else 0, "act": a,
@@ -123,6 +126,8 @@ def employees(rows, roster, people=None, hours=(10.0, 20.0), now=None,
         e = one(eid, {"employee_id": p.get("employee_id"),
                       "name": p.get("name"), "designation": role[0],
                       "department": role[1] if len(role) > 1 and role[1]
+                      else "Other",
+                      "project": role[2] if len(role) > 2 and role[2]
                       else "Other",
                       "photo": p.get("photo")}, None, p)
         if e["productivity"] is not None:
@@ -231,6 +236,14 @@ color:var(--accent);margin-left:auto}
 </style>"""
 
 
+def _styles(mode, *extra):
+    """The style blocks, each its own block for Streamlit's markdown: two
+    <style>s on one line end the first block at its </style> and leave
+    the second open, and the page after it becomes the style's text (25
+    Nov: the Productivity tiles came out unstyled, the heading gone)."""
+    return "\n\n".join([css(mode), _CSS] + list(extra)) + "\n\n"
+
+
 def _photo(e, cls=""):
     return ('<img src="%s" alt="">' % esc(e["photo"])) if e.get("photo") \
         else '<i class="nop"></i>'
@@ -279,29 +292,11 @@ def summary_html(mode, emps, days, made="", visitors=0):
     cov = [("var(--accent)", n_act, "desk camera + activity"),
            ("var(--accent)", n_desk - n_act, "desk camera"),
            ("var(--line2)", n - n_desk, "machines only")]
-    by_dept = defaultdict(list)
-    for e in emps:
-        by_dept[e["dept"]].append(e)
-    dept = []
-    for name, es in sorted(by_dept.items(), key=lambda kv: (-len(kv[1]),
-                                                            kv[0])):
-        p = _mean([e["productivity"] for e in es])
-        dk = _mean([e["desk"] for e in es])
-        at = _mean([e["attendance"] for e in es])
-        hr = _mean([e["hours"] for e in es])
-        dept.append(
-            '<tr><td class="l"><b>%s</b></td><td>%d</td><td class="l">'
-            '<div class="hb"><i style="width:%d%%"></i><span>%s</span></div>'
-            '</td><td>%s</td><td>%s</td><td>%s</td><td>%d of %d</td></tr>'
-            % (esc(name), len(es), round(p or 0), "%d" % round(p)
-               if p is not None else "-",
-               "%d" % round(at) if at is not None else "&ndash;",
-               "%d" % round(dk) if dk is not None else "&ndash;",
-               "%.1f h" % hr if hr is not None else "&ndash;",
-               sum(1 for e in es if e["desk"] is not None), len(es)))
+    dept = group_rows(emps, "dept")
+    units = group_rows(emps, "bu")
     top = sorted(with_desk, key=lambda e: -e["productivity"])[:8]
     return "".join([
-        css(mode), _CSS, '<div class="ec pr">',
+        _styles(mode), '<div class="ec pr">',
         '<div class="pr-hero"><div><h2>Productivity &middot; 140-H</h2><p>'
         'Every 140-H employee (most of their punches at its machines), %s to '
         '%s: time in the building from the attendance machines, and where a '
@@ -337,13 +332,170 @@ def summary_html(mode, emps, days, made="", visitors=0):
             '<div class="ec-card">%s<div><b>%s</b><span>%s</span></div><em>%d'
             '</em></div>' % (_photo(e), esc(e["name"]), esc(e["dept"]),
                              e["productivity"]) for e in top),
-        '<div class="ec-h"><span class="t">Departments</span><span class="c">'
-        'productivity averaged over each department\'s employees</span></div>'
-        '<div class="ec-card"><table><thead><tr><th class="l">Department</th>'
-        '<th>Employees</th><th class="l">Productivity</th><th>Attendance</th>'
-        '<th>Desk</th><th>In the building</th><th>Desk in a camera</th></tr>'
-        '</thead><tbody>%s</tbody></table></div>' % "".join(dept),
+        (_group_table("Business units", "productivity averaged over each "
+                      "business unit's employees", "Business unit", units)
+         if len(units) > 1 else ""),
+        _group_table("Departments", "productivity averaged over each "
+                     "department's employees", "Department", dept),
         '</div>'])
+
+
+def group_rows(emps, key):
+    """[(name, employees, html row)] grouped by `key` ("dept" or "bu"),
+    the biggest first."""
+    by = defaultdict(list)
+    for e in emps:
+        by[e[key]].append(e)
+    out = []
+    for name, es in sorted(by.items(), key=lambda kv: (-len(kv[1]), kv[0])):
+        p = _mean([e["productivity"] for e in es])
+        dk = _mean([e["desk"] for e in es])
+        at = _mean([e["attendance"] for e in es])
+        hr = _mean([e["hours"] for e in es])
+        out.append((name, es,
+                    '<tr><td class="l"><b>%s</b></td><td>%d</td><td class="l">'
+                    '<div class="hb"><i style="width:%d%%"></i><span>%s</span>'
+                    '</div></td><td>%s</td><td>%s</td><td>%s</td><td>%d of %d'
+                    '</td></tr>'
+                    % (esc(name), len(es), round(p or 0), "%d" % round(p)
+                       if p is not None else "-",
+                       "%d" % round(at) if at is not None else "&ndash;",
+                       "%d" % round(dk) if dk is not None else "&ndash;",
+                       "%.1f h" % hr if hr is not None else "&ndash;",
+                       sum(1 for e in es if e["desk"] is not None), len(es))))
+    return out
+
+
+def _group_table(title, sub, first, rows):
+    return ('<div class="ec-h"><span class="t">%s</span><span class="c">%s'
+            '</span></div><div class="ec-card"><table><thead><tr><th class="l">'
+            '%s</th><th>Employees</th><th class="l">Productivity</th>'
+            '<th>Attendance</th><th>Desk</th><th>In the building</th>'
+            '<th>Desk in a camera</th></tr></thead><tbody>%s</tbody></table>'
+            '</div>' % (title, sub, first, "".join(r for _, _, r in rows)))
+
+
+def _ord(n):
+    return "%d%s" % (n, "th" if 10 <= n % 100 <= 20 else
+                     {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th"))
+
+
+def profile_html(mode, e, emps):
+    """One employee: who, the scores and their parts, where they stand
+    among their department's colleagues (a bar each, theirs marked), and
+    every day by the machines."""
+    mates = sorted([x for x in emps if x["dept"] == e["dept"]
+                    and x["productivity"] is not None],
+                   key=lambda x: -x["productivity"])
+    rank = next((i + 1 for i, x in enumerate(mates) if x["eid"] == e["eid"]),
+                None)
+    dept_avg = _mean([x["productivity"] for x in mates])
+    bu_avg = _mean([x["productivity"] for x in emps if x["bu"] == e["bu"]
+                    and x["productivity"] is not None])
+    all_avg = _mean([x["productivity"] for x in emps
+                     if x["productivity"] is not None])
+    d, a = e.get("desk_parts"), e.get("act")
+
+    def tile(k, v, s):
+        return ('<div class="ec-card ec-kpi"><div class="k">%s</div><div '
+                'class="v">%s</div><div class="s">%s</div></div>'
+                % (k, "-" if v is None else "%d" % v, s))
+    att_sub = "%s in the building a day &middot; %s/%s days in" % (
+        "%.1f h" % e["hours"] if e["hours"] is not None else "hours unknown",
+        e["days_in"] if e["days_in"] is not None else "-",
+        e["of"] if e["of"] is not None else "-")
+    desk_sub = ("at the desk %d%% &middot; focus %d%% &middot; on time %d%%"
+                % tuple(round(v or 0) for _, v in d)) if d \
+        else "no camera sees their own desk"
+    act_sub = ("computer %d%% &middot; phone+talking %d%% of desk time"
+               % (round(a["computer"]), round(a["talk_phone"]))) if a \
+        else "not read at their desk"
+    bars = []
+    top = float(max([x["productivity"] for x in mates] or [1]))
+    for i, x in enumerate(mates, 1):
+        me = x["eid"] == e["eid"]
+        bars.append(
+            '<div class="pf-bar%s"><span class="n">%d</span><span class="w">'
+            '%s</span><span class="b"><i style="width:%.1f%%"></i></span>'
+            '<span class="v">%d</span></div>'
+            % (" me" if me else "", i, esc(x["name"]),
+               100.0 * x["productivity"] / top if top else 0,
+               x["productivity"]))
+    days_rows = []
+    for day in sorted(e.get("days") or {}, reverse=True):
+        s = e["days"][day]
+        f, o = s.get("first_in"), s.get("last_out")
+        outs = s.get("outings") or []
+        out_min = sum((b - a_).total_seconds() / 60.0 for a_, b in outs)
+        try:
+            label = datetime.strptime(day, "%Y-%m-%d").strftime("%a %d %b")
+        except ValueError:
+            label = day
+        days_rows.append(
+            '<tr><td class="l" style="white-space:nowrap">%s</td><td>%s</td>'
+            '<td>%s</td><td>%s</td><td>%s</td></tr>'
+            % (esc(label), f.strftime("%H:%M") if f is not None else "&ndash;",
+               o.strftime("%H:%M") if o is not None else "&ndash;",
+               ("%.1f h" % (s["inside_min"] / 60.0)) if s.get("closed", True)
+               and s.get("inside_min") else "&ndash;",
+               ("%d, %dm" % (len(outs), out_min)) if outs else "&ndash;"))
+    return "".join([
+        _styles(mode, _PF_CSS), '<div class="ec pr">',
+        '<div class="ec-card pf-head">%s<div><h3>%s</h3><p>%s</p><p class="m">'
+        '%s &middot; %s &middot; ID %s</p></div><div class="pf-big"><b>%s</b>'
+        '<span>productivity</span></div></div>'
+        % (_photo(e), esc(e["name"]), esc(e["role"]), esc(e["dept"]),
+           esc(e["bu"]), esc(str(e["id"])), e["productivity"]
+           if e["productivity"] is not None else "-"),
+        '<div class="pr-kpis">%s%s%s%s</div>' % (
+            tile("Attendance (machines)", e["attendance"], att_sub),
+            tile("Desk (cameras)", e["desk"], desk_sub),
+            tile("Activity at the desk", e["activity"], act_sub),
+            '<div class="ec-card ec-kpi"><div class="k">Among colleagues</div>'
+            '<div class="v">%s</div><div class="s">in %s (%d) &middot; dept '
+            'avg %s &middot; BU avg %s &middot; 140-H %s</div></div>'
+            % ((_ord(rank) if rank else "-"), esc(e["dept"]), len(mates),
+               "%d" % round(dept_avg) if dept_avg is not None else "-",
+               "%d" % round(bu_avg) if bu_avg is not None else "-",
+               "%d" % round(all_avg) if all_avg is not None else "-")),
+        '<div class="pr-two"><div class="ec-card"><h4>%s with colleagues in '
+        '%s</h4><div class="pr-sub">productivity, highest first &mdash; '
+        'theirs marked</div><div class="pf-bars">%s</div></div>'
+        % (esc(e["name"].split(" ")[0]), esc(e["dept"]), "".join(bars)),
+        '<div class="ec-card"><h4>Every day by the attendance machines</h4>'
+        '<div class="pr-sub">first IN, last OUT, time in the building, out '
+        'and back</div><div class="pf-days"><table><thead><tr><th class="l">'
+        'Day</th><th>In</th><th>Out</th><th>In the building</th><th>Out and '
+        'back</th></tr></thead><tbody>%s</tbody></table></div></div></div>'
+        % ("".join(days_rows) or '<tr><td class="l" colspan="5">No punch at '
+           '140-H in the export</td></tr>'),
+        '</div>'])
+
+
+_PF_CSS = """<style>
+.pr .pf-head{display:flex;align-items:center;gap:16px;padding:14px 18px;
+margin-bottom:12px}
+.pr .pf-head img,.pr .pf-head .nop{width:72px;height:72px;border-radius:50%;
+object-fit:cover}
+.pr .pf-head h3{margin:0;font-size:20px}
+.pr .pf-head p{margin:2px 0 0;color:var(--t2);font-size:13px}
+.pr .pf-head p.m{color:var(--t3);font-size:12px}
+.pr .pf-big{margin-left:auto;text-align:center}
+.pr .pf-big b{display:block;font-size:38px;color:var(--accent);line-height:1}
+.pr .pf-big span{font-size:11px;color:var(--t3)}
+.pr .pf-bars{max-height:380px;overflow:auto}
+.pr .pf-bar{display:grid;grid-template-columns:26px minmax(110px,190px) 1fr 30px;
+gap:8px;align-items:center;font-size:12px;padding:3px 0;color:var(--t2)}
+.pr .pf-bar .n{color:var(--t3);text-align:right}
+.pr .pf-bar .w{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pr .pf-bar .b{background:var(--s2);border-radius:4px;height:12px}
+.pr .pf-bar .b i{display:block;height:100%;border-radius:4px;
+background:var(--line2)}
+.pr .pf-bar .v{text-align:right;font-weight:600}
+.pr .pf-bar.me{color:var(--t1);font-weight:700}
+.pr .pf-bar.me .b i{background:var(--accent)}
+.pr .pf-days{max-height:380px;overflow:auto}
+</style>"""
 
 
 def table_html(mode, emps, dept=None):
@@ -386,7 +538,7 @@ def table_html(mode, emps, dept=None):
                    _hhmm(e["usual_in"]), _hhmm(e["usual_out"]),
                    esc(e["measured"])))
     return "".join([
-        css(mode), _CSS, '<div class="ec pr"><div class="ec-card pr-wrap">'
+        _styles(mode), '<div class="ec pr"><div class="ec-card pr-wrap">'
         '<table><thead><tr><th></th><th class="l">Employee</th><th class="l">'
         'Productivity</th><th>Attendance</th><th>Desk</th><th>Activity</th>'
         '<th>Days in</th><th>Usual in&ndash;out</th><th class="l">Measured by'

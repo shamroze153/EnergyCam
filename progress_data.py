@@ -1622,7 +1622,8 @@ def attendance_payload(cfg, campus="140-H", start=10.0):
                         employee_id=p.get("employee_id", ""),
                         designation=p.get("designation", ""),
                         department=p.get("department", ""),
-                        photo=photo_icon(p.get("employee_id", ""), size=48)))
+                        project=p.get("project", ""),
+                        photo=photo_icon(p.get("employee_id", ""), size=64)))
     return {"rows": out, "days": attendance.days(campus),
             "left_out": len(rows) - len(out),
             "visitors": attendance.visitors(campus)}

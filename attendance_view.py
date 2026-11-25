@@ -209,7 +209,8 @@ def usual(mode, rows, roster, start=10.0, grace=15, desk=None):
                r["late"], ("%.1f" % r["outings"]) if r["outings"]
                is not None else "--"))
     return "".join([
-        css(mode), _CSS, '<div class="ec at">',
+        # each <style> its own markdown block (see productivity_view._styles)
+        css(mode), "\n\n", _CSS, "\n\n", '<div class="ec at">',
         '<div class="at-tiles">%s</div>' % "".join(
             '<div class="ec-card ec-kpi"><div class="k">%s</div><div class="v">'
             '%s</div><div class="s">%s</div></div>' % (esc(k), esc(v), esc(s))
@@ -260,7 +261,7 @@ def one_day(mode, rows, roster, day, start=10.0, grace=15):
                ("%d, %s" % (len(s["outings"]), _dur(out_min)))
                if s["outings"] else "--"))
     return "".join([
-        css(mode), _CSS, '<div class="ec at">',
+        css(mode), "\n\n", _CSS, "\n\n", '<div class="ec at">',
         '<div class="ec-card at-wrap"><table><thead><tr><th>Employee</th>'
         '<th>Department</th><th>In</th><th>Out</th><th>In the building</th>'
         '<th>Out and back</th></tr></thead><tbody>%s</tbody></table></div>'
