@@ -1587,3 +1587,11 @@ Two or three lines a round; picture file names, never pictures.
   people. Three machine pairs dropped unseen (a janitor, a gatekeeper, a
   code not in the directory). The machines' in/out and outings are on
   every card.
+* 14:30, 25 Nov desk_match.py checks every named desk against the machines
+  every night from 23:30 (29 of 46 verified; one machine-named desk taken
+  back at 9%). "Attendance, 140-H" on Progress (laptop): every employee's
+  usual and each day's list. Laptop dashboard restarted on the new code.
+* 14:40, 25 Nov Round: field_audit 14:25 -- MISSED 3, GHOST 5, each a
+  first in six audits. The three MISSED rooms (141 MR 01, 141 Lobby ground
+  floor, Entry H) on their own with verify_live: MATCH, PASSING, MATCH --
+  the loop a pass behind. Nothing changed.
