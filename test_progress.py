@@ -2134,6 +2134,11 @@ def check_attendance():
         check("the usual table and one day's list",
               ("Some One" in page_u and "1 of 1" in page_u,
                "09:58" in page_d and "19:12" in page_d), (True, True))
+        # 8.47 h of 10 (0.5 x 0.847), at their own usual hour (0.3), in on
+        # the one working day (0.2): 92
+        check("an attendance score for every employee, from the machines",
+              (av_.score(summ[0]), "%%" in page_u, "Score" in page_u),
+              (92, False, True))
         # The hosted page (25 Nov: "cloud pe add karte raho"): names only
         # where cloud_names allows; the numbers come back as they went.
         import json as _json

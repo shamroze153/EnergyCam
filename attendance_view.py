@@ -33,6 +33,36 @@ vertical-align:middle;margin-left:6px}
 </style>"""
 
 
+SCORE_PARTS = (("In the building", 0.5,
+                "hours IN to OUT, of a 10-hour office day"),
+               ("Regular", 0.3,
+                "days in within half an hour of their own usual arrival"),
+               ("Days in", 0.2, "working days in, of the export's"))
+
+
+def score(r, office_h=10.0):
+    """An employee's attendance score, 0-100, from the machines alone
+    (Shamroze, 25 Nov: a score for every one of 140-H's ~160 a day, not
+    only those whose desk a camera sees): time in the building (50%),
+    coming in at their own usual hour -- a later shift is not late (30%),
+    and days in (20%). Time in the building, never the work itself.
+    None for nobody in on a working day."""
+    if not r.get("days_in"):
+        return None
+    inside = min(1.0, (r.get("inside_h") or 0.0) / office_h)
+    usual = r.get("usual_in")
+    firsts = [s["first_in"] for s in (r.get("days") or {}).values()
+              if s.get("first_in") is not None]
+    if usual is not None and firsts:
+        steady = sum(1 for t in firsts
+                     if abs(t.hour + t.minute / 60.0 - usual) <= 0.5) \
+            / float(len(firsts))
+    else:
+        steady = 0.0
+    present = min(1.0, r["days_in"] / float(max(1, r.get("of") or 1)))
+    return int(round(100 * (0.5 * inside + 0.3 * steady + 0.2 * present)))
+
+
 def _hhmm(h):
     if h is None:
         return "--"
@@ -72,8 +102,12 @@ def usual(mode, rows, roster, start=10.0, grace=15):
     hrs = [r["inside_h"] for r in work if r["inside_h"] is not None]
     late = sum(r["late"] for r in work)
     seen = sum(r["days_in"] for r in work)
+    scores = [s for s in (score(r) for r in work) if s is not None]
     tiles = [("Employees through the machines", "%d" % len(rows),
               "at least one day in the export"),
+             ("Attendance score, average", "%d" % round(sum(scores)
+                                                        / len(scores))
+              if scores else "--", "building 50%, regular 30%, days in 20%"),
              ("Usual arrival", _hhmm(ins[len(ins) // 2]) if ins else "--",
               "the middle employee's usual first IN"),
              ("In the building, a day", "%.1f h" % (sum(hrs) / len(hrs))
@@ -86,11 +120,14 @@ def usual(mode, rows, roster, start=10.0, grace=15):
     for r in rows:
         p = roster.get(r["eid"], {})
         w = 0 if r["inside_h"] is None else int(60 * r["inside_h"] / top)
+        sc = score(r)
         body.append(
-            '<tr><td>%s</td><td>%s</td><td>%d of %d</td><td>%s</td>'
+            '<tr><td>%s</td><td>%s</td><td><b>%s</b></td><td>%d of %d</td>'
+            '<td>%s</td>'
             '<td>%s</td><td>%s<i class="bar" style="width:%dpx"></i></td>'
             '<td class="%s">%s</td><td>%s</td></tr>'
-            % (_who(r, roster), esc(p.get("department") or ""), r["days_in"],
+            % (_who(r, roster), esc(p.get("department") or ""),
+               sc if sc is not None else "--", r["days_in"],
                r["of"], _hhmm(r["usual_in"]), _hhmm(r["usual_out"]),
                ("%.1f h" % r["inside_h"]) if r["inside_h"] is not None
                else "--", w, "late" if r["late"] >= 3 else "",
@@ -103,15 +140,19 @@ def usual(mode, rows, roster, start=10.0, grace=15):
             '%s</div><div class="s">%s</div></div>' % (esc(k), esc(v), esc(s))
             for k, v, s in tiles),
         '<div class="ec-card at-wrap"><table><thead><tr><th>Employee</th>'
-        '<th>Department</th><th>Days in</th><th>Usual in</th><th>Usual out'
+        '<th>Department</th><th>Score</th><th>Days in</th><th>Usual in</th>'
+        '<th>Usual out'
         '</th><th>In the building</th><th>Days in after %s</th><th>Out and '
         'back, a day</th></tr></thead><tbody>%s</tbody></table></div>'
         % (_hhmm(start + grace / 60.0), "".join(body)),
         '<div class="note">From HR\'s export of the attendance machines '
         '(hand-typed Life app punches left out): working days only; the '
         'usual is the middle day. A day with no OUT punch has no "out"; a '
-        'night shift crosses midnight and is split between two days. Time '
-        'in the building, not the work done.</div></div>'])
+        'night shift crosses midnight and is split between two days. The '
+        'score: hours in the building of a 10-hour day (50%), coming in '
+        'within half an hour of their own usual -- a later shift is not '
+        'late (30%), days in (20%). Time in the building, not the work '
+        'done.</div></div>'])
 
 
 def one_day(mode, rows, roster, day, start=10.0, grace=15):
