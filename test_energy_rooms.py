@@ -411,6 +411,51 @@ def main():
               "light", [dict(r, empty_on_h=0.0) for r in rows], {}, "x"),
           True)
 
+    # 25 Nov: one room's AC report card, against its usual whole day.
+    hours = [[0.0, 0.0] for _ in range(24)]
+    for h in range(10, 20):
+        hours[h] = [60.0, 0.0]
+    for h in (1, 2, 3, 4):
+        hours[h] = [40.0, 40.0]
+    today = {"room": "Card Room", "floor": "Ground floor", "units": 2,
+             "read": 2, "tons": 3.0, "sizes": "1.5 + 1.5", "basis": er.READ,
+             "on_h": 14.0, "empty_on_h": 4.0, "kwh": 30.0, "rs": 760.0,
+             "waste_rs": 160.0, "over_rs": 0.0, "hourly": hours}
+    usual_row = dict(today, rs=600.0, on_h=10.0, empty_on_h=1.0, kwh=22.0,
+                     waste_rs=40.0, watched_h=24,
+                     hourly=[[25.0, 0.0]] * 24)
+    part_row = dict(usual_row, rs=50.0, watched_h=6)
+    week = [(pd.Timestamp("2026-11-22"), [usual_row], False),
+            (pd.Timestamp("2026-11-23"), [part_row], False),
+            (pd.Timestamp("2026-11-24"), [dict(usual_row, rs=999.0)], False),
+            (pd.Timestamp("2026-11-25"), [today], True)]
+    u = er.room_usual(week, "Card Room", skip="2026-11-24")
+    check("a room's usual day: whole days only, not the day itself, not "
+          "today", (u["days"], u["rs"]), (1, 600.0))
+    card = er.ac_card("light", today, week, so_far=False, day="2026-11-24")
+    check("the card: dearer than a usual day, by how much",
+          "27% more than a usual day (Rs 600)" in card, True)
+    check("  the hours on and with nobody in, against the usual day",
+          all(x in card for x in ("AC on", "usual day 10h", "With nobody in",
+                                  "29% of the time on", "Could have saved")),
+          True)
+    check("  and one thing to do: the costliest stretch with nobody in",
+          "From <b>1 am to 5 am</b>" in card, True)
+    by_now = er.ac_card("light", dict(today, rs=300.0), week, so_far=True,
+                        upto_h=12.0, day="2026-11-25")
+    check("today so far is held against a usual day by this hour",
+          "a usual day by this hour (Rs 300)" in by_now, True)
+    calm = er.ac_card("light", dict(today, hourly=[[10.0, 0.0]] * 24,
+                                    empty_on_h=0.0, waste_rs=0.0), [],
+                      so_far=False)
+    check("a room with no waste says so; no usual day yet, said",
+          ("No hour with the AC running and nobody in" in calm,
+           "no usual day yet" in calm), (True, True))
+    check("the card says how it was measured",
+          "A camera reads its units" in card and "No camera sees" in
+          er.ac_card("light", dict(today, basis=er.ASSUMED, read=0), week),
+          True)
+
     print()
     if FAILURES:
         print("%d failed: %s" % (len(FAILURES), ", ".join(FAILURES)))

@@ -2664,9 +2664,11 @@ def show_meters(df, recent, now):
                             int(a.get("bill_day", ev.BILL_DAY) or ev.BILL_DAY))
     month = ev.cycle_page(mode, cyc, mine, my_bills) or \
         ev.month_page(mode, est, mine, rates, my_bills)
+    # Reading to reading (17 Nov) is the workings behind the days: folded
+    # under "More" since every day has its own chart (25 Nov).
     paced = ev.pace_page(mode, readings, mine, rate)
-    if month or paced:
-        st.markdown(ev.css(mode) + '<div class="ec">' + month + paced
+    if month:
+        st.markdown(ev.css(mode) + '<div class="ec">' + month
                     + "</div>", unsafe_allow_html=True)
     st.markdown(ev.meters_page(
         mode, table, kind, mine, my_bills if my_bills is not None else bills,
@@ -2675,7 +2677,8 @@ def show_meters(df, recent, now):
         usage, {"since": a.get("solar_since"),
                 "full_from": a.get("solar_full_from"),
                 "kw": a.get("solar_kw")},
-        None, bills_inline=False, days=days_read), unsafe_allow_html=True)
+        None, bills_inline=False, days=days_read, more_first=paced),
+        unsafe_allow_html=True)
     # The bills' year as a Streamlit control: the page's 30-second refresh
     # put an HTML switch back to this year every time (20 Nov).
     years = ev.bill_years(my_bills, mine)
@@ -2794,6 +2797,10 @@ def app_chrome(mode):
         " !important; font-weight: 700; }"
         "section[data-testid='stSidebar'] button p { color: inherit !important;"
         " text-align: left; }"
+        # Streamlit 1.65 centres a button's label in a div of its own: the
+        # sections sat in the middle of the sidebar (25 Nov).
+        "section[data-testid='stSidebar'] button > div"
+        " { justify-content: flex-start !important; }"
         "div[data-testid='stMainBlockContainer'], .block-container"
         " { max-width: 1260px; padding-top: 1.1rem; padding-bottom: 3rem; }"
         # Nothing to see takes no room (19 Nov: on a phone the campus page
@@ -3688,25 +3695,40 @@ def show_room_energy(df, now):
         week = [(d, er.totals(got), so_far) for d, got, so_far in week_rows]
     except psycopg2.Error:
         week, week_rows = [], []
+
+    # One room's report card, one room at a time (Shamroze, 25 Nov: "AC ke
+    # report card bhi ... munasib"; and 24 Nov: one at a time, a picker --
+    # never a grid). The costliest room first.
+    if rows:
+        theme = LINK_BASE.get("theme") or "dark"
+        st.markdown(er.ev.css(theme) + '<div class="ec"><div class="ec-h" '
+                    'style="margin-top:22px"><span class="t">AC report card'
+                    '</span><span class="c">one room at a time &middot; the '
+                    'costliest first &middot; against its usual day</span>'
+                    '</div></div>', unsafe_allow_html=True)
+        names = [r["room"] for r in rows]
+        chosen = st.selectbox("Room", names, key="ac_card_room",
+                              label_visibility="collapsed")
+        row = next((r for r in rows if r["room"] == chosen), rows[0])
+        st.markdown(er.ac_card(theme, row, week_rows,
+                               so_far=(pick == "Today so far"),
+                               upto_h=local.hour + local.minute / 60.0,
+                               day=start), unsafe_allow_html=True)
     st.markdown(er.trend(LINK_BASE.get("theme") or "dark", week),
                 unsafe_allow_html=True)
     st.markdown(er.rooms_week(LINK_BASE.get("theme") or "dark", week_rows,
                               LINK_BASE), unsafe_allow_html=True)
 
-    # Hour by hour, for the campus or one room, with its last days
-    # (Shamroze, 16 Nov: what each room's ACs cost each day, how much was
-    # waste, from which hour to which -- and a chart to keep tracking it).
+    # Hour by hour, for the campus, with its last days (Shamroze, 16 Nov:
+    # what the ACs cost each day, how much was waste, from which hour to
+    # which -- and a chart to keep tracking it). One room's own hours are
+    # on its report card above (25 Nov).
     if rows:
-        everyone = "Every room on this campus"
-        names = [everyone] + [r["room"] for r in rows]
-        chosen = st.selectbox("Hour by hour for", names, key="energy_hours")
         st.markdown(er.hours_page(
-            LINK_BASE.get("theme") or "dark", rows,
-            None if chosen == everyone else chosen, week_rows,
+            LINK_BASE.get("theme") or "dark", rows, None, week_rows,
             so_far=(pick == "Today so far")), unsafe_allow_html=True)
         st.markdown(er.too_many(
-            LINK_BASE.get("theme") or "dark",
-            [r for r in rows if chosen == everyone or r["room"] == chosen],
+            LINK_BASE.get("theme") or "dark", rows,
             so_far=(pick == "Today so far")), unsafe_allow_html=True)
 
 

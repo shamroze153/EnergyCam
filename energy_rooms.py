@@ -806,6 +806,194 @@ def hours_page(theme, rows, name, week=None, so_far=True):
     return "".join(out)
 
 
+# ------------------------------------------------------- one room's report card
+
+AC_CSS = """<style>
+.ac-card{padding:18px 20px 16px}
+.ac-head{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;
+align-items:flex-start}
+.ac-head .n{font-size:18px;font-weight:750;letter-spacing:-.01em}
+.ac-head .s{font-size:12.5px;color:var(--t3);margin-top:3px;line-height:1.45}
+.ac-head .big{text-align:right;margin-left:auto}
+.ac-head .big b{font-size:28px;font-weight:760;letter-spacing:-.02em;
+font-variant-numeric:tabular-nums;line-height:1.1}
+.ac-head .big span{display:block;font-size:12px;color:var(--t3);margin-top:2px}
+.ac-vs{display:inline-block;font-size:12px;font-weight:650;padding:3px 10px;
+border-radius:10px;margin-top:6px;border:1px solid var(--line2);line-height:1.35}
+.ac-vs.good{color:var(--good);border-color:var(--good)}
+.ac-vs.bad{color:var(--crit);border-color:var(--crit)}
+.ac-figs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;
+margin:16px 0 12px}
+.ac-figs>div{background:var(--s2);border-radius:12px;padding:10px 12px;min-width:0}
+.ac-figs span{display:block;font-size:11.5px;color:var(--t3)}
+.ac-figs b{display:block;font-size:19px;font-weight:720;margin-top:2px;
+font-variant-numeric:tabular-nums}
+.ac-figs b.crit{color:var(--crit)}
+.ac-figs small{display:block;font-size:11.5px;color:var(--t3);margin-top:2px}
+.ac-tip{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;
+line-height:1.5;margin-top:12px;padding:10px 12px;border-radius:12px;
+background:var(--crit-bg);border:1px solid var(--crit-line)}
+.ac-tip.ok{background:var(--s2);border-color:var(--line)}
+.ac-tip i{flex:none;font-style:normal;font-weight:800;width:20px;height:20px;
+border-radius:50%;display:flex;align-items:center;justify-content:center;
+font-size:12px;color:#fff;background:var(--crit)}
+.ac-tip.ok i{background:var(--good)}
+.ac-foot{font-size:12px;color:var(--t3);margin-top:10px;line-height:1.5}
+@media (max-width:760px){.ac-figs{grid-template-columns:repeat(2,minmax(0,1fr))}
+.ac-head .big{text-align:left;margin-left:0}}
+</style>""".replace("\n", "")
+
+
+def room_usual(week, name, skip=None):
+    """A room's usual whole day over `week` ([(date, ledger, so_far)], as
+    trend() takes): {on_h, empty_on_h, kwh, rs, save_rs, hourly, days}, the
+    days the loop watched nearly whole (WHOLE_DAY_H) and not `skip`; or
+    None."""
+    got = []
+    for day, ledger, so_far in week or []:
+        if so_far or (skip is not None and
+                      pd.Timestamp(day).date() == pd.Timestamp(skip).date()):
+            continue
+        r = next((x for x in ledger or [] if x["room"] == name), None)
+        if r is None or r.get("watched_h", 24) < WHOLE_DAY_H:
+            continue
+        got.append(r)
+    if not got:
+        return None
+    n = float(len(got))
+    out = {f: sum(r.get(f, 0.0) for r in got) / n
+           for f in ("on_h", "empty_on_h", "kwh", "rs")}
+    out["save_rs"] = sum(r.get("waste_rs", 0.0) + r.get("over_rs", 0.0)
+                         for r in got) / n
+    hours = [[0.0, 0.0] for _ in range(24)]
+    for r in got:
+        for h, (a, w) in enumerate(r.get("hourly") or []):
+            hours[h][0] += a / n
+            hours[h][1] += w / n
+    out["hourly"] = hours
+    out["days"] = len(got)
+    return out
+
+
+HOW_MEASURED = {
+    READ: "A camera reads its unit%s (the display or the louvre), minute by "
+          "minute: measured.",
+    PART: "A camera reads %d of its %d units; the others are taken to run "
+          "while people are in.",
+    ASSUMED: "No camera sees its unit%s: taken to run from when somebody "
+             "settles to when the last person leaves.",
+    ALWAYS: "Cooled round the clock on purpose: 24 hours.",
+}
+
+
+def ac_card(theme, r, week=None, so_far=True, upto_h=None, day=None):
+    """One room's AC report card (Shamroze, 25 Nov: "AC ke report card bhi
+    ... bahut detailed nahi, lekin bahut acha, munasib"): what its ACs cost
+    against a usual day -- by this hour, for today -- the hours on, the
+    hours with nobody in, the units, what could have been saved; the day
+    hour by hour; one thing to do. `r` is the room's ledger row, `week` the
+    last days' ledgers (room_usual), `upto_h` the hour of the day now."""
+    if not r:
+        return ""
+    u = room_usual(week, r["room"], skip=day)
+    save = r.get("waste_rs", 0.0) + r.get("over_rs", 0.0)
+    on_h, empty_h = r.get("on_h", 0.0), r.get("empty_on_h", 0.0)
+    # Against a usual day: by this hour today (the usual day's own hours up
+    # to now), the whole day for a day that is over.
+    vs = ""
+    if u:
+        if so_far and upto_h is not None:
+            whole = int(upto_h)
+            base = sum(h[0] for h in u["hourly"][:whole])
+            if whole < 24:
+                base += u["hourly"][whole][0] * (upto_h - whole)
+            what = "a usual day by this hour"
+        else:
+            base, what = u["rs"], "a usual day"
+        if base >= 1:
+            change = 100.0 * (r["rs"] / base - 1)
+            if abs(change) < 5:
+                vs = '<span class="ac-vs">about the same as %s (%s)</span>' % (
+                    what, _rs(base))
+            else:
+                vs = ('<span class="ac-vs %s">%s %.0f%% %s than %s (%s)</span>'
+                      % ("good" if change < 0 else "bad",
+                         "&#9660;" if change < 0 else "&#9650;", abs(change),
+                         "less" if change < 0 else "more", what, _rs(base)))
+    sizes = r.get("sizes") or ""
+    units = "%d unit%s" % (r["units"], "" if r["units"] == 1 else "s")
+    if r.get("tons"):
+        units += ", %s ton" % ("%g" % r["tons"])
+    sub = " · ".join(x for x in (r.get("floor"), units,
+                                 sizes if sizes and len(sizes) < 40 else "",
+                                 badge(r)) if x)
+
+    def usual(f, fmt):
+        # a usual WHOLE day, beside today's hours so far: said so
+        return ("usual day %s" % fmt(u[f])) if u else "no usual day yet"
+    share = (100.0 * empty_h / on_h) if on_h > 0 else 0.0
+    figs = [
+        ("AC on", _h(on_h), usual("on_h", _h), ""),
+        ("With nobody in", _h(empty_h),
+         "%.0f%% of the time on" % share if on_h > 0 else "--",
+         "crit" if empty_h >= 0.25 else ""),
+        ("Electricity", "%s kWh" % format(int(round(r.get("kwh", 0.0))), ","),
+         usual("kwh", lambda v: "%s kWh" % format(int(round(v)), ",")), ""),
+        ("Could have saved", _rs(save),
+         usual("save_rs", _rs) if u else "nobody in, or too many units",
+         "crit" if save >= 1 else ""),
+    ]
+    fig_html = "".join(
+        '<div><span>%s</span><b class="%s">%s</b><small>%s</small></div>'
+        % (esc(k), cls, esc(v), esc(s)) for k, v, s, cls in figs)
+    waste_colour = "#e8a21a" if theme == "dark" else "#d18a00"
+    on_colour = "#2a9d63" if theme == "dark" else "#1f8a55"
+    hours = r.get("hourly") or [[0.0, 0.0] for _ in range(24)]
+    labels = [("%d%s" % (h % 12 or 12, "a" if h < 12 else "p"))
+              if h % 3 == 0 else "" for h in range(24)]
+    stacks = [[max(0.0, a - w), w] for a, w in hours]
+    tips = ["%s-%s · AC %s · with nobody in %s%s" % (
+        _hour_name(h), _hour_name((h + 1) % 24), _rs(a), _rs(w),
+        (" · usual %s" % _rs(u["hourly"][h][0])) if u else "")
+        for h, (a, w) in enumerate(hours)]
+    runs = waste_stretches(hours)
+    if runs:
+        a, b, rs = runs[0]
+        tip = ('<div class="ac-tip"><i>!</i><div>From <b>%s to %s</b> the AC '
+               'ran with nobody in: <b style="color:var(--crit)">%s</b>. '
+               'Switch it off then.</div></div>'
+               % (_hour_name(a), _hour_name(b % 24), _rs(rs)))
+    elif r.get("over_rs", 0.0) >= 1:
+        tip = ('<div class="ac-tip"><i>!</i><div>More units ran than the '
+               'people in needed: <b style="color:var(--crit)">%s</b> over %s. '
+               'Fewer people, fewer units.</div></div>'
+               % (_rs(r["over_rs"]), _h(r.get("over_h", 0.0))))
+    else:
+        tip = ('<div class="ac-tip ok"><i>&#10003;</i><div>No hour with the AC '
+               'running and nobody in.</div></div>')
+    plural = "" if r["units"] == 1 else "s"
+    how = HOW_MEASURED.get(r["basis"], "")
+    how = (how % (r["read"], r["units"]) if r["basis"] == PART else
+           how % plural if "%s" in how else how)
+    foot = ("%s Rupees at the marginal rate, the peak tariff by the clock%s."
+            % (how, ("; usual: the average of the last %d whole day%s"
+                     % (u["days"], "" if u["days"] == 1 else "s")) if u
+               else ""))
+    return "".join([
+        ev.css(theme), AC_CSS, '<div class="ec"><div class="ec-card ac-card">',
+        '<div class="ac-head"><div><div class="n">%s</div><div class="s">%s'
+        '</div></div><div class="big"><b>%s</b><span>%s</span>%s</div></div>'
+        % (esc(r["room"]), esc(sub), _rs(r["rs"]),
+           "the ACs so far today" if so_far else "the ACs that day", vs),
+        '<div class="ac-figs">%s</div>' % fig_html,
+        ev.legend([(on_colour, "with people in"),
+                   (waste_colour, "with nobody in")]),
+        ev.columns(labels, stacks, [on_colour, waste_colour], tips,
+                   height=120),
+        tip, '<div class="ac-foot">%s</div>' % esc(foot),
+        "</div></div>"])
+
+
 def glance(theme, today, yesterday, read_units, all_units, base=None,
            in_view=None):
     """The campus page's first row (17 Nov, Envoy's look): today's AC

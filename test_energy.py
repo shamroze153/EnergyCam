@@ -177,6 +177,16 @@ def main():
     check("the days add up to what the meter moved",
           round(ds["gf_basement"].sum(), 6) == 53422.0 - 52801.0,
           ds["gf_basement"].sum())
+    # 25 Nov: "The last full day" is day_series' day -- not "Mon 23" over a
+    # list saying 6 pm Monday to 6 pm Tuesday is Tuesday.
+    last = ev.last_full_day(ds, ("gf_basement",))
+    check("the last full day is Tuesday, whole (not Monday's daytime)",
+          last is not None and last["day"].strftime("%a %d") == "Tue 24",
+          last)
+    check("and a weekend share or a part day is never the last full day",
+          ev.last_full_day(ds[ds["day"] <= "2026-11-23"],
+                           ("gf_basement",))["day"].strftime("%a %d")
+          == "Fri 20")
     on = [d.strftime("%a") for d in ev.counted_as(
         pd.Timestamp("2026-11-20 17:45", tz="Asia/Karachi"),
         pd.Timestamp("2026-11-23 18:00", tz="Asia/Karachi"))]

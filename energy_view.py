@@ -954,7 +954,14 @@ overflow:hidden;text-overflow:ellipsis}
 .en-note{font-size:12.5px;color:var(--t3);margin-top:8px;line-height:1.5}
 .en-warn{background:var(--crit-bg);border:1px solid var(--crit-line);
 border-radius:12px;padding:11px 14px;margin-top:10px;font-size:13px}
-.en-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+.en-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px}
+.en-tiles:has(>.ec-kpi:nth-child(5):last-child){grid-template-columns:repeat(6,minmax(0,1fr))}
+.en-tiles:has(>.ec-kpi:nth-child(5):last-child)>.ec-kpi{grid-column:span 2}
+.en-tiles:has(>.ec-kpi:nth-child(5):last-child)>.ec-kpi:nth-child(n+4){grid-column:span 3}
+@media (max-width:760px){
+.en-tiles:has(>.ec-kpi:nth-child(5):last-child){grid-template-columns:repeat(2,minmax(0,1fr))}
+.en-tiles:has(>.ec-kpi:nth-child(5):last-child)>.ec-kpi{grid-column:auto}
+.en-tiles:has(>.ec-kpi:nth-child(5):last-child)>.ec-kpi:last-child{grid-column:1/-1}}
 .en-sun{display:grid;grid-template-columns:minmax(230px,1fr) 2fr;gap:26px;
 align-items:center}
 .en-sun .lbl{font-size:11.5px;letter-spacing:.13em;text-transform:uppercase;
@@ -1673,14 +1680,39 @@ def pace_page(theme, readings, meters, rate):
         "</div>"])
 
 
+def last_full_day(days, codes):
+    """The newest day of day_series() that every meter covers whole -- not
+    a share of a weekend, not a Monday's daytime -- or None."""
+    if days is None or not len(days):
+        return None
+    ok = pd.Series(True, index=days.index)
+    for k in codes:
+        if not k or k not in days:
+            continue
+        ok &= days[k].notna()
+        for flag in (k + "_est", k + "_part"):
+            if flag in days:
+                ok &= ~days[flag].fillna(False).astype(bool)
+    return days[ok].iloc[-1] if ok.any() else None
+
+
 def meters_page(theme, table, kind, meters, bills, cooled_hours, rate,
                 problems, campus_has_meters, campus, usage=None,
-                solar=None, expected=None, bills_inline=True, days=None):
+                solar=None, expected=None, bills_inline=True, days=None,
+                more_first=""):
     """The Meters view below the form: days, then months. `solar`: the
     array as rooms.yaml has it -- {since, full_from, kw}. `expected`: this
     month's (start, units, Rs) at the readings' pace, for year_on_year.
     `days`: day_series(), for the chart of every day since the first
-    reading (without it, the older chart of the last days)."""
+    reading (without it, the older chart of the last days). `more_first`:
+    a section to fold away first under "More" (the reading-to-reading
+    pace, 25 Nov).
+
+    In the order energy dashboards put it (25 Nov, Shamroze: "jo
+    standards follow hote hain"): the period's figure and its forecast
+    (above this, the bill), the last day, the trend day by day against a
+    usual day, what the panels did, the months and the year before; the
+    workings folded away."""
     t = TOKENS[theme]
     c = SERIES[theme]
     h = [css(theme), '<div class="ec">']
@@ -1707,9 +1739,13 @@ def meters_page(theme, table, kind, meters, bills, cooled_hours, rate,
         # figure typed in on its own makes a row with no units in it.
         metered = [k for k in (gf, ff) if k and k in table.columns]
         has_units = table[metered].notna().any(axis=1) if metered else None
-        last = (table[has_units].iloc[-1]
-                if has_units is not None and has_units.any()
-                else table.iloc[-1])
+        # The day as day_series() counts it (25 Nov: "The last full day, Mon
+        # 23" above a list saying 6 pm Monday to 6 pm Tuesday is Tuesday).
+        last = last_full_day(days, (gf, ff))
+        if last is None:
+            last = (table[has_units].iloc[-1]
+                    if has_units is not None and has_units.any()
+                    else table.iloc[-1])
         grid = sum(float(last[k]) for k in (gf, ff)
                    if k and pd.notna(last.get(k)))
         sun = float(last["solar"]) if pd.notna(last.get("solar")) else None
@@ -1736,6 +1772,12 @@ def meters_page(theme, table, kind, meters, bills, cooled_hours, rate,
                       "%s units at Rs %.0f" % (format(int(round(grid)), ","),
                                                rate)))
         h.append("</div>")
+        # The trend day by day comes before the panels and the months.
+        if days is not None and len(days):
+            # 24 Nov: every day since the first reading, 6 pm to 6 pm,
+            # weekends shaded, against the bills (daily_history).
+            h.append(daily_history(theme, days, by_code, gf, ff, bills,
+                                   meters))
         h.append(solar_block(table, gf, rate, c["solar"], c["gf"]))
         solar = solar or {}
         h.append(solar_before_after(
@@ -1769,12 +1811,7 @@ def meters_page(theme, table, kind, meters, bills, cooled_hours, rate,
             if shared:
                 bits.append("a missed reading, shared out evenly")
             tips.append(" · ".join(bits))
-        if days is not None and len(days):
-            # 24 Nov: every day since the first reading, 6 pm to 6 pm,
-            # weekends shaded, against the bills (daily_history).
-            h.append(daily_history(theme, days, by_code, gf, ff, bills,
-                                   meters))
-        else:
+        if days is None or not len(days):
             h.append('<div class="ec-h"><span class="t">What the building '
                      'used, day by day</span><span class="c">units; hover a '
                      'day</span>%s</div>'
@@ -1796,9 +1833,9 @@ def meters_page(theme, table, kind, meters, bills, cooled_hours, rate,
                         " Solar was read as the inverter's running total and"
                         " turned into days." if kind == "total" else ""))
 
-        # The two charts that explain rather than report, folded away
+        # The charts that explain rather than report, folded away
         # (Shamroze, 20 Nov: "keep the important graphs, clean").
-        more = []
+        more = [more_first] if more_first else []
         if cooled_hours is not None:
             tips = ["%s · %.0f room-hours empty with a unit assumed on"
                     % (pd.Timestamp(d).strftime("%A %d %B"), v)
@@ -1850,9 +1887,12 @@ def meters_page(theme, table, kind, meters, bills, cooled_hours, rate,
                          'cameras watched only part of read high.</div></div>'
                          % columns(labels, per, [c["ff"]], tips, height=150))
         if more:
-            h.append('<details class="en-more"><summary>More: rooms left '
-                     'cooled, and units for each person in</summary>%s'
-                     '</details>' % "".join(more))
+            h.append('<details class="en-more"><summary>More: %s</summary>%s'
+                     '</details>' % (
+                         "reading to reading, rooms left cooled, units for "
+                         "each person in" if more_first else
+                         "rooms left cooled, and units for each person in",
+                         "".join(more)))
     for p in problems:
         h.append('<div class="en-warn">%s %s</div>' % (ov.WARN, esc(p)))
     if bills_inline:
