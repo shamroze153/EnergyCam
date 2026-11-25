@@ -456,6 +456,41 @@ AT_DESK = ("computer", "phone", "talking", "desk")
 ACTIVITY_REACH = pd.Timedelta(minutes=8)
 
 
+# Presence only (Shamroze, 25 Nov): the Basement's people are measured by
+# where they are -- at the desk, in the Basement away from it, the smoking
+# area, the cafe -- never by what they do at the desk ("unke desk pe kya
+# kar rahe hain, wo dekhne ki zaroorat nahi"). Rooms listed here (or in
+# progress.yaml's `presence_only:`) have no computer / phone / talking
+# read, written or shown; a person's own `presence_only: true/false` wins.
+PRESENCE_ONLY = ("Basement",)
+_presence = {"mtime": None, "rooms": frozenset(PRESENCE_ONLY)}
+
+
+def presence_rooms(cfg=None, path=None):
+    """The rooms whose desks are watched for presence only."""
+    if cfg is not None:
+        rooms = cfg.get("presence_only")
+        return frozenset(str(r) for r in (PRESENCE_ONLY if rooms is None
+                                          else rooms or ()))
+    path = path or CONFIG
+    try:
+        m = os.path.getmtime(path)
+    except OSError:
+        return frozenset(PRESENCE_ONLY)
+    if m != _presence["mtime"]:
+        _presence["mtime"] = m
+        _presence["rooms"] = presence_rooms(load(path) or {})
+    return _presence["rooms"]
+
+
+def presence_only(person, cfg=None):
+    """Whether only where this employee is is measured (above)."""
+    own = (person or {}).get("presence_only")
+    if own is not None:
+        return bool(own)
+    return str((person or {}).get("department") or "") in presence_rooms(cfg)
+
+
 def place_of(room, own=None):
     """The kind of place a room is."""
     name = (room or "").lower()
@@ -616,6 +651,8 @@ def day_activity(person, day, rows=None, notes=None, passes=None,
         if len(mine) else []
     acts = mine[(mine["kind"] == "desk") & (mine["state"] != "away")] \
         if len(mine) else mine
+    if presence_only(person) and len(acts):
+        acts = acts.iloc[0:0]          # where they are, not what they do
     # A sighting by face (progress_track, faces.py) stands as confirmed
     # whatever its number -- a face is only "face" far above the line --
     # unless somebody says no; one by the body needs SEEN_MIN.
@@ -1249,6 +1286,7 @@ def build(cfg, today, hours=(10, 20), count=5, folder=SEATS, frm=8, to=24,
                 return name, eid
         return "", ""
     for person in everyone:
+        person = dict(person, presence_only=presence_only(person, cfg))
         hand_name, hand_id = by_hand(person)
         name = person.get("name") or hand_name
         eid = str(person.get("employee_id") or hand_id or "")
@@ -1301,6 +1339,7 @@ def build(cfg, today, hours=(10, 20), count=5, folder=SEATS, frm=8, to=24,
             "gate": gate.get(eid, []) if eid and person.get("department")
             not in GATE_BLIND else [],
             "department": person.get("department", ""),
+            "presence_only": person["presence_only"],
             # where the desk is (numbers): the dashboard knows a listed
             # employee's own desk from every other desk by it
             "recorder": person.get("recorder"),

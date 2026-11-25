@@ -40,14 +40,30 @@ def colours(mode):
 
 
 # Away from the desk, as the board says it (progress_data KINDS).
-AWAY_WORDS = [("meeting", "meetings"), ("cafe", "cafe"),
+AWAY_WORDS = [("own room", "own room"), ("meeting", "meetings"),
+              ("cafe", "cafe"), ("smoking", "smoking area"),
               ("prayer", "prayer"), ("outside", "outside on campus"),
-              ("smoking", "smoking area"), ("office", "other rooms"),
-              ("own room", "own room"), ("corridor", "corridors"),
+              ("office", "other rooms"), ("corridor", "corridors"),
               ("left", "out of the building"), ("unseen", "not seen")]
 SLOT_WORDS = dict([("computer", "at the computer"), ("phone", "on the phone"),
                    ("talking", "talking at the desk"),
                    ("desk", "at the desk")] + AWAY_WORDS)
+
+
+def away_word(kind, p=None):
+    """A place away from the desk in words; their own room by its name
+    (25 Nov: "in the Basement", where the Basement's people are measured
+    by where they are)."""
+    room = (p or {}).get("department") or ""
+    if kind == "own room" and room:
+        return "in the %s, off the desk" % room
+    return dict(AWAY_WORDS).get(kind, kind)
+
+
+def presence(p):
+    """Only where this employee is is measured -- not what they do at the
+    desk (progress_data.presence_only; the Basement since 25 Nov)."""
+    return bool((p or {}).get("presence_only"))
 
 
 # The day's kinds, as the page names them, in the order the bar shows them.
@@ -69,16 +85,22 @@ def day_block(focus, c, frm=8, to=24):
                                            "desk"))
     away = sum(v for k, v in m.items()
                if k not in ("computer", "phone", "talking", "desk"))
-    parts = {"computer": est["computer"] if sum(est.values()) else
-             m.get("desk", 0.0), "phone": est["phone"],
-             "talking": est["talking"], "unseen": away}
+    if sum(est.values()):
+        parts = {"computer": est["computer"], "phone": est["phone"],
+                 "talking": est["talking"], "unseen": away}
+        shown = DAY_PARTS
+    else:
+        # nothing read (or presence only, the Basement): the desk is the
+        # desk -- never "at the computer" for minutes nobody looked at
+        parts = {"desk": at_desk, "unseen": away}
+        shown = [("desk", "At the desk"), ("unseen", "Away from the desk")]
     total = sum(parts.values()) or 1.0
     bar = "".join('<i style="width:%.2f%%;background:%s" title="%s %s"></i>'
                   % (100 * parts[k] / total, c[k], esc(label), dur(parts[k]))
-                  for k, label in DAY_PARTS if parts[k] > 0)
+                  for k, label in shown if parts[k] > 0)
     legend = "".join('<span><b style="background:%s"></b>%s <em>%s</em>'
                      '</span>' % (c[k], esc(label), dur(parts[k]))
-                     for k, label in DAY_PARTS)
+                     for k, label in shown)
     slots = focus.get("slots") or []
     cols = []
     for s in slots:
@@ -573,7 +595,7 @@ def board_row(p, c, frm=8, to=24, start=10.0):
     # And where they were when not at the desk (24 Nov, Shamroze: "sirf
     # computer pe baitha dikha rahe ho" -- the cafe, a meeting, out of the
     # building): the campus cameras' faces and the gate's, in words.
-    gone_to = [(w, m.get(k, 0.0)) for k, w in AWAY_WORDS
+    gone_to = [(away_word(k, p), m.get(k, 0.0)) for k, _ in AWAY_WORDS
                if came and m.get(k, 0.0) >= 1]
     if gone_to:
         split += ('<div class="pg-mixt pg-away">away: %s</div>'
@@ -667,12 +689,17 @@ def today_board(people, c, as_of="", frm=8, to=24, start=10.0):
 # day): the day's figures beside their usual, the day as lanes -- at the
 # desk, each place, out of the building, not seen -- and the day from-to.
 
+# Their own room off the desk, the cafe and the smoking area each a lane of
+# their own (25 Nov: the Basement's people by "desk pe, Basement mein,
+# smoking area mein, cafe mein").
 LANES = [("desk", "At the desk", AT_DESK_KINDS),
+         ("own", "Own room, off the desk", ("own room",)),
          ("meeting", "Meetings", ("meeting",)),
          ("cafe", "Cafe", ("cafe",)),
+         ("smoking", "Smoking area", ("smoking",)),
          ("prayer", "Prayer", ("prayer",)),
-         ("outside", "Outside on campus", ("outside", "smoking")),
-         ("rooms", "Other rooms", ("office", "own room", "corridor")),
+         ("outside", "Outside on campus", ("outside",)),
+         ("rooms", "Other rooms", ("office", "corridor")),
          ("left", "Out of the building", ("left",)),
          ("unseen", "Away, not seen", ("unseen",))]
 REPORT_VIEWS = ("Today", "Usual day (average)")
@@ -701,9 +728,11 @@ def _ticks(lo, hi):
                    for h in range(lo, hi + 1, step))
 
 
-def day_lanes(focus, c, now=None):
+def day_lanes(focus, c, now=None, own="", only_presence=False):
     """The day as lanes, one a place: a bar wherever they were there, its
-    from-to and minutes on hover; "now" marked."""
+    from-to and minutes on hover; "now" marked. `own`: their room, named on
+    its lane; `only_presence`: the desk is not read, so its bar is the
+    desk's own colour, not the paler "activity not read"."""
     segs = [s for s in (focus or {}).get("segments") or []
             if s[2] not in ("out",)]
     if not segs:
@@ -720,10 +749,13 @@ def day_lanes(focus, c, now=None):
         mine = [s for s in segs if s[2] in kinds]
         if not mine:
             continue
+        if key == "own" and own:
+            label = "In the %s, off the desk" % own
         total = sum((s[1] - s[0]).total_seconds() / 60.0 for s in mine)
         bars = []
         for s, e, k, room in mine:
-            col = c["deskread"] if k == "desk" else c.get(k, c["unseen"])
+            col = (c["computer"] if only_presence else c["deskread"]) \
+                if k == "desk" else c.get(k, c["unseen"])
             what = SLOT_WORDS.get(k, k) + (
                 " (%s)" % room if room and k not in AT_DESK_KINDS
                 and k != "left" else "")
@@ -744,8 +776,9 @@ def day_lanes(focus, c, now=None):
             % ("".join(rows), _ticks(lo, hi), mark))
 
 
-def day_list(focus, c):
-    """The day from-to, oldest first: where, how long, and what."""
+def day_list(focus, c, only_presence=False, own=""):
+    """The day from-to, oldest first: where, how long, and what. `own`:
+    their own room, said as "in the <room>, off the desk"."""
     import progress_data as pdx
     items = (focus or {}).get("stretches") or []
     out = []
@@ -755,8 +788,8 @@ def day_list(focus, c):
             col, where = c["computer"], "At the desk"
             kinds = sorted(((k, v) for k, v in st["kinds"].items() if v >= 1),
                            key=lambda kv: -kv[1])
-            detail = ", ".join("%s %s" % (words.get(k, k), dur(v))
-                               for k, v in kinds)
+            detail = "" if only_presence else ", ".join(
+                "%s %s" % (words.get(k, k), dur(v)) for k, v in kinds)
         elif st["what"] == "unwatched":
             if (st.get("minutes") or 0) < 10:
                 continue                  # a short hole: the chart shows it
@@ -769,6 +802,8 @@ def day_list(focus, c):
             col = c["left"] if left else (c["meeting"] if places
                                           else c["unseen"])
             where = ("Out of the building" if left else
+                     ("In the %s, off the desk" % own)
+                     if own and places == [own] else
                      ("Away: %s" % ", ".join(places)) if places
                      else "Away, not seen")
             seen = [r for r, h in st.get("seen") or [] if r not in places]
@@ -866,6 +901,7 @@ def report_rows(p, start=10.0):
         first.hour + first.minute / 60.0 > start + LATE_AFTER / 60.0
     read = bool(f.get("read")) and sum(est.get(k, 0.0) for k in
                                        ("computer", "phone", "talking")) > 0
+    only = presence(p)
     rows = [
         ("Came in (first at the desk)", t(first) if came else "not in",
          clock(u.get("first"))),
@@ -893,9 +929,16 @@ def report_rows(p, start=10.0):
          mins(u["in_min"] - u["desk_min"]) if u.get("in_min") is not None
          and u.get("desk_min") is not None else "--"),
     ]
-    for k, w in AWAY_WORDS:
+    if only:
+        # presence only (the Basement): where they were, never what they
+        # did at the desk -- not even an old day's reading in the usual
+        rows = [r for r in rows if r[0] not in (
+            "&nbsp;&nbsp;at the computer", "&nbsp;&nbsp;on the phone",
+            "&nbsp;&nbsp;talking at the desk")]
+    for k, _ in AWAY_WORDS:
         if came and m.get(k, 0.0) >= 1:
-            rows.append(("&nbsp;&nbsp;%s" % esc(w), dur(m[k]), ""))
+            rows.append(("&nbsp;&nbsp;%s" % esc(away_word(k, p)), dur(m[k]),
+                         ""))
     return rows, u
 
 
@@ -1050,24 +1093,32 @@ def report(p, c, view=REPORT_VIEWS[0], start=10.0, now=None, end=20.0,
                 % (chart or '<div class="pg-empty">No past days watched yet.'
                    '</div>'))
     else:
-        lanes = day_lanes(f, c, now)
+        own = p.get("department") or ""
+        lanes = day_lanes(f, c, now, own, presence(p))
         body = ('<div class="pg-rsec">The day, place by place '
                 '<span>hover a bar for its from&ndash;to</span></div>%s'
                 '<div class="pg-rsec">From&ndash;to</div>%s'
                 % (lanes or '<div class="pg-empty">Not at the desk yet today.'
-                   '</div>', day_list(f, c)))
+                   '</div>', day_list(f, c, presence(p), own)))
     table = score_card(p, c, start, end, now, team) + table
+    if presence(p):
+        how = ('Presence only, as asked for the %s: whether the employee is '
+               'at the desk, in the %s off it, in the cafe or the smoking '
+               'area, or out of the building -- what they do at the desk is '
+               'not read.' % (esc(p.get("department") or "room"),
+                              esc(p.get("department") or "room")))
+    else:
+        how = ('At the computer, on the phone and talking are read every '
+               'few passes and shared out over the rest.')
     return ('<div class="ec-card pg-report">%s<div class="pg-rgrid"><div>%s'
             '</div><div>%s</div></div><div class="pg-rfoot">Measured: time '
             'at the desk (every pass of the loop) and where the employee was '
             'seen when away -- by face on the campus cameras and at the gate. '
-            '"Not seen" is time on no camera. At the computer, on the phone '
-            'and talking are read every few passes and shared out over the '
-            'rest. The desk score weighs time at the desk, long stretches '
-            '(as workplace analytics count focus: an hour or more unbroken) '
-            'and coming in on time -- it says how the day was spent at the '
-            'desk, not what the work was worth.</div></div>'
-            % (head, table, body))
+            '"Not seen" is time on no camera. %s The desk score weighs time '
+            'at the desk, long stretches (as workplace analytics count '
+            'focus: an hour or more unbroken) and coming in on time -- it '
+            'says how the day was spent at the desk, not what the work was '
+            'worth.</div></div>' % (head, table, body, how))
 
 
 def team_table(people, c, days_shown=10):
@@ -1095,7 +1146,7 @@ def team_table(people, c, days_shown=10):
             if share is not None:
                 shares.append(share)
             alpha = 0.12 + 0.55 * min(1.0, max(0.0, share or 0.0))
-            comp = r.get("computer_pct")
+            comp = None if presence(p) else r.get("computer_pct")
             cells.append(
                 '<td style="background:rgba(42,157,99,%.2f)" title="in %s, out '
                 '%s; %s at the desk of %s watched%s"><b>%s</b>%s<small>%s-%s'
@@ -1148,7 +1199,9 @@ def averages_table(people, days=7, start=10.0):
                         % (face(p, "xs"), esc(tag(p)),
                            esc(p.get("department", ""))))
             continue
-        comp = ("%s <small>%d day%s read</small>"
+        reads = a["read_days"] and not presence(p)
+        comp = ('<small>presence only</small>' if presence(p) else
+                "%s <small>%d day%s read</small>"
                 % (pct(a["computer_pct"]), a["read_days"],
                    "" if a["read_days"] == 1 else "s")
                 if a["read_days"] else '<small>not read yet</small>')
@@ -1164,7 +1217,7 @@ def averages_table(people, days=7, start=10.0):
                ("%d of %d days" % (late, of)) if of else "--",
                hhmm(a["last"] / 60.0 if a["last"] is not None else None),
                dur(a["in_min"]), dur(a["desk_min"]), pct(a["desk_pct"]),
-               comp, dur(a["phone_min"]) if a["read_days"] else "--",
+               comp, dur(a["phone_min"]) if reads else "--",
                "%.1f (longest %s)" % (a["breaks"] or 0, dur(a["longest_break"]))
                if a["breaks"] is not None else "--"))
     return ('<div class="ec-h"><span class="t">The usual week</span>'

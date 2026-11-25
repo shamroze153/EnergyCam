@@ -1962,7 +1962,111 @@ def check_board():
     shutil.rmtree(tmp)
 
 
+def check_presence_only():
+    """25 Nov, Shamroze: the Basement's people only by where they are --
+    at the desk, in the Basement off it, the cafe, the smoking area --
+    never what they do at the desk."""
+    print("-- presence only (the Basement)")
+    base = dict(PERSON, department="Basement")
+    check("a Basement desk is presence only; another room is not",
+          (pdx.presence_only(base, {}), pdx.presence_only(PERSON, {})),
+          (True, False))
+    check("progress.yaml's list decides where it has one; a person's own "
+          "word wins", (pdx.presence_only(PERSON, {"presence_only":
+                                                   ["Test Room"]}),
+                        pdx.presence_only(dict(base, presence_only=False), {}),
+                        pdx.presence_only(base, {"presence_only": []})),
+          (True, False, False))
+    p = passes_every("10:00", "11:00")
+    seen = notes_at(["10:01", "10:06", "10:11", "10:16"])
+    rows = pd.DataFrame([{"time": "10:03:00", "code": "P9", "kind": "desk",
+                          "state": "computer", "room": "Test Room",
+                          "recorder": "dvr2", "channel": 15, "score": 1.0,
+                          "at": at("10:03")}])
+    watched = pdx.day_activity(dict(PERSON, presence_only=False), DAY,
+                               rows=rows, notes=seen, passes=p, reviews={})
+    only = pdx.day_activity(dict(PERSON, presence_only=True), DAY, rows=rows,
+                            notes=seen, passes=p, reviews={})
+    check("elsewhere the desk's activity is read; presence only it is not",
+          (watched["read"] > 0, only["read"], round(only["minutes"]["desk"]),
+           round(only["minutes"]["computer"])), (True, 0, 20, 0))
+    c = pv.colours("light")
+    t = at("10:00")
+    card_p = {"code": "P9", "department": "Basement", "presence_only": True,
+              "live": {"state": "away", "since": t},
+              "focus": {"day": DAY, "first_in": t,
+                        "minutes": {"desk": 60.0, "own room": 15.0,
+                                    "smoking": 12.0, "cafe": 20.0},
+                        "estimate": {"computer": 0.0, "phone": 0.0,
+                                     "talking": 0.0}, "read": 0,
+                        "segments": pdx.segments([
+                            (t, t + pd.Timedelta(minutes=60), "desk",
+                             "Basement"),
+                            (t + pd.Timedelta(minutes=60),
+                             t + pd.Timedelta(minutes=75), "own room",
+                             "Basement"),
+                            (t + pd.Timedelta(minutes=75),
+                             t + pd.Timedelta(minutes=87), "smoking",
+                             "Smoking Area"),
+                            (t + pd.Timedelta(minutes=87),
+                             t + pd.Timedelta(minutes=107), "cafe",
+                             "Prompt Cafe")]),
+                        "stretches": [
+                            {"from": t, "to": t + pd.Timedelta(minutes=60),
+                             "minutes": 60.0, "what": "desk",
+                             "kinds": {"desk": 60.0}, "where": [],
+                             "seen": []},
+                            {"from": t + pd.Timedelta(minutes=60),
+                             "to": t + pd.Timedelta(minutes=75),
+                             "minutes": 15.0, "what": "away",
+                             "kinds": {"own room": 15.0},
+                             "where": ["Basement"], "seen": []}]},
+              "history": []}
+    html = pv.report(card_p, c, pv.REPORT_VIEWS[0])
+    check("the card: no computer, phone or talking, and says why",
+          ("at the computer" in html, "on the phone" in html,
+           "activity not read" in html, "Presence only" in html),
+          (False, False, False, True))
+    check("  the Basement, the smoking area and the cafe each a lane",
+          all(x in html for x in ("In the Basement, off the desk<em>",
+                                  "Smoking area<em>", "Cafe<em>")), True)
+    check("  and in the figures, the Basement by name",
+          "in the Basement, off the desk" in html, True)
+    check("  the board's line says the same", "away: in the Basement, off the "
+          "desk" in pv.board_row(card_p, c)[0], True)
+    check("a day nobody read is 'at the desk', never 'at the computer'",
+          ("At the computer" in pv.day_block(card_p["focus"], c),
+           "At the desk" in pv.day_block(card_p["focus"], c)), (False, True))
+    # Followed less: once off the desk, only their own room, the cafe and
+    # the smoking area (B has no smoking camera: the Basement and the cafe).
+    import progress_follow as pf
+    from datetime import datetime as _dt
+    import progress_track as pt
+    pf.reset()
+    t0 = _dt(2026, 11, 20, 11, 0, 0, tzinfo=pt.PKT)
+    try:
+        pf.on_desk("P9", True, t0, "Basement", ("dvr9", 5))
+        pf.on_desk("P9", False, t0 + pd.Timedelta(minutes=1), "Basement",
+                   ("dvr9", 5))
+        pf.on_desk("P9", False, t0 + pd.Timedelta(minutes=2), "Basement",
+                   ("dvr9", 5))
+        when = (t0 + pd.Timedelta(minutes=2)).timestamp()
+        wide = [k for k, _ in pf.plan(when, B, CAMS, set(CAMS), count=6)]
+        pf._state["P9"]["looked"] = {}
+        narrow = [k for k, _ in pf.plan(when, B, CAMS, set(CAMS), count=6,
+                                        narrow={"P9"})]
+        check("followed less: the cafe only, not the stairs and lobby",
+              (("dvr9", 3) in wide, narrow), (True, [("dvr9", 4)]))
+    finally:
+        pf.reset()
+    for name, needle in (("desk_watch.py", "presence_rooms()"),
+                         ("progress_track.py", "pdx.presence_only(p)")):
+        check("%s reads no activity at a presence-only desk" % name,
+              needle in open(name, encoding="utf-8").read(), True)
+
+
 def main():
+    check_presence_only()
     check_board()
     check_faces()
     check_building()

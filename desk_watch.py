@@ -76,12 +76,18 @@ def _observe(room, key, frame, boxes, model, now, out, crops, finder):
     sat = da.assign_desks(persons, {d["code"]: tuple(d["seat"])
                                     for d in mine}, frame.shape[1])
     seated = [p for p in sat.values() if p is not None]
+    # The Basement (25 Nov, Shamroze): only whether the desk has its
+    # sitter -- no talking, no phone, no screen read there.
+    import progress_data
+    presence = str(room) in progress_data.presence_rooms()
     for d in mine:
         me = sat.get(d["code"])
         state = "away"
         if me is not None:
             n = _count[d["code"]] = _count.get(d["code"], 0) + 1
-            if da.standing_visitor(persons, me, seated):
+            if presence:
+                state = "desk"
+            elif da.standing_visitor(persons, me, seated):
                 state = "talking"
             elif model is not None and n % PHONE_EVERY == 0:
                 # one close look: a phone, and a screen; a hand held to the

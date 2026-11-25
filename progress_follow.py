@@ -131,11 +131,19 @@ def campus_cameras():
     return _cams["cams"]
 
 
-def plan(t, b, cams, available, count=FOLLOW_CAMS):
+# Presence only (the Basement, 25 Nov: "itna zyada follow karne ki zaroorat
+# nahi"): somebody who left such a desk is looked for only where it counts
+# for them -- their own room, the cafe, the smoking area.
+NARROW_PLACES = ("cafe", "smoking")
+
+
+def plan(t, b, cams, available, count=FOLLOW_CAMS, narrow=()):
     """The cameras to look at now round everybody being followed:
     [(key, [codes])], best first. Nearest places first, less-looked-at
     before looked-at, destinations a little before corridors; never an
-    employee's own desk camera (the desk looks see that)."""
+    employee's own desk camera (the desk looks see that). Codes in
+    `narrow` (presence only) only in their own room, the cafe and the
+    smoking area."""
     desks = {s.get("key") for s in _state.values()}
     want = {}
     for code in following(t):
@@ -143,6 +151,9 @@ def plan(t, b, cams, available, count=FOLLOW_CAMS):
         for steps, key, room in building.nearest_cameras(
                 b, cams, s.get("around") or s.get("desk"), skip=desks):
             if key not in available:
+                continue
+            if code in narrow and room != s.get("desk") and \
+                    pdx.place_of(room) not in NARROW_PLACES:
                 continue
             score = steps + 2 * s["looked"].get(key, 0)
             if pdx.place_of(room) in DESTINATIONS:
@@ -195,8 +206,9 @@ def _step(rooms, grab, look, now, clock, muffle):
             t - _clock["follow"] >= FOLLOW_EVERY * _clock["slow"]:
         b = building.load()
         if b:
+            narrow = {p.get("code") for p in people if pdx.presence_only(p)}
             for key, _ in plan(now.timestamp(), b, campus_cameras(),
-                               set(by_key)):
+                               set(by_key), narrow=narrow):
                 if key not in looks:
                     looks.append(key)
         _clock["follow"] = t
