@@ -1616,3 +1616,10 @@ Two or three lines a round; picture file names, never pictures.
   pair again, nor a desk whose best person already has a desk (2dcbd38).
   One seat registered twice on xvr3 ch11 (14 px apart) takes its twin's
   name.
+* 19:40, 25 Nov Round: field_audit 19:29 -- GHOST 4 (140-H Lobby Area,
+  Gaming Area, Pantry, Smoking Area Street) and MISSED 1 (Mosque). Every
+  picture is an empty passing-through space, or somebody who had just
+  walked in: the loop a pass behind (the audit itself slowed the passes).
+  Nothing changed. Clothes check 25 Nov: 5 pairs, none on a known desk,
+  so nothing sent; the gate's body pictures show the clothes, shoulders
+  to knees, cut only for people right at the camera.
