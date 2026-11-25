@@ -620,7 +620,7 @@ def _seen_rows(day, code, d, rooms):
 
 
 def day_activity(person, day, rows=None, notes=None, passes=None,
-                 seen_min=SEEN_MIN, reviews=None, extra=None):
+                 seen_min=SEEN_MIN, reviews=None, extra=None, outside=None):
     """An employee's whole day, pass by pass, and its figures.
 
     At the desk or not comes from the seat notes (timeline(): every pass,
@@ -742,6 +742,14 @@ def day_activity(person, day, rows=None, notes=None, passes=None,
                 p[2], p[3] = "left", "out of the building"
             elif p[2] not in ("unseen", "left"):
                 out_since = None             # seen inside: back in
+    # The attendance machines (attendance.py, 25 Nov): out through the
+    # machine and in again -- certain, where the gate's face is a guess. A
+    # pass away from the desk mostly inside such an outing was outside.
+    for a, b in outside or ():
+        for p in line:
+            if p[2] == "unseen" and (min(p[1], b) - max(p[0], a)) \
+                    .total_seconds() >= (p[1] - p[0]).total_seconds() / 2:
+                p[2], p[3] = "left", "out of the building"
     for i, p in enumerate(line):
         if p[2] == "unseen" and (not at or i < at[0] or i > at[-1]):
             p[2] = "out"
@@ -1308,9 +1316,12 @@ def build(cfg, today, hours=(10, 20), count=5, folder=SEATS, frm=8, to=24,
                                 pd.DataFrame() if at_gate else
                                 gate_rows(focus, eid, person.get("code")))
                     if len(x)] if eid else []
+            att = punches_of(eid, focus)
             the_day = day_activity(
                 person, focus, rows=rows_today, notes=n, passes=p,
-                extra=pd.concat(seen, ignore_index=True) if seen else None)
+                extra=pd.concat(seen, ignore_index=True) if seen else None,
+                outside=att["outings"] if att else None)
+            the_day["attendance"] = att
             if focus == now.strftime("%Y-%m-%d"):
                 state = live(the_day, now, hours)
             the_day["slots"] = kind_slots(the_day, frm, to)
@@ -1358,6 +1369,19 @@ def build(cfg, today, hours=(10, 20), count=5, folder=SEATS, frm=8, to=24,
 
 
 GATE = os.path.join("people", "entrance")
+
+
+def punches_of(employee_id, day):
+    """The attendance machines' day for an employee (attendance.py), or
+    None -- no export on this laptop, no punch, or anything wrong with it:
+    the page never stops for it."""
+    if not employee_id:
+        return None
+    try:
+        import attendance
+        return attendance.day(employee_id, day)
+    except Exception:                                       # noqa: BLE001
+        return None
 
 
 def gate_passages(day, folder=None):

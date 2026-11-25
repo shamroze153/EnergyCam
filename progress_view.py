@@ -907,6 +907,24 @@ def report_rows(p, start=10.0):
          clock(u.get("first"))),
         ("Left (last at the desk)", ("still in" if still else t(
             f.get("last_out"))) if came else "--", clock(u.get("last"))),
+    ]
+    # The attendance machines (attendance.py, 25 Nov): in and out at the
+    # building's own turnstile -- what HR goes by -- beside the desk's.
+    att = f.get("attendance") or {}
+    if att.get("first_in") is not None:
+        outs = att.get("outings") or []
+        out_min = sum((b - a).total_seconds() / 60.0 for a, b in outs)
+        rows += [
+            ("Machine: in &middot; out", "%s &middot; %s" % (
+                t(att["first_in"]),
+                t(att.get("last_out")) if att.get("last_out") is not None
+                else ("still in" if still else "no out")), ""),
+            ("&nbsp;&nbsp;in the building", mins(att.get("inside_min")), ""),
+            ("&nbsp;&nbsp;out and back", "%d time%s, %s" % (
+                len(outs), "" if len(outs) == 1 else "s", dur(out_min))
+             if outs else "none", ""),
+        ]
+    rows += [
         ("Late (after %s)" % hhmm(start + LATE_AFTER / 60.0),
          ("yes" if is_late else "no") if came else "--",
          "%d of %d days" % (late, of) if of else "--"),

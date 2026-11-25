@@ -2084,7 +2084,72 @@ def check_presence_only():
               needle in open(name, encoding="utf-8").read(), True)
 
 
+def check_attendance():
+    """25 Nov: HR's export of the attendance machines -- first in, last
+    out, time in the building, the outings; the Life app's hand-typed
+    punches left out; an outing through the machine is out of the
+    building."""
+    print("-- the attendance machines")
+    import attendance as att
+    tmp = tempfile.mkdtemp()
+    try:
+        with open(os.path.join(tmp, "logs.csv"), "w") as fh:
+            fh.write("id,machine_id,emp_code,date_time,machine_location,"
+                     "status\n"
+                     "1,CheckInManual,90042,%s 08:00:00,Life IN,0\n"
+                     "2,M1,90042,%s 09:58:00,140-H IN,0\n"
+                     "3,M2,90042,%s 11:00:00,140-H OUT,1\n"
+                     "4,M1,90042,%s 11:01:00,140-H IN,0\n"
+                     "5,M2,90042,%s 13:05:00,140-H OUT,1\n"
+                     "6,M1,90042,%s 13:50:00,140-H IN,0\n"
+                     "7,M3,90042,%s 15:00:00,141-D IN,0\n"
+                     "8,M2,90042,%s 19:12:00,140-H OUT,1\n"
+                     "8,M2,90042,%s 19:12:00,140-H OUT,1\n"
+                     % ((DAY,) * 9))
+        data = att.load(tmp)
+        got = att.day("090042", DAY, data=data)
+        check("first in, last out; the hand-typed punch and 141's left out",
+              (got["first_in"], got["last_out"], got["punches"]),
+              (at("09:58"), at("19:12"), 6))
+        check("an outing longer than the turnstile's blip, once",
+              [(a.strftime("%H:%M"), b.strftime("%H:%M"))
+               for a, b in got["outings"]], [("13:05", "13:50")])
+        check("time in the building: IN to OUT, each time",
+              round(got["inside_min"]), 62 + 124 + 322)
+        check("codes as the roster keeps them", (att.code("090001"),
+                                                 att.code("90001")),
+              ("90001", "90001"))
+        check("nobody's punches, nothing", att.day("90002", DAY, data=data),
+              None)
+    finally:
+        shutil.rmtree(tmp)
+    p = passes_every("10:00", "11:00")
+    seen = notes_at(["10:01", "10:06", "10:11", "10:16", "10:51", "10:56"])
+    a = pdx.day_activity(dict(PERSON), DAY, rows=pd.DataFrame(), notes=seen,
+                         passes=p, reviews={},
+                         outside=[(at("10:22"), at("10:47"))])
+    kinds = [k for _, _, k, _ in a["line"]]
+    # passes 10:20-10:45 lie mostly inside 10:22-10:47; 10:45-10:50 not
+    check("away inside an outing through the machine: out of the building",
+          ("left" in kinds, round(a["minutes"]["left"])), (True, 25))
+    c = pv.colours("light")
+    card = {"code": "P9", "department": "Room", "focus": {
+        "day": DAY, "first_in": at("10:00"), "minutes": {"desk": 60.0},
+        "estimate": {}, "read": 0, "stretches": [],
+        "attendance": {"first_in": at("09:58"), "last_out": at("19:12"),
+                       "inside_min": 509.0, "punches": 6,
+                       "outings": [(at("13:05"), at("13:50"))]}},
+        "history": []}
+    html = pv.report(card, c, pv.REPORT_VIEWS[0])
+    check("the card: the machine's in and out, the outing",
+          ("Machine: in &middot; out" in html, "09:58 &middot; 19:12" in html,
+           "1 time, 45m" in html), (True, True, True))
+    check("the export is never in git (people/)",
+          "people/" in open(".gitignore").read(), True)
+
+
 def main():
+    check_attendance()
     check_presence_only()
     check_board()
     check_faces()
