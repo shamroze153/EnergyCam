@@ -209,6 +209,39 @@ campus page) goes in `room_events.ac_units_on`, which an administrator adds
 once with `sql/09_ac_units.sql`. Until then the loop writes rooms without
 it and says so once; restart the loop after the SQL is run.
 
+## Handoff -- 25 Nov, 16:40 (read this first in a new session)
+
+Shamroze moved to a new Claude login. Everything that runs is pushed
+(f0ca00c); the loop and the laptop dashboard were restarted at 16:36.
+The previous session's plan and scratch scripts are in
+`people/session_handoff/` (git-ignored: names and IDs live there) --
+start with `people/session_handoff/night_plan.md` and the memory files.
+
+* **His goal for 25 Nov, 23:00**: a score for every 140-H employee, to
+  hand in. Done: Progress -> "Attendance, 140-H" gives everyone (about 228)
+  an Overall score -- half the attendance score (the machines, HR's
+  export 16-25 Nov 12:21 in people/attendance/), half the desk score
+  where a camera sees their named desk (`progress_view.period_score`),
+  else attendance alone -- with "Download every employee's scores (CSV)".
+  Check it on the laptop (8501) and the hosted page.
+* **Desk names**: 51 named desks (people/desk_names.csv), about 56 people
+  on the hosted board. Round 2's review is applied; refused pairs are in
+  people/desk_names_rejected.csv (desk_match never re-pairs them), four
+  waiting for a clearer picture in people/desk_names_pending.csv.
+  Punch timing is the only strong evidence (about 85% right at round 2's
+  bar), so a machine-only name goes through ONE review PDF
+  (session_handoff/review_pdf2.py; Shamroze replies only the wrong
+  numbers). Next: round 3 (session_handoff/desk_candidates.py, then
+  pick_candidates.py; P4's ID as a row in it).
+* **Not useful (tested)**: clothes from the gate to the desk, and the
+  seating plan in Downloads (January; people moved).
+* **Waiting on Shamroze**: P4's identity; a current seating sheet with
+  Emp Codes (optional); HR's newer exports for the days after 25 Nov.
+* **Schedules die with a session -- recreate them**: the night round
+  every 2 h at :17 (A night on its own), a resume check at :07 and :37
+  (one loop, cycles.csv under 15 min, then the plan). The 25 Nov 16:17
+  round was skipped for the handover.
+
 ## Handoff -- where the campus face work stands (24 Nov, 12:35)
 
 For a new session: everything that runs is in the repo; everything that
