@@ -5487,6 +5487,116 @@ def cached_attendance(stamp):
     return attendance.summary(), attendance.days()
 
 
+@st.cache_data(ttl=3600, show_spinner=False)
+def cached_photo_icons(stamp, ids):
+    """{employee code: directory-photo icon} -- small, for the Productivity
+    table (the laptop; the hosted page gets them in the payload)."""
+    import progress_data
+    out = {}
+    for eid in ids:
+        icon = progress_data.photo_icon(eid, size=48)
+        if icon:
+            out[str(eid).lstrip("0") or "0"] = icon
+    return out
+
+
+def productivity_section(mode, emps, days, made, visitors=0):
+    """Progress -> Productivity (Shamroze, 25 Nov: "CEO dekhe to usko acha
+    lage ... 100% employees"): the campus in figures, its departments, and
+    every employee, one department at a time or all, with a CSV."""
+    import productivity_view
+    if not emps:
+        return
+    st.markdown(productivity_view.summary_html(mode, emps, days, made,
+                                               visitors),
+                unsafe_allow_html=True)
+    st.markdown(overview.css(mode) + '<div class="ec"><div class="ec-h">'
+                '<span class="t">Every employee</span><span class="c">'
+                'highest productivity first, by department</span></div>'
+                '</div>', unsafe_allow_html=True)
+    all_word = "All departments (%d employees)" % len(emps)
+    depts = sorted({e["dept"] for e in emps})
+    pick = st.selectbox("Department", [all_word] + depts,
+                        key="productivity_dept", label_visibility="collapsed")
+    st.markdown(productivity_view.table_html(
+        mode, emps, None if pick == all_word else pick),
+        unsafe_allow_html=True)
+    rows = [{"Employee": e["name"], "Employee ID": e["id"],
+             "Designation": e["role"], "Department": e["dept"],
+             "Productivity": e["productivity"], "Attendance": e["attendance"],
+             "Desk": e["desk"], "Activity": e["activity"],
+             "On the computer, % of desk time": round(e["act"]["computer"])
+             if e["act"] else None,
+             "Phone + talking, % of desk time": round(e["act"]["talk_phone"])
+             if e["act"] else None,
+             "Desk days": e["desk_days"] or None, "Days in": e["days_in"],
+             "Working days": e["of"],
+             "Usual in": productivity_view._hhmm(e["usual_in"]).replace(
+                 "&ndash;", ""),
+             "Usual out": productivity_view._hhmm(e["usual_out"]).replace(
+                 "&ndash;", ""),
+             "Hours in the building, a day": round(e["hours"], 1)
+             if e["hours"] is not None else None,
+             "Measured by": e["measured"]}
+            for e in sorted(emps, key=lambda e: (e["dept"],
+                                                 -(e["productivity"] or 0)))]
+    st.download_button(
+        "Download every employee's productivity (CSV)",
+        pd.DataFrame(rows).to_csv(index=False).encode("utf-8-sig"),
+        file_name="140-H_productivity_%s_to_%s.csv" % (days[0], days[-1])
+        if days else "140-H_productivity.csv",
+        mime="text/csv", key="productivity_csv")
+
+
+def show_productivity(mode, people, hours, now):
+    """The laptop's Productivity: HR's export, the board's desks, the
+    directory photos."""
+    import glob as _glob
+    import attendance
+    import desks_data
+    import productivity_view
+    files = sorted(_glob.glob(os.path.join(attendance.FOLDER, "*.csv")))
+    if not files:
+        return
+    stamp = tuple((f, os.path.getmtime(f)) for f in files)
+    with st.spinner("Scoring every employee..."):
+        rows, days = cached_attendance(stamp)
+        roster = {attendance.code(r["employee_id"]): r
+                  for r in desks_data.load_roster()}
+        rows = [r for r in rows if r["eid"] in roster]
+        ids = tuple(sorted(roster[r["eid"]]["employee_id"] for r in rows))
+        photos = cached_photo_icons(
+            os.path.getmtime(desks_data.ROSTER)
+            if os.path.exists(desks_data.ROSTER) else 0, ids)
+        emps = productivity_view.employees(rows, roster, people, hours, now,
+                                           photos)
+        try:
+            visitors = attendance.visitors()
+        except Exception:                                   # noqa: BLE001
+            visitors = 0
+    productivity_section(mode, emps, days, now.strftime("%d %b %H:%M"),
+                         visitors)
+
+
+def show_productivity_sent(mode, sent, people, hours, now):
+    """The hosted page's Productivity: the rows the office laptop sent
+    (names, IDs, directory-photo icons under cloud_names; never a camera
+    picture) and the board's people."""
+    import productivity_view
+    if not sent or not sent.get("rows"):
+        return
+    rows = sent["rows"]
+    roster = {r["eid"]: {"name": r.get("name", ""),
+                         "employee_id": r.get("employee_id", ""),
+                         "designation": r.get("designation", ""),
+                         "department": r.get("department", ""),
+                         "photo": r.get("photo", "")} for r in rows}
+    emps = productivity_view.employees(rows, roster, people, hours, now)
+    productivity_section(mode, emps, sent.get("days") or [],
+                         now.strftime("%d %b %H:%M"),
+                         int(sent.get("visitors") or 0))
+
+
 def desk_scores(people, hours, now=None):
     """{employee code (no leading zeros): progress_view.period_score} for
     the board's people with an employee ID -- the desk score beside every
@@ -6109,6 +6219,8 @@ def show_progress(now):
                         unsafe_allow_html=True)
             return
         cfg, people, made, hours_sent = got
+        show_productivity_sent(mode, cfg.get("attendance"), people,
+                               hours_sent, now.tz_convert(PKT))
         st.markdown(progress_view.page(mode, cfg, people, made, hours_sent,
                                        part="top"), unsafe_allow_html=True)
         show_report_card(mode, people, hours_sent, now)
@@ -6141,6 +6253,7 @@ def show_progress(now):
              os.path.getmtime(review_file) if os.path.exists(review_file)
              else 0),
             _to_5min(now).isoformat(), hours)
+    show_productivity(mode, people, hours, local)
     st.markdown(progress_view.page(mode, cfg, people,
                                    local.strftime("%d %b %H:%M"), hours,
                                    part="top"), unsafe_allow_html=True)

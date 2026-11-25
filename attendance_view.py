@@ -50,7 +50,8 @@ def score(r, office_h=10.0):
     None for nobody in on a working day."""
     if not r.get("days_in"):
         return None
-    inside = min(1.0, (r.get("inside_h") or 0.0) / office_h)
+    hours = r.get("inside_h")
+    inside = min(1.0, hours / office_h) if hours is not None else None
     usual = r.get("usual_in")
     firsts = [s["first_in"] for s in (r.get("days") or {}).values()
               if s.get("first_in") is not None]
@@ -61,6 +62,10 @@ def score(r, office_h=10.0):
     else:
         steady = 0.0
     present = min(1.0, r["days_in"] / float(max(1, r.get("of") or 1)))
+    if inside is None:
+        # never an OUT punch to close a day: the hours are not known, so
+        # the other two parts carry the score (not a zero for the hours)
+        return int(round(100 * (0.3 * steady + 0.2 * present) / 0.5))
     return int(round(100 * (0.5 * inside + 0.3 * steady + 0.2 * present)))
 
 
@@ -100,6 +105,7 @@ def table(rows, roster, desk=None, start=10.0, grace=15):
             "Usual out": _hhmm(r["usual_out"]),
             "Hours in the building, a day": round(r["inside_h"], 1)
             if r["inside_h"] is not None else None,
+            "Days ending on an OUT punch": r.get("hours_days"),
             "Days in after %s" % _hhmm(start + grace / 60.0): r["late"],
             "Attendance score": att,
             "Desk score": ds, "Desk days": d.get("days"),
@@ -217,8 +223,10 @@ def usual(mode, rows, roster, start=10.0, grace=15, desk=None):
         % (_hhmm(start + grace / 60.0), "".join(body)),
         '<div class="note">From HR\'s export of the attendance machines '
         '(hand-typed Life app punches left out): working days only; the '
-        'usual is the middle day. A day with no OUT punch has no "out"; a '
-        'night shift crosses midnight and is split between two days. '
+        'usual is the middle day. Hours in the building count only the '
+        'days that end on an OUT punch; whoever never punches out has the '
+        'attendance score from the other two parts. A night shift crosses '
+        'midnight and is split between two days. '
         '<b>Attendance</b>: hours in the building of a 10-hour day (50%), '
         'coming in within half an hour of their own usual -- a later shift '
         'is not late (30%), days in (20%). <b>Desk</b>: where a camera sees '

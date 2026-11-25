@@ -2140,6 +2140,11 @@ def check_attendance():
               (av_.score(summ[0]), "%%" in page_u,
                "<th>Attendance</th>" in page_u),
               (92, False, True))
+        # A day that ends on an IN: its hours are not known -- not zero.
+        open_ = dict(summ[0], inside_h=None, hours_days=0)
+        check("no OUT to close a day: hours unknown, score from the rest",
+              (att.day("90042", DAY, data=data)["closed"], av_.score(open_)),
+              (True, 100))
         # 25 Nov: one score for everybody -- the desk's beside it where a
         # camera sees their named desk, half each; the CSV says the same.
         dk_ = {"90042": {"score": 70.0, "days": 4}}
@@ -2172,9 +2177,11 @@ def check_attendance():
                   (r0["name"], r0["employee_id"], r0["days_in"],
                    r0["days"][DAY]["first_in"], back_["days"]),
                   ("Some One", "90042", 1, at("09:58"), [DAY]))
-            check("  and never a picture in it",
-                  "jpg" in _json.dumps(pdx._jsonable(sent_)).lower()
-                  or "photo" in _json.dumps(pdx._jsonable(sent_)).lower(),
+            # the directory photo's icon may go (cloud_names); a camera
+            # picture -- a frame's path -- never
+            check("  and never a camera picture in it",
+                  ".jpg" in _json.dumps(pdx._jsonable(sent_)).lower()
+                  or "frames" in _json.dumps(pdx._jsonable(sent_)).lower(),
                   False)
         finally:
             dd_.load_roster, att.load = old_roster, old_load
@@ -2306,6 +2313,69 @@ def check_attendance():
           (round(s1_["score"], 1), s1_["days"], round(s2_["score"], 1),
            s2_["days"], pv.period_score({"days": []})),
           (82.5, 2, 69.0, 1, None))
+    # Productivity (25 Nov): attendance 40, desk 40, activity 20; a part
+    # not measured gives its weight to the others.
+    import productivity_view as prv
+    hist_ = [{"desk_min": 300.0, "computer_min": 240.0, "phone_min": 15.0,
+              "talking_min": 15.0},
+             {"desk_min": 300.0, "computer_min": None}]
+    a_ = prv.activity({"history": hist_})
+    check("activity: computer 80% of desk time, phone+talk 10% -> 83",
+          (round(a_["computer"]), round(a_["talk_phone"]), round(a_["score"]),
+           a_["days"]), (80, 10, 83, 1))
+    check("  a desk whose camera never sees a screen: not readable",
+          prv.activity({"history": [{"desk_min": 300.0, "computer_min": 0.0,
+                                     "phone_min": 0, "talking_min": 0}]}),
+          None)
+    check("productivity: all three, two, or the machines alone",
+          (prv.productivity(60, 80, 90), prv.productivity(60, 80, None),
+           prv.productivity(60, None, None), prv.productivity(None, None,
+                                                              None)),
+          (74, 70, 60, None))
+    board_ = [dict(pp_, employee_id="090042", code="dvr9.1-1",
+                   history=hist_, name="Some One", department="Room")]
+    rows_ = [{"eid": "90042", "days_in": 2, "of": 2, "usual_in": 10.0,
+              "usual_out": 19.0, "inside_h": 9.0, "outings": 0.0, "late": 0,
+              "hours_days": 2, "days": {}},
+             {"eid": "90043", "days_in": 1, "of": 2, "usual_in": 11.0,
+              "usual_out": 18.0, "inside_h": None, "outings": 0.0, "late": 1,
+              "hours_days": 0, "days": {}}]
+    ros_ = {"90042": {"employee_id": "90042", "name": "Some One",
+                      "department": "Testing"},
+            "90043": {"employee_id": "90043", "name": "Other One",
+                      "department": "Testing"}}
+    em_ = prv.employees(rows_, ros_, board_)
+    by_ = {e["eid"]: e for e in em_}
+    check("every employee: the machines for all, the desk where seen",
+          (len(em_), by_["90042"]["measured"], by_["90043"]["measured"],
+           by_["90043"]["desk"]), (2, "desk camera + activity", "machines",
+                                   None))
+    # 140-H's own: most of their punches at its machines; a 141-D employee
+    # passing through is a visitor, not on the list (25 Nov: 84 of 228)
+    import attendance as att2
+    vis_ = pd.DataFrame({
+        "eid": ["90060"] * 2 + ["90061"] * 4,
+        "at": [T_(DAY + " 10:00"), T_(DAY + " 19:00"), T_(DAY + " 12:00"),
+               T_(DAY + " 12:30"), T_(DAY + " 09:00"), T_(DAY + " 18:00")],
+        "kind": ["in", "out", "in", "out", "in", "out"],
+        "place": ["140-H IN", "140-H OUT", "140-H IN", "140-H OUT",
+                  "141-D IN", "141-D OUT"]})
+    check("a campus's own employees; a visitor from another campus is not",
+          ([r["eid"] for r in att2.summary(data=vis_,
+                                           workdays=[DAY])],
+           att2.visitors(data=vis_)), (["90060", "90061"], 0))
+    vis2_ = pd.concat([vis_, pd.DataFrame({
+        "eid": ["90061"] * 2, "at": [T_(DAY + " 20:00"), T_(DAY + " 21:00")],
+        "kind": ["in", "out"], "place": ["141-D IN", "141-D OUT"]})])
+    check("  4 of 6 punches at 141-D: a visitor at 140-H, left out",
+          ([r["eid"] for r in att2.summary(data=vis2_, workdays=[DAY])],
+           att2.visitors(data=vis2_)), (["90060"], 1))
+    top_ = prv.summary_html("light", em_, ["2026-11-20", "2026-11-21"])
+    tab2_ = prv.table_html("light", em_)
+    check("  the page: figures, departments, the table, no camera picture",
+          ("Productivity &middot; 140-H" in top_, "Other One" in tab2_,
+           "frames" in top_ + tab2_, "%%" in top_ + tab2_),
+          (True, True, False, False))
 
 
 def main():

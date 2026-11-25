@@ -103,20 +103,45 @@ def days(campus=CAMPUS, data=None):
     return sorted(d["at"].dt.strftime("%Y-%m-%d").unique())
 
 
-def summary(campus=CAMPUS, data=None, start=10.0, grace=15, workdays=None):
-    """Every employee who passed a campus's machines, over every day of the
-    export: [{eid, days: {day: day()}, days_in, usual_in, usual_out,
-    inside_h, late, outings}] -- usual_in / usual_out the median clock
-    hour on working days in, inside_h the mean hours in the building, late
-    the working days in after start + grace minutes. `workdays`: the days
-    to count (default: Monday to Friday of the export)."""
+HOME_SHARE = 0.5     # of an employee's punches at a campus: their campus
+
+
+def home_shares(campus=CAMPUS, data=None):
+    """{eid: share of all their punches made at `campus`'s machines}."""
+    data = load() if data is None else data
+    if data is None or not len(data):
+        return {}
+    at = data["place"].str.startswith(campus)
+    return at.groupby(data["eid"]).mean().to_dict()
+
+
+def visitors(campus=CAMPUS, data=None, home=HOME_SHARE):
+    """How many passed a campus's machines but punch mostly elsewhere."""
+    s = home_shares(campus, data)
+    return sum(1 for v in s.values() if 0 < v < home)
+
+
+def summary(campus=CAMPUS, data=None, start=10.0, grace=15, workdays=None,
+            home=HOME_SHARE):
+    """Every employee OF a campus -- at least `home` of their punches at its
+    machines (25 Nov: 84 of 228 through 140-H's machines punch mostly at
+    141-D, about 2.5 h a day at 140-H; they are visitors here, not its
+    staff) -- over every day of the export: [{eid, days: {day: day()},
+    days_in, usual_in, usual_out, inside_h, late, outings, home_share}] --
+    usual_in / usual_out the median clock hour on working days in, inside_h
+    the mean hours in the building, late the working days in after start +
+    grace minutes. `workdays`: the days to count (default: Monday to
+    Friday of the export). home=0 keeps everybody who passed."""
     data = load() if data is None else data
     all_days = days(campus, data)
     if workdays is None:
         workdays = [d for d in all_days if pd.Timestamp(d).dayofweek < 5]
     d = data[data["place"].str.startswith(campus)]
+    shares = home_shares(campus, data)
     out = []
     for eid in sorted(d["eid"].unique()):
+        if shares.get(eid, 1.0) < home:
+            continue                    # mostly another campus's: a visitor
         mine = d[d["eid"] == eid]
         per = {}
         for day_ in sorted(mine["at"].dt.strftime("%Y-%m-%d").unique()):
@@ -133,17 +158,22 @@ def summary(campus=CAMPUS, data=None, start=10.0, grace=15, workdays=None):
         ins = sorted(hour(s["first_in"]) for s in work)
         outs = sorted(hour(s["last_out"]) for s in work
                       if s["last_out"] is not None)
+        closed = [s for s in work if s.get("closed", True)]
         late_line = start + grace / 60.0
         out.append({
             "eid": eid, "days": per, "days_in": len(work),
             "of": len(workdays),
             "usual_in": ins[len(ins) // 2] if ins else None,
             "usual_out": outs[len(outs) // 2] if outs else None,
-            "inside_h": (sum(s["inside_min"] for s in work) / 60.0 / len(work))
-            if work else None,
+            # over the days that end on an OUT punch only; None when no
+            # day does (the hours are not known, not zero)
+            "inside_h": (sum(s["inside_min"] for s in closed) / 60.0
+                         / len(closed)) if closed else None,
+            "hours_days": len(closed),
             "late": sum(1 for x in ins if x > late_line),
             "outings": (sum(len(s["outings"]) for s in work) / float(len(work)))
-            if work else None})
+            if work else None,
+            "home_share": round(float(shares.get(eid, 1.0)), 2)})
     return out
 
 
@@ -181,6 +211,11 @@ def day(employee_id, day_, campus=CAMPUS, data=None):
                 inside += (r["at"] - t_in).total_seconds() / 60.0
                 t_in = None
             last_out_at = r["at"]
+    # closed: every IN met an OUT after it -- only then is inside_min the
+    # day's time in the building (25 Nov: a day ending on an IN counted as
+    # a morning, or nothing, and pulled the hours of whoever never punches
+    # out down to zero)
     return {"first_in": first_in, "last_out": last_out,
             "inside_min": inside, "outings": outings,
+            "closed": t_in is None and last_out is not None,
             "punches": int(len(mine))}

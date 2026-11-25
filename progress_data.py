@@ -1615,12 +1615,17 @@ def attendance_payload(cfg, campus="140-H", start=10.0):
         p = roster.get(r["eid"])
         if not p:
             continue                   # not in the directory: left out
+        # and the directory photo's small icon (25 Nov: the Productivity
+        # table shows every employee's face from the directory -- never a
+        # camera picture)
         out.append(dict(r, name=p.get("name", ""),
                         employee_id=p.get("employee_id", ""),
                         designation=p.get("designation", ""),
-                        department=p.get("department", "")))
+                        department=p.get("department", ""),
+                        photo=photo_icon(p.get("employee_id", ""), size=48)))
     return {"rows": out, "days": attendance.days(campus),
-            "left_out": len(rows) - len(out)}
+            "left_out": len(rows) - len(out),
+            "visitors": attendance.visitors(campus)}
 
 
 def from_payloads(rows):
