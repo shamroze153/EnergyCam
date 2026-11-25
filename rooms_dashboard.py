@@ -5487,7 +5487,27 @@ def cached_attendance(stamp):
     return attendance.summary(), attendance.days()
 
 
-def show_attendance(mode, hours):
+def desk_scores(people, hours, now=None):
+    """{employee code (no leading zeros): progress_view.period_score} for
+    the board's people with an employee ID -- the desk score beside every
+    employee's attendance (Shamroze, 25 Nov: a score for everybody)."""
+    import progress_view
+    out = {}
+    for p in people or []:
+        eid = str(p.get("employee_id") or "").strip()
+        if not eid:
+            continue
+        try:
+            s = progress_view.period_score(p, float(hours[0]),
+                                           float(hours[1]), now)
+        except Exception:                                   # noqa: BLE001
+            s = None
+        if s:
+            out[eid.lstrip("0") or "0"] = s
+    return out
+
+
+def show_attendance(mode, hours, desk=None):
     """Every employee through 140-H's attendance machines (Shamroze, 25 Nov:
     HR's export, "sab daldo"): the usual over every working day, or one
     day's list -- one at a time. On this laptop only: it names everybody,
@@ -5508,13 +5528,15 @@ def show_attendance(mode, hours):
     # left out of it on purpose (Shamroze, 24 Nov) or not on the staff.
     left = sum(1 for r in rows if r["eid"] not in roster)
     rows = [r for r in rows if r["eid"] in roster]
-    attendance_section(mode, rows, roster, days, hours, left)
+    attendance_section(mode, rows, roster, days, hours, left, desk=desk)
 
 
 def attendance_section(mode, rows, roster, days, hours, left=0,
-                       where="this laptop only"):
+                       where="this laptop only", desk=None):
     """The Attendance section, on the laptop or the hosted page: the usual
-    or one day, one at a time."""
+    or one day, one at a time; the usual with every employee's overall
+    score (attendance, and the desk where a camera sees it) and a CSV of
+    it to hand in."""
     import attendance_view
     st.markdown(overview.css(mode) + '<div class="ec"><div class="ec-h" '
                 'style="margin-top:22px"><span class="t">Attendance, 140-H'
@@ -5526,17 +5548,26 @@ def attendance_section(mode, rows, roster, days, hours, left=0,
     pick = st.selectbox("Attendance", [usual_word] + list(reversed(days)),
                         key="attendance_view", label_visibility="collapsed")
     if pick == usual_word:
-        html = attendance_view.usual(mode, rows, roster, float(hours[0]))
+        html = attendance_view.usual(mode, rows, roster, float(hours[0]),
+                                     desk=desk)
     else:
         html = attendance_view.one_day(mode, rows, roster, pick,
                                        float(hours[0]))
     st.markdown(html, unsafe_allow_html=True)
+    if pick == usual_word and rows:
+        table = attendance_view.table(rows, roster, desk, float(hours[0]))
+        st.download_button(
+            "Download every employee's scores (CSV)",
+            pd.DataFrame(table).to_csv(index=False).encode("utf-8-sig"),
+            file_name="140-H_scores_%s_to_%s.csv" % (days[0], days[-1])
+            if days else "140-H_scores.csv",
+            mime="text/csv", key="attendance_csv")
     if left:
         st.caption("%d employee code(s) in the export that the directory does "
                    "not have are left out." % left)
 
 
-def show_attendance_sent(mode, sent, hours):
+def show_attendance_sent(mode, sent, hours, desk=None):
     """The hosted page's Attendance: what the office laptop sent (names
     and numbers, never a picture -- progress_data.attendance_payload)."""
     if not sent or not sent.get("rows"):
@@ -5549,7 +5580,7 @@ def show_attendance_sent(mode, sent, hours):
               for r in rows}
     attendance_section(mode, rows, roster, sent.get("days") or [], hours,
                        int(sent.get("left_out") or 0),
-                       where="sent by the office laptop")
+                       where="sent by the office laptop", desk=desk)
 
 
 def show_desk_naming(mode, day):
@@ -6085,7 +6116,9 @@ def show_progress(now):
                                        part="rest"), unsafe_allow_html=True)
         show_building(mode, people)
         show_rooms_desks(mode, cfg.get("desks"))
-        show_attendance_sent(mode, cfg.get("attendance"), hours_sent)
+        show_attendance_sent(mode, cfg.get("attendance"), hours_sent,
+                             desk_scores(people, hours_sent,
+                                         now.tz_convert(PKT)))
         st.caption("Sent by the office laptop at %s (every five minutes). The "
                    "pictures, the day's videos and the sightings to check "
                    "stay on that laptop." % made)
@@ -6118,7 +6151,7 @@ def show_progress(now):
     show_building(mode, people)
     show_seat_review(mode)
     show_desks(mode, day_key)
-    show_attendance(mode, hours)
+    show_attendance(mode, hours, desk_scores(people, hours, local))
     show_desk_naming(mode, day_key)
     show_sightings(mode, people)
     # Each employee's day as a video (progress_video.py): pictures of the

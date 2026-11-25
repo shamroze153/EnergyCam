@@ -1022,6 +1022,47 @@ def day_score(p, start=10.0, end=20.0, now=None, team=None):
             "short_min": max(0.0, at - long_), "rank": rank, "of": of}
 
 
+def period_score(p, start=10.0, end=20.0, now=None):
+    """The desk score over the days the board keeps for them (the last
+    five working days; Shamroze, 25 Nov: a score for everybody, to hand
+    in): each whole day they came scored as day_score does -- at the desk
+    of the office day (50%), desk time in stretches of an hour or more
+    (30%), on time (20%) -- and averaged. Today counts only after the
+    office day ends. {score, days, parts: [(name, 0-100)]} or None."""
+    office = (end - start) * 60.0
+    today = now.strftime("%Y-%m-%d") if now is not None else None
+    late_today = now is not None and now.hour + now.minute / 60.0 >= end
+    per = []
+    for d in p.get("days") or []:
+        first = d.get("first")
+        if first is None or (d.get("day") == today and not late_today):
+            continue
+        desk = float(d.get("desk_min") or 0.0)
+        at = min(1.0, desk / office) if office > 0 else 0.0
+        long_ = d.get("long_min")
+        late = max(0.0, (first.hour + first.minute / 60.0 - start) * 60.0
+                   - LATE_AFTER)
+        on_time = max(0.0, 100.0 - 10.0 * math.ceil(late / 15.0)) \
+            if late else 100.0
+        if long_ is None:                  # a day sent before long_min
+            parts = [100.0 * at, None, on_time]
+            score = (0.5 * 100.0 * at + 0.2 * on_time) / 0.7
+        else:
+            lp = 100.0 * min(1.0, float(long_) / desk) if desk else 0.0
+            parts = [100.0 * at, lp, on_time]
+            score = 0.5 * 100.0 * at + 0.3 * lp + 0.2 * on_time
+        per.append((score, parts))
+    if not per:
+        return None
+
+    def mean(vals):
+        vals = [v for v in vals if v is not None]
+        return sum(vals) / len(vals) if vals else None
+    return {"score": mean([s for s, _ in per]), "days": len(per),
+            "parts": [(SCORE_PARTS[i][0], mean([q[i] for _, q in per]))
+                      for i in range(3)]}
+
+
 def score_card(p, c, start=10.0, end=20.0, now=None, team=None):
     """day_score as a small card: the score, its parts as bars, where the
     day stands among the board's people."""

@@ -30,6 +30,7 @@ white-space:nowrap}
 .at .bar{display:inline-block;height:6px;border-radius:99px;background:#2a9d63;
 vertical-align:middle;margin-left:6px}
 .at .note{font-size:12px;color:var(--t3);margin-top:8px;line-height:1.5}
+.at td .dd{font-size:11px;color:var(--t3);font-weight:400}
 </style>"""
 
 
@@ -63,6 +64,51 @@ def score(r, office_h=10.0):
     return int(round(100 * (0.5 * inside + 0.3 * steady + 0.2 * present)))
 
 
+def overall(att, desk):
+    """Attendance and desk score together (Shamroze, 25 Nov: one score for
+    every employee, to hand in): half each where a camera sees their named
+    desk, the attendance score alone where not. Time, never the work."""
+    if att is None:
+        return None
+    if desk is None:
+        return att
+    return int(round(0.5 * att + 0.5 * desk))
+
+
+def _key(eid):
+    return str(eid or "").strip().lstrip("0") or "0"
+
+
+def table(rows, roster, desk=None, start=10.0, grace=15):
+    """One dict a row, in the page's order -- for the download."""
+    desk = desk or {}
+    out = []
+    for r in sorted(rows, key=lambda r: (
+            (roster.get(r["eid"], {}).get("department") or "~"),
+            (roster.get(r["eid"], {}).get("name") or r["eid"]))):
+        p = roster.get(r["eid"], {})
+        att = score(r)
+        d = desk.get(_key(r["eid"])) or {}
+        ds = int(round(d["score"])) if d.get("score") is not None else None
+        out.append({
+            "Employee": p.get("name") or "Code %s" % r["eid"],
+            "Employee ID": p.get("employee_id") or r["eid"],
+            "Designation": p.get("designation") or "",
+            "Department": p.get("department") or "",
+            "Days in": r["days_in"], "Working days": r["of"],
+            "Usual in": _hhmm(r["usual_in"]),
+            "Usual out": _hhmm(r["usual_out"]),
+            "Hours in the building, a day": round(r["inside_h"], 1)
+            if r["inside_h"] is not None else None,
+            "Days in after %s" % _hhmm(start + grace / 60.0): r["late"],
+            "Attendance score": att,
+            "Desk score": ds, "Desk days": d.get("days"),
+            "Overall score": overall(att, ds),
+            "Measured by": "machines + desk camera" if ds is not None
+            else "machines (desk not seen by a camera, or not named yet)"})
+    return out
+
+
 def _hhmm(h):
     if h is None:
         return "--"
@@ -90,10 +136,14 @@ def _who(r, roster):
                                           p.get("designation")) if x))))
 
 
-def usual(mode, rows, roster, start=10.0, grace=15):
-    """Every employee over the export: the usual, one row each."""
+def usual(mode, rows, roster, start=10.0, grace=15, desk=None):
+    """Every employee over the export: the usual, one row each, with the
+    desk score where a camera sees their named desk (`desk`: {employee
+    code: {"score", "days"}}, progress_view.period_score) and both
+    together as the overall score."""
     if not rows:
         return ""
+    desk = desk or {}
     rows = sorted(rows, key=lambda r: (
         (roster.get(r["eid"], {}).get("department") or "~"),
         (roster.get(r["eid"], {}).get("name") or r["eid"])))
@@ -103,8 +153,19 @@ def usual(mode, rows, roster, start=10.0, grace=15):
     late = sum(r["late"] for r in work)
     seen = sum(r["days_in"] for r in work)
     scores = [s for s in (score(r) for r in work) if s is not None]
+    def desk_of(r):
+        d = desk.get(_key(r["eid"])) or {}
+        return int(round(d["score"])) if d.get("score") is not None else None
+    with_desk = [r for r in work if desk_of(r) is not None]
+    overalls = [o for o in (overall(score(r), desk_of(r)) for r in work)
+                if o is not None]
     tiles = [("Employees through the machines", "%d" % len(rows),
               "at least one day in the export"),
+             ("Overall score, average", "%d" % round(sum(overalls)
+                                                     / len(overalls))
+              if overalls else "--", "attendance, with the desk where seen"),
+             ("With a desk score", "%d of %d" % (len(with_desk), len(work)),
+              "their named desk in a camera"),
              ("Attendance score, average", "%d" % round(sum(scores)
                                                         / len(scores))
               if scores else "--", "building 50%, regular 30%, days in 20%"),
@@ -121,13 +182,21 @@ def usual(mode, rows, roster, start=10.0, grace=15):
         p = roster.get(r["eid"], {})
         w = 0 if r["inside_h"] is None else int(60 * r["inside_h"] / top)
         sc = score(r)
+        d = desk.get(_key(r["eid"])) or {}
+        ds = desk_of(r)
+        ov = overall(sc, ds)
         body.append(
-            '<tr><td>%s</td><td>%s</td><td><b>%s</b></td><td>%d of %d</td>'
+            '<tr><td>%s</td><td>%s</td><td><b>%s</b></td><td>%s</td>'
+            '<td>%s</td><td>%d of %d</td>'
             '<td>%s</td>'
             '<td>%s</td><td>%s<i class="bar" style="width:%dpx"></i></td>'
             '<td class="%s">%s</td><td>%s</td></tr>'
             % (_who(r, roster), esc(p.get("department") or ""),
-               sc if sc is not None else "--", r["days_in"],
+               ov if ov is not None else "--",
+               sc if sc is not None else "--",
+               ('%d <span class="dd">%dd</span>' % (ds, d.get("days") or 0))
+               if ds is not None else '<span class="dd">not seen</span>',
+               r["days_in"],
                r["of"], _hhmm(r["usual_in"]), _hhmm(r["usual_out"]),
                ("%.1f h" % r["inside_h"]) if r["inside_h"] is not None
                else "--", w, "late" if r["late"] >= 3 else "",
@@ -140,7 +209,8 @@ def usual(mode, rows, roster, start=10.0, grace=15):
             '%s</div><div class="s">%s</div></div>' % (esc(k), esc(v), esc(s))
             for k, v, s in tiles),
         '<div class="ec-card at-wrap"><table><thead><tr><th>Employee</th>'
-        '<th>Department</th><th>Score</th><th>Days in</th><th>Usual in</th>'
+        '<th>Department</th><th>Overall</th><th>Attendance</th><th>Desk</th>'
+        '<th>Days in</th><th>Usual in</th>'
         '<th>Usual out'
         '</th><th>In the building</th><th>Days in after %s</th><th>Out and '
         'back, a day</th></tr></thead><tbody>%s</tbody></table></div>'
@@ -148,11 +218,15 @@ def usual(mode, rows, roster, start=10.0, grace=15):
         '<div class="note">From HR\'s export of the attendance machines '
         '(hand-typed Life app punches left out): working days only; the '
         'usual is the middle day. A day with no OUT punch has no "out"; a '
-        'night shift crosses midnight and is split between two days. The '
-        'score: hours in the building of a 10-hour day (50%), coming in '
-        'within half an hour of their own usual -- a later shift is not '
-        'late (30%), days in (20%). Time in the building, not the work '
-        'done.</div></div>'])
+        'night shift crosses midnight and is split between two days. '
+        '<b>Attendance</b>: hours in the building of a 10-hour day (50%), '
+        'coming in within half an hour of their own usual -- a later shift '
+        'is not late (30%), days in (20%). <b>Desk</b>: where a camera sees '
+        'their named desk, the last working days\' desk score -- at the '
+        'desk of the office day (50%), in stretches of an hour or more '
+        '(30%), on time (20%); "5d" is the days it averages. <b>Overall</b>: '
+        'half each where both are known, else the attendance score. Time '
+        'in the building and at the desk, not the work done.</div></div>'])
 
 
 def one_day(mode, rows, roster, day, start=10.0, grace=15):

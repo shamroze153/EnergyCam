@@ -2137,8 +2137,20 @@ def check_attendance():
         # 8.47 h of 10 (0.5 x 0.847), at their own usual hour (0.3), in on
         # the one working day (0.2): 92
         check("an attendance score for every employee, from the machines",
-              (av_.score(summ[0]), "%%" in page_u, "Score" in page_u),
+              (av_.score(summ[0]), "%%" in page_u,
+               "<th>Attendance</th>" in page_u),
               (92, False, True))
+        # 25 Nov: one score for everybody -- the desk's beside it where a
+        # camera sees their named desk, half each; the CSV says the same.
+        dk_ = {"90042": {"score": 70.0, "days": 4}}
+        page_k = av_.usual("light", summ, roster_, desk=dk_)
+        tab_ = av_.table(summ, roster_, dk_)
+        check("overall: half attendance, half desk where the desk is seen",
+              (av_.overall(92, None), av_.overall(92, 70),
+               "Overall" in page_k, tab_[0]["Overall score"],
+               tab_[0]["Desk score"],
+               av_.table(summ, roster_)[0]["Overall score"]),
+              (92, 81, True, 81, 70, 92))
         # The hosted page (25 Nov: "cloud pe add karte raho"): names only
         # where cloud_names allows; the numbers come back as they went.
         import json as _json
@@ -2272,6 +2284,28 @@ def check_attendance():
            rl_.desk_match_nightly(_dt2(2026, 11, 25, 23, 55), st_,
                                   lambda: started.append(1)), len(started)),
           (None, "2026-11-25", None, 1))
+    # The desk score over several days (25 Nov): long stretches per day,
+    # each whole day scored as the card does, then averaged.
+    T_ = pd.Timestamp
+    line_ = [(T_(DAY + " 10:00"), T_(DAY + " 10:30"), "desk"),
+             (T_(DAY + " 10:32"), T_(DAY + " 11:20"), "desk"),
+             (T_(DAY + " 11:20"), T_(DAY + " 11:40"), "away"),
+             (T_(DAY + " 11:40"), T_(DAY + " 12:10"), "desk")]
+    check("long stretches: passes minutes apart are one, away ends one",
+          pdx.long_runs(line_, T_(DAY + " 10:00"), T_(DAY + " 20:00")), 80.0)
+    pp_ = {"days": [
+        {"day": "2026-11-20", "first": T_("2026-11-20 10:00"),
+         "desk_min": 300.0, "long_min": 240.0},
+        {"day": "2026-11-21", "first": T_("2026-11-21 10:40"),
+         "desk_min": 600.0, "long_min": 600.0},
+        {"day": "2026-11-22", "first": None, "desk_min": 0.0}]}
+    # 50x.5 + 80x.3 + 100x.2 = 69; 100x.5 + 100x.3 + 80x.2 = 96
+    s1_ = pv.period_score(pp_)
+    s2_ = pv.period_score(pp_, now=T_("2026-11-21 15:00"))
+    check("desk score over the days; today only once the office day ends",
+          (round(s1_["score"], 1), s1_["days"], round(s2_["score"], 1),
+           s2_["days"], pv.period_score({"days": []})),
+          (82.5, 2, 69.0, 1, None))
 
 
 def main():

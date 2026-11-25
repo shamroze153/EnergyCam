@@ -340,7 +340,36 @@ def day_summary(person, day, day_notes=None, day_passes=None,
             "first": first, "last": last,
             "in_min": _minutes(first, last) if at else 0.0,
             "breaks": breaks, "late_min": late, "total_min": total,
-            "line": line}
+            "long_min": long_runs(line, lo, hi), "line": line}
+
+
+LONG_RUN_MIN = 60        # a stretch at the desk this long is a long one
+RUN_GAP = pd.Timedelta(minutes=10)   # passes this close are one stretch
+
+
+def long_runs(line, lo, hi):
+    """Office-hours minutes at the desk in stretches of LONG_RUN_MIN or
+    more -- desk passes one after another, a gap of up to RUN_GAP with
+    nothing seen in it allowed (the loop's passes are minutes apart), an
+    "away" pass ending the stretch. For the desk score's 'Long
+    stretches' over several days (progress_view.period_score)."""
+    runs, cur = [], None
+    for s, e, st in sorted(line, key=lambda x: x[0]):
+        if st == "desk":
+            if cur is not None and s - cur[1] <= RUN_GAP:
+                cur[1] = max(cur[1], e)
+            else:
+                if cur is not None:
+                    runs.append(cur)
+                cur = [s, e]
+        else:
+            if cur is not None:
+                runs.append(cur)
+            cur = None
+    if cur is not None:
+        runs.append(cur)
+    return sum(_clip(s, e, lo, hi) for s, e in runs
+               if (e - s).total_seconds() / 60.0 >= LONG_RUN_MIN)
 
 
 def strip(summary, frm=8, to=24, step=10):
