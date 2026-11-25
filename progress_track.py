@@ -462,6 +462,15 @@ def publish(connect, now=None, clock=time.time, force=False):
                 {"day": day, "rooms": rooms}))))
     except Exception:                                       # noqa: BLE001
         pass
+    # Every employee through the attendance machines (25 Nov: "cloud pe add
+    # karte raho") -- names only where cloud_names allows, never a picture.
+    try:
+        import json
+        att = pdx.attendance_payload(cfg, start=float(hours[0]))
+        if att:
+            rows.append(("_attendance", json.dumps(pdx._jsonable(att))))
+    except Exception:                                       # noqa: BLE001
+        pass
     import psycopg2
     try:
         conn = connect()

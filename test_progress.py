@@ -2134,6 +2134,33 @@ def check_attendance():
         check("the usual table and one day's list",
               ("Some One" in page_u and "1 of 1" in page_u,
                "09:58" in page_d and "19:12" in page_d), (True, True))
+        # The hosted page (25 Nov: "cloud pe add karte raho"): names only
+        # where cloud_names allows; the numbers come back as they went.
+        import json as _json
+        import desks_data as dd_
+        old_roster, old_load = dd_.load_roster, att.load
+        try:
+            dd_.load_roster = lambda *a, **k: [
+                {"employee_id": "90042", "name": "Some One",
+                 "designation": "Tester", "department": "Testing"}]
+            att.load = lambda folder=None: data
+            check("nothing for the hosted page without cloud_names",
+                  pdx.attendance_payload({}), None)
+            sent_ = pdx.attendance_payload({"cloud_names": True})
+            back_ = pdx.from_payloads([
+                ("_attendance", _json.loads(_json.dumps(
+                    pdx._jsonable(sent_))))])[0]["attendance"]
+            r0 = back_["rows"][0]
+            check("  with it: name, ID, the usual, each day's in and out",
+                  (r0["name"], r0["employee_id"], r0["days_in"],
+                   r0["days"][DAY]["first_in"], back_["days"]),
+                  ("Some One", "90042", 1, at("09:58"), [DAY]))
+            check("  and never a picture in it",
+                  "jpg" in _json.dumps(pdx._jsonable(sent_)).lower()
+                  or "photo" in _json.dumps(pdx._jsonable(sent_)).lower(),
+                  False)
+        finally:
+            dd_.load_roster, att.load = old_roster, old_load
     finally:
         shutil.rmtree(tmp)
     p = passes_every("10:00", "11:00")

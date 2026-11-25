@@ -5508,11 +5508,19 @@ def show_attendance(mode, hours):
     # left out of it on purpose (Shamroze, 24 Nov) or not on the staff.
     left = sum(1 for r in rows if r["eid"] not in roster)
     rows = [r for r in rows if r["eid"] in roster]
+    attendance_section(mode, rows, roster, days, hours, left)
+
+
+def attendance_section(mode, rows, roster, days, hours, left=0,
+                       where="this laptop only"):
+    """The Attendance section, on the laptop or the hosted page: the usual
+    or one day, one at a time."""
+    import attendance_view
     st.markdown(overview.css(mode) + '<div class="ec"><div class="ec-h" '
                 'style="margin-top:22px"><span class="t">Attendance, 140-H'
                 '</span><span class="c">every employee through the machines '
-                '&middot; %s to %s &middot; this laptop only</span></div>'
-                '</div>' % (days[0], days[-1]) if days else "",
+                '&middot; %s to %s &middot; %s</span></div>'
+                '</div>' % (days[0], days[-1], where) if days else "",
                 unsafe_allow_html=True)
     usual_word = "Usual (every working day)"
     pick = st.selectbox("Attendance", [usual_word] + list(reversed(days)),
@@ -5526,6 +5534,22 @@ def show_attendance(mode, hours):
     if left:
         st.caption("%d employee code(s) in the export that the directory does "
                    "not have are left out." % left)
+
+
+def show_attendance_sent(mode, sent, hours):
+    """The hosted page's Attendance: what the office laptop sent (names
+    and numbers, never a picture -- progress_data.attendance_payload)."""
+    if not sent or not sent.get("rows"):
+        return
+    rows = sent["rows"]
+    roster = {r["eid"]: {"name": r.get("name", ""),
+                         "employee_id": r.get("employee_id", ""),
+                         "designation": r.get("designation", ""),
+                         "department": r.get("department", "")}
+              for r in rows}
+    attendance_section(mode, rows, roster, sent.get("days") or [], hours,
+                       int(sent.get("left_out") or 0),
+                       where="sent by the office laptop")
 
 
 def show_desk_naming(mode, day):
@@ -6061,6 +6085,7 @@ def show_progress(now):
                                        part="rest"), unsafe_allow_html=True)
         show_building(mode, people)
         show_rooms_desks(mode, cfg.get("desks"))
+        show_attendance_sent(mode, cfg.get("attendance"), hours_sent)
         st.caption("Sent by the office laptop at %s (every five minutes). The "
                    "pictures, the day's videos and the sightings to check "
                    "stay on that laptop." % made)

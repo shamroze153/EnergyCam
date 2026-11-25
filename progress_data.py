@@ -1565,6 +1565,35 @@ def to_payloads(cfg, people, hours, made):
 STALE_ROW_MIN = 10
 
 
+def attendance_payload(cfg, campus="140-H", start=10.0):
+    """Every directory employee through a campus's attendance machines,
+    for the hosted page (Shamroze, 25 Nov: "jis jis ka banta rahe cloud pe
+    add karte raho"): name, ID, designation, department, the usual and
+    each day's in / out / hours / outings -- only where progress.yaml says
+    `cloud_names: true`, else nothing at all. Numbers and names, never a
+    picture. {"rows": [...], "days": [...]} or None."""
+    if cfg.get("cloud_names") is not True:
+        return None
+    import attendance
+    import desks_data
+    rows = attendance.summary(campus, start=start)
+    if not rows:
+        return None
+    roster = {attendance.code(r["employee_id"]): r
+              for r in desks_data.load_roster()}
+    out = []
+    for r in rows:
+        p = roster.get(r["eid"])
+        if not p:
+            continue                   # not in the directory: left out
+        out.append(dict(r, name=p.get("name", ""),
+                        employee_id=p.get("employee_id", ""),
+                        designation=p.get("designation", ""),
+                        department=p.get("department", "")))
+    return {"rows": out, "days": attendance.days(campus),
+            "left_out": len(rows) - len(out)}
+
+
 def from_payloads(rows):
     """(cfg, people, made, hours) back from progress_days rows
     [(code, payload)] or [(code, payload, updated_at)] -- payload a dict
@@ -1598,6 +1627,8 @@ def from_payloads(rows):
             hours = tuple(data.get("hours") or (10.0, 20.0))
         elif code == "_desks":
             cfg["desks"] = data          # every desk, room by room
+        elif code == "_attendance":
+            cfg["attendance"] = data     # every employee by the machines
         else:
             people.append(data)
     def rank(p):
