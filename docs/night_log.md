@@ -1639,3 +1639,9 @@ Two or three lines a round; picture file names, never pictures.
   only if it comes back. Room 17 ch3 / Room 18 ch13: empty chairs, seats
   (Room 18 had a laptop open and lit). Nothing changed. The recorders'
   clocks read ~2.5 min behind the laptop's -- the laptop is the one off.
+* 02:42, 26 Nov round (02:17's fell inside the usage limit): GHOST 2 --
+  Entry H (nobody at 02:45; the night guards pass, the loop a pass
+  behind) and Outside H (a public street, no unit) -- left, as before.
+  No MISSED; 19 night detections. Nothing changed. Four background
+  workers this night: recordings and faces (gate backfill running),
+  where-the-day-went places, the AC audit, and a research one (done).
