@@ -1538,5 +1538,19 @@ Two or three lines a round; picture file names, never pictures.
   minutes loop-only -> with replay, P1 178->522, P2 180->349, P3
   132->307, P4 80->370, P5 110->440, P6 204->409, P7 86->161, P10 5->244,
   P11 66->116, P12 53->227, P13 75->110; P8 unchanged (36), P9 none either
-  way. Gate recording of 19-20 Nov read (5,853 passages); gate_match run.
-  Loop restarted 07:49.
+  way. Gate recording of 19-20 Nov read (5,853 passages); gate_match run:
+  no desk reached its two clear votes yet. Loop restarted 07:49.
+* 08:10, 25 Nov Every tab previewed (Overview, Who comes when, Rooms,
+  Desks, Empty time, Energy, Savings): no error on any. Fixed: the
+  sidebar's sections sat centred (Streamlit 1.65), four tiles broke 3+1,
+  five 4+1; "The last full day" said Mon 23 over a list saying the same
+  stretch was Tuesday -- now day_series' day. Energy page in the usual
+  order (bill and forecast, last day, every day, solar, months; the
+  reading-to-reading pace under More). New: an AC report card, one room
+  at a time, against its usual day.
+* 08:20, 25 Nov AutoOS's split calibrated from the kept frames (ch 10, its
+  louvre's darkness; replayed over 236 frames, no running in a shut one;
+  the view check refuses the two frames the camera looked elsewhere and
+  the dark room at night). 140-H: 13 of 58 units read. The Basement's
+  others still wait for ch 23's mount. Naming pictures made for ten rooms
+  from 24 Nov's recording (81 desks), for Shamroze one room at a time.

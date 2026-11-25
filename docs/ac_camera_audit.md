@@ -15,15 +15,22 @@ says 22.)
 | Campus | Part | Units | In camera | Calibrated |
 |---|---|---|---|---|
 | 140-H | Basement | 6 | 5 | 2 |
-| 140-H | Ground floor | 23 | 11 | 6 |
+| 140-H | Ground floor | 23 | 11 | 7 |
 | 140-H | First floor (Saturday) | 22 | 2 so far | 0 |
 | 140-H | Cafe and mosque | 7 | 5 | 4 |
-| **140-H** | | **58** | **23** | **12** |
+| **140-H** | | **58** | **23** | **13** |
 | 141-C/D | Ground floors | 45 | 12 | 7 |
 | 141-C/D | First floors | 14 | 5 | 1 |
 | 141-C/D | Second floors | 14 | 9 | 3 |
 | **141-C/D** | | **73** | **26** | **11** |
-| **Both** | | **131** | **49** | **23** |
+| **Both** | | **131** | **49** | **24** |
+
+25 Nov, 08:15, from the kept frames with nobody switching: AutoOS's split
+(ch 10, high on the back wall) by its louvre's darkness -- open 24 Nov
+11:38-19:02 and 19:45-20:15, 23 Nov 19:03-21:21. Replayed over all 236
+kept frames: every running frame read running, no shut one did; the two
+frames where the camera looked elsewhere (23 Nov 21:50, 24 Nov 20:26) are
+refused by the view check, and so is the dark room at night (unknown).
 
 20 Nov, 16:35: Marketing's M2 by the small white light on its front, from
 its own midday switch (on 12:25, off 12:38 for Friday prayers, on 14:11)

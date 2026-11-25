@@ -898,3 +898,59 @@ rooms:
               on_peak: 253
               off_peak: 133
               taken: 2026-11-20T02:28+0500
+
+  AutoOS:
+    recorder: dvr2
+    channel: 10
+    # Two 1-ton units; one in camera, the split high on ch 10's back
+    # wall. Calibrated 25 Nov from frames/ac_keep, nobody switching
+    # anything: by eye its louvre was shut 24 Nov 00:00-11:24, open
+    # 11:38-19:02, shut 19:13-19:34, open 19:45-20:15, shut from 20:42;
+    # 23 Nov open 19:03-21:21, shut from 21:34. The other unit is in no
+    # camera, so an "off" here stays unknown; a "running" is real.
+    unseen_units: 1
+    # The lighting the measurement was taken in. The contrast inside a box
+    # depends on it, so a reading under the other kind is refused rather
+    # than guessed at.
+    expect: colour
+    # The frame this box was drawn on. A box is a position in pixels, so it
+    # means nothing on a picture of a different size: switch the stream from
+    # main to sub and these numbers land somewhere else entirely while still
+    # producing a confident answer. Checked before every reading.
+    frame_size: [1920, 1080]
+    units:
+      - label: Split on the back wall, its louvre
+        led_roi: [622, 87, 724, 98]
+        led_std_threshold: 15.4
+        # A louvre read by its darkness (the 19 Nov lesson): running only
+        # when the slats show dark inside. Over 236 kept frames (23-25
+        # Nov) running read 0.43-0.67, shut 0.78-0.96 (a shut louvre in
+        # the midday light 0.78): the line between, 0.72. Contrast in the
+        # box alone overlapped (running 11.6 at a narrow swing, shut 10.4
+        # in daylight).
+        dark_max: 0.72
+        # A thumbnail of the unit and the wall round the box, levelled for
+        # brightness, compared before every reading. Nudge the camera and the
+        # box lands on blank wall, where it reads low contrast for ever and
+        # calls a running unit off -- silently, and in the direction nobody
+        # notices, because a unit never reported as on sends nobody anywhere.
+        # The view check on the unit's top and the ceiling's edge above it,
+        # clear of the louvre (hidden) -- the display light at 678,75 is
+        # small in it: running frames 0.80+, shut by day 0.94+; the two
+        # frames where the camera looked elsewhere (23 Nov 21:50, 24 Nov
+        # 20:26) 0.17-0.25, refused. In the dark (lights off at night)
+        # the louvre cannot be seen and the check fails: unknown, never off.
+        anchor_roi: [560, 20, 780, 110]
+        anchor: i5GRkZGRkZGRkZiYmJiYmJ6kq6uxsaurq6urq6SkpKSksberq7G3eDlARkxMTEZGkZGYkZGRkZiYmJiYmJiYmJ6rq6urq6urq6urq6SkpKSksbfX4+O9UkZGRkxSUlJSmJGYmJiYmJiYmJiYmJiYmJ6rq6urq6urq6urq6urpKSr19CeZTlAM0BMUllSUlJSmJGYmJiYmJiYmJienp6enqSrq6urq6urq6urq6urpKukTAANRmxMOUZMTFJSTFJSmJGYmJiYmJiYmJ6kpKSkpKurpKSkpKSkpKSkpKurq6uknrHK0MR+WVlSUlJSUmVsmJGYmJiYmJiYnqurq6urq6ukpJ6YmJiYmJikpKurq6urmKukpJ54bGVsbGxseH6Fnpienp6enp6epKurq6urq6urnp6enpiYmJikpKurq6SenpGYkZGLeHJ+fn6Fi4uLmJ6enp6enqSkpKukpKSkpKSrpKSenpiYmJienp6enpiLi5GRkZGFfnh+hYWLhYWFmJienp6kpKSrq6urq6Sknp6enp6enpiYkYt+eHJyeHh4eH6Li4uFfn6FhYWLkZGRnqSkpKSkpKurq6Srq5iYhX54cmxlZV9fWVJSUlJZX2Vscn6FhYWLhYWLi4uRkZGRq6uxsbGrq6ukmJGRi354bF9ZUkxMRkZARkZMTExSWV9lcn5+hYWLhYWLi4uLfnhyq6urq6SemJiLhXhybGVfWUxGRkBAQDk5OTlARkZMWV9fcnh+hYWFfnh4eHh4X0xSnp6enpGFfnhybGVZWVJMRkA5OTMzOTkzMzk5QEZMWV9fbHJ+hYWFi4uLhYV+ZVJGi4uLhXh4cl9fWVJMTExGQDkzMy0tMzMtMzM5QEZMWV9fbHJ4foWRnqSkq6urkYt+cnJycmxlZVlZWVlSUkxGQDk5OTMtLS0tMzM5QEZMWV9fZWxyeIWRnp6eq6uxsb3EcnJlZWVlX2VfX1lSTFJGOTMzMyYmLS0zMzM5QEBGTFJSWV9lbH6RmJ6kpKuxt7e9ZWxscnJsZWVfX1lSTExAMzMzLSYmJiYtJiYmLS0zOUZMRkBSbH6RmKSrq7Gxt7e9cnJyeH5ybGVfX1lSTEYzLS0mJiAgICAmJi0mJiYgICYtLSZAZX6RnqSrq7G3t7e9fnh4eHhybGVfX1lSTEAtJiYgICAgGhogICATBwAAAAAHExMtZX6RpKuxsbe9t7e9fn54fnhyZWVfX1lSTDMgGhogGhMTDQEAAAAAAAEgQFlleHJlbIWYpKuxt7e3t7e3fn54fnhsZWVfX1lMQCYaExoNDQAAAAAADUBlfouRkZiLhYV4fouepKuxt7e9vb29fn54eHhsZWVfX1lMMyANAAAAAAANOWV4i4uLhYV4foV+eH6FkZikq7G3vb29vb29fn54eHJsZWVfX1I5GgEAAAATUoWLhX6Fi4t+fnh+hYWFi4uLkZGkq7G3vb3ExMTEfnJycnJlZV9fWTkAAAAAX6SrmIuRfn5+fn5+hYWLhYuFi4uLi5Gkq7G3vb3ExMTEeGxsbGxfX19ZUiAARouYhX6Fi4WFhYV+fn5+hYuLi4uFi5GRmJikq7Gxvb3ExMTEcmVlZWVfX1JSTDNSi2xleH6Fi4WFhYWFhX5+hX6Fi4uLi5GRmJ6kq7e3vb3EysrKcmVlZWVZWUxGQDlfeH5+eHh4hYWFi4uLhX5+hYWFi5GRi5GYnqSrsbe3vb3EysrKbF9fX19ZWUxGQDNfcoV+eHJyfoWFi4uRhX5+hYuLi5GRkZiYnqSrsb29vb3E0NDQZV9fX19ZUkxMOS1feH5+fnh+hYuLi4uLhYWFhYuRkZGRkZiYpKursb29vb3EytDQZV9ZX19ZUlJMOSZZeIV+fn5+hYuLi4uLhYWLi4uRkZGRkZieq6ursb29vb3EytDQZV9SWV9fWVlMMyBZfoWFhX6Fi4uLi4uLi4uLkYuRkZGRmJ6kq6ursb29vb3EytDQZVlSWV9fWV9MMxpSfouFhYWFi4uLi4uLi4uRkYuRkZGRnqSrpKursb29vb3EytDQX1lSUllZX1lMMxNSeIWFfn6FhYWLi4WFhYuRkZGRkZGYmKurpJ6Ynre9ysrQ19fXX1lSUllZX1lMORNSeIWFfn6FhYWLkYuLi36Fi5iRi5Geq6uxpJiLeLG9ysrQ19fXX1lSUllZX1lMQBpSeIWFfn6FhYWRmJiYkYWFmJiRi36FkaSrnouFfrG9ysrQ19fXX1lSUllZX1lMQBpSeIWFfoWFhYWLkZiYnp6emIt4bGV4hZiei4V+frG9ysrQ19fXX1lSUllZX1lMQBNMcouFhYWFhYWFhYWFhYWFhYWFhYWFhYV4bH5+hbfExMTK0NfXZV9ZWVlZX1lMQA1GZYWFhYWFhYWFhYWFhYWFhYWFhYWFhYV4ZXh4kbfExMTK0NfXZV9fWVlSWVlMOQ1GX4WFhYWFhYWFhYWFhYWFhYWFhYWFhYV+cnhlhcTExMTQ0NfXbGVfWVlSWVlMOQ1AZYWFhYWFhYWFhYWFhYWFhYWFhYWFhYV4ZYV+nsrKysrQ0NfXbGVlWVlSWVJMORNAbIuFhYWFhYWFhYWFhYWFhYWFhYWFhYV+cpGx0MrKytDX19fXbGVfX19ZWVJMQBNAX0wgLWV4eHh4cnJycnJycnJyeHh4eH6Fi56919DQ0NDX19fXcmxlZWVfX1JMQBo5WQcaTF9sZWVZX1lZUlJSUl9lbHJ+hZiepKu919DQ0NDX19fXcmxsZWxlZVlSRiYzWTNfX1JfWVlZUkxGUl9sfouRkZikq7Gkq7e90NDQ0NDX19fXeHJsbHJsbFlSQCYtUlJMTFJZUlJMWVllcn6Li56rq7Gxt7Gxsb290NDQ0NDX19fXhX5yeHJlZVlSQCAgTEZATFJZX2VseH5+hYuRpKursbG3vbe9vb3K19DQ0NDX19fdhX54eHJsbGxlX0YzRkxZZWx4fn6Fi5GYmJ6kq6ursbe9vb3Evb3K19DQ0NDX193di4WFhX5+fn6Ffn5ycnJ4hZGRkZGYpKSrq6uxsaursbGxvcTKxMTK19DQ0NDX3d3d
+        measured:
+          on_std: 22.43          # display lit
+          off_std: 8.34          # display blank
+          on_peak: 119
+          off_peak: 102
+          taken: 2026-11-25T08:11+0500
+          # A gap of 14.1 between the two states. The threshold is the
+          # midpoint, so anything inside that gap would read the same.
+          # Negative means this unit goes DARK when it runs rather than
+          # lighting up, and the reading is taken that way round: the
+          # direction is read back off these two numbers, not stored
+          # separately, so they cannot disagree with each other.
