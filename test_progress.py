@@ -2121,6 +2121,19 @@ def check_attendance():
               ("90001", "90001"))
         check("nobody's punches, nothing", att.day("90002", DAY, data=data),
               None)
+        summ = att.summary(data=data)
+        check("every employee through the machines, the usual",
+              [(s["eid"], s["days_in"], round(s["usual_in"], 2),
+                round(s["inside_h"], 2), s["late"]) for s in summ],
+              [("90042", 1, 9.97, 8.47, 0)])
+        import attendance_view as av_
+        roster_ = {"90042": {"employee_id": "90042", "name": "Some One",
+                             "department": "Testing"}}
+        page_u = av_.usual("light", summ, roster_)
+        page_d = av_.one_day("light", summ, roster_, DAY)
+        check("the usual table and one day's list",
+              ("Some One" in page_u and "1 of 1" in page_u,
+               "09:58" in page_d and "19:12" in page_d), (True, True))
     finally:
         shutil.rmtree(tmp)
     p = passes_every("10:00", "11:00")

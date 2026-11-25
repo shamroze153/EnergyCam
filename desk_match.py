@@ -42,6 +42,9 @@ import progress_data as pdx
 ARRIVE = (-4.0, 14.0)    # min after an IN punch a desk fills
 LEAVE = (-14.0, 4.0)     # min before an OUT punch a desk empties
 STRONG = {"hits": 10, "z": 8.0, "clear": 3.0, "share": 0.4}
+# A looser line for a pair, safe only because every pair must still pass
+# check() -- its desk used while its person was inside, 85% and more.
+LOOSE = {"hits": 6, "z": 5.0, "clear": 2.0, "share": 0.3}
 PAD = pd.Timedelta(minutes=10)
 VERIFIED, DOUBT = 0.85, 0.60   # share of desk time inside the windows
 MIN_DESK_MIN = 120              # desk minutes over the days, to judge
@@ -240,9 +243,10 @@ def load_checks(path=CHECKS):
                         "at": r["at"]} for _, r in d.iterrows()}
 
 
-def nightly(cfg=None, roster=None):
+def nightly(cfg=None, roster=None, line=LOOSE):
     """Check every named desk; take back the machine-only names that fail;
-    name the strong new pairs that pass. Returns a short summary."""
+    name the new pairs over `line` whose own check passes. Returns a short
+    summary."""
     cfg = pdx.load() if cfg is None else cfg
     pu = punches()
     days = days_with_punches(pu)
@@ -269,7 +273,7 @@ def nightly(cfg=None, roster=None):
         roster = {attendance.code(r["employee_id"]): r
                   for r in desks_data.load_roster()}
     named_now = []
-    for eid, c, zz, nxt, h, n in pair(scores(fpu, by_day)):
+    for eid, c, zz, nxt, h, n in pair(scores(fpu, by_day), line):
         r = roster.get(eid)
         if not r:
             continue                      # not in the directory

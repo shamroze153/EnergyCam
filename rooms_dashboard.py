@@ -5479,6 +5479,55 @@ NAMING_TODO = "Not named yet"
 NAMING_EVERY = "Every desk"
 
 
+@st.cache_data(ttl=600, show_spinner=False)
+def cached_attendance(stamp):
+    """attendance.summary() and the export's days, worked out again when a
+    file under people/attendance/ changes (`stamp`)."""
+    import attendance
+    return attendance.summary(), attendance.days()
+
+
+def show_attendance(mode, hours):
+    """Every employee through 140-H's attendance machines (Shamroze, 25 Nov:
+    HR's export, "sab daldo"): the usual over every working day, or one
+    day's list -- one at a time. On this laptop only: it names everybody,
+    and the export never leaves people/attendance/."""
+    import glob as _glob
+    import attendance
+    import attendance_view
+    import desks_data
+    files = sorted(_glob.glob(os.path.join(attendance.FOLDER, "*.csv")))
+    if not files:
+        return
+    stamp = tuple((f, os.path.getmtime(f)) for f in files)
+    with st.spinner("Reading the attendance machines..."):
+        rows, days = cached_attendance(stamp)
+    roster = {attendance.code(r["employee_id"]): r
+              for r in desks_data.load_roster()}
+    # Only the directory's people: a code it does not have is somebody
+    # left out of it on purpose (Shamroze, 24 Nov) or not on the staff.
+    left = sum(1 for r in rows if r["eid"] not in roster)
+    rows = [r for r in rows if r["eid"] in roster]
+    st.markdown(overview.css(mode) + '<div class="ec"><div class="ec-h" '
+                'style="margin-top:22px"><span class="t">Attendance, 140-H'
+                '</span><span class="c">every employee through the machines '
+                '&middot; %s to %s &middot; this laptop only</span></div>'
+                '</div>' % (days[0], days[-1]) if days else "",
+                unsafe_allow_html=True)
+    usual_word = "Usual (every working day)"
+    pick = st.selectbox("Attendance", [usual_word] + list(reversed(days)),
+                        key="attendance_view", label_visibility="collapsed")
+    if pick == usual_word:
+        html = attendance_view.usual(mode, rows, roster, float(hours[0]))
+    else:
+        html = attendance_view.one_day(mode, rows, roster, pick,
+                                       float(hours[0]))
+    st.markdown(html, unsafe_allow_html=True)
+    if left:
+        st.caption("%d employee code(s) in the export that the directory does "
+                   "not have are left out." % left)
+
+
 def show_desk_naming(mode, day):
     """Name the desks by hand (Shamroze, 24 Nov: "tum picture lete raho,
     Progress mein daalo, aage naam aur employee ID main daal dunga -- 100%
@@ -6044,6 +6093,7 @@ def show_progress(now):
     show_building(mode, people)
     show_seat_review(mode)
     show_desks(mode, day_key)
+    show_attendance(mode, hours)
     show_desk_naming(mode, day_key)
     show_sightings(mode, people)
     # Each employee's day as a video (progress_video.py): pictures of the

@@ -94,6 +94,59 @@ def inside(employee_id, day_, campus=CAMPUS, data=None, pad=None):
     return out
 
 
+def days(campus=CAMPUS, data=None):
+    """The days the export covers at a campus, oldest first."""
+    data = load() if data is None else data
+    if data is None or not len(data):
+        return []
+    d = data[data["place"].str.startswith(campus)]
+    return sorted(d["at"].dt.strftime("%Y-%m-%d").unique())
+
+
+def summary(campus=CAMPUS, data=None, start=10.0, grace=15, workdays=None):
+    """Every employee who passed a campus's machines, over every day of the
+    export: [{eid, days: {day: day()}, days_in, usual_in, usual_out,
+    inside_h, late, outings}] -- usual_in / usual_out the median clock
+    hour on working days in, inside_h the mean hours in the building, late
+    the working days in after start + grace minutes. `workdays`: the days
+    to count (default: Monday to Friday of the export)."""
+    data = load() if data is None else data
+    all_days = days(campus, data)
+    if workdays is None:
+        workdays = [d for d in all_days if pd.Timestamp(d).dayofweek < 5]
+    d = data[data["place"].str.startswith(campus)]
+    out = []
+    for eid in sorted(d["eid"].unique()):
+        mine = d[d["eid"] == eid]
+        per = {}
+        for day_ in sorted(mine["at"].dt.strftime("%Y-%m-%d").unique()):
+            s = day(eid, day_, campus, mine)
+            if s and s["first_in"] is not None:
+                per[day_] = s
+        work = [per[x] for x in workdays if x in per]
+        if not per:
+            continue
+
+        def hour(t):
+            return t.hour + t.minute / 60.0
+
+        ins = sorted(hour(s["first_in"]) for s in work)
+        outs = sorted(hour(s["last_out"]) for s in work
+                      if s["last_out"] is not None)
+        late_line = start + grace / 60.0
+        out.append({
+            "eid": eid, "days": per, "days_in": len(work),
+            "of": len(workdays),
+            "usual_in": ins[len(ins) // 2] if ins else None,
+            "usual_out": outs[len(outs) // 2] if outs else None,
+            "inside_h": (sum(s["inside_min"] for s in work) / 60.0 / len(work))
+            if work else None,
+            "late": sum(1 for x in ins if x > late_line),
+            "outings": (sum(len(s["outings"]) for s in work) / float(len(work)))
+            if work else None})
+    return out
+
+
 def day(employee_id, day_, campus=CAMPUS, data=None):
     """One employee's day at one campus's machines, or None with no punch.
 
