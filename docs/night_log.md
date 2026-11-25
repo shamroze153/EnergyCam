@@ -1567,3 +1567,10 @@ Two or three lines a round; picture file names, never pictures.
   counted a person beyond the glass at the reception's far side on both
   cameras (ch 9 0.64, ch 10 0.41) -- ignore boxes there, not on any seat
   of the room. Loop restarted for rooms.yaml.
+* 10:40, 25 Nov Round: field_audit 10:25 -- MISSED 0, GHOST 5 (141 Lobby
+  1st floor, 141 Meeting Room Lobby, 141 Room 11, 141-C Room 3, Ablution
+  Area), each in this audit only, none in the five before; 141-C Room 3
+  (the store room, "2 people") had 0 detections on a fresh look -- people
+  who had left, the loop a pass behind, not an object. Nothing changed.
+  Desks named this morning by face (desk, gate, directory, confirmed by
+  Shamroze one by one): now 15 named desks, 21 on the board.
