@@ -2146,6 +2146,21 @@ def check_attendance():
            "1 time, 45m" in html), (True, True, True))
     check("the export is never in git (people/)",
           "people/" in open(".gitignore").read(), True)
+    # A desk named by the machines alone says so, on its card.
+    listed_ = []
+    got_ = pdx.desk_people(listed_, {"dvr9.1-1": ("90042", "Some One"),
+                                     "dvr9.1-2": ("90043", "Other One")},
+                           {"dvr9.1-1": ("dvr9", 1, 100.0, 100.0),
+                            "dvr9.1-2": ("dvr9", 1, 400.0, 100.0)},
+                           {"dvr9.1-1": "Room", "dvr9.1-2": "Room"}, {},
+                           {"dvr9.1-1": "90042"})
+    check("named by the machines, or by hand",
+          [(g["code"], g["how"]) for g in got_],
+          [("dvr9.1-1", "attendance"), ("dvr9.1-2", "by hand")])
+    card_m = dict(card, code="dvr9.1-1", name="Some One", how="attendance")
+    check("  and the card says it was not checked by eye",
+          "not checked by eye" in pv.report(card_m, c, pv.REPORT_VIEWS[0]),
+          True)
 
 
 def main():

@@ -1091,7 +1091,9 @@ def report(p, c, view=REPORT_VIEWS[0], start=10.0, now=None, end=20.0,
                    else "", label,
                    "sitter not named yet -- Name the desks, below"
                    if not p.get("name") and "." in str(p.get("code", ""))
-                   else "") if x)),
+                   else "",
+                   "named by the attendance machines, not checked by eye"
+                   if p.get("how") == "attendance" else "") if x)),
                dur(at) if came else "--",
                (" &middot; %s of time in" % pct(share)) if share is not None
                else "", vs, LIVE_COLOURS.get(state, "#898781"),

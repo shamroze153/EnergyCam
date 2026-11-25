@@ -1211,9 +1211,26 @@ def live(day_act, now, hours=(10, 20)):
 # desk, from DESK_SINCE -- the day the camera team re-aimed the cameras.
 DESK_ACTIVITY = os.path.join("progress", "desks_activity")
 DESK_SINCE = "2026-11-19"
+# Desks named from the attendance machines alone (25 Nov, Shamroze: the
+# faces are not clear from behind -- "baqi tum kar do"): a desk filled after
+# the person's IN punches and emptied before their OUT punches, day after
+# day, far above chance. Named, and said so: not checked by eye.
+BY_ATTENDANCE = os.path.join("people", "named_by_attendance.csv")
 
 
-def desk_people(people, hand, seats, rooms, roster=None):
+def by_attendance(path=None):
+    """{desk code: employee_id} of the desks named by the machines alone."""
+    path = path or BY_ATTENDANCE
+    if not os.path.exists(path):
+        return {}
+    try:
+        d = pd.read_csv(path, dtype=str).fillna("")
+    except (OSError, ValueError):
+        return {}
+    return dict(zip(d["code"], d["employee_id"]))
+
+
+def desk_people(people, hand, seats, rooms, roster=None, machine=None):
     """The board's people for desks named by hand (desks_data.
     load_desk_names) whose employee progress.yaml does not already have,
     and that are not a listed person's own seat: [{code (the desk's), name,
@@ -1231,7 +1248,10 @@ def desk_people(people, hand, seats, rooms, roster=None):
                for p in people if p.get("seat")):
             continue
         r = (roster or {}).get(str(eid), {})
+        how = "attendance" if (machine or {}).get(code) == str(eid) \
+            else "by hand"
         out.append({"code": code, "name": name or r.get("name", ""),
+                    "how": how,
                     "employee_id": str(eid),
                     "role": ", ".join(x for x in (r.get("designation"),
                                                   r.get("department")) if x),
@@ -1239,7 +1259,9 @@ def desk_people(people, hand, seats, rooms, roster=None):
                     "recorder": s[0], "channel": int(s[1]),
                     "seat": [s[2], s[3]], "since": DESK_SINCE,
                     "activity": DESK_ACTIVITY,
-                    "why": "desk %s, named on the Progress tab" % code})
+                    "why": ("desk %s, named by the attendance machines -- "
+                            "not checked by eye" % code) if how == "attendance"
+                    else "desk %s, named on the Progress tab" % code})
         have.add(str(eid))
     return out
 
@@ -1281,7 +1303,8 @@ def build(cfg, today, hours=(10, 20), count=5, folder=SEATS, frm=8, to=24,
     gate = gate_passages(focus)
     everyone = list(cfg.get("people") or [])
     if cfg.get("auto_desks", True):
-        everyone += desk_people(everyone, hand, seats, rooms, roster)
+        everyone += desk_people(everyone, hand, seats, rooms, roster,
+                                by_attendance())
 
     def by_hand(person):
         for code, (eid, name) in hand.items():
@@ -1358,6 +1381,7 @@ def build(cfg, today, hours=(10, 20), count=5, folder=SEATS, frm=8, to=24,
             "seat": person.get("seat"),
             "also": person.get("also") or [],
             "why": person.get("why", ""),
+            "how": person.get("how", ""),
             "check": person.get("check") or {},
             "days": [{k: v for k, v in s.items() if k != "line"}
                      for s in summaries],
