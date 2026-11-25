@@ -1605,3 +1605,14 @@ Two or three lines a round; picture file names, never pictures.
   8 (one supervisor six times) -- the gatekeeper's face is the clearest at
   the door; identity comes from the machine log anyway, the hard part is
   the desk.
+* 16:15, 25 Nov Round 2 of desk naming: 15 desks by punch timing in one
+  review PDF; Shamroze named 9, refused 2, left 4 for a clearer picture.
+  Hosted page 47 -> 56 people. Measured first on the ~46 desks whose
+  sitter is certain: the rule (z 4.5+, 6+ hits, desk time 85%+ while
+  inside) is 22 right, 5 wrong -- so every machine-only name still goes
+  through a review. Set aside: clothes from the gate against the desk
+  (own desk first for 3 of 17) and the January seating plan (17 of 44
+  sitters in their listed room). desk_match now never pairs a refused
+  pair again, nor a desk whose best person already has a desk (2dcbd38).
+  One seat registered twice on xvr3 ch11 (14 px apart) takes its twin's
+  name.
