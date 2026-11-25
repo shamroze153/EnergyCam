@@ -116,8 +116,24 @@ def gate_samples(eids, days=None, folder=GATE, embed=None):
                     and float(r.get("score") or 0) >= GATE_SAME
                     and float(r.get("margin") or 0) >= GATE_MARGIN]
         for r in rows:
-            pics = glob.glob(os.path.join(folder, day, "%s_ch*_%s.jpg" % (
-                r["time"].replace(":", ""), r["employee_id"])))
+            e = r["employee_id"]
+            # 25 Nov: a passage kept since then has its own stem and its
+            # live numbers -- stronger than the ones read again from its
+            # 160-px picture (entrance_watch.live_face)
+            if r.get("stem"):
+                import entrance_watch
+                live = entrance_watch.live_face(day, r["stem"], folder)
+                if live is not None:
+                    v = live[0].reshape(1, -1)
+                    out[e] = np.vstack([out[e], v]) if e in out else v
+                    continue
+                pics = [p for p in [os.path.join(folder, day,
+                                                 r["stem"] + ".jpg")]
+                        if os.path.exists(p)]
+            else:
+                pics = glob.glob(os.path.join(folder, day, "%s_ch*_%s.jpg"
+                                              % (r["time"].replace(":", ""),
+                                                 e)))
             for p in pics[:1]:
                 if p not in _gate_vec:
                     _gate_vec[p] = embed(p)

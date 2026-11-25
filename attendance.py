@@ -94,6 +94,48 @@ def inside(employee_id, day_, campus=CAMPUS, data=None, pad=None):
     return out
 
 
+GATE = os.path.join("people", "entrance")    # entrance_watch: <day>.csv
+NEAR_OUT = 600           # s: a gate passage this near its own OUT punch
+
+
+def clock_offset(day_, gate=None, campus=CAMPUS, data=None, near=NEAR_OUT,
+                 least=5):
+    """Seconds the gate's clock ran ahead of the machines' that day (gate
+    time minus machine time): the median, over the gate's named passages,
+    of the time from that person's own nearest OUT punch, within `near`.
+    None with fewer than `least` such passages.
+
+    25 Nov (the face study): +162 to +165 s on the live days -- the
+    laptop's clock, which Windows was not syncing (160 s ahead of internet
+    time that evening) -- and -18 s on days read from the recorder's
+    playback. A 45-s punch check needs it taken off first."""
+    data = load() if data is None else data
+    path = os.path.join(gate or GATE, day_ + ".csv")
+    if data is None or not len(data) or not os.path.exists(path):
+        return None
+    try:
+        g = pd.read_csv(path, dtype=str).fillna("")
+    except (OSError, ValueError, pd.errors.ParserError):
+        return None
+    g = g[g["status"] == "named"]
+    outs = data[(data["kind"] == "out") & data["place"].str.startswith(campus)
+                & (data["at"].dt.strftime("%Y-%m-%d") == day_)]
+    by = {e: pd.DatetimeIndex(grp["at"]) for e, grp in outs.groupby("eid")}
+    diffs = []
+    for eid, t in zip(g["employee_id"], g["time"]):
+        punches = by.get(code(eid))
+        at = pd.to_datetime("%s %s" % (day_, t), errors="coerce")
+        if punches is None or pd.isna(at):
+            continue
+        d = (at - punches).total_seconds()
+        k = abs(d).argmin()
+        if abs(d[k]) <= near:
+            diffs.append(float(d[k]))
+    if len(diffs) < least:
+        return None
+    return float(pd.Series(diffs).median())
+
+
 def days(campus=CAMPUS, data=None):
     """The days the export covers at a campus, oldest first."""
     data = load() if data is None else data

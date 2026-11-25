@@ -1037,8 +1037,67 @@ def check_entrance():
         check("a passage is a row: time, camera, who, how sure",
               (got["employee_id"][0], got["channel"][0], got["score"][0]),
               ("00010", "5", "0.520"))
+        # 25 Nov (the face study): two faces the same second with the same
+        # label wrote one file name -- 17.5% of the pictures lost. And the
+        # live numbers are kept beside each picture.
+        pic = np.full((40, 40, 3), 128, np.uint8)
+        det = np.arange(15, dtype=np.float32) * 100
+        s1 = ew.write(DAY, ("10:22:52", "nvr1", 5, "unknown", "", "00010",
+                            0.3, 0.0, 60), pic, folder,
+                      face=(unit(1, 0, 0), det))
+        s2 = ew.write(DAY, ("10:22:52", "nvr1", 5, "unknown", "", "00011",
+                            0.3, 0.0, 60), pic, folder,
+                      face=(unit(0, 1, 0), det))
+        got = pd.read_csv(os.path.join(folder, DAY + ".csv"), dtype=str)
+        check("two faces in one second: two pictures, each named in its row",
+              (list(got["stem"]), sorted(os.listdir(os.path.join(folder,
+                                                                 DAY)))),
+              (["102251_ch05_00010", "102252_ch05_unknown",
+                "102252-2_ch05_unknown"],
+               ["102252-2_ch05_unknown.f16", "102252-2_ch05_unknown.jpg",
+                "102252_ch05_unknown.f16", "102252_ch05_unknown.jpg"]))
+        live = ew.live_face(DAY, s2, folder)
+        check("the live numbers kept: the face's vector and YuNet's row",
+              (s1 != s2, round(float(live[0] @ unit(0, 1, 0)), 3),
+               float(live[1][3]), float(live[1][14])),
+              (True, 1.0, 300.0, 1400.0))
+        check("  none for a passage kept before them",
+              ew.live_face(DAY, "102251_ch05_00010", folder), None)
+        old = os.path.join(folder, "2026-11-20.csv")
+        with open(old, "w") as fh:
+            fh.write(ew.COLUMNS + "\n09:00:00,nvr1,5,unknown,,,0.3,0.0,60\n")
+        ew.write("2026-11-20", ("09:00:01", "nvr1", 5, "unknown", "", "",
+                                0.3, 0.0, 60), None, folder)
+        check("a day's file begun before the stem keeps its nine columns",
+              pd.read_csv(old, dtype=str).shape, (2, 9))
     finally:
         shutil.rmtree(folder)
+    # 25 Nov: the gate's clock against the machines' -- the laptop ran
+    # ~160 s ahead; a 45-s punch check needs it known, day by day
+    import attendance as att
+    gd = tempfile.mkdtemp()
+    try:
+        passed = [("13:02:40", "90001"), ("13:12:42", "90002"),
+                  ("14:02:45", "90003"), ("17:02:38", "90004"),
+                  ("18:02:41", "90005"), ("15:00:00", "90001"),
+                  ("16:00:00", "90009")]
+        with open(os.path.join(gd, DAY + ".csv"), "w") as fh:
+            fh.write(ew.COLUMNS + "\n" + "".join(
+                "%s,nvr1,5,named,%s,%s,0.6,0.2,60\n" % (t, e, e)
+                for t, e in passed))
+        outs = pd.DataFrame({
+            "eid": ["90001", "90002", "90003", "90004", "90005"],
+            "at": [pd.Timestamp(DAY + " " + t) for t in
+                   ("13:00:00", "13:10:00", "14:00:00", "17:00:00",
+                    "18:00:00")],
+            "kind": "out", "place": "140-H OUT"})
+        check("the gate's clock ahead of the machines', by its exits "
+              "(the median; a passage far from any punch left out)",
+              att.clock_offset(DAY, gd, data=outs), 161.0)
+        check("  too few exits: not known",
+              att.clock_offset(DAY, gd, data=outs.iloc[:3]), None)
+    finally:
+        shutil.rmtree(gd)
     check("Entry H only (the building door's camera sees backs)",
           ew.CAMERAS, [("nvr1", 5)])
     import gate_match as gm
@@ -1117,6 +1176,19 @@ def check_cctv_faces():
                               embed=lambda p: np.ones(128, np.float32))
         check("the gate's sure pictures of a known person join the gallery",
               {k: len(v) for k, v in got.items()}, {"00042": 1})
+    finally:
+        shutil.rmtree(gdir)
+    gdir = tempfile.mkdtemp()
+    try:
+        ew.write("2026-11-26", ("13:03:47", "nvr1", 5, "named", "00042",
+                                "00042", 0.62, 0.30, 80), None, gdir,
+                 face=(np.eye(128, dtype=np.float32)[3], np.zeros(15)))
+        got = cf.gate_samples({"00042"}, ["2026-11-26"], gdir,
+                              embed=lambda p: np.ones(128, np.float32))
+        check("  since 25 Nov, the passage's live numbers -- not its "
+              "picture read again",
+              (got["00042"].shape, int(np.argmax(got["00042"][0]))),
+              ((1, 128), 3))
     finally:
         shutil.rmtree(gdir)
     # 24 Nov: the cafe, smoking, parking ... cameras the pass reads at

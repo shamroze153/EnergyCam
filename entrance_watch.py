@@ -17,10 +17,12 @@ the passer; the rest are kept as "unknown" with their best guess, for
 the calibration. The same person twice within REPEAT seconds is one
 passage.
 
-Writes people/entrance/<date>.csv and a small face picture per passage
-under people/entrance/<date>/ -- git-ignored, this laptop only, let go
-after KEEP_DAYS. Never touches a recorder's settings; a stream that will
-not open is tried again after a growing wait, never in a hurry.
+Writes people/entrance/<date>.csv and, per passage, under
+people/entrance/<date>/: <stem>.jpg (a small face picture), <stem>.f16 (the
+face's live numbers) and, for a named passer, <stem>_body.jpg (the clothes)
+-- the row's "stem" column names them. Git-ignored, this laptop only, let
+go after KEEP_DAYS. Never touches a recorder's settings; a stream that
+will not open is tried again after a growing wait, never in a hurry.
 """
 import os
 import threading
@@ -68,6 +70,20 @@ def frontal(row, min_eyes=MIN_EYES, max_yaw=MAX_YAW):
 REPEAT = 90              # s: the same person again is the same passage
 UNKNOWN_REPEAT = 20      # s: an unknown face this alike again is the same
 KEEP_DAYS = 14
+COLUMNS = "time,recorder,channel,status,employee_id,best,score,margin,face_w"
+# 25 Nov (the face study): 2,277 of 12,978 rows (17.5%) had no picture --
+# two faces the same second with the same label (two "unknown"s in one
+# frame, or two looks in one second) wrote one file name, the later over
+# the earlier. Each passage now has a stem of its own, <HHMMSS>_ch.._<id>
+# and then <HHMMSS>-2_ch.._<id>, ..., kept in the row's "stem" column (in
+# a day's file begun with it; an older file keeps its nine columns).
+# Also 25 Nov: rescored from the 160-px picture, a named face loses ~0.065
+# and only 87-91% keep their best photo -- so the live numbers are kept,
+# <stem>.f16: the SFace unit vector (128), then YuNet's row in the full
+# picture's pixels (15: x, y, w, h, the five landmarks' x y, score).
+FACE_LEN = 128 + 15
+_lock = threading.Lock()     # the backfill writes from several threads
+_taken = {}                  # day folder -> stems given out
 _threads = []
 
 
@@ -111,34 +127,90 @@ def body_box(face, w, h):
             int(min(w, x + 2.0 * fw)), int(min(h, y + 6.5 * fh)))
 
 
-def write(day, row, crop=None, out=None, body=None):
-    """One passage to people/entrance/<day>.csv (+ its face picture, and
-    for a named one the clothes: <time>_ch.._<id>_body.jpg -- 24 Nov, the
-    same day's clothes say which desk is theirs where the desk's camera
-    sees no face)."""
+def _stem(pics, row):
+    """A file stem no other passage of the day has: <HHMMSS>_ch.._<id>,
+    else <HHMMSS>-2_ch.._<id>, -3, ... (it still ends in _<id>, which
+    name_suggest and clothes_match read)."""
+    taken = _taken.setdefault(pics, set())
+    if len(_taken) > 3:                      # yesterday's folders let go
+        for k in [k for k in _taken if k != pics]:
+            _taken.pop(k, None)
+    hhmmss, tail = row[0].replace(":", ""), "_ch%02d_%s" % (
+        row[2], row[4] or "unknown")
+    stem, k = hhmmss + tail, 1
+    while stem in taken or any(os.path.exists(os.path.join(
+            pics, stem + ext)) for ext in (".jpg", ".f16")):
+        k += 1
+        stem = "%s-%d%s" % (hhmmss, k, tail)
+    taken.add(stem)
+    return stem
+
+
+def _stem_column(path):
+    """Whether the day's file was begun with the "stem" column (read each
+    time, not remembered: a file written anew keeps no stale answer)."""
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return "stem" in fh.readline().strip().split(",")
+    except OSError:
+        return False
+
+
+def write(day, row, crop=None, out=None, body=None, face=None):
+    """One passage to people/entrance/<day>.csv, and under <day>/ its face
+    picture (<stem>.jpg), its live numbers (face = (vector, YuNet row) ->
+    <stem>.f16) and for a named one the clothes (<stem>_body.jpg -- 24 Nov,
+    the same day's clothes say which desk is theirs where the desk's camera
+    sees no face). Returns the stem."""
     folder = out or OUT
-    os.makedirs(folder, exist_ok=True)
-    path = os.path.join(folder, day + ".csv")
-    new = not os.path.exists(path)
-    with open(path, "a", encoding="utf-8") as fh:
-        if new:
-            fh.write("time,recorder,channel,status,employee_id,best,score,"
-                     "margin,face_w\n")
-        fh.write("%s,%s,%d,%s,%s,%s,%.3f,%.3f,%d\n" % row)
-    if crop is not None:
-        import cv2
-        pic = os.path.join(folder, day, "%s_ch%02d_%s.jpg" % (
-            row[0].replace(":", ""), row[2], row[4] or "unknown"))
-        os.makedirs(os.path.dirname(pic), exist_ok=True)
-        cv2.imwrite(pic, crop, [cv2.IMWRITE_JPEG_QUALITY, 85])
-    if body is not None and getattr(body, "size", 0) and row[4]:
-        import cv2
-        pic = os.path.join(folder, day, "%s_ch%02d_%s_body.jpg" % (
-            row[0].replace(":", ""), row[2], row[4]))
-        os.makedirs(os.path.dirname(pic), exist_ok=True)
-        cv2.imwrite(pic, body, [cv2.IMWRITE_JPEG_QUALITY, 85])
+    pics = os.path.join(folder, day)
+    with _lock:
+        os.makedirs(folder, exist_ok=True)
+        path = os.path.join(folder, day + ".csv")
+        new = not os.path.exists(path)
+        stem = _stem(pics, row)
+        line = "%s,%s,%d,%s,%s,%s,%.3f,%.3f,%d" % row
+        if new or _stem_column(path):
+            line += "," + stem
+        with open(path, "a", encoding="utf-8") as fh:
+            if new:
+                fh.write(COLUMNS + ",stem\n")
+            fh.write(line + "\n")
+        if face is not None:
+            vec, det_row = face
+            nums = np.zeros(FACE_LEN, np.float32)
+            v = np.asarray(vec, np.float32).ravel()[:128]
+            r = np.asarray(det_row, np.float32).ravel()[:FACE_LEN - 128]
+            nums[:len(v)], nums[128:128 + len(r)] = v, r
+            os.makedirs(pics, exist_ok=True)
+            nums.astype(np.float16).tofile(os.path.join(pics, stem + ".f16"))
+        if crop is not None:
+            import cv2
+            os.makedirs(pics, exist_ok=True)
+            cv2.imwrite(os.path.join(pics, stem + ".jpg"), crop,
+                        [cv2.IMWRITE_JPEG_QUALITY, 85])
+        if body is not None and getattr(body, "size", 0) and row[4]:
+            import cv2
+            os.makedirs(pics, exist_ok=True)
+            cv2.imwrite(os.path.join(pics, stem + "_body.jpg"), body,
+                        [cv2.IMWRITE_JPEG_QUALITY, 85])
     if new:
         _forget_old(folder)
+    return stem
+
+
+def live_face(day, stem, folder=None):
+    """(unit vector (128,), YuNet row (15,)) of one passage as the gate saw
+    it live, or None (a passage kept before 25 Nov's change has none)."""
+    p = os.path.join(folder or OUT, day, "%s.f16" % stem)
+    try:
+        v = np.fromfile(p, np.float16).astype(np.float32)
+    except (OSError, ValueError):
+        return None
+    if len(v) < FACE_LEN:
+        return None
+    vec = v[:128] / max(float(np.linalg.norm(v[:128])), 1e-6)
+    return vec, v[128:FACE_LEN]
 
 
 def _forget_old(folder):
@@ -278,7 +350,7 @@ class Watch(threading.Thread):
                   (now.strftime("%H:%M:%S"), self.recorder, self.channel,
                    status, best if status == "named" else "", best, score,
                    margin, int(full[2])), crop if crop.size else None, out,
-                  body=body)
+                  body=body, face=(v, full[:15]))
             self.passages += 1
             n += 1
         return n
