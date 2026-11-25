@@ -5522,78 +5522,71 @@ def show_profile(mode, e, emps, key):
             show_building(mode, [p])
 
 
+def _open_dept(name):
+    st.session_state["prod_open"] = name
+
+
 def productivity_section(mode, emps, days, made, visitors=0):
     """Progress -> Productivity (Shamroze and the CEO, 25 Nov: "CEO dekhe to
-    usko acha lage ... 100% employees"; then "department-wise, open a
-    department and its people come; every person a profile; BU filter"):
-    the campus in figures for the business unit and department chosen, the
-    departments to open one by one, a profile for anybody, and a CSV."""
+    usko acha lage ... 100% employees"; that night: "chhota banao ...
+    department do, uske andar kitne employees monitor kiye aur department
+    ki productivity, flash card mein; enter karein to sirf us department
+    ke sab employees upar aayein"): four figures, a flash card per
+    department; a card opened shows its report card and only its people,
+    on top, a click on one their profile; a profile for anybody; a CSV."""
     import productivity_view
     if not emps:
         return
     bus = sorted({e["bu"] for e in emps})
-    c1, c2, c3 = st.columns([1, 1, 1.3])
+    c1, c2 = st.columns([1, 1.4])
     all_bu = "All business units (%d)" % len(bus)
     bu = c1.selectbox("Business unit", [all_bu] + bus, key="prod_bu")
     pool = emps if bu == all_bu else [e for e in emps if e["bu"] == bu]
-    depts = sorted({e["dept"] for e in pool})
-    all_d = "All departments (%d)" % len(depts)
-    dp = c2.selectbox("Department", [all_d] + depts, key="prod_dept")
-    pool = pool if dp == all_d else [e for e in pool if e["dept"] == dp]
     people_sorted = sorted(pool, key=lambda e: e["name"])
     labels = ["%s  ·  %s" % (e["name"], e["dept"]) for e in people_sorted]
-    who = c3.selectbox("Find an employee", ["Find an employee..."] + labels,
+    who = c2.selectbox("Find an employee", ["Find an employee..."] + labels,
                        key="prod_find")
     if who != "Find an employee...":
-        st.markdown(overview.css(mode) + '<div class="ec"><div class="ec-h">'
-                    '<span class="t">Profile</span></div></div>',
-                    unsafe_allow_html=True)
         show_profile(mode, people_sorted[labels.index(who)], emps, "find")
-    st.markdown(productivity_view.summary_html(mode, pool, days, made,
+    cards = productivity_view.dept_cards(pool)
+    open_ = st.session_state.get("prod_open")
+    chosen = next(((n, es) for n, es, _ in cards if n == open_), None)
+    if chosen is None:
+        st.markdown(productivity_view.top_html(mode, pool, days, made,
                                                visitors),
-                unsafe_allow_html=True)
-    st.markdown(overview.css(mode) + '<div class="ec"><div class="ec-h">'
-                '<span class="t">Departments and their people</span><span '
-                'class="c">open a department; click a person for their '
-                'profile</span></div></div>', unsafe_allow_html=True)
-    for name, es, _ in productivity_view.group_rows(pool, "dept"):
+                    unsafe_allow_html=True)
+        per_row = 4
+        for i in range(0, len(cards), per_row):
+            cols = st.columns(per_row)
+            for j, (col, (name, _, html)) in enumerate(
+                    zip(cols, cards[i:i + per_row])):
+                with col:
+                    st.markdown(html, unsafe_allow_html=True)
+                    st.button("View employees", key="prod_card_%d" % (i + j),
+                              on_click=_open_dept, args=(name,),
+                              width="stretch")
+    else:
+        name, es = chosen
+        st.button("← All departments", key="prod_back",
+                  on_click=_open_dept, args=(None,))
+        st.markdown(productivity_view.dept_head_html(mode, name, es, emps),
+                    unsafe_allow_html=True)
         es = sorted(es, key=lambda e: -(e["productivity"] or 0))
-        avg = productivity_view._mean([e["productivity"] for e in es])
-        seen = sum(1 for e in es if e["desk"] is not None)
-        with st.expander("%s  —  %d %s  ·  productivity %s  ·  %d desk%s in "
-                         "a camera" % (name, len(es), "person" if len(es) == 1
-                                       else "people",
-                                       "%d" % round(avg) if avg is not None
-                                       else "-", seen,
-                                       "" if seen == 1 else "s")):
-            df = pd.DataFrame([{
-                "Photo": e["photo"] or None, "Employee": e["name"],
-                "Role": e["role"], "BU": e["bu"],
-                "Productivity": e["productivity"],
-                "Attendance": e["attendance"], "Desk": e["desk"],
-                "Activity": e["activity"], "Days in": e["days_in"],
-                "Usual in": productivity_view._hhmm(e["usual_in"]).replace(
-                    "&ndash;", ""),
-                "Usual out": productivity_view._hhmm(e["usual_out"]).replace(
-                    "&ndash;", ""),
-                "Hours a day": round(e["hours"], 1)
-                if e["hours"] is not None else None} for e in es])
-            ev = st.dataframe(
-                df, hide_index=True, width="stretch", on_select="rerun",
-                selection_mode="single-row", key="prod_df_%s" % name,
-                height=min(38 + 36 * len(es), 520), row_height=36,
-                column_config={
-                    "Photo": st.column_config.ImageColumn(" ", width="small"),
-                    "Productivity": st.column_config.ProgressColumn(
-                        "Productivity", min_value=0, max_value=100,
-                        format="%d"),
-                    "Hours a day": st.column_config.NumberColumn(
-                        format="%.1f h")})
-            rows = list(getattr(getattr(ev, "selection", None), "rows", [])
-                        or [])
-            if rows and rows[0] < len(es):
-                show_profile(mode, es[rows[0]], emps, "dept_%s" % name)
-    emps = pool
+        # one person's profile, chosen from the department's own people
+        # (highest first, as the list below); the list itself in the page's
+        # colours -- Streamlit's table came out dark on the light page
+        labels = ["%d. %s  ·  %s" % (i, e["name"], e["productivity"]
+                                     if e["productivity"] is not None
+                                     else "-")
+                  for i, e in enumerate(es, 1)]
+        pick = st.selectbox("Open an employee's profile",
+                            ["Choose an employee..."] + labels,
+                            key="prod_pick_%s" % name)
+        if pick != "Choose an employee...":
+            show_profile(mode, es[labels.index(pick)], emps,
+                         "dept_%s" % name)
+        st.markdown(productivity_view.dept_table_html(mode, es),
+                    unsafe_allow_html=True)
     rows = [{"Employee": e["name"], "Employee ID": e["id"],
              "Designation": e["role"], "Department": e["dept"],
              "Business unit": e["bu"],
@@ -6256,6 +6249,10 @@ def show_report_card(mode, people, hours, now, day=None):
                                            named), unsafe_allow_html=True)
 
 
+PROGRESS_VIEWS = ("Productivity", "Desks and cameras", "Attendance")
+PROGRESS_TOOLS = "Naming and checks"       # the laptop only
+
+
 def show_progress(now):
     """Progress (Shamroze, 23 Nov): the employee-productivity project --
     its stages, and time at the desk for the desks HR approved watching.
@@ -6282,30 +6279,45 @@ def show_progress(now):
             st.session_state["progress_in"] = True
             st.rerun()
         return
-    if not os.path.exists(progress_data.CONFIG):
+    hosted = not os.path.exists(progress_data.CONFIG)
+    # 25 Nov night (Shamroze: "itna lamba kyun kar diya"): one view at a
+    # time, Productivity first; the desks and cameras, the attendance and
+    # (on the laptop) the naming tools each a view of their own.
+    views = list(PROGRESS_VIEWS) + ([] if hosted else [PROGRESS_TOOLS])
+    view = st.segmented_control("Show", views, default=views[0],
+                                key="progress_view",
+                                label_visibility="collapsed") or views[0]
+    desks_view = view == PROGRESS_VIEWS[1]
+    if hosted:
         # The hosted page: the numbers the office laptop sent, nothing else
         # (Shamroze, 23 Nov: "sab data is computer pe rahe, bas dashboard ke
         # zariye progress aa jaye").
         sent = cached_progress_cloud_days(_to_5min(now).isoformat())
-        chosen = pick_progress_day(sent)
+        chosen = pick_progress_day(sent) if desks_view else \
+            (sent[0] if sent else None)
         got = cached_progress_cloud(_to_5min(now).isoformat(), chosen)
         if not got or not got[1]:
             st.markdown(progress_view.locked(mode, "none"),
                         unsafe_allow_html=True)
             return
         cfg, people, made, hours_sent = got
-        show_productivity_sent(mode, cfg.get("attendance"), people,
-                               hours_sent, now.tz_convert(PKT))
-        st.markdown(progress_view.page(mode, cfg, people, made, hours_sent,
-                                       part="top"), unsafe_allow_html=True)
-        show_report_card(mode, people, hours_sent, now)
-        st.markdown(progress_view.page(mode, cfg, people, made, hours_sent,
-                                       part="rest"), unsafe_allow_html=True)
-        show_building(mode, people)
-        show_rooms_desks(mode, cfg.get("desks"))
-        show_attendance_sent(mode, cfg.get("attendance"), hours_sent,
-                             desk_scores(people, hours_sent,
-                                         now.tz_convert(PKT)))
+        if view == PROGRESS_VIEWS[0]:
+            show_productivity_sent(mode, cfg.get("attendance"), people,
+                                   hours_sent, now.tz_convert(PKT))
+        elif desks_view:
+            st.markdown(progress_view.page(mode, cfg, people, made,
+                                           hours_sent, part="top"),
+                        unsafe_allow_html=True)
+            show_report_card(mode, people, hours_sent, now)
+            st.markdown(progress_view.page(mode, cfg, people, made,
+                                           hours_sent, part="rest"),
+                        unsafe_allow_html=True)
+            show_building(mode, people)
+            show_rooms_desks(mode, cfg.get("desks"))
+        else:
+            show_attendance_sent(mode, cfg.get("attendance"), hours_sent,
+                                 desk_scores(people, hours_sent,
+                                             now.tz_convert(PKT)))
         st.caption("Sent by the office laptop at %s (every five minutes). The "
                    "pictures, the day's videos and the sightings to check "
                    "stay on that laptop." % made)
@@ -6318,7 +6330,9 @@ def show_progress(now):
     today = local.strftime("%Y-%m-%d")
     kept = sorted(set(progress_data.working_days(today, 30))
                   | {today}, reverse=True)
-    day_key = pick_progress_day(kept) or today
+    day_key = (pick_progress_day(kept) if view in (PROGRESS_VIEWS[1],
+                                                   PROGRESS_TOOLS)
+               else kept[0]) or today
     review_file = os.path.join(progress_data.ACTIVITY,
                                "review_%s.csv" % day_key)
     with st.spinner("Adding up the desks..."):
@@ -6328,20 +6342,24 @@ def show_progress(now):
              os.path.getmtime(review_file) if os.path.exists(review_file)
              else 0),
             _to_5min(now).isoformat(), hours)
-    show_productivity(mode, people, hours, local)
-    st.markdown(progress_view.page(mode, cfg, people,
-                                   local.strftime("%d %b %H:%M"), hours,
-                                   part="top"), unsafe_allow_html=True)
-    show_report_card(mode, people, hours, now, day_key)
-    st.markdown(progress_view.page(mode, cfg, people,
-                                   local.strftime("%d %b %H:%M"), hours,
-                                   part="rest"), unsafe_allow_html=True)
-    show_building(mode, people)
-    show_seat_review(mode)
-    show_desks(mode, day_key)
-    show_attendance(mode, hours, desk_scores(people, hours, local))
-    show_desk_naming(mode, day_key)
-    show_sightings(mode, people)
+    if view == PROGRESS_VIEWS[0]:
+        show_productivity(mode, people, hours, local)
+    elif desks_view:
+        st.markdown(progress_view.page(mode, cfg, people,
+                                       local.strftime("%d %b %H:%M"), hours,
+                                       part="top"), unsafe_allow_html=True)
+        show_report_card(mode, people, hours, now, day_key)
+        st.markdown(progress_view.page(mode, cfg, people,
+                                       local.strftime("%d %b %H:%M"), hours,
+                                       part="rest"), unsafe_allow_html=True)
+        show_building(mode, people)
+        show_desks(mode, day_key)
+    elif view == PROGRESS_VIEWS[2]:
+        show_attendance(mode, hours, desk_scores(people, hours, local))
+    else:
+        show_seat_review(mode)
+        show_desk_naming(mode, day_key)
+        show_sightings(mode, people)
     # Each employee's day as a video (progress_video.py): pictures of the
     # desk, so -- like everything here -- only on this laptop. Made in a
     # process of its own: it needs OpenCV, which the hosted page has not.

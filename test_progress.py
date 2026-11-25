@@ -2458,6 +2458,33 @@ def check_attendance():
           ("Productivity &middot; 140-H" in top_, "Other One" in tab2_,
            "frames" in top_ + tab2_, "%%" in top_ + tab2_),
           (True, True, False, False))
+    # 25 Nov night (Shamroze: "chhota banao"): four figures, then a flash
+    # card per department -- how many monitored, its productivity; opened,
+    # its report card above only its people
+    short_ = prv.top_html("light", em_, ["2026-11-20", "2026-11-21"],
+                          visitors=2)
+    cards_ = prv.dept_cards(em_)
+    head_ = prv.dept_head_html("light", cards_[0][0], cards_[0][1], em_)
+    avg_ = round(prv._mean([e["productivity"] for e in cards_[0][1]]))
+    check("  short: four figures; a card per department, its count and "
+          "productivity; opened, its report card",
+          (short_.count('class="ec-card ec-kpi"'), "2 visitors" in short_,
+           [n for n, _, _ in cards_] == [n for n, _, _ in
+                                         prv.group_rows(em_, "dept")],
+           "<b>%d</b> employee" % len(cards_[0][1]) in cards_[0][2],
+           "<b>%d</b>" % avg_ in cards_[0][2],
+           "Employees monitored" in head_, "%%" in short_ + head_,
+           "frames" in short_ + head_ + "".join(h for _, _, h in cards_)),
+          (4, True, True, True, True, True, False, False))
+    dt_ = prv.dept_table_html("light", cards_[0][1])
+    check("  its people in the page's colours: ranked, a dash where not "
+          "measured, never 'None'",
+          ('<td class="rk">1</td>' in dt_, "&ndash;" in dt_, "None" in dt_,
+           "%%" in dt_, "frames" in dt_), (True, True, False, False, False))
+    src_ = open("rooms_dashboard.py", encoding="utf-8").read()
+    check("  the Progress tab one view at a time, Productivity first",
+          ('PROGRESS_VIEWS = ("Productivity"' in src_,
+           'st.segmented_control("Show", views' in src_), (True, True))
 
 
 def main():
