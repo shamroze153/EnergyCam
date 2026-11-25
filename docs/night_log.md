@@ -1630,3 +1630,12 @@ Two or three lines a round; picture file names, never pictures.
   Create), outside the session: restart_loop.bat --evidence (the normal
   start, quiet_start child and all) gave its first pass at 21:45:35, six
   minutes after start; the dashboard is on 8501. All 21 tests green.
+* 22:47, 25 Nov round: field_audit -- no MISSED, no GHOST (103 MATCH, 17
+  FOLLOWING), 198 cameras answered. Night check at 22:57: 94 counted,
+  most in 141's late rooms (Learning Center, 2nd floor, cafe) -- people.
+  By eye: Marketing ch3's 0.41 is the bottom-left corner under the
+  "Channel3" label (Marketing_dvr2_ch03_boxes.jpg) -- new tonight, just
+  over the 0.40 night bar; the movement check takes it in 40 min. Zone it
+  only if it comes back. Room 17 ch3 / Room 18 ch13: empty chairs, seats
+  (Room 18 had a laptop open and lit). Nothing changed. The recorders'
+  clocks read ~2.5 min behind the laptop's -- the laptop is the one off.
