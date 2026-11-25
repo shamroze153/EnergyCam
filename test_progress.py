@@ -947,6 +947,25 @@ def check_every_desk():
     back = pdx.from_payloads([("_desks", {"day": DAY, "rooms": rs})])[0]
     check("the hosted page reads it back", back["desks"]["rooms"][0]["room"],
           "Test Room")
+    # 25 Nov: a desk named on the tab, then listed under a code -- the
+    # desk's old row stayed in progress_days (the laptop may not delete),
+    # and the employee was on the hosted page twice.
+    from datetime import datetime as _dtm, timezone as _tz
+    t_send = _dtm(2026, 11, 25, 3, 8, tzinfo=_tz.utc)
+    t_old = _dtm(2026, 11, 24, 19, 20, tzinfo=_tz.utc)
+    rows_ = [("_project", {"campus": "140-H"}, t_send),
+             ("P13", {"code": "P13", "employee_id": "00042"}, t_send),
+             ("nvr4.23-3", {"code": "nvr4.23-3", "employee_id": "00042"},
+              t_old),
+             ("_desks", {"day": DAY, "rooms": []}, t_old),
+             ("P1", {"code": "P1", "employee_id": ""}, t_send)]
+    got_ = pdx.from_payloads(rows_)
+    check("a row the laptop stopped sending is left out; _desks stays",
+          ([p["code"] for p in got_[1]], "desks" in got_[0]),
+          (["P1", "P13"], True))
+    twice = pdx.from_payloads([(c, d) for c, d, _ in rows_])
+    check("and one employee is never shown twice: the listed code wins",
+          [p["code"] for p in twice[1]], ["P1", "P13"])
     desks = [{"code": "dvr9.1-1", "recorder": "dvr9", "channel": 1,
               "seat": [500.0, 700.0]}]
     named = [{"recorder": "dvr9", "channel": "1", "x": "500", "y": "700",

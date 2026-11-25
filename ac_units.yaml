@@ -385,10 +385,24 @@ rooms:
         frame_size: [720, 576]
         units:
           - label: tower unit 6, at the back by the coffee machine, its louvre
-            led_roi: [392, 30, 401, 51]
-            led_std_threshold: 30.5
-            # 19 Nov, darkness: open 0.19-0.53, shut 0.67+ (17-19 Nov).
-            dark_max: 0.60
+            # 25 Nov (Shamroze: "141-C cafe AC raat 1:30 on dikhata tha, boys
+            # bata rahe the off tha"): the old box [392, 30, 401, 51] had come
+            # to take in the tower's top edge and the black panel behind it,
+            # so a shut louvre read dark -- "running" every frame of 24 Nov,
+            # day and night. By eye the louvre ran 23 Nov 09:41-11:55 and
+            # 19:04-00:11, 24 Nov 21:01-21:56, and was shut the rest (last
+            # night 22:09 on). This box sits inside the louvre only.
+            led_roi: [394, 34, 399, 50]
+            # Over the 236 kept frames (23-25 Nov) in this box: open, the
+            # contrast 34-61 and the darkness 0.15-0.50; shut, the contrast
+            # 4-11 (13-15 in infrared) -- the darkness alone swings with the
+            # light (shut 0.35-1.2), so both are asked: dark AND contrasty
+            # (at least half of this threshold).
+            led_std_threshold: 40.0
+            # Someone's head in front of the tower (24 Nov 12:34, 18:07,
+            # 20:44: contrast 30-37, darkness 0.64-0.70, the louvre shut
+            # behind) stays under the line; open is 0.50 at most.
+            dark_max: 0.57
             # 23 Nov: darkness against the tower's own white face, left of
             # the louvre, not the ring round the box. The box sits at the
             # tower's right edge, so half the ring was the doorway behind
@@ -403,13 +417,13 @@ rooms:
             anchor_roi: [40, 240, 200, 400]
             anchor: rq6us0IsLzEsLjMzNj87QCAgNj06Rz89OhsdTLW2v8HCv8LExLa9v7Oss7Osm35Srq6vs2MgMS8lLzU9QD09Mz1APzs7S0A9Hhh1tbXBwcG9vcHCwr2/v7OprK6pm4hLrq+vr3weKiciLjs7ODs7Mz0/QEQxRzseI5ixtb2/v7u6vb/BwsK/vbWpqayYlo9Orq+ur5IUIyUsNTg4Ojo4MT0/QkY1OylGs7G1v7+/v7q2vb2/v8G2v7Gqp6mjnYharK6urqcZHScxNTY4Ojo7Lj8/Qk41O2iztbq/v7+/v7izv7u9v72zu7Oqo6eeloxmqqyurrEzIykzNTY2ODo7LkBCR1I1lq6zu729v72/wruuvbu/v7+vuriqnqWinZZ+qqyurq9fLjE1NTY2Ojs9LkBER1OlqrO6u729v8LCwrqqtru/v726uLqsnqOYopZ0qaqqrq91LzU2MzU2Oj0/Ljs9ZKmss7i9vb2/wcTEwruvsbu9vb26tbalmIp0mI9Op6qqrLGUJzU1NTU4Oz8/MTt7p6q2uLq9v7/BwsTCwbuvtbu9vb26rriuiIWAb3VvqaqqrK6vMTU1ODs9QEBARJSnrra4u7u9wcHCxMS9v722s7u9vb22qq+vloBfXmlTqayurK62TDM2Oj0/QEJeoKmxuLq6ur2/wsLBv8G7v727s729vbu2rKqsrGRkb1cxqq6urK6uYzo6Oj0/P4GnqrG2urq6ur2/wcG/v7/Bvb27rLq7u7q4rqmsmHB7TDNCqqysrKyueTg/PT8/gbqsrrW6urq6u72/v7+9vb29vb+7r7i6uri1sad+j35fOkk6qqysrKyumztAP0SIqqqxtra6urq6u72/vb29vb29vb27sbO7urasqXKDgIBpX0I7qaqsrKysqkI9R5KlrLa1tri6uru7u7u9u7q7u7u9vb24qrO6uK+nhYiBcm9eSUxLp6mqrKysrlhVmKOntbW2uLq6uru7u7q6urq7u7uxr7i6trWsrHmIhXR1clhMWl5epaeqrKyuqoyUoKqvs7W2uru6uru7uri4urq6u7inp7i2rq6nnoZ3dWQ6UFBYWl5cpaepqqysrJ6drK+vs7a2urq6urq6uri4urq6u6qgp7G1qa6ujXRjZE5JTlBVV1dVpaenp6msrKqsr7Gxs7W4uri6urq6uri4urq6uKOlqaqqka58gFxfYyw7TFVVVVVXpaWjo6mqrK+xsbGxsbG2urq4uLi4uri4u7u7uKypqqmuPXR7jVU/LjpOUldXVVVQpaWjoqepqq6vr7Gxr7G1uLi2tri4uri4urq6tqOshYFvb3x7bUk6QFJQUlhYVVJQpaWjoqOnqqyur7Gzr6+1tri2uLi4uLi4uLivtqmbkUBygIZkX0xETlVTVVdVTFJJpaOjo6Olqaqur7Gxr6+1tri2uLi4uLi4uLi1uK+icmtogYBkTFJMUldYU0tHS1BLo6Kjo6Ojp6qur7GxsbG1tri6uri4uLa2tba4tad8b2h1dWlaWl5cV1JVWlpXUFJOo6Cjo6KipaqqsbGxr7G1tri2uLi4trWxtri9oIh3a2iAaEdLXlpTUlVYWl5TTEtOoqKjoqCgo6eprq+vr7Gxs7WztbW2tbO1hlo2fndweWloRkxYU1dVV1haWlVOTFBQoKKioJ2eo6elrK6ur6+xsbGxsbO1s7OvVYF5iHJ0fm0/R1VYVVpeXFpcXldaWmFhoJ2doJ2doqejqqyurq6vr6+xsbOxs65yaHlybVdkM0JGUlNYVVVaXFpaWFdVWF5onpieoJ2boKWjqqyurq6urq+xsbOZd5lSbXR3V3I/RElSU1VYXFpeXl9hWlpYXGNmm5mgoJubnqKlp6qur66srK6vrqdSe5F7d29GTEdETE5TWF5cX15aV15fWlhYZmhonZ2bnZ2doKKlp6msrKysrK6ur0Zje2R7Yz8uMTNLTldeXFxcXFpaWmFcV1xpaWhmnp2YmZ6doKOlp6qqrKqpqq6vkSdGa4BaPSwuR1NeZFhaWFpeWldcX1xYX2lrbWtvnZuZmZ2doKKjpamqqaqnqqp+Iz9pa1N1RiA7SVVaXlpXWl5YV1pXWFhXY2hra3Brm5udm5udoKKjpaepqqOir6V7THJyWEwxJzZLVVpaWldaXlNVWldaWl5jaW9pbWZpm5uenZ2dnqKjpaqqqZlSOkZJaG9eUClEQExTVVBTWFxaV1VYVVVVXm9paWZra2hrmZmbmZ2goKKjp6yqrHtpZj9kZmlTI1BCWEtMTk5XXFpYVVJSV1VaZmFoZmhmaGlkmZmbmZugoKKjp6yphnSAaGN1e19GKjZYUExOUlNVWFhTWnRaWFBYWFpkZmNoZGZmmZmdm52enqKjoqCFgF5Lcm1+XiweRFdOTk5QU1dVUlJcZlhaVV9kXGNoZm1pZGZomZmbm52dm6KjnlN5cEZYU2g/OC84TEtLUExOU1NOUl9pYV5eX2Rra3BocmNmYWRkmZubmZudm510O2+BTmFhRDFcQC5GUFBOTlBQV1VVV1VSWF5ocHBrdHBvb4ONd21jmZmZmJmbno1Ob2lMPy8vRzg/MUZOUlJQUFNXU1NXV1NYXGFtcGZvcnd1dX58d29vmJiYlpaZj2N5aWkpNjosLDUnREdJU1BSUlVTU1JVV1daZml0cnJtcnl7e3l0cHR1lpaWlpaWXnBrSTgzNTsxNi5GSVBaUk5QU1NQUlVXWF9ma29wdHV0dXJ1fHx3dXl8lJaYlI9maXJyUyMvNkxCFjhHTlhXUFBQTFJTUFJXWlxmcnRybW1vcHR7gHt0dXt7kpaWkYpkYWE9LiosOywUP0ZJTE5OUFBSWFVOUldaY2tta29mcHJwdHJ5eXd+gHl1kpSUjYhoZEdjIhQxNSpETEdGSUxMS05VU1BQVVVaZnBwcm1vcnBwcnd3dHV3dXd8kZGRgIVpSzM1JSkzP0RESUxHTElMUFVXVVVVVVhmaWNvb3B1d3V1dXJ5d3d1cHt7jY2MXIBfRDsbGyUvRElGRkdJTElJS05SU1NTV1xvb21vcnV1eXt5dHdycnd0eXt8
             measured:
-              on_std: 37.3           # the lowest on seen (12 Nov evening)
-              off_std: 23.6          # the highest off seen
+              on_std: 34.0           # the lowest open seen, 23-25 Nov
+              off_std: 15.0          # the highest shut seen (infrared)
               on_peak: 232
               off_peak: 234
-              taken: 2026-11-13T10:53+0500
-              # On 52.0 and off 23.1 in the switch itself (10:51, 10:55);
-              # the stored pair is the narrowest seen across both days.
+              taken: 2026-11-25T09:00+0500
+              # Measured again on 25 Nov in the new box over every kept
+              # frame (the 13 Nov pair, 37.3 / 23.6, was the old box's).
 
   141 Room 27 (2nd floor):
     recorder: cd_xvr1

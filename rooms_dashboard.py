@@ -5253,11 +5253,15 @@ def cached_progress_cloud(bucket, day=None):
         return None
     try:
         cur = conn.cursor()
+        # updated_at too: a row the laptop stopped sending (a desk since
+        # listed under an employee's code, 25 Nov: P13 twice) is older
+        # than the day's last send, and from_payloads leaves it out -- the
+        # laptop may not delete rows (its grant stays narrow).
         if day:
-            cur.execute("SELECT code, payload FROM progress_days"
+            cur.execute("SELECT code, payload, updated_at FROM progress_days"
                         " WHERE day = %s", (day,))
         else:
-            cur.execute("SELECT code, payload FROM progress_days"
+            cur.execute("SELECT code, payload, updated_at FROM progress_days"
                         " WHERE day = (SELECT max(day) FROM progress_days)")
         rows = cur.fetchall()
         cur.close()
@@ -5914,15 +5918,27 @@ def show_report_card(mode, people, hours, now, day=None):
         df = desks_data.load()
         seen = set(codes)
 
+        def seats_of(p):
+            # the employee's desk on every camera that sees it (also:) --
+            # 25 Nov: P13's main camera became ch 25, and her ch 23 desk
+            # came back as a desk of its own, her twice in the list
+            out = [(p.get("recorder"), int(p.get("channel") or 0),
+                    p.get("seat"))] if p.get("seat") else []
+            for a in p.get("also") or []:
+                try:
+                    out.append((a[0], int(a[1]), (a[2], a[3])))
+                except (IndexError, TypeError, ValueError):
+                    pass
+            return out
+
         def theirs(g):
             # a listed employee's own desk is theirs, not a desk unnamed
             rec, ch = str(g["recorder"].iloc[0]), int(g["channel"].iloc[0])
             x, y = float(g["x"].iloc[0]), float(g["y"].iloc[0])
-            return any((p.get("recorder"), int(p.get("channel") or 0))
-                       == (rec, ch) and p.get("seat")
-                       and (float(p["seat"][0]) - x) ** 2
-                       + (float(p["seat"][1]) - y) ** 2 <= 60.0 ** 2
-                       for p in named)
+            return any((r, c) == (rec, ch)
+                       and (float(s[0]) - x) ** 2 + (float(s[1]) - y) ** 2
+                       <= 60.0 ** 2
+                       for p in named for r, c, s in seats_of(p))
         for code, g in (sorted(df.groupby("code"),
                                key=lambda kv: (str(kv[1]["room"].iloc[0]),
                                                desks_data.desk_key(kv[0])))

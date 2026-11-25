@@ -1345,6 +1345,7 @@ def build(cfg, today, hours=(10, 20), count=5, folder=SEATS, frm=8, to=24,
             "recorder": person.get("recorder"),
             "channel": person.get("channel"),
             "seat": person.get("seat"),
+            "also": person.get("also") or [],
             "why": person.get("why", ""),
             "check": person.get("check") or {},
             "days": [{k: v for k, v in s.items() if k != "line"}
@@ -1503,12 +1504,34 @@ def to_payloads(cfg, people, hours, made):
     return rows
 
 
+# A row older than the day's last send by this much was not in that send:
+# the laptop no longer has it (each send writes every row at once).
+STALE_ROW_MIN = 10
+
+
 def from_payloads(rows):
     """(cfg, people, made, hours) back from progress_days rows
-    [(code, payload)] -- payload a dict (psycopg2 reads JSONB so) or text."""
+    [(code, payload)] or [(code, payload, updated_at)] -- payload a dict
+    (psycopg2 reads JSONB so) or text.
+
+    With updated_at, an employee's row older than the day's "_project" row
+    by STALE_ROW_MIN is one the laptop stopped sending, and is left out
+    (25 Nov: a desk named on the tab, then listed as P13 -- the desk's
+    row stayed, and she was on the page twice; the laptop may not delete).
+    And one employee is never shown twice: by employee ID, the listed code
+    (P13) over a desk's, else the newer row."""
     import json
+    from datetime import timedelta
     cfg, people, made, hours = {}, [], "", (10.0, 20.0)
-    for code, payload in rows:
+    rows = [tuple(r) + (None,) * (3 - len(r)) for r in rows]
+    sent = next((r[2] for r in rows if r[0] == "_project"), None)
+    stamp = {}
+    for code, payload, at in rows:
+        if (sent is not None and at is not None
+                and not str(code).startswith("_")
+                and at < sent - timedelta(minutes=STALE_ROW_MIN)):
+            continue
+        stamp[str(code)] = at
         data = payload if isinstance(payload, dict) else json.loads(payload)
         data = _restore(data)
         if code == "_project":
@@ -1521,6 +1544,21 @@ def from_payloads(rows):
             cfg["desks"] = data          # every desk, room by room
         else:
             people.append(data)
+    def rank(p):
+        # a listed employee's code (P13) before a desk's (nvr4.23-3), then
+        # the newer row
+        code = str(p.get("code", ""))
+        at = stamp.get(code)
+        return (0 if "." in code else 1,
+                at.timestamp() if hasattr(at, "timestamp") else 0.0)
+    keep = {}
+    for p in people:
+        eid = str(p.get("employee_id") or "")
+        if eid and (eid not in keep or rank(p) > rank(keep[eid])):
+            keep[eid] = p
+    people = [p for p in people
+              if not p.get("employee_id")
+              or keep.get(str(p["employee_id"])) is p]
     people.sort(key=lambda p: str(p.get("code", "")))
     return cfg, people, made, hours
 
