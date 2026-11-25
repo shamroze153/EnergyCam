@@ -1623,3 +1623,10 @@ Two or three lines a round; picture file names, never pictures.
   Nothing changed. Clothes check 25 Nov: 5 pairs, none on a known desk,
   so nothing sent; the gate's body pictures show the clothes, shoulders
   to knees, cut only for people right at the camera.
+* 21:46, 25 Nov: the camera network was back by 21:05 (passes every
+  ~6.5 min), but the in-process loop stopped at 21:34 with no error when
+  the old Claude session closed -- what a session starts dies with it,
+  the laptop dashboard too. Both restarted through WMI (Win32_Process
+  Create), outside the session: restart_loop.bat --evidence (the normal
+  start, quiet_start child and all) gave its first pass at 21:45:35, six
+  minutes after start; the dashboard is on 8501. All 21 tests green.
