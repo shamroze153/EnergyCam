@@ -43,16 +43,43 @@ SERIES = {
 
 # ===================================================================== figures
 
+MONTH_NOTE = "month total"   # a solar_daily row holding a whole month
+
+
+def month_row(note):
+    """Whether a solar_daily row is a month's total (Shamroze, 26 Nov:
+    "mahina select kar ke total MWh daal dun"), not a day's."""
+    return str(note or "").startswith(MONTH_NOTE)
+
+
+def solar_months(solar):
+    """{"YYYY-MM": kWh}: the months whose whole generation was typed in --
+    a row at the month's first day, noted MONTH_NOTE (no new table: the
+    page may write solar_daily already, and nothing else)."""
+    if solar is None or solar.empty or "note" not in solar.columns:
+        return {}
+    out = {}
+    for _, r in solar.iterrows():
+        if month_row(r.get("note")):
+            t = pd.Timestamp(r["taken"])
+            t = t.tz_convert(LOCAL) if t.tzinfo else t
+            out[t.strftime("%Y-%m")] = float(r["kwh"])
+    return out
+
+
 def solar_per_day(solar):
     """kWh the panels made each day, whichever number was typed in.
 
     An inverter shows two numbers, today's and its lifetime total, and the
     form cannot tell which one a person read off it. A lifetime total only
     ever rises and is far bigger than a day's change, so that is the test;
-    a running total is turned into days by difference.
+    a running total is turned into days by difference. A month's total
+    (solar_months) is no day and is left out.
 
     Returns (frame of day, kwh), and "daily" or "total" for what was read.
     """
+    if solar is not None and not solar.empty and "note" in solar.columns:
+        solar = solar[~solar["note"].map(month_row)]
     if solar is None or solar.empty:
         return pd.DataFrame(columns=["day", "kwh"]), "daily"
     s = solar.copy()

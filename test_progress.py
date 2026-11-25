@@ -2576,6 +2576,59 @@ def check_report_card():
            "frames" in page_ + cards_, "%%" in page_ + cards_,
            "dept 77" in cards_),
           (True, True, True, True, True, False, False, False, True))
+    # 26 Nov night (Shamroze): the overview first -- where a day went --
+    # against a colleague ("X, Y se kyun behtar"), and the workforce apart
+    import productivity_view as prv2
+    al = er.allocation(by["2"], "2026-11-24")
+    check("where a day went: in the building by the machines, nothing "
+          "made up where no camera sees the desk",
+          (round(al["in"]), al["desk"], er.shares(al)),
+          (540, None, [("inside", 540.0)]))
+    line_ = er.day_line(by["2"], "2026-11-24")
+    check("  the day in one line, from first in to last out",
+          [(round(a, 2), round(b, 2), k) for a, b, k, _ in line_],
+          [(10.08, 19.08, "inside")])
+    board_ = {"history": [{"day": "2026-11-24", "desk_min": 300.0,
+                           "computer_min": 200.0, "phone_min": 10.0,
+                           "talking_min": 20.0}],
+              "places_days": {"2026-11-24": {"meeting": 45.0, "cafe": 30.0}}}
+    al2 = er.allocation(dict(by["2"], board=board_), "2026-11-24")
+    check("  with a desk camera and places: at the desk, the places, the "
+          "rest of the building",
+          er.shares(al2), [("desk", 300.0), ("meeting", 45.0), ("cafe", 30.0),
+                           ("inside", 165.0)])
+    ov_ = er.overview_html(dict(by["2"], board=board_), "2026-11-24")
+    check("  drawn: four figures, the bar by place, the line, no 'None'",
+          ("Where the day went" in ov_, "Meeting rooms" in ov_,
+           "ov-line" in ov_, "None" in ov_), (True, True, True, False))
+    rows_, gap_ = er.pair(by["6"], by["5"])
+    vs_ = er.pair_html(by["6"], by["5"])
+    check("one against another: the factors both have, who is better (a "
+          "day past 10.5 h is no credit), and what makes the gap",
+          ([r[0] for r in rows_ if r[3] == "a"][:2], bool(gap_),
+           "30 points</b> ahead" in vs_,
+           "comes in 2 h 30 min earlier" in vs_, "is no credit" in vs_),
+          (["arrival", "talking"], True, True, True, True))
+    check("  the team's usual stands in for a colleague",
+          er.team_usual(by["5"], emps)["name"], "Testing's usual")
+    wl_ = er.workload(emps)
+    check("the campus's workload: past 10.5 h a day long, 8 h of a 9 h team "
+          "still healthy",
+          (sorted(x["eid"] for x in wl_["long"]),
+           sorted(x["eid"] for x in wl_["low"]), len(wl_["healthy"]),
+           "Long days" in er.workload_html(emps)), (["6"], [], 6, True))
+    check("workforce staff by their designation, each kind with its own",
+          (prv2.crew_group("Janitorial"), prv2.crew_group("Office Boy"),
+           prv2.crew_group("Gate Keeper"), prv2.crew_group("Senior Engineer")),
+          ("Janitorial", "Office boys", "Gate and security", None))
+    crew_ = er.prepare([dict(person("9", "09:00", "18:00", 70),
+                             staff="workforce", dept="Janitorial",
+                             role="Janitorial")])
+    check("  their card: a workforce score beside their group's, never "
+          "'productivity'",
+          ("workforce score" in er.emp_card(crew_[0], 70.0),
+           "group 70" in er.emp_card(crew_[0], 70.0),
+           "Workforce staff" in er.crew_card(crew_)), (True, True, True))
     # the machines' export cut at 12:21 (25 Nov): nobody absent that day
     raw = pd.DataFrame({
         "eid": ["90070"] * 3,

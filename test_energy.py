@@ -94,6 +94,17 @@ def main():
     sun, kind = ev.solar_per_day(saved_twice)
     check("a figure saved four times is one day's figure",
           kind == "daily" and list(sun["kwh"]) == [132, 281], (kind, sun))
+    # 26 Nov (Shamroze): a whole month's MWh typed at once -- kept apart,
+    # never read as a day of 6,000 kWh
+    with_month = pd.DataFrame({
+        "taken": [pd.Timestamp("2026-11-01", tz="Asia/Karachi"), at(2),
+                  at(1)],
+        "kwh": [6200.0, 132.0, 281.0],
+        "note": [ev.MONTH_NOTE + ", 2026-11 (6.20 MWh typed)", None, None]})
+    sun, kind = ev.solar_per_day(with_month)
+    check("a month's total is no day; the days stay the days",
+          (kind, list(sun["kwh"]), ev.solar_months(with_month)),
+          ("daily", [132.0, 281.0], {"2026-11": 6200.0}))
 
     # ---- the readings ----------------------------------------------------
     readings = pd.DataFrame([

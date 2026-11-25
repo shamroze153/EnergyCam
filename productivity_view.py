@@ -33,6 +33,24 @@ from overview import css, esc
 
 WEIGHTS = (("attendance", 0.4), ("desk", 0.4), ("activity", 0.2))
 ACT_DAYS = 7
+# Workforce staff (Shamroze, 26 Nov: "janitorial, office boys ... desk pe
+# baithte nahi -- unko alag section mein, alag tarah se measure"): by the
+# roster's designation, a word in it -> the group they are compared within.
+WORKFORCE = (("janitor", "Janitorial"), ("office boy", "Office boys"),
+             ("gate keeper", "Gate and security"),
+             ("security supervisor", "Gate and security"),
+             ("guard", "Gate and security"), ("valet", "Valet"),
+             ("driver", "Valet"), ("rider", "Valet"),
+             ("technician", "Technicians"), ("electrician", "Technicians"),
+             ("plumber", "Technicians"), ("cleaner", "Janitorial"),
+             ("housekeep", "Janitorial"), ("tea boy", "Office boys"),
+             ("gardener", "Janitorial"))
+
+
+def crew_group(role):
+    """The workforce group a designation belongs to, or None (desk staff)."""
+    r = str(role or "").lower()
+    return next((g for w, g in WORKFORCE if w in r), None)
 
 
 def _key(eid):
@@ -86,6 +104,16 @@ def employees(rows, roster, people=None, hours=(10.0, 20.0), now=None,
     out, seen = [], set()
 
     def one(eid, ro, r, p):
+        e = _one(eid, ro, r, p)
+        crew = crew_group(e["role"])
+        if crew:
+            # compared within their own kind of work, apart from the desks
+            e.update(staff="workforce", home_dept=e["dept"], dept=crew)
+        else:
+            e.update(staff="office", home_dept=e["dept"])
+        return e
+
+    def _one(eid, ro, r, p):
         att = av.score(r) if r else None
         d = pv.period_score(p, hours[0], hours[1], now) if p else None
         a = activity(p) if p and d else None

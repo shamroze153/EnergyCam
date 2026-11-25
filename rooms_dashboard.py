@@ -2462,8 +2462,10 @@ def _reading_form(now, meters, readings, solar):
                             unsafe_allow_html=True)
             typed[code], checks[code] = value, check
         last_sun = ""
-        if len(solar):
-            row = solar.sort_values("taken").iloc[-1]
+        days_sun = solar[~solar["note"].map(ev.month_row)] \
+            if len(solar) and "note" in solar.columns else solar
+        if len(days_sun):
+            row = days_sun.sort_values("taken").iloc[-1]
             last_sun = "Last: %s kWh, %s" % (
                 format(int(float(row["kwh"])), ","),
                 pd.Timestamp(row["taken"]).tz_convert(PKT).strftime("%a %d %b"))
@@ -2524,6 +2526,75 @@ def _reading_form(now, meters, readings, solar):
 # the Energy tab under it.
 reading_form = (st.fragment(_reading_form) if hasattr(st, "fragment")
                 else _reading_form)
+
+
+def solar_month_form(now, solar, since=None):
+    """A month's solar in one number (Shamroze, 26 Nov: "mahine ka pora
+    system bana do ... mahina select kar ke total MWh daal dun"): pick the
+    month, type its MWh off the inverter's monthly figure, Save. Kept as
+    a solar_daily row on the month's first day, noted as a month's total
+    (energy_view.solar_months) -- no new table, no new grant. The months
+    typed so far below it, each with its kWh a day."""
+    import energy_view as ev
+    local = pd.Timestamp.now(tz=PKT)
+    first = pd.Timestamp(str(since or "2026-10-01")[:7] + "-01")
+    months = []
+    m = pd.Timestamp(local.strftime("%Y-%m-01"))
+    while m >= first and len(months) < 36:
+        months.append(m.strftime("%Y-%m"))
+        m = (m - pd.Timedelta(days=1)).replace(day=1)
+    if not months:
+        return
+    have = ev.solar_months(solar)
+    with st.container(border=True):
+        st.markdown('<div style="font-size:1.05rem;font-weight:750;margin:2px '
+                    '0 2px">Solar, month by month</div><div style="font-size:'
+                    '.82rem;color:%s;margin-bottom:4px">The inverter’s '
+                    'total for a whole month, in MWh. Typing a month again '
+                    'replaces it.</div>' % MUTED, unsafe_allow_html=True)
+        cols = st.columns([1.2, 1, 0.8])
+        month = cols[0].selectbox(
+            "Month", months, key="solar_month",
+            format_func=lambda k: pd.Timestamp(k + "-01").strftime("%B %Y")
+            + ("  ·  %.2f MWh saved" % (have[k] / 1000.0)
+               if k in have else ""))
+        mwh = cols[1].number_input("Solar made, MWh", min_value=0.0,
+                                   max_value=500.0, value=None, step=0.1,
+                                   format="%.2f", key="solar_mwh")
+        cols[2].markdown('<div style="height:28px"></div>',
+                         unsafe_allow_html=True)
+        sent = cols[2].button("Save month", key="solar_month_save",
+                              disabled=mwh is None, type="primary")
+        if have:
+            rows = []
+            for k in sorted(have, reverse=True):
+                start = pd.Timestamp(k + "-01")
+                end = (start + pd.Timedelta(days=32)).replace(day=1)
+                days = (min(end, pd.Timestamp(local.date()) +
+                            pd.Timedelta(days=1)) - start).days \
+                    if k == local.strftime("%Y-%m") else (end - start).days
+                rows.append('<tr><td>%s</td><td style="text-align:right"><b>'
+                            '%.2f MWh</b></td><td style="text-align:right;'
+                            'color:%s">%s kWh a day</td></tr>'
+                            % (start.strftime("%B %Y"), have[k] / 1000.0,
+                               MUTED, format(int(round(have[k] / max(1, days))),
+                                             ",")))
+            st.markdown('<table style="width:100%%;font-size:13px;border-'
+                        'collapse:collapse;margin-top:4px">%s</table>'
+                        % "".join(rows), unsafe_allow_html=True)
+    if not sent or mwh is None:
+        return
+    taken = pd.Timestamp(month + "-01").tz_localize(PKT)
+    try:
+        write_solar(taken.to_pydatetime(), float(mwh) * 1000.0,
+                    "%s, %s (%.2f MWh typed)" % (ev.MONTH_NOTE, month,
+                                                 float(mwh)))
+    except psycopg2.Error as e:
+        st.error("Could not save (%s)." % type(e).__name__)
+        return
+    load_solar.clear()
+    st.session_state.pop("solar_mwh", None)
+    st.rerun()
 
 
 def show_analysis(df, recent, now):
@@ -2614,6 +2685,9 @@ def show_meters(df, recent, now):
         return
 
     reading_form(now, mine, readings, solar)
+    if "behind_solar" in mine.columns and \
+            mine["behind_solar"].fillna(False).astype(bool).any():
+        solar_month_form(now, solar, load_assumptions().get("solar_since"))
     readings = readings[readings["meter"].isin(codes)]
     table, kind = ev.daily_table(readings, mine, solar)
     cooled_hours = None
@@ -5506,15 +5580,44 @@ def show_profile(mode, e, emps, key, now=None, hours=(10.0, 20.0),
     and go, productivity today so far and on average, against their team
     -- strong and weak points -- and the early signs; small and graphic).
     The desk camera's day and the building map a click further."""
-    import employee_report
+    import employee_report as er
     import progress_view
-    st.markdown(employee_report.report_html(mode, e, emps, now, hours,
-                                            last_day),
+    crew = e.get("staff") == "workforce"
+    st.markdown(er.head_html(e, emps, now, hours, last_day, crew),
+                unsafe_allow_html=True)
+    # 26 Nov night (Shamroze): the overview first -- where a day went, and
+    # against a colleague of the same department ("X, Y se kyun behtar");
+    # the detail behind a switch
+    days = er.day_options(e, now)
+    mates = sorted([x for x in emps if x["dept"] == e["dept"]
+                    and x["eid"] != e["eid"]
+                    and x["productivity"] is not None],
+                   key=lambda x: -x["productivity"])
+    names = ["%s's usual" % e["dept"]] + [
+        "%s  ·  %s" % (x["name"], x["productivity"]) for x in mates]
+    c1, c2 = st.columns([1, 1.6])
+    day = c1.selectbox("Day", days, format_func=er._day_label,
+                       key="pf_day_%s_%s" % (key, e["eid"])) if days else None
+    pick = c2.selectbox("Compare with", list(range(len(names))),
+                        format_func=lambda i: names[i],
+                        index=1 if mates else 0,
+                        key="pf_vs_%s_%s" % (key, e["eid"]))
+    if day:
+        st.markdown('<div class="ec pr">%s</div>' % er.overview_html(e, day),
+                    unsafe_allow_html=True)
+    other = mates[pick - 1] if pick else er.team_usual(e, emps)
+    st.markdown('<div class="ec pr">%s</div>' % er.pair_html(e, other),
+                unsafe_allow_html=True)
+    st.markdown(er.points_html(e, emps), unsafe_allow_html=True)
+    if not st.toggle("Details: factor by factor, every day, today, "
+                     "colleagues", key="pf_det_%s_%s" % (key, e["eid"])):
+        return
+    st.markdown(er.details_html(e, emps, now, hours, last_day),
                 unsafe_allow_html=True)
     p = e.get("board")
     if p and p.get("focus") and st.toggle(
-            "The desk camera's day, and where they went on the building map",
-            key="pf_cam_%s" % key):
+            "The desk camera's day, ten minutes at a time, and the building "
+            "map", key="pf_cam_%s_%s" % (key, e["eid"])):
         try:
             st.markdown(progress_view.report(p, progress_view.colours(mode),
                                              progress_view.REPORT_VIEWS[0]),
@@ -5525,6 +5628,7 @@ def show_profile(mode, e, emps, key, now=None, hours=(10.0, 20.0),
 
 
 FIND_HINT = "Find an employee..."
+CREW = "Workforce staff"       # their own section (26 Nov), not a department
 
 
 def _nav(dept=None, emp=None):
@@ -5558,39 +5662,37 @@ def productivity_section(mode, emps, days, made, visitors=0, now=None,
     import productivity_view
     if not emps:
         return
-    employee_report.prepare(emps)
+    # the desks' staff and the workforce (janitorial, office boys, gate,
+    # valet, technicians) apart: each compared only with its own kind
+    office = employee_report.prepare(
+        [e for e in emps if e.get("staff") != "workforce"])
+    crew = employee_report.prepare(
+        [e for e in emps if e.get("staff") == "workforce"],
+        cut=office[0].get("_cut") if office else None)
     last_day = days[-1] if days else None
     st.markdown(employee_report.styles(mode), unsafe_allow_html=True)
-    bus = sorted({e["bu"] for e in emps})
+    bus = sorted({e["bu"] for e in office})
     c1, c2 = st.columns([1, 1.4])
     all_bu = "All business units (%d)" % len(bus)
     bu = c1.selectbox("Business unit", [all_bu] + bus, key="prod_bu")
-    pool = emps if bu == all_bu else [e for e in emps if e["bu"] == bu]
-    people_sorted = sorted(pool, key=lambda e: e["name"])
-    labels = ["%s  ·  %s" % (e["name"], e["dept"]) for e in people_sorted]
+    pool = office if bu == all_bu else [e for e in office if e["bu"] == bu]
+    people_sorted = sorted(pool + crew, key=lambda e: e["name"])
+    labels = ["%s  ·  %s" % (e["name"], e.get("home_dept") or e["dept"])
+              for e in people_sorted]
     st.session_state["prod_find_to"] = {
-        lab: (e["eid"], e["dept"]) for lab, e in zip(labels, people_sorted)}
+        lab: (e["eid"], CREW if e.get("staff") == "workforce" else e["dept"])
+        for lab, e in zip(labels, people_sorted)}
     c2.selectbox("Find an employee", [FIND_HINT] + labels, key="prod_find",
                  on_change=_found)
     cards = productivity_view.dept_cards(pool)
     emp_id = st.session_state.get("prod_emp")
-    person = next((e for e in emps if e["eid"] == emp_id), None) \
+    person = next((e for e in office + crew if e["eid"] == emp_id), None) \
         if emp_id else None
-    chosen = next(((n, es) for n, es, _ in cards
-                   if n == st.session_state.get("prod_open")), None)
+    open_ = st.session_state.get("prod_open")
+    chosen = next(((n, es) for n, es, _ in cards if n == open_), None)
     per_row = 4
-    if person is not None:
-        b1, b2, _ = st.columns([1, 1.3, 2.5])
-        b1.button("← All departments", key="prod_home", on_click=_nav,
-                  width="stretch")
-        b2.button("← %s" % person["dept"], key="prod_up", on_click=_nav,
-                  args=(person["dept"], None), width="stretch")
-        show_profile(mode, person, emps, "card", now, hours, last_day)
-    elif chosen is not None:
-        name, es = chosen
-        st.button("← All departments", key="prod_back", on_click=_nav)
-        st.markdown(employee_report.dept_head(mode, name, es, emps),
-                    unsafe_allow_html=True)
+
+    def people_cards(es, where):
         es = sorted(es, key=lambda e: -(e["productivity"] or 0))
         avg = employee_report.dept_avg(es)
         for i in range(0, len(es), per_row):
@@ -5600,23 +5702,58 @@ def productivity_section(mode, emps, days, made, visitors=0, now=None,
                     st.markdown(employee_report.emp_card(e, avg),
                                 unsafe_allow_html=True)
                     st.button("Report card", key="prod_emp_%s" % e["eid"],
-                              on_click=_nav, args=(name, e["eid"]),
+                              on_click=_nav, args=(where, e["eid"]),
                               width="stretch")
+    if person is not None:
+        is_crew = person.get("staff") == "workforce"
+        b1, b2, _ = st.columns([1, 1.3, 2.5])
+        b1.button("← All departments", key="prod_home", on_click=_nav,
+                  width="stretch")
+        up = CREW if is_crew else person["dept"]
+        b2.button("← %s" % up, key="prod_up", on_click=_nav,
+                  args=(up, None), width="stretch")
+        show_profile(mode, person, crew if is_crew else office, "card", now,
+                     hours, last_day)
+    elif open_ == CREW and crew:
+        st.button("← All departments", key="prod_back", on_click=_nav)
+        st.markdown(employee_report.crew_head(mode, crew),
+                    unsafe_allow_html=True)
+        for group in sorted({e["dept"] for e in crew}):
+            es = [e for e in crew if e["dept"] == group]
+            st.markdown('<div class="ec pr"><div class="ec-h" style="margin-'
+                        'top:6px"><span class="t">%s</span><span class="c">%d'
+                        '</span></div></div>' % (html.escape(group), len(es)),
+                        unsafe_allow_html=True)
+            people_cards(es, CREW)
+    elif chosen is not None:
+        name, es = chosen
+        st.button("← All departments", key="prod_back", on_click=_nav)
+        st.markdown(employee_report.dept_head(mode, name, es, office),
+                    unsafe_allow_html=True)
+        people_cards(es, name)
     else:
         st.markdown(productivity_view.top_html(mode, pool, days, made,
                                                visitors),
                     unsafe_allow_html=True)
-        for i in range(0, len(cards), per_row):
+        st.markdown(employee_report.workload_html(pool),
+                    unsafe_allow_html=True)
+        tiles = [(n, h) for n, _, h in cards]
+        if crew:
+            tiles.append((CREW, employee_report.crew_card(crew)))
+        for i in range(0, len(tiles), per_row):
             cols = st.columns(per_row)
-            for j, (col, (name, _, html)) in enumerate(
-                    zip(cols, cards[i:i + per_row])):
+            for j, (col, (name, html_)) in enumerate(
+                    zip(cols, tiles[i:i + per_row])):
                 with col:
-                    st.markdown(html, unsafe_allow_html=True)
+                    st.markdown(html_, unsafe_allow_html=True)
                     st.button("Open", key="prod_card_%d" % (i + j),
                               on_click=_nav, args=(name, None),
                               width="stretch")
     rows = [{"Employee": e["name"], "Employee ID": e["id"],
-             "Designation": e["role"], "Department": e["dept"],
+             "Designation": e["role"],
+             "Department": e.get("home_dept") or e["dept"],
+             "Staff": "workforce (%s)" % e["dept"]
+             if e.get("staff") == "workforce" else "office",
              "Business unit": e["bu"],
              "Productivity": e["productivity"], "Attendance": e["attendance"],
              "Desk": e["desk"], "Activity": e["activity"],
