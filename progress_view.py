@@ -1048,6 +1048,22 @@ def _ordinal(n):
                      {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th"))
 
 
+def machine_check_words(mc):
+    """desk_match's nightly check in words: how much of the desk's time
+    fell while its person was inside by the attendance machines."""
+    if not mc or mc.get("share") is None:
+        return ""
+    share = float(mc["share"])
+    word = {"verified": "checked by the attendance machines",
+            "unsure": "partly borne out by the attendance machines",
+            "doubt": "the attendance machines doubt this desk is theirs"}
+    w = word.get(mc.get("verdict"))
+    if not w:
+        return ""
+    return "%s: %s of the desk's time while they were inside" % (
+        w, pct(min(1.0, share)))
+
+
 def report(p, c, view=REPORT_VIEWS[0], start=10.0, now=None, end=20.0,
            team=None):
     """One employee's report card (one at a time, rooms_dashboard picks):
@@ -1093,7 +1109,8 @@ def report(p, c, view=REPORT_VIEWS[0], start=10.0, now=None, end=20.0,
                    if not p.get("name") and "." in str(p.get("code", ""))
                    else "",
                    "named by the attendance machines, not checked by eye"
-                   if p.get("how") == "attendance" else "") if x)),
+                   if p.get("how") == "attendance" else "",
+                   machine_check_words(p.get("machine_check"))) if x)),
                dur(at) if came else "--",
                (" &middot; %s of time in" % pct(share)) if share is not None
                else "", vs, LIVE_COLOURS.get(state, "#898781"),

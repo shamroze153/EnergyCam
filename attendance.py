@@ -70,6 +70,30 @@ def load(folder=None):
     return data
 
 
+def inside(employee_id, day_, campus=CAMPUS, data=None, pad=None):
+    """[(from, to)] the employee was inside by the machines that day: each
+    IN to the OUT after it (the last IN to the end of the day when nobody
+    punched out), widened by `pad` either side."""
+    data = load() if data is None else data
+    if not employee_id or data is None or not len(data):
+        return []
+    mine = data[(data["eid"] == code(employee_id))
+                & (data["at"].dt.strftime("%Y-%m-%d") == day_)
+                & data["place"].str.startswith(campus)]
+    out, t_in = [], None
+    for _, r in mine.iterrows():
+        if r["kind"] == "in" and t_in is None:
+            t_in = r["at"]
+        elif r["kind"] == "out" and t_in is not None:
+            out.append((t_in, r["at"]))
+            t_in = None
+    if t_in is not None:
+        out.append((t_in, pd.Timestamp(day_) + pd.Timedelta(hours=24)))
+    if pad is not None:
+        out = [(a - pad, b + pad) for a, b in out]
+    return out
+
+
 def day(employee_id, day_, campus=CAMPUS, data=None):
     """One employee's day at one campus's machines, or None with no punch.
 

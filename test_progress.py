@@ -2161,6 +2161,49 @@ def check_attendance():
     check("  and the card says it was not checked by eye",
           "not checked by eye" in pv.report(card_m, c, pv.REPORT_VIEWS[0]),
           True)
+    # desk_match (25 Nov): a named desk checked against the machines.
+    import desk_match as dm
+    pdata = pd.DataFrame({"eid": ["90042"] * 2,
+                          "at": [at("09:58"), at("13:05")],
+                          "kind": ["in", "out"], "place": ["140-H IN",
+                                                           "140-H OUT"]})
+    line_ok = [(at("10:00"), at("12:00"), "desk")]
+    line_bad = [(at("10:00"), at("11:00"), "desk"),
+                (at("14:00"), at("17:00"), "desk")]
+    ok_ = dm.check({DAY: line_ok}, "90042", data=pdata)
+    bad_ = dm.check({DAY: line_bad}, "90042", data=pdata)
+    check("the desk used while its person was inside: verified",
+          (ok_["verdict"], round(ok_["share"], 2)), ("verified", 1.0))
+    check("used mostly while they were out: doubt",
+          (bad_["verdict"], round(bad_["share"], 2)), ("doubt", 0.25))
+    check("nobody's punches: said so", dm.check({DAY: line_ok}, "90099",
+                                                data=pdata)["verdict"],
+          "no punches")
+    zs = {"a": {"d1": (12.0, 20, 30), "d2": (3.0, 5, 30)},
+          "b": {"d1": (9.0, 15, 30), "d3": (8.5, 14, 30)},
+          "c": {"d4": (9.0, 4, 6)}}
+    check("pairs: the strongest first, one desk each, clear of the next",
+          [(e, d_) for e, d_, *_ in dm.pair(zs)], [("a", "d1")])
+    check("the words on the card",
+          pv.machine_check_words({"share": 0.96, "verdict": "verified"}),
+          "checked by the attendance machines: 96% of the desk's time while "
+          "they were inside")
+    loop_src = open("room_loop.py", encoding="utf-8").read()
+    check("the loop starts the nightly check, guarded, in its own process",
+          "desk_match_nightly(now)" in loop_src
+          and '"desk_match.py", "--nightly"' in loop_src, True)
+    import room_loop as rl_
+    started = []
+    st_ = {"day": None}
+    from datetime import datetime as _dt2
+    check("not before 23:30; once a night",
+          (rl_.desk_match_nightly(_dt2(2026, 11, 25, 22, 0), st_,
+                                  lambda: started.append(1)),
+           rl_.desk_match_nightly(_dt2(2026, 11, 25, 23, 40), st_,
+                                  lambda: started.append(1)),
+           rl_.desk_match_nightly(_dt2(2026, 11, 25, 23, 55), st_,
+                                  lambda: started.append(1)), len(started)),
+          (None, "2026-11-25", None, 1))
 
 
 def main():

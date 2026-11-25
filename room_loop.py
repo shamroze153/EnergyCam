@@ -1879,6 +1879,38 @@ def weekly_mail(now, started=WEEKLY_STARTED, clock=time.time, start=None):
     return week
 
 
+# Whose desk is it, checked by the attendance machines (desk_match.py, 25
+# Nov: Shamroze, "khud check karte raho, poori raat"): once a night, after
+# DESK_MATCH_AFTER, in a process of its own -- minutes of work over every
+# desk and day, never inside a pass.
+DESK_MATCH_AFTER = "23:30"
+DESK_MATCH_STARTED = {"day": None}
+
+
+def desk_match_nightly(now, state=DESK_MATCH_STARTED, start=None):
+    """Start `desk_match.py --nightly` once a day after DESK_MATCH_AFTER.
+    Returns the day started, or None."""
+    day = now.strftime("%Y-%m-%d")
+    if now.strftime("%H:%M") < DESK_MATCH_AFTER or state["day"] == day:
+        return None
+    state["day"] = day
+    if start is None:
+        import subprocess
+        here = os.path.dirname(os.path.abspath(__file__))
+
+        def start():
+            os.makedirs(os.path.join(here, "people"), exist_ok=True)
+            log = open(os.path.join(here, "people", "desk_match.log"), "a")
+            subprocess.Popen([sys.executable, "desk_match.py", "--nightly"],
+                             cwd=here, stdout=log, stderr=log)
+    try:
+        start()
+        print(">> desk check: started for %s" % day)
+    except OSError as e:
+        print(">> desk check could not start: %s" % safe_error(e))
+    return day
+
+
 CYCLE_LOG = "cycles.csv"
 CYCLE_HEADER = ("time,cycle,seconds,rooms,occupied,empty,unknown,"
                 "waiting_s,counting_s")
@@ -2255,6 +2287,10 @@ def main():
                         desk_watch.rebuild()
                     except Exception as e:                  # noqa: BLE001
                         print(">> every desk: %s" % safe_error(e))
+                try:
+                    desk_match_nightly(now)
+                except Exception as e:                      # noqa: BLE001
+                    print(">> desk check: %s" % safe_error(e))
 
             if args.once:
                 return

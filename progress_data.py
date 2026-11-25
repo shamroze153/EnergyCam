@@ -1301,6 +1301,13 @@ def build(cfg, today, hours=(10, 20), count=5, folder=SEATS, frm=8, to=24,
     except Exception:                                       # noqa: BLE001
         hand, seats, rooms, roster = {}, {}, {}, {}
     gate = gate_passages(focus)
+    # each named desk checked against the attendance machines (desk_match,
+    # nightly): the share of its desk time while its person was inside
+    try:
+        import desk_match
+        checks = desk_match.load_checks()
+    except Exception:                                       # noqa: BLE001
+        checks = {}
     everyone = list(cfg.get("people") or [])
     if cfg.get("auto_desks", True):
         everyone += desk_people(everyone, hand, seats, rooms, roster,
@@ -1382,6 +1389,7 @@ def build(cfg, today, hours=(10, 20), count=5, folder=SEATS, frm=8, to=24,
             "also": person.get("also") or [],
             "why": person.get("why", ""),
             "how": person.get("how", ""),
+            "machine_check": checks.get(person.get("code", "")) or {},
             "check": person.get("check") or {},
             "days": [{k: v for k, v in s.items() if k != "line"}
                      for s in summaries],
