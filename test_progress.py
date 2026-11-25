@@ -2482,12 +2482,115 @@ def check_attendance():
           ('<td class="rk">1</td>' in dt_, "&ndash;" in dt_, "None" in dt_,
            "%%" in dt_, "frames" in dt_), (True, True, False, False, False))
     src_ = open("rooms_dashboard.py", encoding="utf-8").read()
-    check("  the Progress tab one view at a time, Productivity first",
-          ('PROGRESS_VIEWS = ("Productivity"' in src_,
-           'st.segmented_control("Show", views' in src_), (True, True))
+    check("  the Progress tab one way in: Productivity, the rest behind a "
+          "switch",
+          ('st.toggle(PROGRESS_MORE, key="progress_more")' in src_,
+           "PROGRESS_VIEWS" in src_), (True, False))
+
+
+def check_report_card():
+    """25 Nov night (Shamroze: "naya banda bhi samjhe"): department -> its
+    people as cards -> a report card each -- against the team, strong and
+    weak points, early signs, today so far; and what big companies learned:
+    a long day is no credit, talk is often the work, teams of five+."""
+    print("-- the report card")
+    import attendance as att3
+    import employee_report as er
+    T = pd.Timestamp
+    week = ["2026-11-16", "2026-11-17", "2026-11-18", "2026-11-19",
+            "2026-11-20", "2026-11-24"]
+
+    def hr(hhmm):
+        h, m = hhmm.split(":")
+        return int(h) + int(m) / 60.0
+
+    def person(eid, i, o, p, dept="Testing", talking=5.0, last=None):
+        days = {}
+        for d in week:
+            out_ = None if (d == week[-1] and last == "open") else o
+            days[d] = {"first_in": T("%s %s" % (d, i)),
+                       "last_out": T("%s %s" % (d, out_)) if out_ else None,
+                       "inside_min": (hr(out_) - hr(i)) * 60 if out_ else 0.0,
+                       "outings": [], "closed": bool(out_)}
+        return {"eid": eid, "id": eid, "name": "Person %s" % eid,
+                "role": "Engineer", "dept": dept, "bu": "Unit A", "photo": "",
+                "days": days, "board": None, "attendance": p, "desk": None,
+                "activity": None, "desk_parts": None, "desk_days": 0,
+                "act": {"computer": 60.0, "phone": 3.0, "talking": talking,
+                        "talk_phone": 3.0 + talking},
+                "productivity": p, "days_in": len(week), "of": len(week),
+                "usual_in": hr(i), "usual_out": hr(o),
+                "hours": hr(o) - hr(i)}
+    emps = er.prepare([person("1", "10:00", "19:00", 80, talking=30.0),
+                       person("2", "10:05", "19:05", 78),
+                       person("3", "09:55", "18:55", 79),
+                       person("4", "10:10", "19:10", 77, last="open"),
+                       person("5", "11:30", "19:30", 60),
+                       person("6", "09:00", "20:30", 90, talking=0.0),
+                       person("7", "10:00", "19:00", 75, dept="Solo")])
+    by = {e["eid"]: e for e in emps}
+    late_c = er.compare(by["5"], emps)
+    strong5, weak5 = er.points(by["5"], late_c)
+    late_w = [c for c in weak5 if c["key"] == "arrival"]
+    check("a late comer: 'comes in late' a weak point, against their own "
+          "team of six",
+          (len(late_w), "Comes in late" in er.say(late_w[0], by["5"]),
+           late_w[0]["team"], late_w[0]["n"]), (1, True, "Testing", 6))
+    strong6, _ = er.points(by["6"], er.compare(by["6"], emps))
+    check("  11.5 h a day is no strong point (a wellbeing sign, Microsoft) "
+          "-- and saying little is no merit",
+          ("hours" in [c["key"] for c in strong6],
+           "talking" in [c["key"] for c in strong6],
+           any("Long days" in t for _, t in er.signals(by["6"]))),
+          (False, False, True))
+    _, weak1 = er.points(by["1"], er.compare(by["1"], emps))
+    check("  a lot of talk at the desk: worth a look, said as maybe work",
+          [("may be work" in er.say(c, by["1"])) for c in weak1
+           if c["key"] == "talking"], [True])
+    check("  a team under five is compared with all of 140-H",
+          er.compare(by["7"], emps)[0]["team"], "140-H")
+    check("  a steady pattern says so",
+          er.signals(by["2"]), [("good", "Steady: no warning sign in their "
+                                 "pattern")])
+    now_ = T("2026-11-24 21:00")
+    t2, t4 = er.today(by["2"], now_), er.today(by["4"], now_)
+    check("today so far: a day closed by its OUT is scored; an open one "
+          "only says what is known",
+          (t2["score"] is not None, ("Out", "19:05") in t2["facts"],
+           t4["score"], ("Out", "not yet") in t4["facts"]),
+          (True, True, None, True))
+    cutp = person("8", "09:00", "19:00", 70)
+    cutp["days"]["2026-11-25"] = {"first_in": T("2026-11-25 09:30"),
+                                  "last_out": None, "inside_min": 0.0,
+                                  "outings": [], "closed": False}
+    check("  an export cut mid-day: its last day is known as cut short",
+          er.cut_day([cutp]), "2026-11-25")
+    page_ = er.report_html("light", by["5"], emps, now_, (10.0, 20.0),
+                           "2026-11-24")
+    cards_ = er.emp_card(by["5"], er.dept_avg(emps))
+    check("  the card: points, signs, the team chart, the days; never "
+          "'None', a camera picture or a stray %",
+          ("Strong points" in page_, "Weak points" in page_,
+           "factor by factor" in page_, "Their days" in page_,
+           "Not measured here" in page_, "None" in page_ + cards_,
+           "frames" in page_ + cards_, "%%" in page_ + cards_,
+           "dept 77" in cards_),
+          (True, True, True, True, True, False, False, False, True))
+    # the machines' export cut at 12:21 (25 Nov): nobody absent that day
+    raw = pd.DataFrame({
+        "eid": ["90070"] * 3,
+        "at": [T("2026-11-24 10:00"), T("2026-11-24 19:00"),
+               T("2026-11-25 12:21")],
+        "kind": ["in", "out", "in"], "place": ["140-H IN", "140-H OUT",
+                                               "140-H IN"]})
+    s_ = att3.summary(data=raw)
+    check("  HR's export cut at 12:21: that day shown, never counted",
+          (att3.cut_short(raw), s_[0]["of"], s_[0]["days_in"],
+           "2026-11-25" in s_[0]["days"]), ("2026-11-25", 1, 1, True))
 
 
 def main():
+    check_report_card()
     check_attendance()
     check_presence_only()
     check_board()

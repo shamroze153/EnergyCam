@@ -58,6 +58,8 @@ def activity(p, days=ACT_DAYS):
     c = min(1.0, comp / desk)
     t = min(1.0, (phone + talk) / desk)
     return {"computer": 100.0 * c, "talk_phone": 100.0 * t,
+            "phone": 100.0 * min(1.0, phone / desk),
+            "talking": 100.0 * min(1.0, talk / desk),
             "phone_min": phone / len(recs), "talking_min": talk / len(recs),
             "score": 100.0 * (0.7 * c + 0.3 * (1.0 - t)), "days": len(recs)}
 
@@ -111,7 +113,9 @@ def employees(rows, roster, people=None, hours=(10.0, 20.0), now=None,
             if r else "desk camera only"}
     for r in rows or []:
         eid = _key(r["eid"])
-        if not r.get("days_in"):
+        if not r.get("days_in") and not r.get("days"):
+            # (25 Nov: somebody in only on a day the export cut short has
+            # no whole day yet -- listed, their score not known yet)
             continue
         out.append(one(eid, roster.get(r["eid"], {}) or roster.get(eid, {}),
                        r, board.get(eid)))
@@ -381,7 +385,8 @@ def top_html(mode, emps, days, made="", visitors=0):
     return "".join([
         _styles(mode), '<div class="ec pr">',
         '<div class="pr-hero sm"><div><h2>Productivity &middot; 140-H</h2>'
-        '<p>%s to %s &middot; attendance machines for everybody, the desk '
+        '<p><b>Open a department, then a person, for their report card.'
+        '</b> %s to %s &middot; attendance machines for everybody, the desk '
         'camera where it sees their own desk</p></div><span class="pr-badge">'
         '%s</span></div>' % (esc(days[0]) if days else "",
                              esc(days[-1]) if days else "", esc(made)),

@@ -232,6 +232,23 @@ start with `people/session_handoff/night_plan.md`,
   140-H's employees = at least half their punches at 140-H
   (`attendance.HOME_SHARE`): 144 + 3 board-only = 147; ~84 from 141-D are
   visitors, left out and counted. Hours count only days ending on an OUT.
+* **Report cards (25 Nov night, Shamroze: "naya banda bhi samjhe")**: the
+  Progress tab is ONE way in -- department cards -> its employees as cards
+  (their productivity beside the department's, hours a day, usual in/out)
+  -> a report card (`employee_report.py`): average and today so far, why
+  above/below the team, strong / weak points against the department
+  (5+ measured, else all 140-H -- Microsoft Viva's floor), early signs
+  against their OWN usual (long days, hours falling, later in, earlier
+  out, days missed), a factor strip and an IN/OUT days chart (HTML rows,
+  readable on a phone). From big companies' practice: a long day is never
+  credit, quiet is no merit and only a lot of talk is mentioned ("may be
+  work"), breaks shown neutrally, the work's results not measured (said
+  on the card). The rest (desk cameras' board, every desk, attendance
+  lists; laptop: naming tools, videos) behind switches at the bottom.
+  HR's export cut mid-day (25 Nov, 12:21) no longer counts anybody absent
+  (`attendance.cut_short`). The laptop clock runs ~160 s fast (Windows
+  time not syncing) -- `attendance.clock_offset` measures it per day;
+  syncing it waits on Shamroze.
 * **Streamlit gotcha**: two `<style>` blocks on one line in st.markdown
   leave the second open and swallow the page; keep each style block its
   own markdown block ("\n\n" between them -- productivity_view._styles).

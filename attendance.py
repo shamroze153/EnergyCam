@@ -146,6 +146,19 @@ def days(campus=CAMPUS, data=None):
 
 
 HOME_SHARE = 0.5     # of an employee's punches at a campus: their campus
+CUT_BEFORE = 17.0    # an export whose last punch is earlier ended mid-day
+
+
+def cut_short(data=None):
+    """The export's last day, when the export ends before the office day
+    does (its last punch before CUT_BEFORE) -- else None."""
+    data = load() if data is None else data
+    if data is None or not len(data):
+        return None
+    last = data["at"].max()
+    if pd.isna(last) or last.hour + last.minute / 60.0 >= CUT_BEFORE:
+        return None
+    return last.strftime("%Y-%m-%d")
 
 
 def home_shares(campus=CAMPUS, data=None):
@@ -178,6 +191,12 @@ def summary(campus=CAMPUS, data=None, start=10.0, grace=15, workdays=None,
     all_days = days(campus, data)
     if workdays is None:
         workdays = [d for d in all_days if pd.Timestamp(d).dayofweek < 5]
+        cut = cut_short(data)
+        if cut:
+            # 25 Nov: HR's export ended at 12:21 -- 57 of 144 came in after
+            # it and counted absent that day. A day the export cuts short
+            # is shown, never counted for days in or the usual.
+            workdays = [x for x in workdays if x != cut]
     d = data[data["place"].str.startswith(campus)]
     shares = home_shares(campus, data)
     out = []

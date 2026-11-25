@@ -1,0 +1,882 @@
+"""Department -> its people as cards -> one employee's report card.
+
+Shamroze, 25 Nov 2026, night: "ek naya banda dashboard par jaaye to usko
+samajh aaye ke productivity kaise dekhni hai". One way in, not three tabs:
+the department's card (how many employees, its productivity), its people
+as cards (their productivity beside the department's, the hours they
+usually spend), and one employee's report card -- when they come and go,
+productivity today so far and on average, how they compare with their
+team (where they are strong, where weak: late, out of the building, on
+the phone, talking a lot), and the signs people analytics watches before
+somebody burns out or leaves. "CEO ko decision lene mein aasani ho" --
+small and graphic, not every number of the day.
+
+The factors, each against the employee's own team (their department; all
+of 140-H where fewer than TEAM_MIN of it are measured on that factor):
+
+  machines  in the building a day, usual arrival, a regular arrival
+            (within half an hour of their own usual), days present,
+            time out of the building in the day
+  camera    at the desk (of the office day), focus (desk time in
+            stretches of an hour or more), on the computer, on the phone,
+            talking at the desk (shares of the desk time) -- only where a
+            camera sees their own named desk
+
+What big companies do, and what this copies (research, 25 Nov night):
+presence and hours by badge or machine (Tesla's absenteeism reports,
+Amazon's badge data); uninterrupted focus of an hour or more, and long
+days as a wellbeing warning, never as credit (Microsoft Viva Insights;
+WHO/ILO on 55-hour weeks); the phone apart from talk at the desk, which
+is often the work itself (Google's Project Aristotle, Humanyze at Bank of
+America) -- so being quiet is no merit, and only a lot of talk is
+mentioned, as worth a look; time out of the building shown neutrally
+(Amazon and Barclays were faulted for punishing breaks); changes against
+the person's OWN usual as a reason for a check-in, not a penalty (IBM's
+attrition work, HBR's signs before quitting); teams compared only in
+groups of five or more (Microsoft's floor). Not measured: the results of
+the work, which Microsoft and Google weigh most -- the card says so.
+
+Time in the building and at the desk, and what the camera saw there --
+never the worth of the work (CLAUDE.md). Rows in, HTML out: no
+Streamlit, no OpenCV (the hosted page has neither); names and directory
+icons only as the caller passes them, never a camera picture.
+"""
+import math
+from datetime import datetime
+from statistics import median
+
+import pandas as pd
+
+import productivity_view as prv
+import progress_view as pv
+from overview import esc
+
+TEAM_MIN = 5             # Microsoft Viva's floor for a group; else 140-H
+LONG_DAY_H = 10.5        # a day this long in the building is a long one
+LATE_OUT_H = 21.5        # ... as is leaving after this hour
+MISSED_SHARE = 0.35      # working days missed that make an early sign
+CUT_BEFORE = 17.0        # the export's last day, if nobody punched later
+# key, label, what the number is, better (+1 more, -1 less), measured by
+FACTORS = (
+    ("hours", "In the building", "hours a day", 1, "machines"),
+    ("arrival", "Usual arrival", "clock time", -1, "machines"),
+    ("regular", "Regular arrival", "days within 30 min of their usual", 1,
+     "machines"),
+    ("present", "Days present", "of the working days", 1, "machines"),
+    ("out", "Out of the building", "minutes a day", -1, "machines"),
+    ("desk", "At the desk", "of the office day", 1, "camera"),
+    ("focus", "Focus", "desk time in stretches of 1 h+", 1, "camera"),
+    ("computer", "On the computer", "of desk time", 1, "camera"),
+    ("phone", "On the phone", "of desk time", -1, "camera"),
+    ("talking", "Talking at the desk", "of desk time (often work)", -1,
+     "camera"),
+)
+LABEL = {k: lab for k, lab, _, _, _ in FACTORS}
+WHAT = {k: what for k, _, what, _, _ in FACTORS}
+# How far from the team's usual is a real difference, not noise.
+MARGIN = {"hours": 0.5, "arrival": 20 / 60.0, "regular": 10.0,
+          "present": 5.0, "out": 25.0, "desk": 5.0, "focus": 5.0,
+          "computer": 5.0, "phone": 3.0, "talking": 5.0}
+# Where each factor sits in the productivity score (productivity_view):
+# its part, its weight inside the part, and the factor as 0-100 points.
+IN_SCORE = {
+    "hours": ("attendance", 0.5, lambda v: 100.0 * min(1.0, v / 10.0)),
+    "regular": ("attendance", 0.3, lambda v: v),
+    "present": ("attendance", 0.2, lambda v: v),
+    "desk": ("desk", 0.5, lambda v: v),
+    "focus": ("desk", 0.3, lambda v: v),
+    "computer": ("activity", 0.7, lambda v: v),
+    "phone": ("activity", 0.3, lambda v: 100.0 - v),
+    "talking": ("activity", 0.3, lambda v: 100.0 - v),
+}
+PART_W = dict(prv.WEIGHTS)
+SOURCES = (
+    "<b>How big companies do it, and what this card copies:</b> presence "
+    "and hours by badge or machine (Tesla, Amazon); focus in stretches of "
+    "an hour or more, and long days as a wellbeing warning, never as "
+    "credit (Microsoft Viva Insights); the phone apart from talk at the "
+    "desk, which is often the work itself (Google, Humanyze); breaks shown, "
+    "not punished; a change against the person's own usual as a reason to "
+    "talk, not a penalty (IBM, HBR); teams compared in groups of five or "
+    "more (Microsoft). <b>Not measured here:</b> the results of the work "
+    "&mdash; goals met, quality &mdash; which Microsoft and Google weigh "
+    "most; add the manager's rating when HR has it.")
+
+
+# ---------------------------------------------------------------- numbers
+
+def _hour(x):
+    """A time as a clock hour (9.5 = 09:30), or None."""
+    if x is None:
+        return None
+    try:
+        t = pd.Timestamp(x)
+    except (TypeError, ValueError):
+        return None
+    if pd.isna(t):
+        return None
+    return t.hour + t.minute / 60.0 + t.second / 3600.0
+
+
+def clock(h):
+    if h is None:
+        return "&ndash;"
+    m = int(round(h * 60))
+    return "%02d:%02d" % ((m // 60) % 24, m % 60)
+
+
+def span(minutes):
+    """52 -> "52 min", 80 -> "1 h 20 min"."""
+    m = int(round(abs(minutes)))
+    if m < 60:
+        return "%d min" % m
+    return "%d h" % (m // 60) + (" %d min" % (m % 60) if m % 60 else "")
+
+
+def _days(e):
+    """The employee's days in by the machines, oldest first."""
+    return sorted((d, s) for d, s in (e.get("days") or {}).items()
+                  if s and s.get("first_in") is not None)
+
+
+def _work(e):
+    """Their working days in (Monday to Friday), less a day the export
+    cut short -- what the usual and the signs are made of."""
+    cut = e.get("_cut")
+    return [(d, s) for d, s in _days(e)
+            if d != cut and pd.Timestamp(d).dayofweek < 5]
+
+
+def _out_min(s):
+    """Minutes out of the building between a day's first IN and last OUT."""
+    tot = 0.0
+    for o in s.get("outings") or []:
+        try:
+            a, b = pd.Timestamp(o[0]), pd.Timestamp(o[1])
+        except (TypeError, ValueError, IndexError):
+            continue
+        tot += max(0.0, (b - a).total_seconds() / 60.0)
+    return tot
+
+
+def cut_day(emps):
+    """The export's last day when it ends mid-day (25 Nov: at 12:21) --
+    nobody's punch on it after CUT_BEFORE -- else None."""
+    last = max((d for e in emps for d in (e.get("days") or {})), default=None)
+    if last is None:
+        return None
+    hours = [h for e in emps for s in [(e.get("days") or {}).get(last)] if s
+             for h in (_hour(s.get("first_in")), _hour(s.get("last_out")))
+             if h is not None]
+    return last if hours and max(hours) < CUT_BEFORE else None
+
+
+def factors(e):
+    """{factor: value or None} for one employee (prepare() keeps it)."""
+    days = _work(e) or _days(e)
+    usual = e.get("usual_in")
+    firsts = [h for h in (_hour(s["first_in"]) for _, s in days)
+              if h is not None]
+    v = {"hours": e.get("hours"), "arrival": usual,
+         "regular": (100.0 * sum(1 for h in firsts if abs(h - usual) <= 0.5)
+                     / len(firsts)) if usual is not None and firsts
+         else None,
+         "present": (100.0 * e["days_in"] / e["of"])
+         if e.get("days_in") and e.get("of") else None,
+         "out": (sum(_out_min(s) for _, s in days) / len(days))
+         if days else None}
+    parts = e.get("desk_parts") or []
+    v["desk"] = parts[0][1] if len(parts) > 0 else None
+    v["focus"] = parts[1][1] if len(parts) > 1 else None
+    a = e.get("act") or {}
+    v["computer"] = a.get("computer")
+    v["phone"] = a.get("phone")
+    v["talking"] = a.get("talking")
+    return v
+
+
+def prepare(emps, cut=None):
+    """Every employee's factors, worked out once (e["f"]), and the day the
+    export cut short (e["_cut"])."""
+    cut = cut_day(emps) if cut is None else cut
+    for e in emps:
+        e["_cut"] = cut
+        e["f"] = factors(e)
+    return emps
+
+
+def _peers(e, emps, key):
+    """(team name, the colleagues measured on this factor): the department,
+    or all of 140-H where too few of it are."""
+    same = [x for x in emps if x["dept"] == e["dept"] and x["eid"] != e["eid"]
+            and x["f"].get(key) is not None]
+    if len(same) + 1 >= TEAM_MIN:
+        return e["dept"], same
+    return "140-H", [x for x in emps if x["eid"] != e["eid"]
+                     and x["f"].get(key) is not None]
+
+
+def compare(e, emps):
+    """Each factor measured for the employee against their team:
+    [{key, value, median, beat (% of the team they do better than), n,
+    team, diff (+ better than the team's usual), real, peers}]."""
+    out = []
+    for key, _, _, better, src in FACTORS:
+        v = e["f"].get(key)
+        if v is None:
+            continue
+        team, peers = _peers(e, emps, key)
+        vals = [x["f"][key] for x in peers]
+        if not vals:
+            continue
+        med = median(vals)
+        worse = sum(1 for x in vals if (x - v) * better < 0)
+        same = sum(1 for x in vals if x == v)
+        out.append({"key": key, "value": v, "median": med,
+                    "beat": 100.0 * (worse + 0.5 * same) / len(vals),
+                    "n": len(vals) + 1, "team": team, "src": src,
+                    "better": better, "diff": (v - med) * better,
+                    "real": abs(v - med) >= MARGIN[key],
+                    "peers": [(x["name"], x["f"][key]) for x in peers]})
+    return out
+
+
+def _fmt(key, v):
+    if v is None:
+        return "&ndash;"
+    if key == "hours":
+        return "%.1f h" % v
+    if key == "arrival":
+        return clock(v)
+    if key == "out":
+        return "%d min" % round(v)
+    return "%d%%" % round(v)
+
+
+def _gap(key, a, b):
+    d = abs(a - b)
+    if key == "hours":
+        return "%.1f h" % d
+    if key == "arrival":
+        return span(d * 60)
+    if key == "out":
+        return "%d min" % round(d)
+    return "%d points" % round(d)
+
+
+def _times(v, m, k, t):
+    """"twice GTM's 6%" or "12 points more than GTM's 6%"."""
+    times = v / m if m > 0 else None
+    if times and times >= 1.8:
+        return "%s %s's %s" % ("twice" if times < 2.5 else
+                               "%.0f times" % times, t, _fmt(k, m))
+    return "%s more than %s's %s" % (_gap(k, v, m), t, _fmt(k, m))
+
+
+def say(c, e):
+    """One comparison in words, good or bad."""
+    k, v, m, t = c["key"], c["value"], c["median"], esc(c["team"])
+    good = c["diff"] > 0
+    cam = ' <span class="cam">camera</span>' if c["src"] == "camera" else ""
+    usual = "%s's usual %s" % (t, _fmt(k, m))
+    if k == "hours":
+        return ("In the building %s a day &mdash; %s %s than %s"
+                % (_fmt(k, v), _gap(k, v, m), "more" if good else "less",
+                   usual))
+    if k == "arrival":
+        return ("%s: usually in at %s, %s %s %s"
+                % ("Comes in early" if good else "Comes in late", clock(v),
+                   span(abs(v - m) * 60), "before" if good else "after",
+                   usual))
+    if k == "regular":
+        return ("%s: within half an hour of their usual on %s of days (%s %s)"
+                % ("Regular" if good else "Irregular arrival", _fmt(k, v), t,
+                   _fmt(k, m)))
+    if k == "present":
+        return ("%s %s of %s working days (%s usually %s)"
+                % ("In on" if good else "Absent more: in on",
+                   e.get("days_in"), e.get("of"), t, _fmt(k, m)))
+    if k == "out":
+        return ("%s %s a day (%s)%s"
+                % ("Rarely out of the building:" if good else
+                   "Out of the building", _fmt(k, v), usual,
+                   "" if good else " &mdash; long breaks or errands"))
+    if k == "desk":
+        return ("%s %s of the office day (%s)%s"
+                % ("At the desk" if good else "Often away from the desk: at"
+                   " it", _fmt(k, v), usual, cam))
+    if k == "focus":
+        return ("%s %s of desk time in stretches of an hour or more (%s)%s"
+                % ("Long focus:" if good else "Short bursts: only",
+                   _fmt(k, v), usual, cam))
+    if k == "computer":
+        return ("%s %s of desk time (%s)%s"
+                % ("On the computer" if good else "Less on the computer:",
+                   _fmt(k, v), usual, cam))
+    if k == "phone":
+        if good:
+            return ("Rarely on the phone: %s of desk time (%s)%s"
+                    % (_fmt(k, v), usual, cam))
+        return ("On the phone %s of desk time &mdash; %s%s"
+                % (_fmt(k, v), _times(v, m, k, t), cam))
+    if k == "talking":
+        return ("Talks at the desk a lot: %s of desk time &mdash; %s; may "
+                "be work, worth a look%s" % (_fmt(k, v), _times(v, m, k, t),
+                                             cam))
+    return ""
+
+
+def _strong_ok(c):
+    if c["key"] == "talking":
+        return False         # quiet is no merit: talk is often the work
+    if c["key"] == "hours" and c["value"] > LONG_DAY_H:
+        return False         # long days are a wellbeing sign, never credit
+    return True
+
+
+def _weak_ok(c):
+    if c["key"] == "talking":
+        return c["value"] >= max(10.0, 2.0 * c["median"])
+    if c["key"] == "out":
+        return c["value"] >= max(45.0, 2.0 * c["median"])
+    return True
+
+
+def points(e, comps, most=3):
+    """(strong, weak): up to `most` comparisons each, the clearest first --
+    a real difference, in the team's best or worst third."""
+    strong = sorted([c for c in comps if c["real"] and c["diff"] > 0
+                     and c["beat"] >= 66 and _strong_ok(c)],
+                    key=lambda c: -c["beat"])
+    weak = sorted([c for c in comps if c["real"] and c["diff"] < 0
+                   and c["beat"] <= 34 and _weak_ok(c)],
+                  key=lambda c: c["beat"])
+    return strong[:most], weak[:most]
+
+
+def why(e, comps, emps):
+    """One sentence: how far they are from their department's average
+    productivity, and which factors put them there (each factor's share
+    of the score, against the team's usual on it)."""
+    p = e.get("productivity")
+    mates = [x["productivity"] for x in emps if x["dept"] == e["dept"]
+             and x["productivity"] is not None]
+    if p is None or not mates:
+        return ""
+    avg = sum(mates) / float(len(mates))
+    gap = p - avg
+    parts = {"attendance": e.get("attendance"), "desk": e.get("desk"),
+             "activity": e.get("activity")}
+    total = sum(PART_W[k] for k, v in parts.items() if v is not None) or 1.0
+    pushes = []
+    for c in comps:
+        how = IN_SCORE.get(c["key"])
+        if not how or parts.get(how[0]) is None:
+            continue
+        part, w, s = how
+        pts = PART_W[part] / total * w * (s(c["value"]) - s(c["median"]))
+        pushes.append((pts, c["key"]))
+    team = esc(e["dept"])
+    if abs(gap) < 3:
+        head = "Close to %s's average (%d)" % (team, round(avg))
+    else:
+        head = "<b>%d points %s</b> %s's average (%d)" % (
+            round(abs(gap)), "above" if gap > 0 else "below", team,
+            round(avg))
+    lead = [k for pts, k in sorted(pushes, key=lambda t: -t[0] if gap >= 0
+                                   else t[0])
+            if (pts > 0.5 if gap >= 0 else pts < -0.5)][:2]
+    if not lead:
+        return head + "."
+    names = " and ".join(LABEL[k].lower() for k in lead)
+    return "%s, mostly from %s." % (head, names)
+
+
+def signals(e):
+    """Early signs, as people analytics watches them -- each against the
+    person's own usual (HBR, IBM): burn-out (long days), leaving (hours
+    falling, coming later, going earlier, days missed); else a steady
+    pattern. [(level, text)] -- level "warn" or "good"."""
+    if not e.get("days_in"):
+        return [("warn", "Not enough days yet: seen only on the export's "
+                 "last day, cut short")] if _days(e) else []
+    days = _work(e)
+    out = []
+    closed = [(d, s) for d, s in days if s.get("closed", True)
+              and s.get("inside_min")]
+    long_ = {d for d, s in closed if s["inside_min"] >= LONG_DAY_H * 60} | {
+        d for d, s in days if _hour(s.get("last_out")) is not None
+        and _hour(s.get("last_out")) >= LATE_OUT_H}
+    if len(long_) >= 3:
+        out.append(("warn", "Long days: %d of %d over 10&frac12; hours or out "
+                    "after %s &mdash; a burn-out risk" % (
+                        len(long_), len(days), clock(LATE_OUT_H))))
+    hrs = [s["inside_min"] / 60.0 for _, s in closed]
+    if len(hrs) >= 6:
+        recent, before = sum(hrs[-3:]) / 3.0, sum(hrs[:-3]) / len(hrs[:-3])
+        if before - recent >= 1.0:
+            out.append(("warn", "Hours falling: %.1f h a day lately, %.1f h "
+                        "before &mdash; worth a talk" % (recent, before)))
+    firsts = [_hour(s["first_in"]) for _, s in days]
+    if len(firsts) >= 6:
+        a, b = median(firsts[:-3]), median(firsts[-3:])
+        if b - a >= 0.5:
+            out.append(("warn", "Coming in later lately: %s against %s "
+                        "before" % (clock(b), clock(a))))
+    lasts = [_hour(s["last_out"]) for _, s in closed]
+    if len(lasts) >= 6:
+        a, b = median(lasts[:-3]), median(lasts[-3:])
+        if a - b >= 0.5:
+            out.append(("warn", "Leaving earlier lately: %s against %s "
+                        "before" % (clock(b), clock(a))))
+    if e.get("of") and e["of"] - e["days_in"] >= max(
+            2, math.ceil(MISSED_SHARE * e["of"])):
+        out.append(("warn", "Missed %d of %d working days" % (
+            e["of"] - e["days_in"], e["of"])))
+    if not out and days:
+        out.append(("good", "Steady: no warning sign in their pattern"))
+    return out
+
+
+def today(e, now, hours=(10.0, 20.0), last_day=None):
+    """Productivity today so far, from what is in for today: the machines
+    (a day closed by an OUT punch) and the desk camera (live). {score,
+    facts: [(label, value)], note} -- score None when nothing is known."""
+    if now is None:
+        return {"score": None, "facts": [], "note": ""}
+    day = now.strftime("%Y-%m-%d")
+    facts, att, desk, act = [], None, None, None
+    s = (e.get("days") or {}).get(day)
+    if s and s.get("first_in") is not None:
+        f = _hour(s["first_in"])
+        facts.append(("In", clock(f)))
+        usual = e.get("usual_in")
+        regular = 1.0 if usual is None or abs(f - usual) <= 0.5 else 0.0
+        if s.get("closed") and s.get("last_out") is not None:
+            facts.append(("Out", clock(_hour(s["last_out"]))))
+            facts.append(("In the building", "%.1f h" % (s["inside_min"]
+                                                          / 60.0)))
+            att = 100.0 * (0.5 * min(1.0, s["inside_min"] / 600.0)
+                           + 0.3 * regular + 0.2)
+        else:
+            facts.append(("Out", "not yet"))
+    p = e.get("board") or {}
+    d = next((x for x in p.get("days") or [] if x.get("day") == day), None)
+    if d and d.get("first") is not None:
+        start, end = hours
+        clock_now = now.hour + now.minute / 60.0
+        elapsed = max(0.0, (min(clock_now, end) - start) * 60.0)
+        dm = float(d.get("desk_min") or 0.0)
+        at = min(1.0, dm / elapsed) if elapsed > 0 else 0.0
+        lp = min(1.0, float(d.get("long_min") or 0.0) / dm) if dm else 0.0
+        fh = _hour(d["first"])
+        late = max(0.0, (fh - start) * 60.0 - pv.LATE_AFTER)
+        on_time = max(0.0, 100.0 - 10.0 * math.ceil(late / 15.0)) \
+            if late else 100.0
+        desk = 0.5 * 100.0 * at + 0.3 * 100.0 * lp + 0.2 * on_time
+        facts.append(("At the desk from", clock(fh)))
+        facts.append(("At the desk so far", pv.dur(dm)))
+        h = next((r for r in p.get("history") or [] if r.get("day") == day),
+                 None)
+        if h and h.get("computer_min") and h.get("desk_min"):
+            dk = float(h["desk_min"])
+            c = min(1.0, float(h["computer_min"]) / dk)
+            t = min(1.0, (float(h.get("phone_min") or 0)
+                          + float(h.get("talking_min") or 0)) / dk)
+            act = 100.0 * (0.7 * c + 0.3 * (1.0 - t))
+    score = prv.productivity(att, desk, act)
+    note = ""
+    if score is None:
+        note = ("No score for today yet: %s%s." % (
+            "the attendance machines' export ends %s" % esc(last_day)
+            if last_day and last_day < day else
+            "the day is not closed by an OUT punch yet",
+            "" if e.get("board") else
+            ", and no camera sees their own desk"))
+    return {"score": score, "facts": facts, "note": note}
+
+
+# ------------------------------------------------------------------ cards
+
+_CSS = """<style>
+.pr .pe{padding:12px 14px;border-radius:14px;margin-bottom:6px}
+.pr .pe .who{display:flex;gap:10px;align-items:center;min-height:48px}
+.pr .pe .who img,.pr .pe .who .nop{width:42px;height:42px;border-radius:50%;
+object-fit:cover;flex:none;background:var(--s2)}
+.pr .pe .who b{display:block;font-size:13.5px;line-height:1.25;
+display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+overflow:hidden}
+.pr .pe .who span{display:block;font-size:11.5px;color:var(--t3);
+white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.pr .pe .sc{display:flex;align-items:baseline;gap:6px;margin-top:8px}
+.pr .pe .sc b{font-size:28px;line-height:1;color:var(--accent);
+letter-spacing:-.02em}
+.pr .pe .sc span{font-size:11.5px;color:var(--t3)}
+.pr .pe .sc em{margin-left:auto;font-style:normal;font-size:11.5px;
+color:var(--t2)}
+.pr .pe .bar{position:relative;height:6px;border-radius:4px;
+background:var(--s2);margin:7px 0 8px}
+.pr .pe .bar i{display:block;height:100%;border-radius:4px;
+background:var(--accent)}
+.pr .pe .bar s{position:absolute;top:-3px;width:2px;height:12px;
+background:var(--t1);border-radius:1px}
+.pr .pe .ft{font-size:12px;color:var(--t2)}
+.pr .rc-head{display:flex;gap:16px;align-items:center;flex-wrap:wrap;
+padding:14px 18px;margin-bottom:10px}
+.pr .rc-head img,.pr .rc-head .nop{width:76px;height:76px;border-radius:50%;
+object-fit:cover;background:var(--s2)}
+.pr .rc-head h3{margin:0;font-size:21px}
+.pr .rc-head p{margin:2px 0 0;font-size:13px;color:var(--t2)}
+.pr .rc-head p.m{color:var(--t3);font-size:12px}
+.pr .rc-big{margin-left:auto;display:flex;gap:22px;align-items:flex-end}
+.pr .rc-big div{text-align:center}
+.pr .rc-big b{display:block;font-size:44px;line-height:1;color:var(--accent);
+letter-spacing:-.02em}
+.pr .rc-big b.td{font-size:30px;color:var(--t1)}
+.pr .rc-big span{font-size:11.5px;color:var(--t3)}
+.pr .rc-why{font-size:14px;margin:2px 0 10px;color:var(--t1)}
+.pr .rc-why b{color:var(--accent)}
+.pr .rc-pts{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
+gap:12px;margin-bottom:10px}
+.pr .rc-pts .ec-card{padding:12px 16px}
+.pr .rc-pts h4{margin:0 0 6px;font-size:13.5px;display:flex;gap:6px;
+align-items:center}
+.pr .rc-pts h4 .ic{width:15px;height:15px}
+.pr .rc-pts ul{margin:0;padding-left:18px;font-size:13px;line-height:1.55}
+.pr .rc-pts li{margin:3px 0}
+.pr .rc-pts .none{font-size:12.5px;color:var(--t3);margin:0}
+.pr .cam{font-size:10.5px;color:var(--t3);border:1px solid var(--line);
+border-radius:99px;padding:0 6px;margin-left:4px;white-space:nowrap}
+.pr .rc-sig{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}
+.pr .rc-sig span{display:inline-flex;gap:6px;align-items:center;font-size:12.5px;
+border:1px solid var(--line);border-radius:99px;padding:4px 12px;
+background:var(--s1)}
+.pr .rc-sig .ic{width:14px;height:14px}
+.pr .rc-box{padding:12px 16px;margin-bottom:10px}
+.pr .rc-box h4{margin:0;font-size:14px}
+.pr .rc-two{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
+gap:12px;margin-bottom:10px}
+.pr .rc-two .ec-card{padding:12px 16px}
+.pr .rc-lg{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;
+color:var(--t2);margin:2px 0 6px}
+.pr .rc-lg i{display:inline-block;width:9px;height:9px;border-radius:50%;
+margin-right:5px;vertical-align:0}
+.pr .rc-lg i.sq{border-radius:2px}
+.pr .rc-lg i.tk{width:2px;height:11px;border-radius:1px;vertical-align:-1px}
+.pr .rc-today{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;
+margin:8px 0 4px}
+.pr .rc-today span{color:var(--t3);font-size:11.5px;display:block}
+.pr .rc-today b{font-size:15px}
+.pr .rc-strip .row,.pr .rc-strip .hd{display:grid;
+grid-template-columns:170px minmax(0,1fr) 150px;gap:14px;align-items:center}
+.pr .rc-strip .row{padding:7px 0;border-top:1px solid var(--line)}
+.pr .rc-strip .hd span{font-size:10.5px;color:var(--t3);text-align:right}
+.pr .rc-strip .lab b,.pr .rc-strip .val b{display:block;font-size:13px}
+.pr .rc-strip .lab span,.pr .rc-strip .val span{display:block;
+font-size:11px;color:var(--t3);line-height:1.3}
+.pr .rc-strip .trk{position:relative;height:20px}
+.pr .rc-strip .trk:before{content:"";position:absolute;left:0;right:0;
+top:50%;height:1px;background:var(--line2)}
+.pr .rc-strip .trk i{position:absolute;top:50%;width:8px;height:8px;
+margin:-4px 0 0 -4px;border-radius:50%;background:var(--t3);opacity:.45}
+.pr .rc-strip .trk s{position:absolute;top:50%;width:2px;height:18px;
+margin:-9px 0 0 -1px;border-radius:1px;background:var(--t1)}
+.pr .rc-strip .trk u{position:absolute;top:50%;width:14px;height:14px;
+margin:-7px 0 0 -7px;border-radius:50%;background:var(--accent);
+box-shadow:0 0 0 2px var(--s1)}
+.pr .rc-days .row{display:grid;grid-template-columns:86px minmax(0,1fr) 64px;
+gap:10px;align-items:center;height:24px}
+.pr .rc-days .lab{font-size:12px;color:var(--t2);white-space:nowrap}
+.pr .rc-days .hrs{font-size:12px;text-align:right;
+font-variant-numeric:tabular-nums}
+.pr .rc-days .trk{position:relative;height:100%}
+.pr .rc-days .trk s{position:absolute;top:0;bottom:0;width:1px;
+background:var(--line)}
+.pr .rc-days .trk u{position:absolute;top:0;bottom:0;background:var(--s2)}
+.pr .rc-days .trk i{position:absolute;top:6px;height:12px;border-radius:4px;
+background:var(--accent)}
+.pr .rc-days .trk b{position:absolute;top:7px;width:10px;height:10px;
+margin-left:-5px;border-radius:50%;background:var(--accent)}
+.pr .rc-days .ax{height:20px}
+.pr .rc-days .ax em{position:absolute;top:3px;transform:translateX(-50%);
+font-size:11px;font-style:normal;color:var(--t3)}
+@media (max-width:640px){
+.pr .rc-strip .row{grid-template-columns:minmax(0,1fr) auto;row-gap:4px}
+.pr .rc-strip .row .trk{grid-column:1/-1;order:3}
+.pr .rc-strip .hd{display:none}
+.pr .rc-days .row{grid-template-columns:64px minmax(0,1fr) 46px;gap:6px}
+.pr .rc-days .lab{font-size:11px}
+.pr .rc-days .ax em:nth-child(even){display:none}
+.pr .rc-big{margin-left:0}
+}
+</style>"""
+
+
+def styles(mode):
+    return prv._styles(mode, prv._PF_CSS, _CSS)
+
+
+def dept_avg(es):
+    vals = [e["productivity"] for e in es if e["productivity"] is not None]
+    return sum(vals) / float(len(vals)) if vals else None
+
+
+def emp_card(e, avg):
+    """An employee's card in their department's list: photo, name, role,
+    their productivity with the department's beside it (a tick on the
+    bar), the hours they usually spend and their usual in and out."""
+    p = e.get("productivity")
+    return ('<div class="ec pr"><div class="ec-card pe"><div class="who">%s'
+            '<div style="min-width:0"><b>%s</b><span>%s</span></div></div>'
+            '<div class="sc"><b>%s</b><span>productivity</span><em>dept %s'
+            '</em></div><div class="bar" role="img" aria-label="%s of 100, '
+            'department %s"><i style="width:%d%%"></i>%s</div>'
+            '<div class="ft">%s a day &middot; in %s &middot; out %s</div>'
+            '</div></div>'
+            % (prv._photo(e), esc(e["name"]), esc(e["role"] or e["dept"]),
+               "%d" % p if p is not None else "-",
+               "%d" % round(avg) if avg is not None else "-",
+               p if p is not None else "-",
+               "%d" % round(avg) if avg is not None else "-", p or 0,
+               '<s style="left:calc(%.1f%% - 1px)"></s>' % avg
+               if avg is not None else "",
+               "%.1f h" % e["hours"] if e.get("hours") is not None
+               else "&ndash; h", clock(e.get("usual_in")),
+               clock(e.get("usual_out"))))
+
+
+def dept_head(mode, name, es, emps):
+    """The department opened: its figures, above its people's cards."""
+    return prv.dept_head_html(mode, name, es, emps).replace(
+        "click a person for their profile", "open a card for the report card")
+
+
+# ----------------------------------------------------------------- charts
+
+def strip_html(comps, e):
+    """Each factor a row: the team as grey dots on the factor's own scale
+    -- better to the right -- their usual as a tick, the employee as the
+    blue dot; the value and the team's usual written beside it. A dot
+    hovered says whose and how much. HTML, not one picture, so the words
+    keep their size on a phone (the track goes under the name there)."""
+    if not comps:
+        return ""
+    out = ['<div class="rc-strip" role="list"><div class="hd"><span></span>'
+           '<span>better &rarr;</span><span></span></div>']
+    for c in comps:
+        k, b = c["key"], c["better"]
+        vals = [v for _, v in c["peers"]] + [c["value"]]
+        lo, hi = min(vals), max(vals)
+        if hi - lo < 1e-6:
+            lo, hi = lo - 1.0, hi + 1.0
+
+        def x(v, lo=lo, hi=hi, b=b):
+            f = (v - lo) / (hi - lo)
+            return 2.0 + 96.0 * (f if b > 0 else 1.0 - f)
+        dots = "".join('<i style="left:%.1f%%" title="%s: %s"></i>'
+                       % (x(v), esc(name), _fmt(k, v)) for name, v in c["peers"])
+        out.append(
+            '<div class="row" role="listitem"><div class="lab"><b>%s</b>'
+            '<span>%s%s</span></div><div class="trk" aria-hidden="true">%s'
+            '<s style="left:%.1f%%" title="%s usual: %s"></s><u style="left:'
+            '%.1f%%" title="%s: %s"></u></div><div class="val"><b>%s</b><span>'
+            '%s %s &middot; of %d</span></div></div>'
+            % (esc(LABEL[k]), esc(WHAT[k]),
+               " &middot; camera" if c["src"] == "camera" else "", dots,
+               x(c["median"]), esc(c["team"]), _fmt(k, c["median"]),
+               x(c["value"]), esc(e["name"]), _fmt(k, c["value"]),
+               _fmt(k, c["value"]), esc(c["team"][:18]),
+               _fmt(k, c["median"]), c["n"]))
+    out.append("</div>")
+    return "".join(out)
+
+
+def days_html(e, team_in=None, team_out=None, limit=10):
+    """Their days, newest at the top: a bar from the first IN to the last
+    OUT on the clock (07-23; a punch outside sits at the edge), gaps where
+    they were out of the building, the team's usual hours shaded behind,
+    the hours at the right. HTML rows, so it reads on a phone too."""
+    days = _days(e)[-limit:][::-1]
+    if not days:
+        return ""
+    lo_h, hi_h = 7.0, 23.0
+
+    def x(hr):
+        hr = min(max(hr, lo_h), hi_h)
+        return 100.0 * (hr - lo_h) / (hi_h - lo_h)
+    ticks = range(int(lo_h) + 1, int(hi_h) + 1, 2)
+    grid = "".join('<s style="left:%.2f%%"></s>' % x(t) for t in ticks)
+    band = ('<u style="left:%.2f%%;width:%.2f%%" title="%s usual: %s to %s">'
+            '</u>' % (x(team_in), x(team_out) - x(team_in), esc(e["dept"]),
+                      clock(team_in), clock(team_out))) \
+        if team_in is not None and team_out is not None \
+        and team_out > team_in else ""
+    out = ['<div class="rc-days">']
+    cut = e.get("_cut")
+    for day, s in days:
+        try:
+            label = datetime.strptime(day, "%Y-%m-%d").strftime("%a %d %b")
+        except ValueError:
+            label = day
+        start = pd.Timestamp(s["first_in"])
+        segs = []
+        for o in sorted(s.get("outings") or [], key=lambda o: str(o[0])):
+            try:
+                a, b = pd.Timestamp(o[0]), pd.Timestamp(o[1])
+            except (TypeError, ValueError, IndexError):
+                continue
+            if a > start:
+                segs.append((start, a))
+            start = b
+        last = s.get("last_out")
+        last = pd.Timestamp(last) if last is not None else None
+        if last is not None and last > start:
+            segs.append((start, last))
+        bars = "".join(
+            '<i style="left:%.2f%%;width:%.2f%%" title="%s: in %s, out %s">'
+            '</i>' % (x(_hour(a)), max(0.8, x(_hour(b)) - x(_hour(a)) - 0.3),
+                      esc(label), clock(_hour(a)), clock(_hour(b)))
+            for a, b in segs)
+        if last is None or last <= start:
+            bars += ('<b style="left:%.2f%%" title="%s: in %s, no OUT punch">'
+                     '</b>' % (x(_hour(start)), esc(label),
+                               clock(_hour(start))))
+        hrs = (s["inside_min"] / 60.0) if s.get("closed", True) \
+            and s.get("inside_min") else None
+        out.append('<div class="row"><span class="lab">%s</span><div class='
+                   '"trk">%s%s%s</div><span class="hrs">%s</span></div>'
+                   % (esc(label), grid, band, bars,
+                      "%.1f h" % hrs if hrs is not None else
+                      ("partial" if day == cut else "no OUT")))
+    out.append('<div class="row ax"><span></span><div class="trk">%s</div>'
+               '<span></span></div></div>' % "".join(
+                   '<em style="left:%.2f%%">%02d:00</em>' % (x(t), t)
+                   for t in ticks))
+    return "".join(out)
+
+
+def mates_html(e, emps, top=12):
+    """The department's productivity, highest first, theirs marked -- the
+    first `top` and theirs."""
+    mates = sorted([x for x in emps if x["dept"] == e["dept"]
+                    and x["productivity"] is not None],
+                   key=lambda x: -x["productivity"])
+    best = float(max([x["productivity"] for x in mates] or [1]))
+    rows = []
+    for i, x in enumerate(mates, 1):
+        me = x["eid"] == e["eid"]
+        if i > top and not me:
+            continue
+        rows.append('<div class="pf-bar%s"><span class="n">%d</span><span '
+                    'class="w">%s</span><span class="b"><i style="width:%.1f%%">'
+                    '</i></span><span class="v">%d</span></div>'
+                    % (" me" if me else "", i, esc(x["name"]),
+                       100.0 * x["productivity"] / best if best else 0,
+                       x["productivity"]))
+    return "".join(rows)
+
+
+# ------------------------------------------------------------ the report
+
+def report_html(mode, e, emps, now=None, hours=(10.0, 20.0), last_day=None):
+    """One employee's report card: who; productivity on average and today
+    so far, their rank; why they stand where they do; their usual against
+    the team; strong and weak points; early signs; the team, factor by
+    factor; their days; today; their colleagues."""
+    import overview
+    comps = compare(e, emps)
+    strong, weak = points(e, comps)
+    sig = signals(e)
+    td = today(e, now, hours, last_day)
+    mates = [x for x in emps if x["dept"] == e["dept"]]
+    ranked = sorted([x for x in mates if x["productivity"] is not None],
+                    key=lambda x: -x["productivity"])
+    rank = next((i for i, x in enumerate(ranked, 1) if x["eid"] == e["eid"]),
+                None)
+
+    def team_median(key):
+        vals = [x[key] for x in mates if x.get(key) is not None]
+        return median(vals) if vals else None
+    t_in, t_out, t_h = (team_median("usual_in"), team_median("usual_out"),
+                        team_median("hours"))
+    n_days = len(_work(e))
+    measured = "attendance machines, %d working day%s" % (
+        n_days, "" if n_days == 1 else "s")
+    if e.get("desk") is not None:
+        measured += " &middot; desk camera, %d day%s" % (
+            e.get("desk_days") or 0, "" if e.get("desk_days") == 1 else "s")
+
+    def tile(k, v, s):
+        return ('<div class="ec-card ec-kpi"><div class="k">%s</div><div '
+                'class="v">%s</div><div class="s">%s</div></div>' % (k, v, s))
+    f = e.get("f") or {}
+    fourth = tile("At the desk", _fmt("desk", f.get("desk")),
+                  "of the office day &middot; camera") \
+        if f.get("desk") is not None else \
+        tile("Days present", "%s/%s" % (e.get("days_in") or 0,
+                                       e.get("of") or "-"),
+             "working days")
+
+    def bullets(cs, empty):
+        if not cs:
+            return '<p class="none">%s</p>' % empty
+        return "<ul>%s</ul>" % "".join("<li>%s</li>" % say(c, e) for c in cs)
+    p = e.get("productivity")
+    first = esc(e["name"].split(" ")[0])
+    return "".join([
+        styles(mode), '<div class="ec pr">',
+        '<div class="ec-card rc-head">%s<div><h3>%s</h3><p>%s</p><p class="m">'
+        '%s &middot; %s &middot; ID %s</p><p class="m">Measured by: %s</p>'
+        '</div><div class="rc-big"><div><b>%s</b><span>productivity, average'
+        '</span></div><div><b class="td">%s</b><span>today so far</span></div>'
+        '<div><b class="td">%s</b><span>in %s (%d)</span></div></div></div>'
+        % (prv._photo(e), esc(e["name"]), esc(e["role"]), esc(e["dept"]),
+           esc(e["bu"]), esc(str(e["id"])), measured,
+           "%d" % p if p is not None else "-",
+           "%d" % td["score"] if td["score"] is not None else "&ndash;",
+           prv._ord(rank) if rank else "-", esc(e["dept"]), len(ranked)),
+        '<div class="rc-why">%s</div>' % why(e, comps, emps),
+        '<div class="pr-kpis k4">%s%s%s%s</div>' % (
+            tile("Usual arrival", clock(e.get("usual_in")),
+                 "team %s" % clock(t_in)),
+            tile("Usual leaving", clock(e.get("usual_out")),
+                 "team %s" % clock(t_out)),
+            tile("In the building", "%.1f h" % e["hours"]
+                 if e.get("hours") is not None else "&ndash;",
+                 "a day &middot; team %s" % ("%.1f h" % t_h
+                                              if t_h is not None
+                                              else "&ndash;")),
+            fourth),
+        '<div class="rc-pts"><div class="ec-card"><h4>%sStrong points</h4>%s'
+        '</div><div class="ec-card"><h4>%sWeak points</h4>%s</div></div>'
+        % (overview.TICK, bullets(strong, "Nothing clearly above the team "
+                                  "yet."),
+           overview.WARN, bullets(weak, "Nothing clearly below the team.")),
+        '<div class="rc-sig">%s</div>' % "".join(
+            '<span>%s%s</span>' % (overview.TICK if lv == "good"
+                                   else overview.WARN, txt)
+            for lv, txt in sig),
+        '<div class="ec-card rc-box"><h4>Against the team, factor by factor'
+        '</h4><div class="rc-lg"><span><i style="background:var(--accent)">'
+        '</i>%s</span><span><i style="background:var(--t3);opacity:.45"></i>'
+        'colleagues (hover a dot for who)</span><span><i class="tk" style="'
+        'background:var(--t1)"></i>the team\'s usual</span></div>%s</div>'
+        % (first, strip_html(comps, e)),
+        '<div class="ec-card rc-box"><h4>Their days by the attendance machines'
+        '</h4><div class="rc-lg"><span><i class="sq" style="background:'
+        'var(--accent)"></i>in the building (gaps: out and back)</span><span>'
+        '<i class="sq" style="background:var(--s2)"></i>%s\'s usual hours'
+        '</span></div>%s</div>'
+        % (esc(e["dept"]), days_html(e, t_in, t_out) or
+           '<p class="pr-note">No punch at 140-H in the export.</p>'),
+        '<div class="rc-two"><div class="ec-card"><h4 style="margin:0">Today '
+        'so far</h4><div class="rc-today">%s</div>%s</div>'
+        '<div class="ec-card"><h4 style="margin:0">With colleagues in %s</h4>'
+        '<div class="pr-sub">productivity, highest first &mdash; theirs marked'
+        '</div><div class="pf-bars">%s</div></div></div>'
+        % ("".join('<div><span>%s</span><b>%s</b></div>' % (k, v)
+                   for k, v in td["facts"]),
+           '<div class="pr-note" style="margin-top:6px">%s</div>' % td["note"]
+           if td["note"] else "", esc(e["dept"]), mates_html(e, emps)),
+        '<div class="pr-note">%s</div>' % SOURCES,
+        '</div>'])
