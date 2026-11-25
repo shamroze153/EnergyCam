@@ -32,13 +32,13 @@ kept frames: every running frame read running, no shut one did; the two
 frames where the camera looked elsewhere (23 Nov 21:50, 24 Nov 20:26) are
 refused by the view check, and so is the dark room at night (unknown).
 
-25 Nov, 09:00 (Shamroze: the 141-C cafe's AC showed on at 01:30, the boys
+25 Nov, 08:30 (Shamroze: the 141-C cafe's AC showed on at 01:30, the boys
 said it was off): tower 6 (ch 2, by the coffee machine) had read running
 every frame of 24 Nov -- its box had come to take in the tower's top edge
 and the black panel behind. A box inside the louvre only, read as dark AND
 contrasty: replayed over all 236 kept frames, every eye-checked run read
 running (39), no running in a shut period (190), a head in front of the
-tower included. Nights before 25 Nov 09:00 keep their wrong "on".
+tower included. Nights before 25 Nov 08:29 keep their wrong "on".
 
 20 Nov, 16:35: Marketing's M2 by the small white light on its front, from
 its own midday switch (on 12:25, off 12:38 for Friday prayers, on 14:11)

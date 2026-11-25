@@ -421,7 +421,7 @@ rooms:
               off_std: 15.0          # the highest shut seen (infrared)
               on_peak: 232
               off_peak: 234
-              taken: 2026-11-25T09:00+0500
+              taken: 2026-11-25T08:25+0500
               # Measured again on 25 Nov in the new box over every kept
               # frame (the 13 Nov pair, 37.3 / 23.6, was the old box's).
 

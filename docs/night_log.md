@@ -1554,7 +1554,7 @@ Two or three lines a round; picture file names, never pictures.
   the dark room at night). 140-H: 13 of 58 units read. The Basement's
   others still wait for ch 23's mount. Naming pictures made for ten rooms
   from 24 Nov's recording (81 desks), for Shamroze one room at a time.
-* 09:05, 25 Nov Shamroze: the 141-C cafe's AC showed on at 01:30 while
+* 08:30, 25 Nov Shamroze: the 141-C cafe's AC showed on at 01:30 while
   the boys said off. Tower 6 (ch 2) had read running round the clock --
   its box had drifted onto the tower's edge and the panel behind. New box,
   dark AND contrasty; replay clean (docs/ac_camera_audit.md). And P13
