@@ -1574,3 +1574,7 @@ Two or three lines a round; picture file names, never pictures.
   who had left, the loop a pass behind, not an object. Nothing changed.
   Desks named this morning by face (desk, gate, directory, confirmed by
   Shamroze one by one): now 15 named desks, 21 on the board.
+* 12:40, 25 Nov Round: field_audit 12:25 -- MISSED 0, GHOST 4 (140-H After
+  Entrance, 141-D MR02, H Backside Street, H Smoking Area), each a first
+  in the last six audits and three of them places people pass through:
+  the loop a pass behind. FAINT 2, DRIFT 9 (lunch hour). Nothing changed.
