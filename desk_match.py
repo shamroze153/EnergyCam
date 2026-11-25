@@ -23,6 +23,13 @@ every named desk, takes back the names the machines alone gave whose check
 fails, and names the strong new pairs whose check passes. Names are the
 roster's; everything it writes is under people/ (this laptop only).
 
+Two pairs it never makes (25 Nov, round 2's review): one refused once --
+a "no" on a review PDF (people/desk_names_rejected.csv) or a name the
+check took back -- and a desk whose best person over everybody already
+has a desk. That desk is a second view of theirs (one desk seen by two
+cameras, or one seat found twice), or the seat of somebody who comes and
+goes with them; giving it to the next person was wrong every time.
+
     python desk_match.py            -> the check of every named desk
     python desk_match.py --nightly  -> check, take back, name new
 """
@@ -50,6 +57,7 @@ VERIFIED, DOUBT = 0.85, 0.60   # share of desk time inside the windows
 MIN_DESK_MIN = 120              # desk minutes over the days, to judge
 CHECKS = os.path.join("people", "desk_checks.csv")
 DROPPED = os.path.join("people", "desk_names_dropped.csv")
+REJECTED = os.path.join("people", "desk_names_rejected.csv")  # review: no
 
 
 def punches(campus=attendance.CAMPUS, data=None):
@@ -147,6 +155,43 @@ def pair(z, line=STRONG):
         if c in used:
             continue
         used.add(c)
+        out.append((eid, c, zz, nxt, h, n))
+    return out
+
+
+def refused(paths=None):
+    """{(desk code, employee code)} never to be paired again: a "no" on a
+    review (REJECTED, with a header) and the names the nightly check took
+    back (DROPPED, without one)."""
+    out = set()
+    for path in paths or (REJECTED, DROPPED):
+        if not os.path.exists(path):
+            continue
+        with open(path, newline="", encoding="utf-8") as fh:
+            for row in csv.reader(fh):
+                if len(row) >= 2 and row[0] != "code" and row[1]:
+                    out.add((row[0], attendance.code(row[1])))
+    return out
+
+
+def new_names(z_free, z_all, taken, no=frozenset(), line=LOOSE):
+    """pair() over the free people and desks, less a pair refused once
+    (`no`) and a desk whose best person over everybody (`z_all`) is one
+    who already has a desk (`taken`) -- a second view of their desk, or
+    the next seat of somebody who comes and goes with them."""
+    best = {}
+    for eid, ds in z_all.items():
+        for c, (zz, _, _) in ds.items():
+            if c not in best or zz > best[c][0]:
+                best[c] = (zz, eid)
+    out = []
+    for eid, c, zz, nxt, h, n in pair(z_free, line):
+        if (c, attendance.code(eid)) in no:
+            continue
+        top = best.get(c)
+        mine = (z_all.get(eid) or {}).get(c, (zz,))[0]
+        if top and top[1] != eid and top[1] in taken and top[0] > mine:
+            continue
         out.append((eid, c, zz, nxt, h, n))
     return out
 
@@ -273,7 +318,9 @@ def nightly(cfg=None, roster=None, line=LOOSE):
         roster = {attendance.code(r["employee_id"]): r
                   for r in desks_data.load_roster()}
     named_now = []
-    for eid, c, zz, nxt, h, n in pair(scores(fpu, by_day), line):
+    for eid, c, zz, nxt, h, n in new_names(scores(fpu, by_day),
+                                           scores(pu, by_day), taken,
+                                           refused(), line):
         r = roster.get(eid)
         if not r:
             continue                      # not in the directory

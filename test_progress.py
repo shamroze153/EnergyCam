@@ -2229,6 +2229,29 @@ def check_attendance():
           "c": {"d4": (9.0, 4, 6)}}
     check("pairs: the strongest first, one desk each, clear of the next",
           [(e, d_) for e, d_, *_ in dm.pair(zs)], [("a", "d1")])
+    # A pair refused once is never made again; a desk whose best person
+    # already has a desk is theirs (a second view), never the next one's.
+    zf_ = {"a": {"d1": (9.0, 12, 20)}, "b": {"d2": (9.0, 12, 20)},
+           "c": {"d3": (9.0, 12, 20)}}
+    za_ = dict(zf_, t={"d2": (11.0, 15, 20)})
+    check("new names: not the refused pair, not a named person's second view",
+          [(e, d_) for e, d_, *_ in dm.new_names(
+              zf_, za_, taken={"t"}, no={("d1", "a")}, line=dm.STRONG)],
+          [("c", "d3")])
+    tmp_r = tempfile.mkdtemp()
+    try:
+        rej_ = os.path.join(tmp_r, "rejected.csv")
+        drop_ = os.path.join(tmp_r, "dropped.csv")
+        with open(rej_, "w", encoding="utf-8") as fh:
+            fh.write("code,employee_id,why,at\n"
+                     "dvr9.1-3,090042,wrong,2026-11-25 15:55:00\n")
+        with open(drop_, "w", encoding="utf-8") as fh:
+            fh.write("dvr9.1-4,90043,0.41\n")
+        check("  refused: a review's no and a name taken back",
+              dm.refused([rej_, drop_]),
+              {("dvr9.1-3", "90042"), ("dvr9.1-4", "90043")})
+    finally:
+        shutil.rmtree(tmp_r)
     check("the words on the card",
           pv.machine_check_words({"share": 0.96, "verdict": "verified"}),
           "checked by the attendance machines: 96% of the desk's time while "
