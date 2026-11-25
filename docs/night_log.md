@@ -1578,3 +1578,12 @@ Two or three lines a round; picture file names, never pictures.
   Entrance, 141-D MR02, H Backside Street, H Smoking Area), each a first
   in the last six audits and three of them places people pass through:
   the loop a pass behind. FAINT 2, DRIFT 9 (lunch hour). Nothing changed.
+* 14:00, 25 Nov Desks named: HR's attendance export (people/attendance/,
+  never git) -- a desk filled after a person's IN punches and emptied
+  before their OUT punches, day after day, far above chance; on the desks
+  already known 7 of 9 right, every pair with a face match confirmed. 42
+  desks named now (22 one by one, 20 from the machines checked by
+  Shamroze in one review PDF, "sab sahi"); the Progress board 15 -> 48
+  people. Three machine pairs dropped unseen (a janitor, a gatekeeper, a
+  code not in the directory). The machines' in/out and outings are on
+  every card.
