@@ -1529,3 +1529,14 @@ Two or three lines a round; picture file names, never pictures.
   from the loop's notes, 3h15m with both cameras replayed); the report
   card's desk score. 23 Nov's gap (laptop asleep 12:05-19:01) being
   replayed for every office camera.
+* 07:50, 25 Nov Password doors (dashboard, Progress) are one card with a
+  real Enter / Unlock button; Enter still works. The Basement is presence
+  only (Shamroze): desk, Basement off the desk, cafe, smoking, out of the
+  building -- no computer / phone / talking read or shown, follow mode
+  only round their room, the cafe and smoking. P13's main camera is ch25
+  (face-on). 23 Nov replayed, 10:00-21:00, 2,288 camera-moments: desk
+  minutes loop-only -> with replay, P1 178->522, P2 180->349, P3
+  132->307, P4 80->370, P5 110->440, P6 204->409, P7 86->161, P10 5->244,
+  P11 66->116, P12 53->227, P13 75->110; P8 unchanged (36), P9 none either
+  way. Gate recording of 19-20 Nov read (5,853 passages); gate_match run.
+  Loop restarted 07:49.
