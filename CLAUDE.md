@@ -209,21 +209,42 @@ campus page) goes in `room_events.ac_units_on`, which an administrator adds
 once with `sql/09_ac_units.sql`. Until then the loop writes rooms without
 it and says so once; restart the loop after the SQL is run.
 
-## Handoff -- 25 Nov, 16:40 (read this first in a new session)
+## Handoff -- 25 Nov, 19:25 (read this first in a new session)
 
-Shamroze moved to a new Claude login. Everything that runs is pushed
-(f0ca00c); the loop and the laptop dashboard were restarted at 16:36.
-The previous session's plan and scratch scripts are in
+Everything that runs is pushed (396598b); the loop and the laptop
+dashboard were restarted at 19:20. The previous session's plan, scratch
+scripts, the review PDFs and the face study are in
 `people/session_handoff/` (git-ignored: names and IDs live there) --
-start with `people/session_handoff/night_plan.md` and the memory files.
+start with `people/session_handoff/night_plan.md`,
+`people/session_handoff/face_agent/REPORT.md` and the memory files.
 
-* **His goal for 25 Nov, 23:00**: a score for every 140-H employee, to
-  hand in. Done: Progress -> "Attendance, 140-H" gives everyone (about 228)
-  an Overall score -- half the attendance score (the machines, HR's
-  export 16-25 Nov 12:21 in people/attendance/), half the desk score
-  where a camera sees their named desk (`progress_view.period_score`),
-  else attendance alone -- with "Download every employee's scores (CSV)".
-  Check it on the laptop (8501) and the hosted page.
+* **Productivity page (the CEO's, 25 Nov)**: Progress tab, top --
+  `productivity_view.py` + `rooms_dashboard.productivity_section`. Filters
+  by business unit (roster "project") and department; the campus figures;
+  business units and departments; the departments as sections to open,
+  each a table (directory photo, productivity bar); a click on a line, or
+  "Find an employee", opens a profile: scores and parts, a bar chart with
+  the department's colleagues (theirs marked), every day's IN/OUT by the
+  machines, the camera's day and building map where their desk is seen.
+  Productivity = attendance 40%, desk 40%, desk activity 20% (computer,
+  and not phone/talking, as shares of desk time where read); a part not
+  measured gives its weight to the others. CSV download for submission.
+  140-H's employees = at least half their punches at 140-H
+  (`attendance.HOME_SHARE`): 144 + 3 board-only = 147; ~84 from 141-D are
+  visitors, left out and counted. Hours count only days ending on an OUT.
+* **Streamlit gotcha**: two `<style>` blocks on one line in st.markdown
+  leave the second open and swallow the page; keep each style block its
+  own markdown block ("\n\n" between them -- productivity_view._styles).
+* **Submission files** (local): people/session_handoff/report/
+  productivity_<day>.pdf (from the page, directory photos only) and
+  video/140H_employees_<day>.mp4 (+ _phone.mp4, camera pictures: never
+  shared beyond Shamroze).
+* **Face verification (background study, REPORT.md)**: the gate's face
+  names are ~96% right by the machines; the gap is coverage. Top ideas:
+  attendance-gated naming at 0.45 (+48% punches named), galleries built
+  from OUT punches (+87% crops named), and three no-risk fixes first
+  (store the live face numbers, stop the crop file-name clash losing
+  17.5%, correct the gate clock +162-165 s). Not built yet.
 * **Desk names**: 51 named desks (people/desk_names.csv), about 56 people
   on the hosted board. Round 2's review is applied; refused pairs are in
   people/desk_names_rejected.csv (desk_match never re-pairs them), four
