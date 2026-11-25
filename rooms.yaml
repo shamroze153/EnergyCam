@@ -2523,9 +2523,16 @@ rooms:
     # room's own table and chairs (lower right) and hid anybody sitting
     # there, while the desk beyond the glass (upper left) was still counted:
     # a chair there read 0.43 at night. The same zone, a third the size.
+    # 25 Nov, field_audit 08:30 (out of hours, the meeting room empty): a
+    # person beyond the glass at the reception's far side, at the top
+    # edge, counted in this room on both cameras (ch 9 0.64, ch 10 0.41).
+    # Beyond the glass -- nobody of this room sits or stands there.
     ignore:
+      9:
+        - [160, 0, 205, 42]        # beyond the glass, top: the reception
       10:
         - [108, 44, 212, 178]      # reception desk beyond the glass
+        - [150, 0, 215, 58]        # beyond the glass, above the desk
     # 19 Nov, all 141 cameras looked at: its unit is in camera --
     # ch 9 and ch 10, the split at the top left, seen from below. Visible so the loop keeps a frame every ten
     # minutes to calibrate it from; unread (unknown) until then.

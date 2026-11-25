@@ -1561,3 +1561,9 @@ Two or three lines a round; picture file names, never pictures.
   twice on the hosted Progress page: a desk row sent before she was P13
   stayed in progress_days (the laptop may not delete); the page now leaves
   out rows the last send did not carry, and shows one employee once.
+* 08:50, 25 Nov Round: field_audit 08:30 -- MISSED 0, GHOST 0; FAINT 3
+  (141 Room 29, Gaming Area, Solar Array, all under 0.50), DRIFT 1 (H
+  Street). The out-of-hours check: 141 Reception Meeting Room, empty,
+  counted a person beyond the glass at the reception's far side on both
+  cameras (ch 9 0.64, ch 10 0.41) -- ignore boxes there, not on any seat
+  of the room. Loop restarted for rooms.yaml.
