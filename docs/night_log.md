@@ -1595,3 +1595,13 @@ Two or three lines a round; picture file names, never pictures.
   first in six audits. The three MISSED rooms (141 MR 01, 141 Lobby ground
   floor, Entry H) on their own with verify_live: MATCH, PASSING, MATCH --
   the loop a pass behind. Nothing changed.
+* 15:20, 25 Nov Attendance for every employee on the hosted page too
+  (cloud_names; names and numbers, never a picture), with an attendance
+  score from the machines alone (building 50%, at their own usual hour
+  30%, days in 20%). Desk scores stay for desks a camera sees: on 24 Nov
+  136 camera desks had somebody an hour or more, 55 three hours or more;
+  48 people on the board now. The door camera (nvr1 ch17) at OUT punches:
+  a face in 23 of 40, the punching employee the directory's top match in
+  8 (one supervisor six times) -- the gatekeeper's face is the clearest at
+  the door; identity comes from the machine log anyway, the hard part is
+  the desk.
