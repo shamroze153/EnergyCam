@@ -142,6 +142,8 @@ def probe(host, channel, user, password, main=False, brand=None,
 # A flat frame is almost certainly one the decoder has not filled in yet, so
 # this is the line between "still warming up" and "a real picture".
 FLAT = 12.0
+OPEN_PARAMS = [getattr(cv2, "CAP_PROP_OPEN_TIMEOUT_MSEC", 53), 8000,
+               getattr(cv2, "CAP_PROP_READ_TIMEOUT_MSEC", 54), 8000]
 
 
 def grab(url, min_frames=10, max_seconds=6.0, flat=FLAT):
@@ -158,7 +160,10 @@ def grab(url, min_frames=10, max_seconds=6.0, flat=FLAT):
     either way: a genuinely dark room looks flat too, and a dark picture of the
     room is still more use than none.
     """
-    cap = cv2.VideoCapture(url, cv2.CAP_FFMPEG)
+    # Open and read timeouts (25 Nov: a recorder that took the connection
+    # and then said nothing held OpenCV's open -- and with it every other
+    # camera's -- for over an hour; the loop wrote no pass).
+    cap = cv2.VideoCapture(url, cv2.CAP_FFMPEG, OPEN_PARAMS)
     if not cap.isOpened():
         return None, "no stream"
 

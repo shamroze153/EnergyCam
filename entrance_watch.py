@@ -194,7 +194,11 @@ class Watch(threading.Thread):
             if time.time() - loaded > 3600:          # the roster, hourly
                 ids, vecs = staff_faces.load_faces()
                 loaded = time.time()
-            cap = cv2.VideoCapture(self._url, cv2.CAP_FFMPEG)
+            # timeouts: a silent recorder must not hold OpenCV's open (and
+            # every other camera's) -- 25 Nov, the loop stood still an hour
+            cap = cv2.VideoCapture(self._url, cv2.CAP_FFMPEG, [
+                cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 8000,
+                cv2.CAP_PROP_READ_TIMEOUT_MSEC, 8000])
             if not cap.isOpened():
                 cap.release()
                 time.sleep(wait)
