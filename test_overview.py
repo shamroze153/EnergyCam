@@ -340,6 +340,36 @@ def main():
           "?campus=141-C%2FD&theme=light"
           in re.findall(r'href="([^"]*)"', plain))
 
+    # 27 Nov: Monitor -- the campus on one screen (Shamroze's picture of a
+    # plant-monitoring dashboard)
+    import monitor_view as mv
+    hourly_ = [[100.0 * h, 10.0 * h] for h in range(24)]
+    m_ = {"campus": "140-H", "ac_kw": 8.5, "units_on": 7,
+          "units_readable": 13, "rate": 67, "people_now": 40,
+          "people_curve": [10.0] * 40 + [None] * 56, "peak": 60,
+          "rooms_busy": 12, "rooms_total": 41, "ac_today_rs": 8000.0,
+          "ac_today_waste": 900.0, "ac_yday_rs": 26000.0,
+          "hourly": hourly_, "hourly_yday": hourly_, "now_hour": 9,
+          "days": [("Tue 24", 308.0, 210.0), ("Wed 25", 350.0, None)],
+          "status": [(True, "The loop", "live"), (False, "Cameras", "2"),
+                     (None, "Meter readings", "none")]}
+    mo = mv.page("light", m_, {"gf": "#2a78d6", "solar": "#eda100"})
+    check("Monitor: four live cards, the last 24 hours, the meters' days, "
+          "the status",
+          (mo.count('class="card kpi"'), "8.5" in mo, "Rs 8,000" in mo,
+           "last 24 hours" in mo, "Wed 25" in mo, "1 need a look" in mo),
+          (4, True, True, True, True, True))
+    check("  each style block its own markdown block (two on a line "
+          "swallow the page)", "</style><style>" not in mo
+          and "</style>\n\n" in mo, True)
+    check("  yesterday's hours run before today's, to now",
+          "yesterday 10a to 11a" in mo and "yesterday 9a" not in mo, True)
+    empty_ = mv.page("dark", dict(m_, days=[], hourly_yday=None),
+                     {"gf": "#3987e5", "solar": "#c98500"})
+    check("  no meters: said so, the rest still drawn",
+          "No meter readings for this campus yet" in empty_
+          and "AC by the hour" in empty_, True)
+
     print()
     if FAILURES:
         print("%d FAILURE(S): %s" % (len(FAILURES), "; ".join(FAILURES)))

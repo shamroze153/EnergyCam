@@ -6481,6 +6481,97 @@ PROGRESS_MORE = "Behind the scores: desk cameras, every desk, attendance"
 PROGRESS_TOOLS = "Naming tools and videos (this laptop)"
 
 
+def show_monitor(df, now):
+    """Monitor (27 Nov): one campus on one screen, as monitor_view draws
+    it, from what the other pages already work out -- the AC ledger, the
+    cameras' AC now, the campus's people, the meters' days."""
+    import analysis_view as av
+    import campus_view
+    import energy_rooms as er
+    import energy_view as ev
+    import live_ac
+    import monitor_view
+    mode = LINK_BASE.get("theme") or "dark"
+    local = now.tz_convert(PKT)
+    midnight = local.normalize()
+
+    def _iso(t):
+        return pd.Timestamp(t).tz_convert("UTC").isoformat()
+    try:
+        today_rows = cached_ledger(_iso(midnight), _iso(_to_5min(local)),
+                                   campus)
+        yday_rows = cached_ledger_past(_iso(midnight - pd.Timedelta(days=1)),
+                                       _iso(midnight), campus)
+    except psycopg2.Error:
+        today_rows, yday_rows = [], []
+    t, y = er.totals(today_rows), er.totals(yday_rows)
+    win = av.peak_window(assumptions)
+    hour = local.hour + local.minute / 60.0
+    rate = float(assumptions.get("peak_rs_per_kwh" if win[0] <= hour < win[1]
+                                 else "tariff_rs_per_kwh", 67) or 67)
+    read = campus_view.calibrated_counts()
+    items = live_ac.rows(df, read)
+    running = [r for r in items if r["state"] == "on"]
+    figures = front_figures(campus)
+    # the meters' days, as the Energy page counts them
+    days = []
+    try:
+        meters, readings, _ = load_meters()
+        codes = set(df["meter"].dropna()) if "meter" in df.columns else set()
+        mine = meters[meters["code"].isin(codes)] if len(meters) else meters
+        if len(mine):
+            ds = ev.day_series(readings[readings["meter"].isin(codes)], mine,
+                               load_solar())
+            for _, r in ds.tail(10).iterrows():
+                g = [r.get(c) for c in mine["code"]]
+                whole = all(v is not None and pd.notna(v) for v in g) and \
+                    not any(bool(r.get(c + "_part")) for c in mine["code"])
+                sol = r.get("solar")
+                days.append((pd.Timestamp(r["day"]).strftime("%a %d"),
+                             sum(float(v) for v in g) if whole else None,
+                             float(sol) if sol is not None and pd.notna(sol)
+                             else None))
+    except psycopg2.Error:
+        pass
+    whole_days = [d for d in days if d[1] is not None]
+    silent = figures.get("silent") or []
+    all_units = int(df.loc[df["has_unit"], "ac_count"].sum())
+    read_n = sum(n for room_name, n in read.items()
+                 if room_name in set(df["room"]))
+    m = {
+        "campus": campus, "when": when, "live": healthy,
+        "live_text": live_text,
+        "ac_kw": sum(r["kw"] for r in running),
+        "units_on": sum(r["counted"] for r in running),
+        "units_readable": sum(r["seen"] for r in items), "rate": rate,
+        "people_now": figures.get("inside_now"),
+        "people_curve": figures.get("curve_in"),
+        "peak": figures.get("peak"),
+        "rooms_busy": figures.get("rooms_busy"),
+        "rooms_total": figures.get("rooms_total"),
+        "ac_today_rs": t["rs"], "ac_today_waste": t["waste_rs"],
+        "ac_yday_rs": y["rs"], "hourly": er.hourly(today_rows),
+        "hourly_yday": er.hourly(yday_rows) if yday_rows else None,
+        "now_hour": local.hour,
+        "days": whole_days[-8:],
+        "status": [
+            (healthy, "The loop", live_text),
+            (not silent, "Cameras", "every watched room answering" if not
+             silent else "%d room%s silent: %s" % (
+                 len(silent), "" if len(silent) == 1 else "s",
+                 html.escape(", ".join(e["name"] for e in silent[:3])))),
+            (None if not all_units else True, "AC units read by a camera",
+             "%d of %d; the rest estimated from people" % (read_n,
+                                                          all_units)),
+            (bool(whole_days) if days else None, "Meter readings",
+             ("last whole day %s" % whole_days[-1][0]) if whole_days else
+             "none for this campus yet"),
+        ],
+    }
+    st.markdown(monitor_view.page(mode, m, ev.SERIES[mode]),
+                unsafe_allow_html=True)
+
+
 def show_campus_progress(mode, here, hosted, now):
     """Another campus's Progress (27 Nov: 141-C/D): its employees by the
     attendance machines, department by department, a report card each --
@@ -6690,8 +6781,11 @@ PROGRESS_CAMPUSES = {"140-H": ("140-H", "141-D"), "141-C/D": ("141", "140-H")}
 # "3D" (23 Nov night, Shamroze: "140-H ke andar ek 3D ka column pehle add
 # kar do"): the building as a twin, first in 140-H's row -- the page still
 # opens on Overview.
+# "Monitor" (27 Nov, Shamroze's picture of a plant-monitoring dashboard):
+# the campus on one screen -- live cards, the AC by the hour, the meters'
+# days, the people through the day, the system's status.
 PRIMARY = (["3D"] if campus == PROGRESS_CAMPUS else []) + [
-    "Overview", "Who comes when", "Rooms", "Desks", "Empty time",
+    "Monitor", "Overview", "Who comes when", "Rooms", "Desks", "Empty time",
     "Energy", "Savings & peak"] + (
         ["Progress"] if campus in PROGRESS_CAMPUSES else [])
 SECONDARY = ["One room", "Camera health", "Look at the rooms",
@@ -6868,6 +6962,11 @@ if view == "Overview":
 
 if view == "Desks":
     show_seating(mode, now.tz_convert(PKT).date(), campus)
+    _BOOT.empty()
+    st.stop()
+
+if view == "Monitor":
+    guarded("The monitor", show_monitor, df, now)
     _BOOT.empty()
     st.stop()
 
