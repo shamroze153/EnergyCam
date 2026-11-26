@@ -1671,3 +1671,8 @@ Two or three lines a round; picture file names, never pictures.
   board (progress/board_latest.pkl). cctv_faces looks at people sitting
   in the cafe/smoking/meeting rooms too (was: skipped as "regular
   seats"). Loop restarted for the last two.
+* 17:42, 26 Nov: back after the usage limit (~13:45-17:30). One loop
+  (since 13:35), last pass 17:39; its board file is written every 5 min
+  (17:40). The queued audit rounds were not run: office hours, the 141
+  gym is private until 20:00, and the follow worker's playback resumed --
+  the full audit waits for the first round after 20:00.
