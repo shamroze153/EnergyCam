@@ -1657,3 +1657,6 @@ Two or three lines a round; picture file names, never pictures.
   worker's playback (gate-to-seat follow) holds up to 3 recorder streams;
   a full audit's 86 main streams on top is too much for the recorders.
   Loop alive (08:55 pass). Hosted Progress's TypeError fixed (eb7c332).
+* 12:41, 26 Nov: the usage limit stopped everything ~09:00-12:30; the
+  queued rounds were not run in office hours (the follow worker's
+  playback comes first). Loop alive (12:39 pass).
