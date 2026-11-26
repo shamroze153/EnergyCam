@@ -54,8 +54,11 @@ Tests: `python test_room_loop.py`, `test_overview.py`, `test_energy.py`,
 where each named person's day went (desk / meeting / cafe / smoking /
 prayer / inside / out / unknown), on each board person as p["places"]
 (focus day's segments) and p["places_days"] (totals); camera sightings
-place under 1% of away time (cctv_faces skips anybody at a regular seat
-on every camera -- the top idea to raise it). The report card draws it
+placed under 1% of away time while cctv_faces skipped anybody at a
+regular seat on every camera -- since 26 Nov 13:40 only an office's (or
+a staffed desk's) seat is skipped, as progress_track.candidates. The
+laptop's Progress page takes the loop's board (progress/board_latest.pkl,
+progress_data.latest_board) rather than building it (70-80 s). The report card draws it
 as "Where the day went". Workforce staff (janitorial, office boys, gate
 and security, valet, technicians, by designation --
 productivity_view.WORKFORCE) are a section of their own. Gate: nightly

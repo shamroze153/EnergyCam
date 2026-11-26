@@ -117,8 +117,8 @@ def main():
     check("so the usual peak day leaves it out",
           savings.scoreboard(peaky, window=WINDOW)["peak"]["now"], 800.0)
     check("and the peak page marks it",
-          "1.4h of 4 seen" in savings.peak_page("light", peaky, RATES,
-                                                WINDOW), True)
+          "1.4/4 h" in savings.peak_page("light", peaky, RATES,
+                                         WINDOW), True)
 
     bills = pd.DataFrame([
         {"meter": "a", "period_start": "2026-10-01", "period_end":

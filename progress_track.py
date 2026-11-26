@@ -443,6 +443,12 @@ def publish(connect, now=None, clock=time.time, force=False):
     hours = pdx.office_hours()
     people = pdx.build(cfg, day, hours,
                        now=pd.Timestamp(now.replace(tzinfo=None)))
+    # The laptop's Progress page takes this board rather than building it
+    # again (pdx.latest_board).
+    try:
+        pdx.save_board(people, day, hours)
+    except Exception:                                       # noqa: BLE001
+        pass
     # Keep every day worked out, here, before the seat notes behind it
     # are let go (two weeks): progress/history.csv.
     try:

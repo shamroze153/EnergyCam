@@ -225,7 +225,7 @@ def _observe(room, key, frame, boxes, now, spots, out):
     ids, vecs = load()
     if not len(ids):
         return 0
-    from progress_track import PKT, regular_seats
+    from progress_track import PKT, STAFFED, place_of, regular_seats
     import seat_faces
     now = now or datetime.now(PKT)
     if not (HOURS[0] <= now.strftime("%H:%M") <= HOURS[1]):
@@ -233,9 +233,16 @@ def _observe(room, key, frame, boxes, now, spots, out):
     day = now.strftime("%Y-%m-%d")
     if spots is None:
         spots = regular_seats(day).get((key[0], int(key[1]))) or []
+    # Only an office's (or a staffed desk's) regular seat is its owner's
+    # (seat_faces names that one). A cafe table, the smoking area's bench or
+    # a meeting room's chair is a "regular seat" too -- people sit there
+    # every day -- and leaving those out put under 1% of the named people's
+    # away time in a place (26 Nov, places_day): the same rule as
+    # progress_track.candidates.
+    office = place_of(room) == "office" or room in STAFFED
     n = 0
     for b in boxes:
-        if seat_faces.seat_of(b, spots, frame.shape[1]) is not None:
+        if office and seat_faces.seat_of(b, spots, frame.shape[1]) is not None:
             continue                     # somebody at a seat: seat_faces'
         v = faces.of_person(frame, b[:4])
         m = best(v, ids, vecs) if v is not None else None

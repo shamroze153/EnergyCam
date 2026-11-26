@@ -1050,6 +1050,23 @@ def day_options(e, now=None):
     return sorted(days, reverse=True)
 
 
+def default_day(e, days):
+    """Which of day_options() to open on: the newest whole day -- not one
+    the HR export cut mid-day (26 Nov: the card opened on Wednesday's
+    stub, "In the building -- / not seen" over an empty line) -- with a
+    closed day by the machines or desk minutes; else the newest."""
+    days_ = e.get("days") or {}
+    hist = {r.get("day"): r for r in (e.get("board") or {}).get("history")
+            or []}
+    for i, d in enumerate(days):
+        if d == e.get("_cut"):
+            continue
+        if (days_.get(d) or {}).get("closed") or \
+                (hist.get(d) or {}).get("desk_min"):
+            return i
+    return 0
+
+
 def allocation(e, day):
     """Where one day went, in minutes, from what measured it: the machines
     (in the building, out of it, first in, last out), the desk camera (at

@@ -1291,6 +1291,18 @@ def check_cctv_faces():
                   "the one at a seat is left to seat_faces",
                   (n, got["employee_id"].tolist(), got["room"].tolist()),
                   (1, ["00010"], ["Prompt Cafe"]))
+            # 26 Nov: a seat in an office is its owner's (seat_faces); a
+            # cafe table is no desk -- whoever sits there is looked at.
+            cf._seen.clear()
+            seat_only = [(450, 450, 550, 700)]
+            in_office = cf.observe("Test Room", ("dvr2", 15), frame,
+                                   seat_only, now=now, spots=[(500, 700)],
+                                   out=os.path.join(folder, "s2"))
+            at_cafe = cf.observe("Prompt Cafe", ("nvr4", 14), frame,
+                                 seat_only, now=now, spots=[(500, 700)],
+                                 out=os.path.join(folder, "s2"))
+            check("sitting at an office's regular seat is left out; at a "
+                  "cafe table, named", (in_office, at_cafe), (0, 1))
             check("the same person on the same camera again soon is not "
                   "written twice", cf.observe(
                       "Prompt Cafe", ("nvr4", 14), frame,
@@ -2597,6 +2609,46 @@ def check_report_card():
           "rest of the building",
           er.shares(al2), [("desk", 300.0), ("meeting", 45.0), ("cafe", 30.0),
                            ("inside", 165.0)])
+    # 26 Nov: the card opens on the newest whole day, never the export's
+    # mid-day stub
+    stub = dict(by["2"], _cut="2026-11-25",
+                days=dict(by["2"].get("days") or {},
+                          **{"2026-11-25": {"first_in": "10:41",
+                                            "closed": False}}))
+    opts_ = ["2026-11-25", "2026-11-24"]
+    check("the report card opens on the last whole day, not a cut one",
+          (er.default_day(stub, opts_), er.default_day(by["2"], opts_[1:]),
+           er.default_day({}, ["2026-11-25"])), (1, 0, 0))
+    # 26 Nov: the laptop's page takes the loop's board (built every five
+    # minutes to publish) rather than a minute of its own
+    import tempfile as _tf
+    import time as _time
+    _d = _tf.mkdtemp()
+    try:
+        bp = os.path.join(_d, "board.pkl")
+        pdx.save_board([{"code": "P1"}], "2026-11-26", (10, 20), path=bp)
+        got_ = pdx.latest_board("2026-11-26", (10.0, 20.0), path=bp)
+        later_ = _time.time() + 3600
+        rv = os.path.join(_d, "review.csv")
+        open(rv, "w").close()
+        os.utime(rv, (later_, later_))
+        check("the loop's board is used when today's, same hours, fresh",
+              (got_, pdx.latest_board("2026-11-25", (10, 20), path=bp),
+               pdx.latest_board("2026-11-26", (9, 20), path=bp),
+               pdx.latest_board("2026-11-26", (10, 20), path=bp,
+                                now=later_),
+               pdx.latest_board("2026-11-26", (10, 20), path=bp,
+                                newer=[rv]),
+               pdx.latest_board("2026-11-26", (10, 20),
+                                path=os.path.join(_d, "none.pkl"))),
+              ([{"code": "P1"}], None, None, None, None, None))
+    finally:
+        shutil.rmtree(_d)
+    src_ = open("rooms_dashboard.py", encoding="utf-8").read()
+    check("  the page asks for it before building its own",
+          "progress_data.latest_board(" in src_
+          and "pdx.save_board(people, day, hours)"
+          in open("progress_track.py", encoding="utf-8").read(), True)
     ov_ = er.overview_html(dict(by["2"], board=board_), "2026-11-24")
     check("  drawn: four figures, the bar by place, the line, no 'None'",
           ("Where the day went" in ov_, "Meeting rooms" in ov_,

@@ -1660,3 +1660,14 @@ Two or three lines a round; picture file names, never pictures.
 * 12:41, 26 Nov: the usage limit stopped everything ~09:00-12:30; the
   queued rounds were not run in office hours (the follow worker's
   playback comes first). Loop alive (12:39 pass).
+* 13:40, 26 Nov: every page walked at phone width (both campuses) and on
+  the laptop. Energy: Wednesday's solar (210, typed at 6 pm) sat on
+  Tuesday -- evening figures are now that day's; "Solar: before and
+  after" stacked its letters one per line on a phone (a span-3 rule in a
+  2-column grid). Who comes when: the upper-bound tile said "peak tariff"
+  on the whole day. Savings: a chart label ran over the next bar. Report
+  card: opened on the HR export's half day; now the last whole day.
+  Laptop Progress took 60-80 s every 5 min: it now takes the loop's own
+  board (progress/board_latest.pkl). cctv_faces looks at people sitting
+  in the cafe/smoking/meeting rooms too (was: skipped as "regular
+  seats"). Loop restarted for the last two.

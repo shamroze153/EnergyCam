@@ -105,9 +105,41 @@ def passes(day, path=CYCLES):
 REPLAY = "replay"        # seats/replay/<day>.csv, <day>_passes.csv
 
 
+_READ = {}
+
+
+def _read_once(kind, paths, make):
+    """make() once for a set of files as they stand now (time and size):
+    a board of 67 people read each day's files once per person and per
+    look -- 499 reads of the same activity files, 15 of the build's 84 s
+    (26 Nov). A file the loop has written to since is read again. A copy
+    each time, so no caller changes another's."""
+    stamp = []
+    for p in paths:
+        try:
+            s = os.stat(p)
+            stamp.append((p, s.st_mtime_ns, s.st_size))
+        except OSError:
+            stamp.append((p, None, None))
+    key = (kind, tuple(stamp))
+    got = _READ.get(key)
+    if got is None:
+        got = make()
+        if len(_READ) > 400:
+            _READ.clear()
+        _READ[key] = got
+    return got.copy()
+
+
 def notes(day, folder=SEATS):
     """The day's seat notes, with a timestamp column `at` -- the loop's,
     and those replay_day.py read from the recordings afterwards."""
+    return _read_once("notes", [os.path.join(folder, "%s.csv" % day),
+                                os.path.join(folder, REPLAY, "%s.csv" % day)],
+                      lambda: _notes(day, folder))
+
+
+def _notes(day, folder=SEATS):
     parts = []
     path = os.path.join(folder, "%s.csv" % day)
     if os.path.exists(path):
@@ -534,11 +566,14 @@ def place_of(room, own=None):
 def load_activity(day, folder=None):
     """The day's activity rows (progress_track), with a timestamp `at`."""
     path = os.path.join(folder or ACTIVITY, day + ".csv")
-    if not os.path.exists(path):
-        return pd.DataFrame()
-    d = pd.read_csv(path)
-    d["at"] = pd.to_datetime(day + " " + d["time"])
-    return d
+
+    def make():
+        if not os.path.exists(path):
+            return pd.DataFrame()
+        d = pd.read_csv(path)
+        d["at"] = pd.to_datetime(day + " " + d["time"])
+        return d
+    return _read_once("activity", [path], make)
 
 
 def load_reviews(day, folder=None):
@@ -924,6 +959,54 @@ HISTORY_COLS = ["day", "code", "first", "last", "in_min", "span_min",
                 "longest_break", "read"]
 # A loop silent this long is not watching: the status says so.
 STALE = pd.Timedelta(minutes=15)
+
+# The loop builds the whole board every five minutes to publish it
+# (progress_track.publish) -- 70-80 s for 67 people (26 Nov). The laptop's
+# Progress page built it again on its own, a minute behind a spinner each
+# five minutes; it now takes the loop's (this laptop only, git-ignored).
+BOARD = os.path.join("progress", "board_latest.pkl")
+BOARD_FRESH = 600            # seconds: older than this, build it here
+
+
+def save_board(people, day, hours, path=None):
+    """The board as the loop built it, for the laptop's page."""
+    import pickle
+    path = path or BOARD
+    try:
+        cfg_t = os.path.getmtime(CONFIG)
+    except OSError:
+        cfg_t = None
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "wb") as fh:
+        pickle.dump({"day": day, "hours": tuple(float(h) for h in hours),
+                     "cfg": cfg_t, "at": datetime.now().timestamp(),
+                     "people": people}, fh)
+    os.replace(tmp, path)
+
+
+def latest_board(day, hours, newer=(), path=None, now=None,
+                 fresh=BOARD_FRESH):
+    """The loop's board when it is today's, for the same hours and the
+    same progress.yaml, built in the last `fresh` seconds and after every
+    file in `newer` (a review saved since, say) -- else None."""
+    import pickle
+    path = path or BOARD
+    try:
+        with open(path, "rb") as fh:
+            b = pickle.load(fh)
+        cfg_t = os.path.getmtime(CONFIG) if os.path.exists(CONFIG) else None
+    except Exception:                                       # noqa: BLE001
+        return None
+    now = now if now is not None else datetime.now().timestamp()
+    if (b.get("day") != day or b.get("cfg") != cfg_t
+            or tuple(b.get("hours") or ()) != tuple(float(h) for h in hours)
+            or now - float(b.get("at") or 0) > fresh):
+        return None
+    for f in newer:
+        if f and os.path.exists(f) and os.path.getmtime(f) > b["at"]:
+            return None
+    return b["people"]
 
 
 def day_record(person, day, n=None, p=None, rows=None, reviews=None):

@@ -356,8 +356,10 @@ def peak_page(theme, week, rates, window, base=None, where="Both campuses"):
                        _n(t["peak_kwh"]), _rs(t["peak_waste_rs"])))
         marks.append("so far" if so_far else (
             None if peak_whole((day, ledger, so_far), window)
-            else "%.1fh of %g seen" % (t.get("watched_peak_h") or 0.0,
-                                       window[1] - window[0])))
+            # short: on a phone a column is ~40 px ("3.5h of 4 seen" ran
+            # over the next day's bar, 26 Nov)
+            else "%.1f/%g h" % (t.get("watched_peak_h") or 0.0,
+                                window[1] - window[0])))
     chart = "".join([
         '<div class="ec-card" style="padding:14px 16px;margin-top:14px">',
         ev.legend([(in_colour, "with people in"),

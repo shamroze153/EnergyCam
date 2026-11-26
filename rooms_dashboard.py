@@ -4454,11 +4454,17 @@ def show_arrivals(df, now):
          "~%d people" % round(totals[busiest]) if totals[busiest] else "\u2014",
          "around %s" % ds.clock(day_starts[0] + pd.Timedelta(hours=busiest))
          if totals[busiest] else ""),
-        ("Empty rooms in the peak tariff",
+        # The window picked above, not always the peak (26 Nov: "Whole day"
+        # was titled "in the peak tariff"), and an upper bound -- every unit
+        # running while its room sat empty -- beside the cameras' own
+        # figure ("Empty, with the AC on") further down.
+        ("Empty rooms, %s" % (str(hour_pick).split(",")[0].lower()
+                              if hour_pick and hour_pick != "Whole day"
+                              else "all day"),
          ("up to Rs %s" % format(int(round(at_stake)), ",")) if at_stake
          else "\u2014",
-         ("%.1f unit-hours%s" % (empty_units_h,
-                                 ", yesterday" if win_note else ""))
+         ("if every unit ran while its room was empty: %.0f unit-hours%s"
+          % (empty_units_h, ", yesterday" if win_note else ""))
          if at_stake else "no room with a unit sat empty"),
     ]
     st.markdown(
@@ -5391,7 +5397,16 @@ def cached_progress(today, stamp, bucket, hours):
     file's time) and `bucket` (five minutes) only key the cache."""
     import progress_data
     cfg = progress_data.load()
-    return cfg, progress_data.build(cfg, today, hours)
+    # The loop's own board of the last ten minutes when it has one (26
+    # Nov: building it here took a minute behind a spinner every five).
+    # A review or a desk named since it was built means building it here.
+    review = os.path.join(progress_data.ACTIVITY, "review_%s.csv" % today)
+    people = progress_data.latest_board(
+        today, hours, newer=[review, os.path.join("people",
+                                                  "desk_names.csv")])
+    if people is None:
+        people = progress_data.build(cfg, today, hours)
+    return cfg, people
 
 
 SIGHT_GUESS = "guess"                # the picker's "yes, it is them"
@@ -5636,6 +5651,7 @@ def show_profile(mode, e, emps, key, now=None, hours=(10.0, 20.0),
         "%s  ·  %s" % (x["name"], x["productivity"]) for x in mates]
     c1, c2 = st.columns([1, 1.6])
     day = c1.selectbox("Day", days, format_func=er._day_label,
+                       index=er.default_day(e, days),
                        key="pf_day_%s_%s" % (key, e["eid"])) if days else None
     pick = c2.selectbox("Compare with", list(range(len(names))),
                         format_func=lambda i: names[i],
