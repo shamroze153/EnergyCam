@@ -92,9 +92,10 @@ def productivity(att, desk, act):
 
 
 def employees(rows, roster, people=None, hours=(10.0, 20.0), now=None,
-              photos=None):
+              photos=None, campus="140-H"):
     """One dict per employee: every attendance row of the directory, and
-    any board employee with a desk score the machines never saw."""
+    any board employee with a desk score the machines never saw. `campus`
+    is the campus they belong to (27 Nov: 141-C/D too), carried on each."""
     board = {}
     for p in people or []:
         eid = p.get("employee_id")
@@ -111,6 +112,7 @@ def employees(rows, roster, people=None, hours=(10.0, 20.0), now=None,
             e.update(staff="workforce", home_dept=e["dept"], dept=crew)
         else:
             e.update(staff="office", home_dept=e["dept"])
+        e["campus"] = campus
         return e
 
     def _one(eid, ro, r, p):
@@ -400,35 +402,46 @@ def _kpis(tiles):
         '</div><div class="s">%s</div></div>' % t for t in tiles)
 
 
-def top_html(mode, emps, days, made="", visitors=0, crew=0):
+def top_html(mode, emps, days, made="", visitors=0, crew=0, campus="140-H",
+             other="141-D"):
     """The page's short top (Shamroze, 25 Nov night: "chhota banao ... itna
     lamba kyun"): a line of title and four figures -- employees monitored,
-    the average productivity, departments, desks a camera sees."""
+    the average productivity, departments, desks a camera sees. `campus`
+    the page's, `other` where its visitors mostly punch (27 Nov: 141-C/D's
+    page too)."""
     if not emps:
         return ""
     n = len(emps)
     prod = _mean([e["productivity"] for e in emps])
     n_desk = sum(1 for e in emps if e["desk"] is not None)
     n_dept = len({e["dept"] for e in emps})
+    c = esc(campus)
     return "".join([
         _styles(mode), '<div class="ec pr">',
-        '<div class="pr-hero sm"><div><h2>Productivity &middot; 140-H</h2>'
+        '<div class="pr-hero sm"><div><h2>Productivity &middot; %s</h2>'
         '<p><b>Open a department, then a person, for their report card.'
-        '</b> %s to %s &middot; attendance machines for everybody, the desk '
-        'camera where it sees their own desk</p></div><span class="pr-badge">'
-        '%s</span></div>' % (esc(days[0]) if days else "",
-                             esc(days[-1]) if days else "", esc(made)),
+        '</b> %s to %s &middot; %s</p></div><span class="pr-badge">'
+        '%s</span></div>' % (
+            c, esc(days[0]) if days else "", esc(days[-1]) if days else "",
+            "attendance machines for everybody, the desk camera where it "
+            "sees their own desk" if n_desk else
+            "the attendance machines alone: no desk here is named in a "
+            "camera yet, so the score is attendance only &mdash; higher than "
+            "a campus measured at the desk too, not to be set beside it",
+            esc(made)),
         _kpis([
             ("Employees monitored", "%d" % n, "%s%s" % (
-                "+ %d workforce staff apart = all %d of 140-H" % (
-                    crew, n + crew) if crew else "100% of 140-H",
-                " &middot; %d visitors from 141-D left out" % visitors
+                "+ %d workforce staff apart = all %d of %s" % (
+                    crew, n + crew, c) if crew else "100% of " + c,
+                " &middot; %d visitors from %s left out" % (visitors,
+                                                            esc(other))
                 if visitors else "")),
             ("Productivity, average", "%d" % round(prod) if prod is not None
              else "-", "of 100"),
             ("Departments", "%d" % n_dept, "open one for its people"),
             ("Desks seen by camera", "%d" % n_desk,
-             "the rest by the machines alone")]),
+             "the rest by the machines alone" if n_desk else
+             "none named here yet: the machines alone")]),
         '</div>'])
 
 
@@ -471,8 +484,10 @@ def dept_head_html(mode, name, es, emps):
                                            "" if len(es) == 1 else "s"),
         _kpis([
             ("Productivity", "%d" % round(p) if p is not None else "-",
-             "140-H average %s" % ("%d" % round(allp) if allp is not None
-                                   else "-")),
+             "%s average %s" % (esc((es[0].get("campus") if es else None)
+                                    or "140-H"),
+                                "%d" % round(allp) if allp is not None
+                                else "-")),
             ("Employees monitored", "%d" % len(es),
              "%d desk%s seen by camera" % (seen, "" if seen == 1 else "s")),
             ("Attendance score", "%d" % round(at) if at is not None else "-",
@@ -632,10 +647,11 @@ def profile_html(mode, e, emps):
             tile("Activity at the desk", e["activity"], act_sub),
             '<div class="ec-card ec-kpi"><div class="k">Among colleagues</div>'
             '<div class="v">%s</div><div class="s">in %s (%d) &middot; dept '
-            'avg %s &middot; BU avg %s &middot; 140-H %s</div></div>'
+            'avg %s &middot; BU avg %s &middot; %s %s</div></div>'
             % ((_ord(rank) if rank else "-"), esc(e["dept"]), len(mates),
                "%d" % round(dept_avg) if dept_avg is not None else "-",
                "%d" % round(bu_avg) if bu_avg is not None else "-",
+               esc(e.get("campus") or "140-H"),
                "%d" % round(all_avg) if all_avg is not None else "-")),
         '<div class="pr-two"><div class="ec-card"><h4>%s with colleagues in '
         '%s</h4><div class="pr-sub">productivity, highest first &mdash; '
@@ -647,7 +663,7 @@ def profile_html(mode, e, emps):
         'Day</th><th>In</th><th>Out</th><th>In the building</th><th>Out and '
         'back</th></tr></thead><tbody>%s</tbody></table></div></div></div>'
         % ("".join(days_rows) or '<tr><td class="l" colspan="5">No punch at '
-           '140-H in the export</td></tr>'),
+           '%s in the export</td></tr>' % esc(e.get("campus") or "140-H")),
         '</div>'])
 
 

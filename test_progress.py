@@ -2644,7 +2644,34 @@ def check_report_card():
               ([{"code": "P1"}], None, None, None, None, None))
     finally:
         shutil.rmtree(_d)
+    # 27 Nov (Shamroze: "141c/d me bh bnana shru krdo ... 140H ki tarah
+    # dept wise"): 141-C/D's employees, by the machines, on their own page
+    import json as _json
+    import productivity_view as _pv
+    _cfg = pdx.from_payloads([("_attendance_141", _json.dumps(
+        {"rows": [{"eid": "7"}], "days": ["2026-11-24"]}))])[0]
+    check("141-C/D's attendance comes back from the hosted rows on its own",
+          (_cfg.get("attendance_by") or {}).get("141", {}).get("days"),
+          ["2026-11-24"])
+    _e = _pv.employees([{"eid": "7", "days_in": 1, "of": 1, "days": {},
+                         "usual_in": 10.0, "usual_out": 19.0,
+                         "inside_h": 9.0}], {"7": {"name": "A",
+                                                   "department": "Ops"}},
+                       campus="141-C/D")
+    _top = _pv.top_html("light", _e, ["2026-11-24"], "now", 3, 0,
+                        "141-C/D", "140-H")
+    check("  its page says 141-C/D, its visitors from 140-H, no desk camera",
+          ("Productivity &middot; 141-C/D" in _top,
+           "from 140-H left out" in _top, "140-H&#x27;s" in _top,
+           "none named here yet" in _top, _e[0]["campus"]),
+          (True, True, False, True, "141-C/D"))
     src_ = open("rooms_dashboard.py", encoding="utf-8").read()
+    check("  a Progress tab on 141-C/D behind the same door, the loop sends "
+          "its rows", ('"141-C/D": ("141", "140-H")' in src_
+                       and "campus in PROGRESS_CAMPUSES" in src_
+                       and 'OTHER_CAMPUSES = ("141",)' in open(
+                           "progress_track.py", encoding="utf-8").read()),
+          True)
     check("  the page asks for it before building its own",
           "progress_data.latest_board(" in src_
           and "pdx.save_board(people, day, hours)"

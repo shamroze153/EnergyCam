@@ -1771,6 +1771,10 @@ def from_payloads(rows):
             cfg["desks"] = data          # every desk, room by room
         elif code == "_attendance":
             cfg["attendance"] = data     # every employee by the machines
+        elif code.startswith("_attendance_"):
+            # another campus's employees (27 Nov: "_attendance_141")
+            cfg.setdefault("attendance_by", {})[
+                code[len("_attendance_"):]] = data
         else:
             people.append(data)
     def rank(p):

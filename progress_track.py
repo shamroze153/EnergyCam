@@ -407,6 +407,9 @@ def sightings(room, key, frame, persons, taken, day, hms, people):
 
 PUBLISH_EVERY = 300
 _published = {"at": 0.0, "missing": False, "told": False}
+# Campuses whose employees go up beside 140-H's, by the attendance
+# machines' place prefix ("141-D IN", "141-D GCR OUT" -> "141").
+OTHER_CAMPUSES = ("141",)
 
 # The payload is given twice rather than read back as EXCLUDED.payload:
 # reading an EXCLUDED column needs SELECT on that column of the table, and
@@ -477,6 +480,18 @@ def publish(connect, now=None, clock=time.time, force=False):
             rows.append(("_attendance", json.dumps(pdx._jsonable(att))))
     except Exception:                                       # noqa: BLE001
         pass
+    # ... and 141-C/D's, its own Progress page (27 Nov, Shamroze: "141c/d
+    # me bh bnana shru krdo ... 140H ki tarah dept wise")
+    for prefix in OTHER_CAMPUSES:
+        try:
+            import json
+            att = pdx.attendance_payload(cfg, campus=prefix,
+                                         start=float(hours[0]))
+            if att:
+                rows.append(("_attendance_" + prefix,
+                             json.dumps(pdx._jsonable(att))))
+        except Exception:                                   # noqa: BLE001
+            pass
     import psycopg2
     try:
         conn = connect()

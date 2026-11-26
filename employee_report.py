@@ -212,8 +212,9 @@ def _peers(e, emps, key):
             and x["f"].get(key) is not None]
     if len(same) + 1 >= TEAM_MIN:
         return e["dept"], same
-    return "140-H", [x for x in emps if x["eid"] != e["eid"]
-                     and x["f"].get(key) is not None]
+    return e.get("campus") or "140-H", [
+        x for x in emps if x["eid"] != e["eid"]
+        and x["f"].get(key) is not None]
 
 
 def compare(e, emps):
@@ -1506,7 +1507,8 @@ def details_html(e, emps, now=None, hours=(10.0, 20.0), last_day=None):
         '<i class="sq" style="background:var(--s2)"></i>%s\'s usual hours'
         '</span></div>%s</div>'
         % (esc(e["dept"]), days_html(e, t_in, t_out) or
-           '<p class="pr-note">No punch at 140-H in the export.</p>'),
+           '<p class="pr-note">No punch at %s in the export.</p>'
+           % esc(e.get("campus") or "140-H")),
         '<div class="rc-two"><div class="ec-card"><h4 style="margin:0">Today '
         'so far</h4><div class="rc-today">%s</div>%s</div>'
         '<div class="ec-card"><h4 style="margin:0">With colleagues in %s</h4>'

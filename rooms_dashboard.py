@@ -5608,11 +5608,12 @@ NAMING_EVERY = "Every desk"
 
 
 @st.cache_data(ttl=600, show_spinner=False)
-def cached_attendance(stamp):
-    """attendance.summary() and the export's days, worked out again when a
-    file under people/attendance/ changes (`stamp`)."""
+def cached_attendance(stamp, campus="140-H"):
+    """attendance.summary() and the export's days at a campus's machines
+    (`campus`: their place prefix, "140-H" or "141"), worked out again when
+    a file under people/attendance/ changes (`stamp`)."""
     import attendance
-    return attendance.summary(), attendance.days()
+    return attendance.summary(campus), attendance.days(campus)
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -5705,7 +5706,7 @@ def _found():
 
 
 def productivity_section(mode, emps, days, made, visitors=0, now=None,
-                         hours=(10.0, 20.0)):
+                         hours=(10.0, 20.0), campus="140-H", other="141-D"):
     """Progress (Shamroze and the CEO, 25 Nov: "CEO dekhe to usko acha lage
     ... 100% employees"; that night: one way in, not three tabs -- "ek naya
     banda bhi samajh jaaye"): the campus in four figures and a card per
@@ -5789,7 +5790,8 @@ def productivity_section(mode, emps, days, made, visitors=0, now=None,
         people_cards(es, name)
     else:
         st.markdown(productivity_view.top_html(mode, pool, days, made,
-                                               visitors, len(crew)),
+                                               visitors, len(crew), campus,
+                                               other),
                     unsafe_allow_html=True)
         st.markdown(employee_report.workload_html(pool),
                     unsafe_allow_html=True)
@@ -5831,24 +5833,27 @@ def productivity_section(mode, emps, days, made, visitors=0, now=None,
     st.download_button(
         "Download every employee's productivity (CSV)",
         pd.DataFrame(rows).to_csv(index=False).encode("utf-8-sig"),
-        file_name="140-H_productivity_%s_to_%s.csv" % (days[0], days[-1])
-        if days else "140-H_productivity.csv",
+        file_name="%s_productivity_%s_to_%s.csv" % (
+            campus.replace("/", ""), days[0], days[-1])
+        if days else "%s_productivity.csv" % campus.replace("/", ""),
         mime="text/csv", key="productivity_csv")
 
 
-def show_productivity(mode, people, hours, now):
+def show_productivity(mode, people, hours, now, campus="140-H"):
     """The laptop's Productivity: HR's export, the board's desks, the
-    directory photos."""
+    directory photos. `campus` one of PROGRESS_CAMPUSES (27 Nov: 141-C/D,
+    whose desks no camera names yet -- the machines alone)."""
     import glob as _glob
     import attendance
     import desks_data
     import productivity_view
+    prefix, other = PROGRESS_CAMPUSES.get(campus, (campus, ""))
     files = sorted(_glob.glob(os.path.join(attendance.FOLDER, "*.csv")))
     if not files:
         return
     stamp = tuple((f, os.path.getmtime(f)) for f in files)
     with st.spinner("Scoring every employee..."):
-        rows, days = cached_attendance(stamp)
+        rows, days = cached_attendance(stamp, prefix)
         roster = {attendance.code(r["employee_id"]): r
                   for r in desks_data.load_roster()}
         rows = [r for r in rows if r["eid"] in roster]
@@ -5857,16 +5862,16 @@ def show_productivity(mode, people, hours, now):
             os.path.getmtime(desks_data.ROSTER)
             if os.path.exists(desks_data.ROSTER) else 0, ids)
         emps = productivity_view.employees(rows, roster, people, hours, now,
-                                           photos)
+                                           photos, campus=campus)
         try:
-            visitors = attendance.visitors()
+            visitors = attendance.visitors(prefix)
         except Exception:                                   # noqa: BLE001
             visitors = 0
     productivity_section(mode, emps, days, now.strftime("%d %b %H:%M"),
-                         visitors, now, hours)
+                         visitors, now, hours, campus, other)
 
 
-def show_productivity_sent(mode, sent, people, hours, now):
+def show_productivity_sent(mode, sent, people, hours, now, campus="140-H"):
     """The hosted page's Productivity: the rows the office laptop sent
     (names, IDs, directory-photo icons under cloud_names; never a camera
     picture) and the board's people."""
@@ -5880,10 +5885,12 @@ def show_productivity_sent(mode, sent, people, hours, now):
                          "department": r.get("department", ""),
                          "project": r.get("project", ""),
                          "photo": r.get("photo", "")} for r in rows}
-    emps = productivity_view.employees(rows, roster, people, hours, now)
+    emps = productivity_view.employees(rows, roster, people, hours, now,
+                                       campus=campus)
     productivity_section(mode, emps, sent.get("days") or [],
                          now.strftime("%d %b %H:%M"),
-                         int(sent.get("visitors") or 0), now, hours)
+                         int(sent.get("visitors") or 0), now, hours, campus,
+                         PROGRESS_CAMPUSES.get(campus, ("", ""))[1])
 
 
 def desk_scores(people, hours, now=None):
@@ -6474,6 +6481,31 @@ PROGRESS_MORE = "Behind the scores: desk cameras, every desk, attendance"
 PROGRESS_TOOLS = "Naming tools and videos (this laptop)"
 
 
+def show_campus_progress(mode, here, hosted, now):
+    """Another campus's Progress (27 Nov: 141-C/D): its employees by the
+    attendance machines, department by department, a report card each --
+    140-H's page without its desk cameras, which name nobody here yet.
+    Hosted: the rows the office laptop sent ("_attendance_141")."""
+    local = now.tz_convert(PKT)
+    prefix = PROGRESS_CAMPUSES[here][0]
+    if not hosted:
+        show_productivity(mode, None, tuple(float(h) for h in work_hours()),
+                          local, here)
+        return
+    stamp = _to_5min(now).isoformat()
+    sent = cached_progress_cloud_days(stamp)
+    got = cached_progress_cloud(stamp, sent[0] if sent else None)
+    att = ((got[0] or {}).get("attendance_by") or {}).get(prefix) \
+        if got else None
+    if not att:
+        st.markdown(overview.css(mode) + '<div class="ec"><div class="ec-card '
+                    'ec-calm">%s\'s employees come up with the office '
+                    'laptop\'s next send (every five minutes).</div></div>'
+                    % html.escape(here), unsafe_allow_html=True)
+        return
+    show_productivity_sent(mode, att, None, got[3], local, here)
+
+
 def show_progress(now):
     """Progress (Shamroze, 23 Nov): the employee-productivity project --
     its stages, and time at the desk for the desks HR approved watching.
@@ -6501,6 +6533,19 @@ def show_progress(now):
             st.rerun()
         return
     hosted = not os.path.exists(progress_data.CONFIG)
+    here = LINK_BASE.get("campus") or PROGRESS_CAMPUS
+    # A campus switch opens the other campus at its departments: no 140-H
+    # department or person left open on 141-C/D's page.
+    if st.session_state.get("prod_campus") != here:
+        for k in [k for k in st.session_state if str(k).startswith("prod_")]:
+            del st.session_state[k]
+        st.session_state["prod_campus"] = here
+    if here != PROGRESS_CAMPUS:
+        guarded("Productivity", show_campus_progress, mode, here, hosted, now)
+        if st.button("Lock Progress", key="progress_lock"):
+            st.session_state["progress_in"] = False
+            st.rerun()
+        return
     # 25 Nov night (Shamroze: "productivity alag, desk alag, attendance
     # alag -- aisa kyun? naya banda samjhega nahi"): one way in --
     # departments, their people, a report card each, with the attendance
@@ -6637,13 +6682,18 @@ def show_progress(now):
 # in the top row on the campus it watches (Shamroze: "140-H campus me
 # Progress ka tab"; tucked under More it was not found), nowhere else.
 PROGRESS_CAMPUS = "140-H"
+# 27 Nov (Shamroze: "141c/d me bh bnana shru krdo ... 140H ki tarah dept
+# wise"): 141-C/D has a Progress of its own -- its employees by the
+# attendance machines, department by department, behind the same door.
+# campus -> (the machines' place prefix, where its visitors mostly punch)
+PROGRESS_CAMPUSES = {"140-H": ("140-H", "141-D"), "141-C/D": ("141", "140-H")}
 # "3D" (23 Nov night, Shamroze: "140-H ke andar ek 3D ka column pehle add
 # kar do"): the building as a twin, first in 140-H's row -- the page still
 # opens on Overview.
 PRIMARY = (["3D"] if campus == PROGRESS_CAMPUS else []) + [
     "Overview", "Who comes when", "Rooms", "Desks", "Empty time",
     "Energy", "Savings & peak"] + (
-        ["Progress"] if campus == PROGRESS_CAMPUS else [])
+        ["Progress"] if campus in PROGRESS_CAMPUSES else [])
 SECONDARY = ["One room", "Camera health", "Look at the rooms",
              "Numbers & history"]
 VIEWS = PRIMARY + SECONDARY
