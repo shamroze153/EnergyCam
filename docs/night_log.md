@@ -1676,3 +1676,9 @@ Two or three lines a round; picture file names, never pictures.
   (17:40). The queued audit rounds were not run: office hours, the 141
   gym is private until 20:00, and the follow worker's playback resumed --
   the full audit waits for the first round after 20:00.
+* 04:12, 27 Nov round (the usage limit took the evening): 108 MATCH, 0
+  MISSED, 5 GHOST -- all outdoor/lobby rooms with no unit (141 Outside
+  NVR 3, H Backside, H First Floor Lobby, H Outside Area, P1 Parking);
+  nothing clearly an object in the pictures (frames/verify/ghost_*_0412),
+  so no ignore box -- for Shamroze. Progress for 141-C/D pushed (6339419);
+  loop restarted 04:36 so it sends 141's rows to the hosted page.
