@@ -2509,10 +2509,12 @@ def _reading_form(now, meters, readings, solar):
         with st.expander("Solar and today\u2019s high (optional)"):
             extra = st.columns(2)
             solar_kwh = extra[0].number_input(
-                "Solar made yesterday, kWh", min_value=0.0, value=None,
+                "Solar made today, kWh", min_value=0.0, value=None,
                 step=1.0, format="%.0f", key="solar_units",
-                help="The inverter's figure for yesterday -- a full day. Not"
-                     " today's so far, and not its lifetime total.")
+                help="The inverter's figure for the day, read in the evening"
+                     " with the meters (the sun is down: the day is whole)."
+                     " Typed in the morning, it counts as yesterday's. Not"
+                     " its lifetime total.")
             if last_sun:
                 extra[0].caption(last_sun)
             temp = extra[1].number_input(

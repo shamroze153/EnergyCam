@@ -188,6 +188,34 @@ def main():
     check("the days add up to what the meter moved",
           round(ds["gf_basement"].sum(), 6) == 53422.0 - 52801.0,
           ds["gf_basement"].sum())
+    # 26 Nov: the panels' figure typed with the evening readings is that
+    # day's (Wednesday 6 pm's 210 is Wednesday's); a morning one yesterday's
+    sun_ = pd.DataFrame({"taken": [pd.Timestamp("2026-11-24 18:00",
+                                                tz="Asia/Karachi"),
+                                   pd.Timestamp("2026-11-21 10:00",
+                                                tz="Asia/Karachi")],
+                         "kwh": [210.0, 150.0], "note": [None, None]})
+    ds2 = ev.day_series(wk, METERS[METERS["code"] == "gf_basement"], sun_)
+    got2 = {d.strftime("%a %d"): s for d, s in zip(ds2["day"], ds2["solar"])
+            if s == s and s is not None}
+    check("solar typed in the evening is that day's; in the morning, the "
+          "day before's", got2 == {"Tue 24": 210.0, "Fri 20": 150.0}, got2)
+    # ... and the solar card and the folded charts (daily_table) name the
+    # same days as the chart of every day (26 Nov: the card said "Tuesday
+    # 24" over Wednesday's figure).
+    tb, _ = ev.daily_table(wk, METERS[METERS["code"] == "gf_basement"], sun_)
+    tdays = [d.strftime("%a %d") for d in tb["day"]]
+    tsun = {d.strftime("%a %d"): s for d, s in zip(tb["day"], tb["solar"])
+            if s == s and s is not None}
+    # (daily_table keeps a day's last reading only: Friday evening to
+    # Monday evening is shared over Saturday to Monday)
+    check("daily_table: an evening reading's day is its own, the weekend"
+          " shared after Friday",
+          tdays == ["Fri 20", "Sat 21", "Sun 22", "Mon 23", "Tue 24"]
+          and tb["gf_basement_shared"].tolist()
+          == [False, True, True, True, False], (tdays, tb))
+    check("daily_table: solar on the same days as day_series", tsun == got2,
+          tsun)
     # 25 Nov: "The last full day" is day_series' day -- not "Mon 23" over a
     # list saying 6 pm Monday to 6 pm Tuesday is Tuesday.
     last = ev.last_full_day(ds, ("gf_basement",))

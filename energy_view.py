@@ -95,19 +95,49 @@ def solar_per_day(solar):
              and statistics.median(steps) > 0
              and statistics.median(values) > 15 * statistics.median(steps))
     days = s["taken"].dt.tz_convert(LOCAL).dt.normalize()
+    # the hour it was typed: an evening figure is that day's (day_series)
+    hours = list(s["taken"].dt.tz_convert(LOCAL).dt.hour)
     if total:
-        out = pd.DataFrame({"day": list(days)[1:], "kwh": steps})
+        out = pd.DataFrame({"day": list(days)[1:], "kwh": steps,
+                            "hour": hours[1:]})
         return out, "total"
-    return pd.DataFrame({"day": list(days), "kwh": values}), "daily"
+    return pd.DataFrame({"day": list(days), "kwh": values,
+                         "hour": hours}), "daily"
+
+
+EVENING_FROM = 14   # solar typed from this hour on is the same day's
+
+
+def solar_days(sun):
+    """{day: kWh} from solar_per_day(): a figure typed in the evening is
+    that day's (the sun is down, the inverter's day is whole), one typed in
+    the morning the day before's. Days keep solar_per_day's form (local,
+    midnight)."""
+    if sun is None or not len(sun):
+        return {}
+    hours = sun["hour"] if "hour" in sun else [0] * len(sun)
+    return {d - pd.Timedelta(days=0 if h >= EVENING_FROM else 1): float(k)
+            for d, k, h in zip(sun["day"], sun["kwh"], hours)}
+
+
+def read_day(ts):
+    """The day a reading closes: an evening reading closes that day (6 pm
+    Monday to 6 pm Tuesday is Tuesday, counted_as), a morning one the day
+    before (eleven to eleven is mostly yesterday's hours)."""
+    t = pd.Timestamp(ts).tz_convert(LOCAL)
+    return t.normalize() - pd.Timedelta(days=0 if t.hour >= 12 else 1)
 
 
 def reading_periods(readings, meters):
     """Units between consecutive readings, a day's worth each.
 
-    A reading taken at eleven covers eleven yesterday to eleven today, so it
-    is drawn on yesterday -- most of its hours are yesterday's. A gap of two
-    days is shared out as two equal days rather than drawn as one tall one,
-    and marked, so a missed reading is not mistaken for a busy day.
+    Each stretch is put on the days after the day its first reading closed,
+    up to the day its last one closes (read_day): the same days the chart
+    of every day (day_series) draws, so the solar card and the folded
+    charts name a day as it does (26 Nov: the solar card said "Tuesday 24"
+    over Wednesday's figure). A gap of two days is shared out as two equal
+    days rather than drawn as one tall one, and marked, so a missed reading
+    is not mistaken for a busy day.
     """
     periods = meters_view.daily_units(readings)
     if periods.empty:
@@ -117,18 +147,18 @@ def reading_periods(readings, meters):
         hours = float(p["hours"] or 0)
         if hours <= 0:
             continue
-        days = max(1, int(round(hours / 24.0)))
         # Put on a 24-hour footing. Shamroze reads the meters "at about six"
         # (12 Nov): 213 units over 25.7 hours is a 199-unit day, and without
         # this a reading taken an hour late made the day look bigger.
         each = float(p["units"]) * 24.0 / hours
-        end = pd.Timestamp(p["to"]).tz_convert(LOCAL).normalize()
-        for k in range(days):
+        first, last = read_day(p["from"]), read_day(p["to"])
+        n = max(1, (last - first).days)
+        for k in range(n):
             rows.append({"meter": p["meter"],
-                         "day": end - pd.Timedelta(days=k + 1),
-                         "units": each, "shared": days > 1,
-                         "raw": float(p["units"]) / days,
-                         "hours": hours / days,
+                         "day": last - pd.Timedelta(days=k),
+                         "units": each, "shared": n > 1,
+                         "raw": float(p["units"]) / n,
+                         "hours": hours / n,
                          "from": p["from"], "to": p["to"]})
     return pd.DataFrame(rows)
 
@@ -139,10 +169,9 @@ def daily_table(readings, meters, solar):
     sun, kind = solar_per_day(solar)
     if not len(sun):
         sun = pd.DataFrame(columns=["day", "kwh"])
-    # Solar typed in on a day is drawn on the day before, with the reading
-    # it was entered beside: the form asks for yesterday's full figure.
-    shifted = (dict(zip(sun["day"] - pd.Timedelta(days=1), sun["kwh"]))
-               if len(sun) else {})
+    # Typed in the evening it is that day's, in the morning the day
+    # before's -- as day_series() has it (solar_days).
+    shifted = solar_days(sun)
     days = set(periods["day"]) if len(periods) else set()
     if days:
         # A solar day before the first pair of readings still happened:
@@ -231,9 +260,14 @@ def day_series(readings, meters, solar):
     out = pd.DataFrame(rows)
     sun, _ = solar_per_day(solar)
     if len(sun):
-        shifted = dict(zip(pd.to_datetime(sun["day"]).dt.tz_localize(None)
-                           - pd.Timedelta(days=1), sun["kwh"]))
-        out["solar"] = out["day"].map(shifted)
+        # 26 Nov (Shamroze: "Wednesday shaam 6 bje ... solar production thi
+        # 210"): the panels' figure is typed with the evening readings --
+        # that day's, the sun already down -- and counted_as() puts the
+        # meters' evening-to-evening stretch on the same day. Only a figure
+        # typed in the morning is yesterday's. Every evening figure had sat
+        # a day early, and Wednesday's day showed no solar at all.
+        sun = sun.assign(day=pd.to_datetime(sun["day"]).dt.tz_localize(None))
+        out["solar"] = out["day"].map(solar_days(sun))
     else:
         out["solar"] = None
     return out
@@ -387,7 +421,7 @@ def cycle_page(theme, cyc, meters, bills=None):
         'far, and what the rest of the bill will be</span></div>'
         % (span, s.day),
         '<div class="en-tiles">', "".join(tiles), "</div>",
-        '<table class="en-bt" style="margin-top:10px"><tr><th></th><th>So '
+        '<table class="en-bt wrap1" style="margin-top:10px"><tr><th></th><th>So '
         'far</th><th>To come</th><th>The bill</th><th>A unit</th><th>Rs'
         '</th></tr>%s</table>' % "".join(rows),
         '<div class="en-note" style="margin-top:6px">The days to come are '
@@ -987,7 +1021,8 @@ border-radius:12px;padding:11px 14px;margin-top:10px;font-size:13px}
 .en-tiles:has(>.ec-kpi:nth-child(5):last-child)>.ec-kpi:nth-child(n+4){grid-column:span 3}
 @media (max-width:760px){
 .en-tiles:has(>.ec-kpi:nth-child(5):last-child){grid-template-columns:repeat(2,minmax(0,1fr))}
-.en-tiles:has(>.ec-kpi:nth-child(5):last-child)>.ec-kpi{grid-column:auto}
+.en-tiles:has(>.ec-kpi:nth-child(5):last-child)>.ec-kpi,
+.en-tiles:has(>.ec-kpi:nth-child(5):last-child)>.ec-kpi:nth-child(n+4){grid-column:auto}
 .en-tiles:has(>.ec-kpi:nth-child(5):last-child)>.ec-kpi:last-child{grid-column:1/-1}}
 .en-sun{display:grid;grid-template-columns:minmax(230px,1fr) 2fr;gap:26px;
 align-items:center}
@@ -1022,7 +1057,9 @@ padding:6px 8px;border-bottom:1px solid var(--line)}
 .en-bt tr.odd td,.en-bt td.crit{color:var(--crit)}
 .en-bt tr.tot td{font-weight:650;border-bottom:0;vertical-align:top}
 .en-bt tr.tot td span{font-size:11px;font-weight:400;color:var(--t3)}
-@media (max-width:760px){.en-bt{font-size:12px}.en-bt th,.en-bt td{padding:5px 4px}}
+@media (max-width:760px){.en-bt{font-size:12px}.en-bt th,.en-bt td{padding:5px 4px}
+.en-bt td{white-space:nowrap}
+.en-bt.wrap1 td:first-child{white-space:normal}}
 .en-days{padding:14px 12px 12px}
 .en-days .sc{display:flex;flex-direction:row-reverse;overflow-x:auto;
 padding-bottom:6px}
@@ -1846,9 +1883,10 @@ def meters_page(theme, table, kind, meters, bills, cooled_hours, rate,
                                (c["solar"], "Solar"),
                                (c["ff"], "First floor + cafe, grid")]))
             h.append('<div class="ec-card" style="padding:16px 18px 26px">%s'
-                     '<div class="en-note">A reading at eleven covers eleven '
-                     'the day before to eleven that day, so it is drawn on '
-                     'the day before. Every day is put on a 24-hour footing, '
+                     '<div class="en-note">A day is its evening reading\'s: '
+                     '6 pm Monday to 6 pm Tuesday is Tuesday (a morning '
+                     'reading closes the day before). Every day is put on a '
+                     '24-hour footing, '
                      'so a reading taken an hour early or late does not make '
                      'a day look smaller or bigger: hover a day for the units '
                      'as read and the hours they covered. "avg" is a day with '
