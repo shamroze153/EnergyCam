@@ -1645,3 +1645,11 @@ Two or three lines a round; picture file names, never pictures.
   No MISSED; 19 night detections. Nothing changed. Four background
   workers this night: recordings and faces (gate backfill running),
   where-the-day-went places, the AC audit, and a research one (done).
+* 07:58, 26 Nov: the workers' results merged and pushed (fb60e14): AC --
+  141-C cafe towers 3/6 read heads in front as running, Reception a dawn
+  shadow, Marketing's Kenwood and M1 missed under bright lights, the
+  Learning Center tower and Reception unread at night/evening; fixed in
+  ac_units.yaml/ac_detect and replayed over every kept frame (ghosts
+  gone, no running frame lost). places_day on the board; gate faces
+  nightly; one desk auto-named, 14 in a review PDF. Loop restarted 07:57.
+  The usage limit stopped the work 03:15-07:30.
