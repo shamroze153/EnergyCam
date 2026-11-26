@@ -25,12 +25,45 @@ work here by design: it is granted the timestamp column and nothing more.
 import hmac
 import html
 import os
+import sys
 import time
 import warnings
 from datetime import datetime, timedelta, timezone
 from urllib.parse import quote
 
 import streamlit as st
+
+
+SELF = os.path.abspath(globals().get("__file__") or "rooms_dashboard.py")
+
+
+def guarded(what, fn, *args, **kwargs):
+    """Draw one part of a page; if it fails, say so in one line and carry
+    on (26 Nov: one TypeError took the whole hosted Progress tab). The
+    traceback goes to the server's log, never onto the page -- it can
+    name a file or a person. Streamlit's own rerun and stop pass through
+    (they are not Exceptions)."""
+    try:
+        return fn(*args, **kwargs)
+    except Exception as e:                                  # noqa: BLE001
+        import traceback
+        print(">> %s could not be drawn:\n%s" % (what, traceback.format_exc()),
+              file=sys.stderr, flush=True)
+        # where, never what: the error's kind and our own file and line
+        # (no value from the data), so a phone's screenshot says enough
+        ours = [f for f in traceback.extract_tb(e.__traceback__)
+                if os.path.dirname(os.path.abspath(f.filename))
+                == os.path.dirname(SELF)]
+        at = ours[-1] if ours else None
+        st.warning("%s could not be drawn just now. The rest of the page "
+                   "works; reload in a minute. (%s%s)" % (
+                       what, type(e).__name__,
+                       " in %s line %d, %s" % (os.path.basename(at.filename),
+                                               at.lineno, at.name)
+                       if at else ""), icon="⚠️")
+        return None
+
+
 
 
 def boot_screen(mode, campus=None, delay=.3):
@@ -118,7 +151,7 @@ import yaml  # noqa: E402
 from streamlit_autorefresh import st_autorefresh  # noqa: E402
 
 
-def _fresh_modules():
+def _fresh_modules(here=None, modules=None, state=None):
     """Load this project's own modules as they are on disk now.
 
     Streamlit reruns this script on every visit, but a module it imported
@@ -126,38 +159,42 @@ def _fresh_modules():
     rooms_dashboard.py that called analysis_view.cooled_while_empty with
     seven arguments while still holding yesterday's analysis_view, which
     took five -- every page showed a TypeError until the app was rebooted.
+    The fix then reloaded a fixed list of fourteen modules -- and on 26 Nov
+    08:19 the hosted Progress tab stopped the same way: the new script
+    called productivity_view.top_html with an argument the old, still
+    loaded productivity_view did not take, and it was not on the list.
 
-    So each run compares each file's time with the one it was loaded at
-    and reloads what changed, and everything that depends on it after it,
-    in dependency order. They are plain pandas code with no Streamlit in
-    them, so reloading them costs milliseconds and holds no state.
+    So no list: each run looks at the time of every .py file of the app,
+    and on a process's first run, or when any of them changed since the
+    last look, lets go of ALL of the app's loaded modules, so each is read
+    again on its next import -- together, so none keeps the old copy of
+    another. They are plain pandas code; reading them again costs a
+    moment, once per change. Returns the names let go.
     """
-    import importlib
-    import sys
-    order = ("schedule", "campus_view", "day_story", "day_timeline",
-             "overview", "analysis_view", "meters_view", "energy_view",
-             "empty_view", "live_ac", "floors_view", "energy_rooms",
-             "ac_plan", "seating")
+    import glob
     # The tests run this half of the file through exec, with no __file__.
-    here = os.path.dirname(os.path.abspath(
-        globals().get("__file__") or "rooms_dashboard.py"))
-    stamps = getattr(sys, "_energycam_stamps", None)
-    if stamps is None:
-        stamps = {}
-        sys._energycam_stamps = stamps
-    changed = False
-    for name in order:
+    here = here or os.path.dirname(SELF)
+    modules = sys.modules if modules is None else modules
+    state = vars(sys) if state is None else state
+    now = {}
+    for f in glob.glob(os.path.join(here, "*.py")):
         try:
-            stamp = os.path.getmtime(os.path.join(here, name + ".py"))
+            now[os.path.abspath(f)] = os.path.getmtime(f)
         except OSError:
+            pass
+    if state.get("_energycam_files") == now:
+        return []
+    gone = []
+    for name, mod in list(modules.items()):
+        f = getattr(mod, "__file__", None)
+        if name == "__main__" or not f:
             continue
-        mod = sys.modules.get(name)
-        if mod is None:
-            importlib.import_module(name)
-        elif changed or stamps.get(name) != stamp:
-            importlib.reload(mod)
-            changed = True
-        stamps[name] = stamp
+        f = os.path.abspath(f)
+        if f in now and f != SELF:
+            modules.pop(name, None)
+            gone.append(name)
+    state["_energycam_files"] = now
+    return sorted(gone)
 
 
 _fresh_modules()
@@ -5713,8 +5750,8 @@ def productivity_section(mode, emps, days, made, visitors=0, now=None,
         up = CREW if is_crew else person["dept"]
         b2.button("← %s" % up, key="prod_up", on_click=_nav,
                   args=(up, None), width="stretch")
-        show_profile(mode, person, crew if is_crew else office, "card", now,
-                     hours, last_day)
+        guarded("This report card", show_profile, mode, person,
+                crew if is_crew else office, "card", now, hours, last_day)
     elif open_ == CREW and crew:
         st.button("← All departments", key="prod_back", on_click=_nav)
         st.markdown(employee_report.crew_head(mode, crew),
@@ -6464,26 +6501,29 @@ def show_progress(now):
                         unsafe_allow_html=True)
             return
         cfg, people, made, hours_sent = got
-        show_productivity_sent(mode, cfg.get("attendance"), people,
-                               hours_sent, now.tz_convert(PKT))
+        # each part on its own: one that fails says so and the rest stands
+        guarded("Productivity", show_productivity_sent, mode,
+                cfg.get("attendance"), people, hours_sent,
+                now.tz_convert(PKT))
         if st.toggle(PROGRESS_MORE, key="progress_more"):
             chosen = pick_progress_day(sent)
             if sent and chosen != sent[0]:
                 other = cached_progress_cloud(stamp, chosen)
                 if other and other[1]:
                     cfg, people, made, hours_sent = other
-            st.markdown(progress_view.page(mode, cfg, people, made,
-                                           hours_sent, part="top"),
-                        unsafe_allow_html=True)
-            show_report_card(mode, people, hours_sent, now)
-            st.markdown(progress_view.page(mode, cfg, people, made,
-                                           hours_sent, part="rest"),
-                        unsafe_allow_html=True)
-            show_building(mode, people)
-            show_rooms_desks(mode, cfg.get("desks"))
-            show_attendance_sent(mode, cfg.get("attendance"), hours_sent,
-                                 desk_scores(people, hours_sent,
-                                             now.tz_convert(PKT)))
+            guarded("The desk cameras' board", lambda: st.markdown(
+                progress_view.page(mode, cfg, people, made, hours_sent,
+                                   part="top"), unsafe_allow_html=True))
+            guarded("The report card", show_report_card, mode, people,
+                    hours_sent, now)
+            guarded("The desk cameras' days", lambda: st.markdown(
+                progress_view.page(mode, cfg, people, made, hours_sent,
+                                   part="rest"), unsafe_allow_html=True))
+            guarded("The building map", show_building, mode, people)
+            guarded("Every desk", show_rooms_desks, mode, cfg.get("desks"))
+            guarded("The attendance lists", lambda: show_attendance_sent(
+                mode, cfg.get("attendance"), hours_sent,
+                desk_scores(people, hours_sent, now.tz_convert(PKT))))
         st.caption("Sent by the office laptop at %s (every five minutes). The "
                    "pictures, the day's videos and the sightings to check "
                    "stay on that laptop." % made)
@@ -6509,28 +6549,31 @@ def show_progress(now):
                 _to_5min(now).isoformat(), hours)
     day_key = kept[0]
     cfg, people = board_for(day_key)
-    show_productivity(mode, people, hours, local)
+    guarded("Productivity", show_productivity, mode, people, hours, local)
     more = st.toggle(PROGRESS_MORE, key="progress_more")
     tools = st.toggle(PROGRESS_TOOLS, key="progress_tools")
     if more or tools:
         day_key = pick_progress_day(kept) or today
         if day_key != kept[0]:
             cfg, people = board_for(day_key)
+    made_ = local.strftime("%d %b %H:%M")
     if more:
-        st.markdown(progress_view.page(mode, cfg, people,
-                                       local.strftime("%d %b %H:%M"), hours,
-                                       part="top"), unsafe_allow_html=True)
-        show_report_card(mode, people, hours, now, day_key)
-        st.markdown(progress_view.page(mode, cfg, people,
-                                       local.strftime("%d %b %H:%M"), hours,
-                                       part="rest"), unsafe_allow_html=True)
-        show_building(mode, people)
-        show_desks(mode, day_key)
-        show_attendance(mode, hours, desk_scores(people, hours, local))
+        guarded("The desk cameras' board", lambda: st.markdown(
+            progress_view.page(mode, cfg, people, made_, hours, part="top"),
+            unsafe_allow_html=True))
+        guarded("The report card", show_report_card, mode, people, hours,
+                now, day_key)
+        guarded("The desk cameras' days", lambda: st.markdown(
+            progress_view.page(mode, cfg, people, made_, hours, part="rest"),
+            unsafe_allow_html=True))
+        guarded("The building map", show_building, mode, people)
+        guarded("Every desk", show_desks, mode, day_key)
+        guarded("The attendance lists", lambda: show_attendance(
+            mode, hours, desk_scores(people, hours, local)))
     if tools:
-        show_seat_review(mode)
-        show_desk_naming(mode, day_key)
-        show_sightings(mode, people)
+        guarded("Who sits where", show_seat_review, mode)
+        guarded("Name the desks", show_desk_naming, mode, day_key)
+        guarded("Sightings to check", show_sightings, mode, people)
     # Each employee's day as a video (progress_video.py): pictures of the
     # desk, so -- like everything here -- only on this laptop. Made in a
     # process of its own: it needs OpenCV, which the hosted page has not.

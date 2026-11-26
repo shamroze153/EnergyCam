@@ -2637,6 +2637,122 @@ def check_report_card():
           ("workforce score" in er.emp_card(crew_[0], 70.0),
            "group 70" in er.emp_card(crew_[0], 70.0),
            "Workforce staff" in er.crew_card(crew_)), (True, True, True))
+    # 26 Nov 08:19 (Shamroze, the hosted page): Progress stopped with a
+    # TypeError -- Streamlit Cloud ran the new script against the old,
+    # still-loaded modules. fresh_modules lets a changed module go.
+    import ast
+    import json as json_
+    import time as time_
+    import types
+    import progress_data as pdx2
+    src = open("rooms_dashboard.py", encoding="utf-8").read()
+    fns = {n.name: ast.get_source_segment(src, n)
+           for n in ast.parse(src).body if isinstance(n, ast.FunctionDef)}
+    tmp = tempfile.mkdtemp()
+    try:
+        ns = {"os": os, "sys": sys,
+              "SELF": os.path.join(tmp, "rooms_dashboard.py")}
+        exec(fns["_fresh_modules"], ns)
+        for n_ in ("app_a.py", "app_b.py", "rooms_dashboard.py"):
+            open(os.path.join(tmp, n_), "w").close()
+
+        def loaded():
+            mods_ = {}
+            for n_ in ("app_a", "app_b", "rooms_dashboard"):
+                m_ = types.ModuleType(n_)
+                m_.__file__ = os.path.join(tmp, n_ + ".py")
+                mods_[n_] = m_
+            other = types.ModuleType("pandas_like")
+            other.__file__ = os.path.join(os.path.dirname(tmp), "x", "y.py")
+            mods_["pandas_like"] = other
+            return mods_
+        state = {}
+        mods = loaded()
+        first = ns["_fresh_modules"](tmp, mods, state)
+        mods = loaded()                         # read again by the page
+        same = ns["_fresh_modules"](tmp, mods, state)
+        os.utime(os.path.join(tmp, "app_b.py"),
+                 (time_.time() + 60, time_.time() + 60))
+        after = ns["_fresh_modules"](tmp, mods, state)
+        check("the app's modules read again when any of its files changed "
+              "-- all of them together, and on a process's first run; "
+              "nothing when nothing changed; never the page or a library",
+              (first, same, after, "pandas_like" in mods,
+               "rooms_dashboard" in mods),
+              (["app_a", "app_b"], [], ["app_a", "app_b"], True, True))
+    finally:
+        shutil.rmtree(tmp)
+    shown = []
+    ns2 = {"os": os, "sys": sys, "SELF": os.path.abspath(
+        "rooms_dashboard.py"),
+           "st": types.SimpleNamespace(warning=lambda t, icon=None:
+                                       shown.append(t))}
+    exec(fns["guarded"], ns2)
+    import io as io_
+    err_, sys.stderr = sys.stderr, io_.StringIO()
+    try:
+        got_ = ns2["guarded"]("Productivity", lambda: None + 1)
+    finally:
+        sys.stderr = err_
+    check("  a part that fails says so in one line -- its kind of error, "
+          "never a value -- and the page carries on",
+          (got_, len(shown), "Productivity could not be drawn" in shown[0],
+           "TypeError" in shown[0]), (None, 1, True, True))
+    check("  and the page does it before importing its own modules, with no "
+          "list to forget; each part of Progress drawn on its own",
+          (src.index("\n_fresh_modules()") < src.index("\nimport overview"),
+           "order = (" in fns["_fresh_modules"],
+           'guarded("Productivity", show_productivity_sent' in src,
+           'guarded("Productivity", show_productivity,' in src),
+          (True, False, True, True))
+    # the hosted page's own path: what the laptop sends, through JSON and
+    # back (timestamps as text, tuples as lists), drawn part by part
+    day_ = "2026-11-24"
+    att_row = {"eid": "1", "days": by["2"]["days"], "days_in": 6, "of": 6,
+               "usual_in": 10.08, "usual_out": 19.08, "inside_h": 9.0,
+               "late": 0, "outings": 0.0, "name": "Person 1",
+               "employee_id": "1", "designation": "Engineer",
+               "department": "Testing", "project": "Unit A", "photo": ""}
+    crew_row = dict(att_row, eid="2", employee_id="2",
+                    designation="Office Boy", name="Person 2")
+    board_p = {"code": "P9", "employee_id": "1", "name": "Person 1",
+               "days": [{"day": day_, "first": T(day_ + " 10:10"),
+                         "desk_min": 300.0, "long_min": 200.0,
+                         "watched_min": 540.0}],
+               "history": [{"day": day_, "first": T(day_ + " 10:10"),
+                            "last": T(day_ + " 19:00"), "desk_min": 300.0,
+                            "computer_min": 200.0, "phone_min": 10.0,
+                            "talking_min": 20.0}],
+               "places": {"day": day_, "segments": [
+                   (T(day_ + " 10:10"), T(day_ + " 13:00"), "desk", "", "desk"),
+                   (T(day_ + " 13:00"), T(day_ + " 13:40"), "cafe",
+                    "Prompt Cafe", "face")],
+                   "totals": {"desk": 170.0, "cafe": 40.0}},
+               "places_days": {day_: {"desk": 170.0, "cafe": 40.0}}}
+    back = pdx2._restore(json_.loads(json_.dumps(pdx2._jsonable(
+        {"rows": [att_row, crew_row], "people": [board_p]}))))
+    ros_ = {r["eid"]: {"name": r["name"], "employee_id": r["employee_id"],
+                       "designation": r["designation"],
+                       "department": r["department"],
+                       "project": r["project"], "photo": ""}
+            for r in back["rows"]}
+    ems = prv2.employees(back["rows"], ros_, back["people"], (10.0, 20.0),
+                         T(day_ + " 21:00"))
+    off_ = er.prepare([x for x in ems if x.get("staff") != "workforce"])
+    cr_ = er.prepare([x for x in ems if x.get("staff") == "workforce"])
+    page2 = "".join([
+        prv2.top_html("light", off_, [day_], "now", 0, len(cr_)),
+        er.workload_html(off_), er.crew_card(cr_),
+        er.crew_head("light", cr_)] + [
+        er.dept_head("light", n_, es_, off_)
+        for n_, es_, _ in prv2.dept_cards(off_)] + [
+        er.report_html("light", x, pool_, T(day_ + " 21:00"), (10.0, 20.0),
+                       day_, crew=pool_ is cr_)
+        for pool_ in (off_, cr_) for x in pool_])
+    check("the hosted page's path -- through JSON and back -- draws every "
+          "part, the day's places in the line",
+          (len(off_), len(cr_), "Cafe and pantry" in page2, "None" in page2),
+          (1, 1, True, False))
     # the machines' export cut at 12:21 (25 Nov): nobody absent that day
     raw = pd.DataFrame({
         "eid": ["90070"] * 3,
