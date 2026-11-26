@@ -232,6 +232,21 @@ campus page) goes in `room_events.ac_units_on`, which an administrator adds
 once with `sql/09_ac_units.sql`. Until then the loop writes rooms without
 it and says so once; restart the loop after the SQL is run.
 
+## 27 Nov, night
+
+* **141-C/D Progress** (Shamroze: "141c/d me bh bnana ... 140H ki tarah
+  dept wise", same password): `PROGRESS_CAMPUSES` in rooms_dashboard
+  (campus -> the machines' place prefix, where its visitors punch). Its
+  employees are those with half their punches at "141-D ..." machines;
+  no 141 desk is named in a camera yet, so the score is attendance alone
+  and the page says so. Hosted: the loop sends `_attendance_141`
+  (progress_track.OTHER_CAMPUSES).
+* **Monitor** tab (his picture of a plant-monitoring dashboard):
+  monitor_view.py + rooms_dashboard.show_monitor, both campuses.
+* **Attendance link** he sent is a Looker Studio report behind Google
+  sign-in (shamroze.nasir's account): he must sign in to the app
+  browser himself; until then HR's export (people/attendance/) is all.
+
 ## Handoff -- 25 Nov, 19:25 (read this first in a new session)
 
 Everything that runs is pushed (396598b); the loop and the laptop
