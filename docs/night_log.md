@@ -1653,3 +1653,7 @@ Two or three lines a round; picture file names, never pictures.
   gone, no running frame lost). places_day on the board; gate faces
   nightly; one desk auto-named, 14 in a review PDF. Loop restarted 07:57.
   The usage limit stopped the work 03:15-07:30.
+* 08:56, 26 Nov round: skipped on purpose -- office hours, and the faces
+  worker's playback (gate-to-seat follow) holds up to 3 recorder streams;
+  a full audit's 86 main streams on top is too much for the recorders.
+  Loop alive (08:55 pass). Hosted Progress's TypeError fixed (eb7c332).
