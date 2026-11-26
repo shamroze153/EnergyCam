@@ -400,7 +400,7 @@ def _kpis(tiles):
         '</div><div class="s">%s</div></div>' % t for t in tiles)
 
 
-def top_html(mode, emps, days, made="", visitors=0):
+def top_html(mode, emps, days, made="", visitors=0, crew=0):
     """The page's short top (Shamroze, 25 Nov night: "chhota banao ... itna
     lamba kyun"): a line of title and four figures -- employees monitored,
     the average productivity, departments, desks a camera sees."""
@@ -419,7 +419,9 @@ def top_html(mode, emps, days, made="", visitors=0):
         '%s</span></div>' % (esc(days[0]) if days else "",
                              esc(days[-1]) if days else "", esc(made)),
         _kpis([
-            ("Employees monitored", "%d" % n, "100%% of 140-H%s" % (
+            ("Employees monitored", "%d" % n, "%s%s" % (
+                "+ %d workforce staff apart = all %d of 140-H" % (
+                    crew, n + crew) if crew else "100% of 140-H",
                 " &middot; %d visitors from 141-D left out" % visitors
                 if visitors else "")),
             ("Productivity, average", "%d" % round(prod) if prod is not None

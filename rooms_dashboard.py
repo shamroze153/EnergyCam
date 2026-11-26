@@ -5695,12 +5695,13 @@ def productivity_section(mode, emps, days, made, visitors=0, now=None,
     def people_cards(es, where):
         es = sorted(es, key=lambda e: -(e["productivity"] or 0))
         avg = employee_report.dept_avg(es)
+        states = employee_report.states(es)
         for i in range(0, len(es), per_row):
             cols = st.columns(per_row)
             for col, e in zip(cols, es[i:i + per_row]):
                 with col:
-                    st.markdown(employee_report.emp_card(e, avg),
-                                unsafe_allow_html=True)
+                    st.markdown(employee_report.emp_card(
+                        e, avg, states.get(e["eid"])), unsafe_allow_html=True)
                     st.button("Report card", key="prod_emp_%s" % e["eid"],
                               on_click=_nav, args=(where, e["eid"]),
                               width="stretch")
@@ -5733,7 +5734,7 @@ def productivity_section(mode, emps, days, made, visitors=0, now=None,
         people_cards(es, name)
     else:
         st.markdown(productivity_view.top_html(mode, pool, days, made,
-                                               visitors),
+                                               visitors, len(crew)),
                     unsafe_allow_html=True)
         st.markdown(employee_report.workload_html(pool),
                     unsafe_allow_html=True)

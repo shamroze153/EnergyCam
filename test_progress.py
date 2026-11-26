@@ -2617,6 +2617,14 @@ def check_report_card():
           (sorted(x["eid"] for x in wl_["long"]),
            sorted(x["eid"] for x in wl_["low"]), len(wl_["healthy"]),
            "Long days" in er.workload_html(emps)), (["6"], [], 6, True))
+    strip_ = er.dept_strip_html(emps)
+    check("  a department's day at a glance: a dot a person, the long day "
+          "marked on the strip and on the card",
+          ("dstrip" in strip_, strip_.count('<i style="left:'),
+           "long days 1" in strip_,
+           er.emp_card(by["6"], 77.0, "long").count("long days"),
+           "long days" in er.emp_card(by["2"], 77.0, "healthy")),
+          (True, 7, True, 1, False))
     check("workforce staff by their designation, each kind with its own",
           (prv2.crew_group("Janitorial"), prv2.crew_group("Office Boy"),
            prv2.crew_group("Gate Keeper"), prv2.crew_group("Senior Engineer")),

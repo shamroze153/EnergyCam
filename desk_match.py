@@ -354,9 +354,28 @@ def _append(path, row, header=None):
         w.writerow(row)
 
 
+def gate_faces():
+    """The gate's faces read again with the machines beside them (26 Nov,
+    gate_match.nightly_faces: exits -> the gate gallery, "gate+machines"
+    names kept apart) -- after the desks, in the same night's run. Never
+    raises: a summary or the reason it did not run.
+
+    gate_match is loaded by name, not imported: the dashboard reaches this
+    module (progress_data -> desk_match) and test_dashboard follows every
+    import statement in it, and gate_match brings the face models (OpenCV)
+    -- the laptop's half, never the hosted page's."""
+    try:
+        import importlib
+        gate_match = importlib.import_module("gate_match")
+        return gate_match.nightly_faces()
+    except Exception as e:                                  # noqa: BLE001
+        return "gate faces: not read (%s)" % type(e).__name__
+
+
 def main(argv):
     if "--nightly" in argv:
         print(nightly())
+        print(gate_faces())
         return
     for r in sorted(check_all(), key=lambda r: (r["verdict"], r["code"])):
         print("%-11s %-10s %-10s days %d desk %4dm share %s" % (

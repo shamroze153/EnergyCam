@@ -18,9 +18,14 @@ camera's only, so a desk on another camera is not called away in it.
 
     python replay_day.py 2026-11-23 12:00 19:00              the loop's gaps
     python replay_day.py 2026-11-24 10:00 19:00 --cameras nvr4:23,nvr4:25 --all
+    python replay_day.py 2026-11-17,2026-11-18 08:30 22:00 --streams 1
 
 Only 140-H's recorders, never a room in its private hours, and a camera's
-picture is never kept: numbers only (seats/ is git-ignored).
+picture is never kept: numbers only (seats/ is git-ignored). Several days
+(comma-separated) share one run: a recorder that refused once is left
+alone for the rest of it, never tried again; --streams caps the playback
+sessions open at once over all the recorders (26 Nov: three at most,
+counting any other playback running beside it).
 """
 import argparse
 import csv
@@ -35,6 +40,7 @@ CAMPUS = ("nvr1", "nvr4", "dvr2", "xvr3")
 EVERY_MIN = 5
 GAP_MIN = 3              # a loop pass this near a moment: the loop saw it
 PER_RECORDER = 2         # playback sessions open at once on one recorder
+STREAMS = 3              # ... and over all the recorders together
 OUT = os.path.join("seats", "replay")
 
 
@@ -119,10 +125,29 @@ def done_before(day, folder=OUT):
         return {(r["camera"], r["end"][-8:]) for r in csv.DictReader(fh)}
 
 
+def plan_days(day_arg, start, end, every=EVERY_MIN, every_moment=False,
+              passes_of=None):
+    """[(day, moments)] for each of the comma-separated days: a moment every
+    `every` minutes from start to end -- only those no loop pass came near,
+    unless every_moment."""
+    out = []
+    for day in [d.strip() for d in str(day_arg).split(",") if d.strip()]:
+        times = moments(day, start, end, every)
+        if not every_moment:
+            if passes_of is None:
+                import progress_data as pdx
+                passes_of = pdx.passes
+            p = passes_of(day)
+            loop = list(p.loc[p["camera"].isna(), "end"]) if len(p) else []
+            times = unwatched(times, loop)
+        out.append((day, times))
+    return out
+
+
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawTextHelpFormatter)
-    ap.add_argument("day")
+    ap.add_argument("day", help="YYYY-MM-DD, or several comma-separated")
     ap.add_argument("start", help="HH:MM")
     ap.add_argument("end", help="HH:MM")
     ap.add_argument("--every", type=int, default=EVERY_MIN)
@@ -130,7 +155,11 @@ def main(argv):
                     "140-H's rooms whose desks are watched)")
     ap.add_argument("--all", action="store_true",
                     help="every moment, not only the loop's gaps")
+    ap.add_argument("--streams", type=int, default=STREAMS,
+                    help="playback sessions open at once, all recorders "
+                    "together (at most %d)" % STREAMS)
     args = ap.parse_args(argv[1:])
+    args.streams = max(1, min(STREAMS, args.streams))
 
     from dotenv import load_dotenv
     load_dotenv()
@@ -158,13 +187,12 @@ def main(argv):
                         if pdx.place_of(r.name) in ("office", "meeting",
                                                     "own room"))
     wanted = [k for k in wanted if k in by_key]
-    times = moments(args.day, args.start, args.end, args.every)
-    if not args.all:
-        p = pdx.passes(args.day)
-        loop = list(p.loc[p["camera"].isna(), "end"]) if len(p) else []
-        times = unwatched(times, loop)
-    print(">> %d moment(s) x %d camera(s)" % (len(times), len(wanted)))
-    if not times or not wanted:
+    plan = plan_days(args.day, args.start, args.end, args.every, args.all,
+                     pdx.passes)
+    for day, times in plan:
+        print(">> %s: %d moment(s) x %d camera(s)" % (day, len(times),
+                                                      len(wanted)))
+    if not any(times for _, times in plan) or not wanted:
         return 0
     logins, refused = {}, set()
     for rec in {k[0] for k in wanted}:
@@ -175,18 +203,25 @@ def main(argv):
     model = YOLO(DETECTOR)
     lock = threading.Lock()
     gates = {rec: threading.Semaphore(PER_RECORDER) for rec in logins}
-    seen = done_before(args.day)
-    todo = [(t, k) for t in times for k in wanted
-            if ("%s:%d" % k, t.strftime("%H:%M:%S")) not in seen]
-    frames = {}
+    every = threading.Semaphore(args.streams)
+    tried = set()                     # recorders a session has opened on
 
     def grab(t, key):
         rec = recorders[key[0]]
         user, password = logins[key[0]]
-        with gates[key[0]]:
+        with every, gates[key[0]]:
+            with lock:
+                if key[0] in refused:
+                    return None           # refused once: never tried again
             cap = cv2.VideoCapture(playback_url(rec, key[1], t, user,
                                                 password), cv2.CAP_FFMPEG)
             opened = cap.isOpened()
+            if not opened:
+                with lock:
+                    refused.add(key[0])   # one refusal: leave it be
+            else:
+                with lock:
+                    tried.add(key[0])
             frame, t0 = None, time.time()
             while opened and time.time() - t0 < 12:
                 ok, f = cap.read()
@@ -194,46 +229,58 @@ def main(argv):
                     frame = f
                     break
             cap.release()
-        if not opened:
-            with lock:
-                refused.add(key[0])       # one refusal: leave it be
         return rl.widen(frame) if frame is not None else None
 
     written = 0
     from concurrent.futures import ThreadPoolExecutor
-    with ThreadPoolExecutor(max_workers=4) as pool:
-        for t in times:
-            batch = [k for k in wanted if k[0] not in refused
-                     and ("%s:%d" % k, t.strftime("%H:%M:%S")) not in seen]
-            room_of = {k: by_key[k] for k in batch}
-            # never a room in its private hours, at the moment replayed
-            batch = [k for k in batch
-                     if not rl.is_private(getattr(room_of[k], "private", None),
-                                          t.replace(tzinfo=rl.PKT))]
-            jobs = {k: pool.submit(grab, t, k) for k in batch}
-            notes, passes = [], []
-            # the bar the loop would have used at that hour (night/day)
-            after = not rl.in_operations(t.replace(tzinfo=rl.PKT), hours)
-            for k, job in jobs.items():
-                frame = job.result()
-                if frame is None:
-                    continue
-                room = room_of[k]
-                boxes = rl.detect(frame, model, room, k,
-                                  conf=room.conf_for(after, k),
-                                  imgsz=rl.DETECT_SIZE, iou=rl.DETECT_IOU,
-                                  after_hours=after)
-                counted = [b for b in boxes if not rl.ignored(
-                    b, room.ignore.get(k), getattr(room, "keep", {}).get(k))]
-                notes += note_rows(t, room.name, k, counted, frame.shape)
-                passes.append([(t - timedelta(minutes=args.every))
-                               .strftime("%Y-%m-%d %H:%M:%S"),
-                               t.strftime("%Y-%m-%d %H:%M:%S"), "%s:%d" % k])
-            append(args.day, notes, passes)
-            written += len(passes)
-            print(">> %s: %d camera(s), %d people" % (t.strftime("%H:%M"),
-                                                      len(passes), len(notes)),
-                  flush=True)
+    with ThreadPoolExecutor(max_workers=max(1, args.streams)) as pool:
+        for day, times in plan:
+            seen = done_before(day)
+            for t in times:
+                batch = [k for k in wanted if k[0] not in refused
+                         and ("%s:%d" % k, t.strftime("%H:%M:%S"))
+                         not in seen]
+                room_of = {k: by_key[k] for k in batch}
+                # never a room in its private hours, at the moment replayed
+                batch = [k for k in batch
+                         if not rl.is_private(getattr(room_of[k], "private",
+                                                      None),
+                                              t.replace(tzinfo=rl.PKT))]
+                # a recorder not yet opened on: one camera of it first, the
+                # rest of it only once that one has opened (one login try)
+                first = {}
+                for k in batch:
+                    if k[0] not in tried and k[0] not in first:
+                        first[k[0]] = k
+                got = {k: pool.submit(grab, t, k).result()
+                       for k in first.values()}
+                jobs = {k: pool.submit(grab, t, k) for k in batch
+                        if k not in got}
+                notes, passes = [], []
+                # the bar the loop would have used at that hour (night/day)
+                after = not rl.in_operations(t.replace(tzinfo=rl.PKT), hours)
+                for k in batch:
+                    frame = got[k] if k in got else jobs[k].result()
+                    if frame is None:
+                        continue
+                    room = room_of[k]
+                    boxes = rl.detect(frame, model, room, k,
+                                      conf=room.conf_for(after, k),
+                                      imgsz=rl.DETECT_SIZE, iou=rl.DETECT_IOU,
+                                      after_hours=after)
+                    counted = [b for b in boxes if not rl.ignored(
+                        b, room.ignore.get(k),
+                        getattr(room, "keep", {}).get(k))]
+                    notes += note_rows(t, room.name, k, counted, frame.shape)
+                    passes.append([(t - timedelta(minutes=args.every))
+                                   .strftime("%Y-%m-%d %H:%M:%S"),
+                                   t.strftime("%Y-%m-%d %H:%M:%S"),
+                                   "%s:%d" % k])
+                append(day, notes, passes)
+                written += len(passes)
+                print(">> %s %s: %d camera(s), %d people" % (
+                    day, t.strftime("%H:%M"), len(passes), len(notes)),
+                    flush=True)
     print(">> replay done: %d camera-moments%s" % (
         written, ("; left alone (refused): %s" % sorted(refused))
         if refused else ""))

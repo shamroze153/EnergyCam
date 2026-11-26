@@ -1,6 +1,6 @@
 # AC units and cameras -- both campuses
 
-## Where it stands (20 Nov 2026, 16:35) -- the follow-up table
+## Where it stands (26 Nov 2026, 08:00) -- the follow-up table
 
 Units from rooms.yaml (Shamroze's surveys, with `unwatched_units`). **In
 camera** = some camera shows the unit well enough to try a calibration
@@ -24,6 +24,64 @@ says 22.)
 | 141-C/D | Second floors | 14 | 9 | 3 |
 | **141-C/D** | | **73** | **26** | **11** |
 | **Both** | | **131** | **49** | **24** |
+
+(The counts are unchanged on 26 Nov: no new unit was calibrated -- see
+the audit below for the one that is ready, Marketing's M3.)
+
+26 Nov, 00:30-08:00, audit of every calibrated unit (Shamroze: "AC ko mat
+bhoolna"): every kept frame of 24-26 Nov (~5,900 unit readings, ~240
+frames a camera) replayed through ac_detect itself and the readings set
+against the pictures by eye, unit by unit (contact sheets of each box;
+the check pictures are in `frames/ac_check/`, local). Found:
+
+* **Ghost "running" left in the calibration** (each a few minutes "on"
+  on the page): 141-C Cafe tower 3, 25 Nov 21:04, and tower 6, 23:48 --
+  a man's head in front of the tower, the louvre shut behind; 140-H
+  Reception's split, 24 Nov 05:13 (and 05:35), the dawn lights drawing a
+  shadow line under the shut flap. Fixed: towers 3, 4 and 6 now also ask
+  for a ladder of slats (`slats_min: 3`, `ac_detect.slats`; open 3-6,
+  the heads 0-1), towers 1 and 2 have `dark_max` 0.40 (open <= 0.31,
+  heads 0.43+); the Reception split reads its box's median
+  (`dark_pct: 50`, open 0.40-0.62, shut 0.80+, the dawn frame 0.88).
+* **Ghosts already fixed before this audit**, still in the page's
+  history: tower 6's old box (running every frame of 24 Nov to 25 Nov
+  08:29) and tower 4 by its ring (24 Nov 02:45-07:52).
+* **Running units read "off"**: Marketing's Kenwood (ch 13) every
+  evening under the bright lights (24 Nov 17:34-19:59, 25 Nov 18:20-
+  21:21: its lit digits 13.7-19.4 against a line of 25.2; dark 4.5 at
+  most) -- line now 9.0; M1 at 25 Nov 19:17 (21.3) -- line 12.0.
+* **Read "off" where nothing could be seen**: Room 27's second split
+  under the bright evening lights, and the Basement's ch 24 Haier in the
+  brightest light of 24 Nov -- now unread there (`bright_max`), unknown
+  rather than an "off" nobody saw.
+* **Running units left unread** by a view check that failed in another
+  light: 141 Learning Center's tower whenever its lights are on at night
+  (it ran 24 Nov 00:00-03:05 and ~23:15-23:53, read unknown) and 140-H
+  Reception's split every evening (ran to 18:31 and 19:20). Both view
+  checks moved (Learning Center: the tower's body, 0.73+ on every frame,
+  a 50 px nudge 0.19; Reception: the unit's body and the wall left of
+  it, 0.70+, nudge 0.41): 30 more running frames read, no shut one.
+* **Thin margins made safer**: 141 Room 32's flap under a new night
+  light (from 25 Nov 23:18) read 0.62 against a line of 0.58 -- now it
+  must also be contrasty (`min_std: 47`; open 52-57, shut <= 42); Prompt
+  Cafe's General 2 line 0.20 -> 0.14 (open <= 0.09, shut down to 0.29).
+
+Replayed over every kept frame after the changes: the three ghosts gone,
+no running frame of 24-26 Nov lost, 56 more running frames read (all
+checked by eye as running), 47 frames now unread instead of a blind
+"off". Left as they were, known and not wrong: tower 6's view check
+fails in the afternoon crowd (25 Nov 14:46-16:28, unknown while it ran);
+tower 2's narrow swing (25 Nov 15:47-16:14) reads "not running"; nights
+in infrared stay unread where there is no infrared block (Finance,
+Mosque, Room 32, Room 27 when its camera sends black).
+
+Ready to calibrate, waiting for a second day: **Marketing's M3** (ch 3,
+top right, its louvre at about x 1470-1535, y 70-77): shut all of 24 Nov
+under the lights, switched on 25 Nov between 15:14 and 15:30 with the
+light unchanged, open to 22:13 at least (the flap drops below a dark
+gap); `frames/ac_check/marketing_M3_switch_25nov.jpg`,
+`marketing_M3_24-25nov.jpg`. One switch, like M2's first: calibrate on
+the next.
 
 25 Nov, 08:15, from the kept frames with nobody switching: AutoOS's split
 (ch 10, high on the back wall) by its louvre's darkness -- open 24 Nov

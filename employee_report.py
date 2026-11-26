@@ -647,6 +647,16 @@ object-fit:cover;background:var(--s2)}
 .pr .rc-vs .who b{display:block;font-size:13.5px}
 .pr .rc-vs .who span{display:block;font-size:11.5px;color:var(--t3)}
 .pr .rc-say{font-size:13.5px;margin:10px 0 2px;line-height:1.5}
+.pr .dstrip{position:relative;margin:6px 0 2px;border-bottom:1px solid
+var(--line2)}
+.pr .dstrip u{position:absolute;top:0;bottom:0;background:var(--s2);
+border-radius:4px}
+.pr .dstrip s{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;
+background:var(--t1);border-radius:1px}
+.pr .dstrip i{position:absolute;width:10px;height:10px;margin-left:-5px;
+border-radius:50%;box-shadow:0 0 0 1.5px var(--s1)}
+.pr .pe .tag{display:inline-block;font-size:10.5px;font-weight:650;
+border-radius:99px;padding:1px 8px;margin-left:6px;vertical-align:1px}
 </style>"""
 
 # Where the day went: a kind of place -> its words, in a fixed order
@@ -682,19 +692,23 @@ def dept_avg(es):
     return sum(vals) / float(len(vals)) if vals else None
 
 
-def emp_card(e, avg):
+def emp_card(e, avg, state=None):
     """An employee's card in their department's list: photo, name, role,
     their productivity with the department's beside it (a tick on the
-    bar), the hours they usually spend and their usual in and out. The
+    bar), the hours they usually spend and their usual in and out -- and
+    "long days" or "low hours" where their workload says so. The
     workforce's: their workforce score beside their group's."""
     p = e.get("productivity")
     crew = e.get("staff") == "workforce"
+    tag = ('<span class="tag" style="color:%s;border:1px solid %s">%s</span>'
+           % (STATE_COLOUR[state], STATE_COLOUR[state], STATE_WORDS[state])
+           if state in ("long", "low") else "")
     return ('<div class="ec pr"><div class="ec-card pe"><div class="who">%s'
             '<div style="min-width:0"><b>%s</b><span>%s</span></div></div>'
             '<div class="sc"><b>%s</b><span>%s</span><em>%s %s'
             '</em></div><div class="bar" role="img" aria-label="%s of 100, '
             'department %s"><i style="width:%d%%"></i>%s</div>'
-            '<div class="ft">%s a day &middot; in %s &middot; out %s</div>'
+            '<div class="ft">%s a day &middot; in %s &middot; out %s%s</div>'
             '</div></div>'
             % (prv._photo(e), esc(e["name"]), esc(e["role"] or e["dept"]),
                "%d" % p if p is not None else "-",
@@ -707,13 +721,75 @@ def emp_card(e, avg):
                if avg is not None else "",
                "%.1f h" % e["hours"] if e.get("hours") is not None
                else "&ndash; h", clock(e.get("usual_in")),
-               clock(e.get("usual_out"))))
+               clock(e.get("usual_out")), tag))
 
 
 def dept_head(mode, name, es, emps):
-    """The department opened: its figures, above its people's cards."""
+    """The department opened: its figures, everybody's day at a glance,
+    above its people's cards."""
     return prv.dept_head_html(mode, name, es, emps).replace(
-        "click a person for their profile", "open a card for the report card")
+        "click a person for their profile",
+        "open a card for the report card") + dept_strip_html(es)
+
+
+STATE_COLOUR = {"healthy": "var(--good)", "long": "#e8a21a",
+                "low": "var(--t3)"}
+STATE_WORDS = {"healthy": "healthy hours", "long": "long days",
+               "low": "low hours"}
+
+
+def states(es):
+    """{eid: healthy | long | low} by workload() (unknown left out)."""
+    w = workload(es)
+    return {e["eid"]: k for k in ("healthy", "long", "low") for e in w[k]}
+
+
+def dept_strip_html(es):
+    """Everybody in the department as a dot on hours in the building a day
+    -- the healthy band shaded, the department's usual a tick, each dot
+    coloured healthy / long / low (research, 26 Nov: a dot strip per
+    department, ActivTrak's workload balance). A dot hovered names them."""
+    st_ = states(es)
+    pts = sorted([(e["hours"], e) for e in es if e.get("hours") is not None],
+                 key=lambda t: t[0])
+    if len(pts) < 2:
+        return ""
+    hi = max(13.0, math.ceil(pts[-1][0]))
+
+    def x(h):
+        return 100.0 * min(max(h, 0.0), hi) / hi
+    rows, dots = [], []
+    for h, e in pts:
+        r = next((i for i, last in enumerate(rows) if x(h) - last >= 1.8),
+                 len(rows))
+        if r == len(rows):
+            rows.append(x(h))
+        else:
+            rows[r] = x(h)
+        k = st_.get(e["eid"], "healthy")
+        dots.append('<i style="left:%.2f%%;top:%dpx;background:%s" title="'
+                    '%s: %.1f h a day (%s)"></i>'
+                    % (x(h), 6 + 13 * r, STATE_COLOUR[k], esc(e["name"]), h,
+                       STATE_WORDS[k]))
+    med = median([h for h, _ in pts])
+    height = 12 + 13 * len(rows)
+    ticks = "".join('<em style="left:%.2f%%">%d h</em>' % (x(t), t)
+                    for t in range(0, int(hi) + 1, 2))
+    counts = {k: sum(1 for v in st_.values() if v == k)
+              for k in STATE_WORDS}
+    return ('<div class="ec pr"><div class="ec-card rc-box"><h4>Everybody\'s '
+            'day at a glance &middot; hours in the building a day</h4><div '
+            'class="rc-lg">%s<span><i class="tk" style="background:var(--t1)'
+            '"></i>the department\'s usual %.1f h</span></div><div class='
+            '"dstrip" style="height:%dpx"><u style="left:%.2f%%;width:%.2f%%">'
+            '</u><s style="left:%.2f%%"></s>%s</div><div class="ov-ax">%s</div>'
+            '<div class="pr-note" style="margin-top:2px">Shaded: 6 to 10&frac12;'
+            ' h. Hover a dot for who.</div></div></div>'
+            % ("".join('<span><i style="background:%s"></i>%s %d</span>'
+                       % (STATE_COLOUR[k], STATE_WORDS[k], counts[k])
+                       for k in ("healthy", "long", "low")),
+               med, height, x(LOW_DAY_H), x(LONG_DAY_H) - x(LOW_DAY_H),
+               x(med), "".join(dots), ticks))
 
 
 LOW_DAY_H = 6.0          # under this in the building a day is a low day

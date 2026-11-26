@@ -381,8 +381,63 @@ def check_louvre_at_the_edge(ok):
        ac_detect.read_room(night_open, "Cafe", astray)[0] is None)
 
 
+def check_head_and_shadow(ok):
+    """26 Nov: a head in front of a tower is one dark patch, an open louvre
+    a ladder of slats (`slats_min`); a shadow line under a shut flap is the
+    box's darkest tenth, not its median (`dark_pct`); `min_std` asks a
+    darker-read unit for its own contrast."""
+    print("-- a head is not a louvre; a shadow line is not an open flap")
+    box = [100, 100, 112, 118]
+    unit = {"label": "tower", "led_roi": box, "led_std_threshold": 40.0,
+            "dark_max": 0.57, "slats_min": 3,
+            "measured": {"on_std": 50.0, "off_std": 10.0}}
+    units = {"Cafe": {"frame_size": [300, 300], "units": [unit]}}
+    x1, y1, x2, y2 = box
+    opened = np.full((300, 300, 3), 190, dtype=np.uint8)
+    for y in range(y1 + 1, y2 - 1, 3):
+        opened[y, x1:x2] = 40           # five dark gaps between the vanes
+    head = np.full((300, 300, 3), 190, dtype=np.uint8)
+    head[y1 + 8:y2, x1 + 4:x2] = 45     # one dark patch over the box
+    ok("an open louvre counts its slats (%d)" % ac_detect.slats(opened, box),
+       ac_detect.slats(opened, box) >= 3)
+    ok("a head counts none or one (%d)" % ac_detect.slats(head, box),
+       ac_detect.slats(head, box) <= 1)
+    ok("the head is dark and contrasty enough to have read running",
+       ac_detect.darkness(head, box) < 0.57
+       and ac_detect.contrast(head, box) >= 20)
+    ok("open reads on", ac_detect.read_room(opened, "Cafe", units)[0] == "on")
+    ok("the head reads off", ac_detect.read_room(head, "Cafe", units)[0] == "off")
+    plain = {"Cafe": {"frame_size": [300, 300],
+                      "units": [dict(unit, slats_min=None)]}}
+    ok("(without slats_min it read on -- the ghost)",
+       ac_detect.read_room(head, "Cafe", plain)[0] == "on")
+
+    flap = [100, 100, 154, 110]
+    fx1, fy1, fx2, fy2 = flap
+    shut = np.full((300, 300, 3), 150, dtype=np.uint8)
+    shut[fy1 + 1:fy1 + 3, fx1:fx2] = 50  # the thin shadow line at dawn
+    slot = np.full((300, 300, 3), 150, dtype=np.uint8)
+    slot[fy1 + 1:fy2 - 2, fx1:fx2] = 50  # the open slot fills the box
+    split = {"label": "split", "led_roi": flap, "led_std_threshold": 28.4,
+             "dark_max": 0.46, "measured": {"on_std": 34.6, "off_std": 22.3}}
+    tenth = {"R": {"frame_size": [300, 300], "units": [split]}}
+    median = {"R": {"frame_size": [300, 300],
+                    "units": [dict(split, dark_pct=50, dark_max=0.71)]}}
+    ok("the darkest tenth reads the shadow line as open (the ghost)",
+       ac_detect.read_room(shut, "R", tenth)[0] == "on")
+    ok("the median reads it shut",
+       ac_detect.read_room(shut, "R", median)[0] == "off")
+    ok("and the open slot still open",
+       ac_detect.read_room(slot, "R", median)[0] == "on")
+    strict = {"R": {"frame_size": [300, 300],
+                    "units": [dict(split, min_std=60)]}}
+    ok("min_std: an open slot not that contrasty is not read running",
+       ac_detect.read_room(slot, "R", strict)[0] == "off")
+
+
 def main():
     check_louvre_darkness(ok)
+    check_head_and_shadow(ok)
     room = "Admin Room"
     cfg = UNITS[room]
     box = cfg["units"][0]["led_roi"]

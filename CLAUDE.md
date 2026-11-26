@@ -47,7 +47,27 @@ Tests: `python test_room_loop.py`, `test_overview.py`, `test_energy.py`,
 `test_integration.py`, `test_audit.py`, `test_ac_detect.py`,
 `test_meters.py`, `test_analysis.py`, `test_alerts.py`, `test_empty.py`,
 `test_live_ac.py`, `test_floors.py`, `test_energy_rooms.py`, `test_seats.py`,
-`test_ac_plan.py`, `test_seating.py`, `test_savings.py`, `test_progress.py`.
+`test_ac_plan.py`, `test_seating.py`, `test_savings.py`, `test_progress.py`,
+`test_places.py`, `test_faces.py`.
+
+26 Nov night (four background workers, all merged): `places_day.py` --
+where each named person's day went (desk / meeting / cafe / smoking /
+prayer / inside / out / unknown), on each board person as p["places"]
+(focus day's segments) and p["places_days"] (totals); camera sightings
+place under 1% of away time (cctv_faces skips anybody at a regular seat
+on every camera -- the top idea to raise it). The report card draws it
+as "Where the day went". Workforce staff (janitorial, office boys, gate
+and security, valet, technicians, by designation --
+productivity_view.WORKFORCE) are a section of their own. Gate: nightly
+`gate_match.nightly_faces` (exits within 45 s of the person's own OUT
+punch, clock-corrected; gate+machines names kept apart in
+people/gate_machines/); desk_match adds a presence rule (auto-names only
+past margin 1.05, right on every known desk); round 5's review PDF is in
+people/session_handoff/agents/faces/. AC: ac_detect opt-ins `dark_pct`,
+`slats_min`, `min_std`; ac_units.yaml fixes for the 141-C cafe towers,
+Reception, Learning Center, Marketing, Room 27/32, Basement ch24 (see
+docs/ac_camera_audit.md, 26 Nov). Energy: "Solar, month by month" keeps a
+month's MWh as a solar_daily row noted MONTH_NOTE.
 
 Progress (23 Nov): HR approved watching a handful of employees.
 `progress_data.py` turns the seat notes into each employee's day at their

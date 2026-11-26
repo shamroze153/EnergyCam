@@ -170,7 +170,7 @@ def contrast(frame, box):
 DARK_RING = 5
 
 
-def darkness(frame, box, ring=DARK_RING, ref=None):
+def darkness(frame, box, ring=DARK_RING, ref=None, pct=10):
     """The box's darkest tenth against the median of the ring round it.
 
     A louvre that opens shows the dark inside of the unit between its slats:
@@ -190,6 +190,14 @@ def darkness(frame, box, ring=DARK_RING, ref=None):
     ~95 and its open louvre read 0.71-0.76 against 0.60; somebody standing
     beside it at 19:57 lifted the ring and it read running again. By day
     the bright doorway did the reverse, a shut louvre down to 0.62.
+
+    `pct` (a unit's `dark_pct`) is which part of the box is measured: the
+    darkest tenth by default, the median (50) for a flap whose open slot
+    fills the box. 26 Nov: 140-H Reception's split read "running" at 05:13
+    on 24 Nov -- the lights switched on at dawn drew a one-pixel shadow line
+    under the shut flap, and the darkest tenth of the box was that line
+    (0.41; open reads 0.11-0.42). The box's median tells them apart: open
+    0.40-0.62, shut 0.80-0.96, the dawn frame 0.88.
     """
     x1, y1, x2, y2 = box
     if frame.ndim == 3:
@@ -202,7 +210,7 @@ def darkness(frame, box, ring=DARK_RING, ref=None):
         face = frame[max(0, ry1):ry2, max(0, rx1):rx2]
         if face.size == 0:
             return None
-        return float(np.percentile(patch, 10)
+        return float(np.percentile(patch, pct)
                      / max(1.0, float(np.median(face))))
     ox1, oy1 = max(0, x1 - ring), max(0, y1 - ring)
     outer = frame[oy1:y2 + ring, ox1:x2 + ring].astype(np.float32)
@@ -210,8 +218,40 @@ def darkness(frame, box, ring=DARK_RING, ref=None):
     keep[y1 - oy1:y2 - oy1, x1 - ox1:x2 - ox1] = False
     if not keep.any():
         return None
-    return float(np.percentile(patch, 10)
+    return float(np.percentile(patch, pct)
                  / max(1.0, float(np.median(outer[keep]))))
+
+
+def slats(frame, box):
+    """How many slats show in the box: rows darker than the rows either side
+    of them by a clear step (6 levels, or 6% of the box's median row),
+    counted down the box.
+
+    An open tower louvre is a ladder of dark gaps between its vanes: four or
+    five down the 141-C Cafe's tower 3 and 6 boxes, five down tower 4's. A
+    head in front of a tower is dark too, and contrasty at its edge, but it
+    is one dark patch, not a ladder: 26 Nov, from the kept frames, a man's
+    head in front of tower 3 (25 Nov 21:04) and of tower 6 (23:48) read
+    0.43 and 0.45 dark with the louvres shut behind them, and the page said
+    "running"; they count 1 and 0 here, every open louvre of those towers
+    over 24-26 Nov 3 or more. A unit's `slats_min` asks for it.
+    """
+    x1, y1, x2, y2 = box
+    if frame.ndim == 3:
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    patch = frame[y1:y2, x1:x2].astype(np.float32)
+    if patch.size == 0 or patch.shape[0] < 5:
+        return 0
+    rows = patch.mean(axis=1)
+    step = max(6.0, 0.06 * float(np.median(rows)))
+    count = 0
+    for i in range(1, len(rows) - 1):
+        if rows[i] < rows[i - 1] and rows[i] <= rows[i + 1]:
+            left = rows[max(0, i - 2):i].max()
+            right = rows[i + 1:i + 3].max()
+            if min(left, right) - rows[i] >= step:
+                count += 1
+    return count
 
 
 def read_room(frame, room, units=None):
@@ -411,9 +451,22 @@ def _read_block(frame, config):
                 rx1, ry1, rx2, ry2 = ref
                 if rx2 > width or ry2 > height or rx1 < 0 or ry1 < 0:
                     return None, None, "a box falls outside the frame"
-            dark = darkness(frame, box, ref=ref)
-            lit.append(dark is not None and dark <= float(dark_max)
-                       and value >= threshold / 2.0)
+            dark = darkness(frame, box, ref=ref,
+                            pct=float(unit.get("dark_pct", 10)))
+            # How contrasty the box must be as well: half the threshold,
+            # unless the unit names its own (`min_std`, 26 Nov: 141 Room
+            # 32's shut flap under a new night light read 0.62 dark, a
+            # hair over its line, at contrast 41; open is 52-57).
+            need = unit.get("min_std")
+            need = threshold / 2.0 if need is None else float(need)
+            running = (dark is not None and dark <= float(dark_max)
+                       and value >= need)
+            # And, for a tower's louvre, a ladder of slats, not one dark
+            # patch: somebody's head in front of it (slats() above).
+            slats_min = unit.get("slats_min")
+            if running and slats_min is not None:
+                running = slats(frame, box) >= int(slats_min)
+            lit.append(running)
             continue
         lit.append(value >= threshold if higher_is_on
                    else value <= threshold)

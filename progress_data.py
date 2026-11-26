@@ -1426,7 +1426,31 @@ def build(cfg, today, hours=(10, 20), count=5, folder=SEATS, frm=8, to=24,
             "usual": usual([s for s in summaries if not s.get("before")],
                            whole),
         })
+        # Where the day went (places_day, 26 Nov): the focus day's places
+        # and each day's minutes by kind -- codes, rooms and minutes, never
+        # a name, an ID or a picture. Guarded inside: never stops a page.
+        out[-1]["places"], out[-1]["places_days"] = places_of(
+            person, eid, days, focus, cache, cams, summaries)
     return out
+
+
+def places_of(person, employee_id, days, focus, cache=None, cams=None,
+              summaries=None):
+    """Where an employee's days went (places_day.board), for build():
+    ({"day", "segments": [(start, end, kind, name)], "totals": {kind:
+    minutes}} or None, {day: {kind: minutes}}) -- kinds desk, meeting,
+    cafe, smoking, prayer, inside (in the building, place not seen), out,
+    unknown. The desk's timeline is week()'s (`summaries`), not worked out
+    again. (None, {}) when anything is wrong: the page and the loop's
+    publish never stop for it."""
+    try:
+        import places_day
+        lines = {s["day"]: s["line"] for s in summaries or []
+                 if not s.get("before") and "line" in s}
+        return places_day.board(person, employee_id, days, focus, cache,
+                                cams, lines=lines)
+    except Exception:                                       # noqa: BLE001
+        return None, {}
 
 
 GATE = os.path.join("people", "entrance")
