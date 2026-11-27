@@ -88,7 +88,8 @@ The rules, in order -- each speaks only where those above it said nothing:
     of that source's that day is used (`unsure`): its face is being found
     on somebody else, or somebody else sits at the desk (24-25 Nov: two
     people's camera faces, ten of them a day in the cafe and the parking
-    while their desks were taken).
+    while their desks were taken). One in their own room is left out of
+    that count: up beside the desk, they are still themselves.
  4. At the other campus's machines -- from the first punch there to the
     next one at their own campus -- is "campus", certain, named by the
     machines ("141-D"); a sighting on the other campus's cameras names
@@ -489,13 +490,18 @@ def day_places(day, line, sightings=(), exits=(), machines=None):
     marks = [(g["t"].value, g.get("src", "cctv"), g) for g in sightings]
     marks += [(x.value, "gate", None) for x in sorted(exits or [])]
     per, conflicts = {}, {"desk": 0, "outing": 0}
-    for t, src, _ in marks:
+    for t, src, g in marks:
         if lo <= t <= hi:
             n = per.setdefault(src, [0, 0])
             n[0] += 1
             if at_desk(t):
-                n[1] += 1
                 conflicts["desk"] += 1
+                # in their own room while the desk shows them sitting: most
+                # likely them, up beside it or seen by the room's other
+                # camera -- not a face found on somebody else (27 Nov
+                # night: 8 of the Basement's 12 replayed sightings)
+                if not (g or {}).get("own"):
+                    n[1] += 1
     unsure = sorted(src for src, (n, k) in per.items()
                     if src != "named"          # a person's own word stands
                     and k >= UNSURE_LEAST and k >= UNSURE_SHARE * n)
@@ -771,7 +777,9 @@ def _sighting(day, hms, room, recorder, channel, how, src, cams, own, plan,
             _kinds.clear()
         _kinds[key] = kind_of(room, own, plan, away)
     return {"t": t, "room": room, "kind": _kinds[key], "how": how,
-            "src": src, "camera": "%s:%s" % (recorder, ch)}
+            "src": src, "camera": "%s:%s" % (recorder, ch),
+            "own": bool(own) and not away
+            and pdx.place_of(room, own) == "own room"}
 
 
 def cctv_files(day):

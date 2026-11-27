@@ -24,8 +24,12 @@ under people/ (git-ignored, this laptop only). Never a room in its private
 hours (the 141 gym is never read at all), office hours only.
 
     python places_replay.py 2026-11-26 09:30 20:30
-    python places_replay.py 2026-11-26 09:30 20:30 --campus 141 --streams 1
+    python places_replay.py 2026-11-26 09:30 20:30 --campus 141 --streams 2 \\
+        --skip cd_nvr3 --one cd_nvr2
     python places_replay.py 2026-11-26 12:00 15:00 --kinds cafe,prayer
+
+Nightly, for the day just gone (27 Nov night: 26 Nov's 140-H places gave
+293 sightings against the loop's 63 for the whole day, both campuses).
 
 Runs beside the loop: --threads caps PyTorch's threads in THIS process (the
 loop's own are never touched), and the process asks Windows for a lower
@@ -118,7 +122,11 @@ def main(argv):
                     help="playback sessions open at once (at most %d)"
                     % rd.STREAMS)
     ap.add_argument("--skip", default="",
-                    help="recorders to leave alone, comma-separated")
+                    help="recorders to leave alone, comma-separated -- one "
+                    "that refused in an earlier run is never tried again")
+    ap.add_argument("--one", default="",
+                    help="recorders held to ONE playback session here "
+                    "(another tool reads one of them already)")
     ap.add_argument("--ada-budget", type=float, default=40.0,
                     help="seconds of SCRFD + AdaFace a minute (the loop's "
                     "own is cctv_faces.ADA_BUDGET)")
@@ -166,7 +174,9 @@ def main(argv):
             refused.add(rec)               # one try: never again this run
     model = YOLO(DETECTOR)
     lock = threading.Lock()
-    gates = {rec: threading.Semaphore(rd.PER_RECORDER) for rec in logins}
+    one = {s.strip() for s in args.one.split(",") if s.strip()}
+    gates = {rec: threading.Semaphore(1 if rec in one else rd.PER_RECORDER)
+             for rec in logins}
     every = threading.Semaphore(args.streams)
     tried = set()
 

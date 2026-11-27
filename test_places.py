@@ -400,6 +400,16 @@ def check_unsure():
     r = pl.day_places(DAY, line, named, machines=inside("09:55", "18:05"))
     check("a picture a person named is never set aside",
           (r["unsure"], round(r["totals"]["cafe"])), ([], 20))
+    mine = [dict(seen(h, "Wellows"), own=True)
+            for h in ("10:30", "11:00", "11:30")] + many[3:]
+    r = pl.day_places(DAY, line, mine, machines=inside("09:55", "18:05"))
+    check("in their own room beside the desk: not used then, but no reason "
+          "to doubt the rest", (r["unsure"], round(r["totals"]["cafe"]),
+                                r["conflicts"]["desk"]), ([], 20, 3))
+    g = pl._sighting(DAY, "10:30:00", "Wellows", "dvr2", 15, "face", "cctv",
+                     {}, "Wellows", PLAN, "140-H")
+    check("a sighting knows it is in their own room",
+          (g["own"], g["kind"]), (True, "office"))
     gate = [at("10:30"), at("11:00"), at("11:30"), at("12:10")]
     r = pl.day_places(DAY, line, exits=gate,
                       machines=inside("09:55", "18:05"))
