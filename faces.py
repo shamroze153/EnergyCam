@@ -152,7 +152,9 @@ def _ada_net():
         if _ada["net"] is None and not _ada["failed"]:
             try:
                 import adaface
-                _ada["net"] = adaface.AdaFace(threads=2)
+                # OpenVINO on two threads of its own; PyTorch's count (the
+                # loop's YOLO) left alone
+                _ada["net"] = adaface.AdaFace(ov_threads=2)
             except Exception:                               # noqa: BLE001
                 _ada["failed"] = True
         return _ada["net"]
@@ -177,9 +179,75 @@ def ada_feature(face112):
         return net.embed(face112, unit=False)
 
 
+# ------------------------------------------- SCRFD (27 Nov, the seats' finder)
+#
+# Shamroze, 27 Nov: "sab tools check karo, jo sabse mazboot ho lagao".
+# On 500 desk pictures SCRFD-10G (insight_ov.py, InsightFace's) found the
+# sitter's face in 40% against YuNet's 26%, and AdaFace on its faces put
+# the named person first on 51% of the named desks against 37%. It finds
+# the seats' faces where its file is; YuNet stays the fallback, and the
+# finder for everything else (the gate's frontal faces, the five).
+_scrfd = {"net": None, "failed": False}
+_scrfd_lock = threading.Lock()
+
+
+def scrfd_available():
+    import insight_ov
+    return os.path.exists(insight_ov.DETECTOR) and not _scrfd["failed"]
+
+
+def _scrfd_net():
+    with _scrfd_lock:
+        if _scrfd["net"] is None and not _scrfd["failed"]:
+            try:
+                import insight_ov
+                _scrfd["net"] = insight_ov.SCRFD(size=320, threads=2)
+            except Exception:                               # noqa: BLE001
+                _scrfd["failed"] = True
+        return _scrfd["net"]
+
+
+def find_strong(frame, box):
+    """The person's own face by SCRFD: its 112x112 aligned face, or None."""
+    net = _scrfd_net()
+    if net is None:
+        return None
+    got = head_crop(frame, box)
+    if got is None:
+        return None
+    crop = got[0]
+    import insight_ov
+    size = int(np.ceil(max(crop.shape[:2]) / 32.0) * 32)
+    with _scrfd_lock:
+        found = net.detect(crop, size=size)
+    f = insight_ov.sitter_face(found, crop.shape)
+    return None if f is None else insight_ov.norm_crop(crop, f[5])
+
+
+def feature_aligned(face112):
+    """SFace's 128 numbers (unit) for a face already aligned to 112x112."""
+    _, rec = _load()
+    if rec is None or face112 is None:
+        return None
+    f = rec.feature(face112).astype(np.float32).ravel()
+    n = float(np.linalg.norm(f))
+    return f / n if n else None
+
+
 def of_person_both(frame, box):
     """(SFace's 128, AdaFace's 512 or None) of a person's face, or None
-    where no good face is seen."""
+    where no good face is seen -- found by SCRFD where it is installed
+    (27 Nov), else by YuNet."""
+    if scrfd_available():
+        try:
+            face112 = find_strong(frame, box)
+        except Exception:                                   # noqa: BLE001
+            face112 = None
+        if face112 is not None:
+            v = feature_aligned(face112)
+            if v is not None:
+                a = ada_feature(face112) if ada_available() else None
+                return v, a
     got = find(frame, box)
     if got is None:
         return None

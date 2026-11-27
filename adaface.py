@@ -129,12 +129,16 @@ class AdaFace:
     numbers to 4 places (its GPU path gave wrong ones: never used) -- and
     on PyTorch otherwise."""
 
-    def __init__(self, weights=WEIGHTS, threads=None, openvino=True):
+    def __init__(self, weights=WEIGHTS, threads=None, openvino=True,
+                 ov_threads=None):
+        """threads: PyTorch's, set only when PyTorch runs the network
+        (torch's count is the whole process's -- 27 Nov, inside the loop,
+        AdaFace(threads=2) left the loop's YOLO counting on two threads);
+        ov_threads: OpenVINO's own, for a process doing other work too."""
         import torch
-        if threads:
-            torch.set_num_threads(threads)
         self.torch = torch
         self.ov = None
+        self.ov_threads = ov_threads
         self.net = _build()
         state = read_safetensors(weights)
         own = self.net.state_dict()
@@ -154,6 +158,8 @@ class AdaFace:
         self.net.eval()
         if openvino:
             self.ov = self._openvino()
+        if self.ov is None and threads:
+            torch.set_num_threads(threads)
 
     def _openvino(self):
         """The network compiled by OpenVINO for the CPU (converted once to
@@ -171,8 +177,11 @@ class AdaFace:
                     self.net, example_input=self.torch.randn(1, 3, 112, 112))
                 model.reshape([-1, 3, 112, 112])
                 ov.save_model(model, OV_MODEL, compress_to_fp16=False)
-            return core.compile_model(model, "CPU",
-                                      {"PERFORMANCE_HINT": "THROUGHPUT"})
+            cfg = {"PERFORMANCE_HINT": "THROUGHPUT"}
+            if self.ov_threads:
+                cfg = {"PERFORMANCE_HINT": "LATENCY",
+                       "INFERENCE_NUM_THREADS": int(self.ov_threads)}
+            return core.compile_model(model, "CPU", cfg)
         except Exception:                                   # noqa: BLE001
             return None
 

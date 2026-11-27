@@ -340,10 +340,74 @@ def check_ada_seat_face():
           (None, 0))
 
 
+def check_ada_threads():
+    """27 Nov: AdaFace inside the loop must leave PyTorch's thread count
+    alone -- it is the whole process's, and the loop's YOLO runs on it."""
+    import inspect
+    import adaface
+    src = open("faces.py", encoding="utf-8").read()
+    check("the loop's AdaFace sets OpenVINO's threads, not torch's",
+          "AdaFace(ov_threads=" in src and "AdaFace(threads=" not in src,
+          True)
+    s = inspect.getsource(adaface.AdaFace.__init__)
+    check("torch's threads only when torch runs the network",
+          s.index("set_num_threads") > s.index("if self.ov is None"), True)
+
+
+def check_scrfd_pieces():
+    """27 Nov: SCRFD (insight_ov.py) finds the seats' faces -- the sitter's
+    own face is the one nearest the head crop's middle, aligned by the
+    least-squares similarity onto ArcFace's five points; YuNet stays the
+    fallback."""
+    import faces
+    import insight_ov as io
+    ang = np.deg2rad(12.0)
+    R = np.array([[np.cos(ang), -np.sin(ang)], [np.sin(ang), np.cos(ang)]])
+    src = (io.ARCFACE_DST @ R.T) * 1.7 + np.array([40.0, 25.0])
+    M = io.umeyama(src, io.ARCFACE_DST)
+    back = src @ M[:, :2].T + M[:, 2]
+    check("the five points are put back on the template",
+          float(np.abs(back - io.ARCFACE_DST).max()) < 1e-3, True)
+    pts = np.zeros((5, 2), np.float32)
+    found = [(10, 40, 60, 100, 0.95, pts),      # a neighbour, at the side
+             (130, 30, 190, 100, 0.70, pts),    # the sitter, in the middle
+             (300, 40, 310, 50, 0.99, pts)]     # too small to count
+    best = io.sitter_face(found, (200, 320, 3))
+    check("the sitter's face is the one in the middle, not the biggest score",
+          best[:4], (130, 30, 190, 100))
+    check("no face wide enough, no face",
+          io.sitter_face(found[2:], (200, 320, 3)), None)
+    saved = (faces.scrfd_available, faces.find_strong, faces.feature_aligned,
+             faces.ada_feature, faces.ada_available, faces.find)
+    try:
+        one = np.zeros(128, np.float32)
+        one[0] = 1.0
+        ada = np.full(512, 2.0, np.float32)
+        faces.scrfd_available = lambda: True
+        faces.find_strong = lambda frame, box: np.zeros((112, 112, 3),
+                                                        np.uint8)
+        faces.feature_aligned = lambda f: one
+        faces.ada_available = lambda: True
+        faces.ada_feature = lambda f: ada
+        faces.find = lambda frame, box: None
+        got = faces.of_person_both(None, (0, 0, 10, 10))
+        check("SCRFD's face gives both readings", (got[0] is one,
+                                                   got[1] is ada),
+              (True, True))
+        faces.find_strong = lambda frame, box: None
+        check("no SCRFD face and no YuNet face: no reading",
+              faces.of_person_both(None, (0, 0, 10, 10)), None)
+    finally:
+        (faces.scrfd_available, faces.find_strong, faces.feature_aligned,
+         faces.ada_feature, faces.ada_available, faces.find) = saved
+
+
 def main():
     check_safetensors()
     check_ada_budget()
     check_ada_seat_face()
+    check_ada_threads()
+    check_scrfd_pieces()
     check_backfill()
     check_replay_plan()
     check_crop_paths()

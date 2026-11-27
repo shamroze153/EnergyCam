@@ -47,7 +47,10 @@ MARGIN = 0.10
 # The seats see ~4,000 faces a day; at ~0.5 s each that is a few minutes
 # of the loop's hour, held under ADA_BUDGET by _ada_ok.
 ADA_SEATS = True
-ADA_BUDGET = 15.0         # s of AdaFace a minute at most; past it, SFace only
+# s a minute at most for SCRFD + AdaFace (faces.of_person_both); past it,
+# YuNet + SFace only. 27 Nov: 15 -> 10 once SCRFD joined (the loop counts
+# rooms one at a time, so this time is the pass's own)
+ADA_BUDGET = 10.0
 _ada_clock = {"minute": 0, "spent": 0.0}
 OUTLIER = 0.20            # a sample this unlike the seat's mean is dropped
 
