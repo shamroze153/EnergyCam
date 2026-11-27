@@ -467,6 +467,41 @@ def _kpis(tiles):
         '</div><div class="s">%s</div></div>' % t for t in tiles)
 
 
+STAR = "&#9733;"
+
+
+def complete(e):
+    """Every part of an office employee's productivity measured -- the
+    attendance machines, their own desk in a camera, and what went on at
+    it (desk activity). Shamroze, 27 Nov: "jin employees ki productivity
+    poori ho jaye, un ke report card par star".)"""
+    return (e.get("staff") != "workforce"
+            and e.get("attendance") is not None
+            and e.get("desk") is not None and e.get("activity") is not None)
+
+
+def missing(e):
+    """What is not measured yet, in words ("" when complete)."""
+    if e.get("staff") == "workforce" or complete(e):
+        return ""
+    out = []
+    if e.get("attendance") is None:
+        out.append("attendance")
+    if e.get("desk") is None:
+        out.append("desk camera (their desk not named in a camera yet)")
+    elif e.get("activity") is None:
+        out.append("desk activity (not read yet)")
+    return ", ".join(out)
+
+
+def star_html(e):
+    """The gold star beside a complete employee's name, else nothing."""
+    return ('<span title="Complete: attendance, desk camera and desk '
+            'activity all measured" aria-label="complete" style="color:'
+            '#d99a00;margin-left:.3em">%s</span>' % STAR) if complete(e) \
+        else ""
+
+
 def top_html(mode, emps, days, made="", visitors=0, crew=0, campus="140-H",
              other="141-D"):
     """The page's short top (Shamroze, 25 Nov night: "chhota banao ... itna
@@ -505,8 +540,10 @@ def top_html(mode, emps, days, made="", visitors=0, crew=0, campus="140-H",
              else "-", "of 100"),
             ("Departments", "%d" % n_dept, "open one for its people"),
             ("Desks seen by camera", "%d" % n_desk,
-             "the rest by the machines alone" if n_desk else
-             "none named here yet: the machines alone")]),
+             ("%s %d complete (attendance, desk and activity) &middot; the "
+              "rest by the machines alone" % (
+                  STAR, sum(1 for e in emps if complete(e))))
+             if n_desk else "none named here yet: the machines alone")]),
         '</div>'])
 
 

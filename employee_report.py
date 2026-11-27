@@ -716,13 +716,14 @@ def emp_card(e, avg, state=None):
            % (STATE_COLOUR[state], STATE_COLOUR[state], STATE_WORDS[state])
            if state in ("long", "low") else "")
     return ('<div class="ec pr"><div class="ec-card pe"><div class="who">%s'
-            '<div style="min-width:0"><b>%s</b><span>%s</span></div></div>'
+            '<div style="min-width:0"><b>%s%s</b><span>%s</span></div></div>'
             '<div class="sc"><b>%s</b><span>%s</span><em>%s %s'
             '</em></div><div class="bar" role="img" aria-label="%s of 100, '
             'department %s"><i style="width:%d%%"></i>%s</div>'
             '<div class="ft">%s a day &middot; in %s &middot; out %s%s</div>'
             '</div></div>'
-            % (prv._photo(e), esc(e["name"]), esc(e["role"] or e["dept"]),
+            % (prv._photo(e), esc(e["name"]), prv.star_html(e),
+               esc(e["role"] or e["dept"]),
                "%d" % p if p is not None else "-",
                "workforce score" if crew else "productivity",
                "group" if crew else "dept",
@@ -1586,6 +1587,11 @@ def head_html(e, emps, now=None, hours=(10.0, 20.0), last_day=None,
     if e.get("desk") is not None:
         measured += " &middot; desk camera, %d day%s" % (
             e.get("desk_days") or 0, "" if e.get("desk_days") == 1 else "s")
+    if prv.complete(e):
+        measured += (' &middot; <b style="color:#d99a00">%s complete</b>: '
+                     'every part measured' % prv.STAR)
+    elif prv.missing(e):
+        measured += " &middot; not measured yet: %s" % esc(prv.missing(e))
 
     def tile(k, v, s):
         return ('<div class="ec-card ec-kpi"><div class="k">%s</div><div '
@@ -1601,12 +1607,13 @@ def head_html(e, emps, now=None, hours=(10.0, 20.0), last_day=None,
     word = "workforce score" if crew else "productivity"
     return "".join([
         '<div class="ec pr">',
-        '<div class="ec-card rc-head">%s<div><h3>%s</h3><p>%s</p><p class="m">'
+        '<div class="ec-card rc-head">%s<div><h3>%s%s</h3><p>%s</p>'
+        '<p class="m">'
         '%s &middot; %s &middot; ID %s</p><p class="m">Measured by: %s</p>'
         '</div><div class="rc-big"><div><b>%s</b><span>%s, average</span>'
         '</div><div><b class="td">%s</b><span>today so far</span></div>'
         '<div><b class="td">%s</b><span>in %s (%d)</span></div></div></div>'
-        % (prv._photo(e), esc(e["name"]), esc(e["role"]),
+        % (prv._photo(e), esc(e["name"]), prv.star_html(e), esc(e["role"]),
            esc(e.get("home_dept") or e["dept"]), esc(e["bu"]),
            esc(str(e["id"])), measured, "%d" % p if p is not None else "-",
            word, "%d" % td["score"] if td["score"] is not None else "&ndash;",

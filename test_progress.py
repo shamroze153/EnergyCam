@@ -2610,6 +2610,24 @@ def check_report_card():
            "frames" in page_ + cards_, "%%" in page_ + cards_,
            "dept 77" in cards_),
           (True, True, True, True, True, False, False, False, True))
+    # 27 Nov (Shamroze): a star on the cards of those measured completely
+    import productivity_view as prv0
+    full_ = dict(by["5"], attendance=80, desk=70, activity=60,
+                 staff="office")
+    half_ = dict(by["5"], attendance=80, desk=None, activity=None,
+                 staff="office")
+    crew0_ = dict(full_, staff="workforce")
+    check("a star only where attendance, desk and activity are all "
+          "measured -- never on the workforce",
+          (prv0.complete(full_), prv0.complete(half_),
+           prv0.complete(crew0_), prv0.STAR in er.emp_card(full_, 70.0),
+           prv0.STAR in er.emp_card(half_, 70.0)),
+          (True, False, False, True, False))
+    check("  the report card says complete, or what is not measured yet",
+          ("complete</b>" in er.head_html(full_, emps, now_),
+           "not measured yet: desk camera" in er.head_html(half_, emps,
+                                                           now_)),
+          (True, True))
     # 26 Nov night (Shamroze): the overview first -- where a day went --
     # against a colleague ("X, Y se kyun behtar"), and the workforce apart
     import productivity_view as prv2
