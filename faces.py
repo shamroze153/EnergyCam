@@ -25,10 +25,11 @@ On these cameras a face is often small, seen from above, or not seen at
 all (a back, a bowed head): no face is simply no answer, never a "no".
 """
 import os
+import threading
 
 import numpy as np
 
-DETECTOR = os.path.join("models", "face_detection_yunet_2023mar.onnx")
+DETECTOR =os.path.join("models", "face_detection_yunet_2023mar.onnx")
 RECOGNIZER = os.path.join("models", "face_recognition_sface_2021dec.onnx")
 GALLERY_DIR = os.path.join("progress", "faces")
 
@@ -135,6 +136,10 @@ def of_person(frame, box):
 # where it was measured to help (people/session_handoff/face_bench.py);
 # SFace's 128 stay what every stored file holds.
 _ada = {"net": None, "failed": False}
+# one network, one call at a time: OpenVINO's compiled model keeps a single
+# request, which two threads (the loop's counting and entrance_watch's
+# thread) must not share at once
+_ada_lock = threading.Lock()
 
 
 def ada_available():
@@ -143,13 +148,14 @@ def ada_available():
 
 
 def _ada_net():
-    if _ada["net"] is None and not _ada["failed"]:
-        try:
-            import adaface
-            _ada["net"] = adaface.AdaFace(threads=2)
-        except Exception:                                   # noqa: BLE001
-            _ada["failed"] = True
-    return _ada["net"]
+    with _ada_lock:
+        if _ada["net"] is None and not _ada["failed"]:
+            try:
+                import adaface
+                _ada["net"] = adaface.AdaFace(threads=2)
+            except Exception:                               # noqa: BLE001
+                _ada["failed"] = True
+        return _ada["net"]
 
 
 def aligned(crop, face):
@@ -163,7 +169,10 @@ def aligned(crop, face):
 def ada_feature(face112):
     """AdaFace's 512 numbers for an aligned face, or None."""
     net = _ada_net() if face112 is not None else None
-    return net.embed(face112) if net is not None else None
+    if net is None:
+        return None
+    with _ada_lock:
+        return net.embed(face112)
 
 
 def of_person_both(frame, box):

@@ -297,8 +297,28 @@ def check_safetensors():
         shutil.rmtree(d)
 
 
+def check_ada_budget():
+    """27 Nov: AdaFace at the seats is held to ADA_BUDGET seconds a minute,
+    so the loop's pass never waits on it; a new minute starts afresh."""
+    import seat_faces as sf
+    saved = dict(sf._ada_clock)
+    try:
+        t = 6000.0 * 60
+        sf._ada_clock.update(minute=0, spent=0.0)
+        check("a fresh minute: AdaFace runs", sf._ada_ok(t), True)
+        sf._ada_spent(sf.ADA_BUDGET - 1.0, t + 5)
+        check("under the budget: still runs", sf._ada_ok(t + 10), True)
+        sf._ada_spent(2.0, t + 20)
+        check("past the budget: SFace only", sf._ada_ok(t + 30), False)
+        check("the next minute: runs again", sf._ada_ok(t + 61), True)
+    finally:
+        sf._ada_clock.clear()
+        sf._ada_clock.update(saved)
+
+
 def main():
     check_safetensors()
+    check_ada_budget()
     check_backfill()
     check_replay_plan()
     check_crop_paths()

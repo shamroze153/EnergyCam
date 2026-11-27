@@ -39,10 +39,31 @@ GRID = 25                 # px: a seat's key, so a day's spots line up
 MIN_SAMPLES = 8
 SAME = 0.45
 MARGIN = 0.10
-# 27 Nov: keep AdaFace's numbers beside SFace's at the seats (faces.py),
-# switched on once face_bench.py showed it names our faces better
-ADA_SEATS = False
+# 27 Nov: keep AdaFace's numbers beside SFace's at the seats (faces.py).
+# Switched on the same day: on the 76 named desks, AdaFace over the seats'
+# hourly pictures put the desk's own person first where it was sure (score
+# 0.35+, clear by 0.10: 18 of 20, both misses desks named by timing alone)
+# and found P2, P4 and P5 at their own seats -- SFace named almost none.
+# The seats see ~4,000 faces a day; at ~0.5 s each that is a few minutes
+# of the loop's hour, held under ADA_BUDGET by _ada_ok.
+ADA_SEATS = True
+ADA_BUDGET = 15.0         # s of AdaFace a minute at most; past it, SFace only
+_ada_clock = {"minute": 0, "spent": 0.0}
 OUTLIER = 0.20            # a sample this unlike the seat's mean is dropped
+
+
+def _ada_ok(now_s=None):
+    """True while this minute's AdaFace time is under ADA_BUDGET."""
+    now_s = time.time() if now_s is None else now_s
+    m = int(now_s // 60)
+    if m != _ada_clock["minute"]:
+        _ada_clock.update(minute=m, spent=0.0)
+    return _ada_clock["spent"] < ADA_BUDGET
+
+
+def _ada_spent(seconds, now_s=None):
+    _ada_ok(now_s)
+    _ada_clock["spent"] += seconds
 
 
 def _key(rec, ch, x, y):
@@ -95,8 +116,12 @@ def _observe(room, key, frame, boxes, now, spots, out):
         seat = seat_of(b, spots, frame.shape[1])
         if seat is None:
             continue
-        got = faces.of_person_both(frame, b[:4]) if ADA_SEATS \
-            else ((faces.of_person(frame, b[:4]), None))
+        if ADA_SEATS and _ada_ok():
+            t0 = time.time()
+            got = faces.of_person_both(frame, b[:4])
+            _ada_spent(time.time() - t0)
+        else:
+            got = (faces.of_person(frame, b[:4]), None)
         if got is None or got[0] is None:
             continue
         v, a = got
@@ -105,7 +130,8 @@ def _observe(room, key, frame, boxes, now, spots, out):
         with open(stem + ".f16", "ab") as fh:
             fh.write(np.asarray(v, np.float16).tobytes())
         if a is not None:
-            # AdaFace's 512 beside (27 Nov), the same seat, the same order
+            # AdaFace's 512 beside (27 Nov), the same seat -- for the faces
+            # read while under ADA_BUDGET, so not row for row with .f16
             with open(stem + ".a16", "ab") as fh:
                 fh.write(np.asarray(a, np.float16).tobytes())
         _thumb(frame, b, stem + ".jpg")

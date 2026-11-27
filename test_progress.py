@@ -662,9 +662,13 @@ def check_campus_faces():
            got["dvr9_2_300_600"][0]),
           (("named", "00010"), "unsure", "few faces"))
     folder = tempfile.mkdtemp()
-    old = faces.of_person, faces.available
+    old = faces.of_person, faces.of_person_both, faces.available
+    ada = np.zeros(512, np.float32)
+    ada[0] = 1.0
     try:
         faces.of_person = lambda frame, box: unit(1, 0, 0)
+        # 27 Nov: the seats keep AdaFace's 512 beside SFace's 128
+        faces.of_person_both = lambda frame, box: (unit(1, 0, 0), ada)
         faces.available = lambda: True
         frame = np.zeros((1080, 1920, 3), np.uint8)
         day = _dt(2026, 11, 20, 11, 0, tzinfo=pt.PKT)
@@ -672,9 +676,13 @@ def check_campus_faces():
         n = sfc.observe("R", ("dvr2", 15), frame, [(450, 450, 550, 700, .9)],
                         now=day, spots=spots, out=folder)
         kept = sfc.samples(["2026-11-20"], folder)
+        kept_a = sfc.samples(["2026-11-20"], folder, ext=".a16", dim=512)
         check("a seated face is kept as numbers for its seat",
               (n, list(kept), kept["dvr2_15_500_700"].shape),
               (1, ["dvr2_15_500_700"], (1, 128)))
+        check("... and AdaFace's numbers beside, when switched on",
+              {k: v.shape for k, v in kept_a.items()},
+              {"dvr2_15_500_700": (1, 512)} if sfc.ADA_SEATS else {})
         # (141-C/D's recorders are watched too since 27 Nov: cd_xvr2, its
         # IP conflict unresolved, is not; the 141 gym never)
         check("not at night, not off the campus, never the gym",
@@ -687,9 +695,10 @@ def check_campus_faces():
                            out=folder)), (0, 0, 0))
         check("numbers, and one small picture of the seat for the check",
               sorted(os.path.splitext(f)[1] for f in os.listdir(
-                  os.path.join(folder, "2026-11-20"))), [".f16", ".jpg"])
+                  os.path.join(folder, "2026-11-20"))),
+              ([".a16"] if sfc.ADA_SEATS else []) + [".f16", ".jpg"])
     finally:
-        faces.of_person, faces.available = old
+        faces.of_person, faces.of_person_both, faces.available = old
         shutil.rmtree(folder)
     source = open("room_loop.py", encoding="utf-8").read()
     check("the loop keeps seat faces, guarded",
