@@ -182,12 +182,17 @@ def main(argv):
     ap.add_argument("--faces-only", action="store_true",
                     help="no seat notes: each office desk's sitter's face "
                     "numbers (seat_faces), every moment, for naming the desks")
+    ap.add_argument("--skip", default="",
+                    help="recorders to leave alone, comma-separated -- one "
+                    "that refused in an earlier run is never tried again")
     args = ap.parse_args(argv[1:])
     args.streams = max(1, min(STREAMS, args.streams))
     global CAMPUS
     if args.campus == "141":
         import desks_data
         CAMPUS = tuple(sorted(desks_data.CAMPUS_141))
+    skip = {s.strip() for s in args.skip.split(",") if s.strip()}
+    CAMPUS = tuple(r for r in CAMPUS if r not in skip)
     if args.faces_only:
         args.all = True
 
