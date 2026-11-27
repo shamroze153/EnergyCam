@@ -533,7 +533,9 @@ STATE_WORDS = {"desk": "At the desk", "away": "Away", "out": "Not in",
                "gone": "Gone home", "unwatched": "Not watched"}
 
 
-LATE_AFTER = 15          # minutes past the office's start that count as late
+LATE_AFTER = 60          # minutes past the office's start that count as late
+# (27 Nov, Shamroze: "24/7 ka kaam hai ... timing flexible, bas 11 baje ke
+# baad subah aane wala late") -- 10:00 + 60 min: in after 11:00 is late
 BREAK_MIN = 10           # minutes away that make a break
 
 
@@ -966,7 +968,7 @@ SCORE_PARTS = (("At the desk", 0.5,
                ("Long stretches", 0.3,
                 "share of desk time in stretches of an hour or more"),
                ("On time", 0.2,
-                "in by the start (+15 min); 10 off a quarter-hour late"))
+                "in by 11:00; 10 off a quarter-hour later"))
 
 
 def day_score(p, start=10.0, end=20.0, now=None, team=None):

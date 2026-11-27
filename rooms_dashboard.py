@@ -5665,6 +5665,9 @@ def show_profile(mode, e, emps, key, now=None, hours=(10.0, 20.0),
     st.markdown('<div class="ec pr">%s</div>' % er.pair_html(e, other),
                 unsafe_allow_html=True)
     st.markdown(er.points_html(e, emps), unsafe_allow_html=True)
+    # 27 Nov: Microsoft Viva's ways of working -- focus, meetings, after
+    # hours -- beside the team, never part of the score
+    st.markdown(er.ways_html(e, emps, hours), unsafe_allow_html=True)
     if not st.toggle("Details: factor by factor, every day, today, "
                      "colleagues", key="pf_det_%s_%s" % (key, e["eid"])):
         return

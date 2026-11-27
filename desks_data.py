@@ -281,7 +281,7 @@ def names_for(desks, people=None, seats_named=None, reach=60.0,
 ACTIVITY = os.path.join("progress", "desks_activity")   # desk_watch.py
 FOCUS_MIN = 60           # an unbroken stretch at the desk this long: focus
 CORE = (11, 17)          # the core hours everybody is expected in
-LATE_AFTER = (10, 30)    # in after this is a late start
+LATE_AFTER = (11, 0)     # in after this is a late start (27 Nov: 11:00)
 
 
 def extras(person, day, n, p, hours=None):

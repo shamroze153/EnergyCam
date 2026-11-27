@@ -84,7 +84,7 @@ def _key(eid):
     return str(eid or "").strip().lstrip("0") or "0"
 
 
-def table(rows, roster, desk=None, start=10.0, grace=15):
+def table(rows, roster, desk=None, start=10.0, grace=60):
     """One dict a row, in the page's order -- for the download."""
     desk = desk or {}
     out = []
@@ -142,7 +142,7 @@ def _who(r, roster):
                                           p.get("designation")) if x))))
 
 
-def usual(mode, rows, roster, start=10.0, grace=15, desk=None):
+def usual(mode, rows, roster, start=10.0, grace=60, desk=None):
     """Every employee over the export: the usual, one row each, with the
     desk score where a camera sees their named desk (`desk`: {employee
     code: {"score", "days"}}, progress_view.period_score) and both
@@ -238,7 +238,7 @@ def usual(mode, rows, roster, start=10.0, grace=15, desk=None):
         'in the building and at the desk, not the work done.</div></div>'])
 
 
-def one_day(mode, rows, roster, day, start=10.0, grace=15):
+def one_day(mode, rows, roster, day, start=10.0, grace=60):
     """One day: everybody in, earliest first."""
     got = [(r, r["days"][day]) for r in rows if day in r["days"]]
     if not got:

@@ -176,7 +176,7 @@ def visitors(campus=CAMPUS, data=None, home=HOME_SHARE):
     return sum(1 for v in s.values() if 0 < v < home)
 
 
-def summary(campus=CAMPUS, data=None, start=10.0, grace=15, workdays=None,
+def summary(campus=CAMPUS, data=None, start=10.0, grace=60, workdays=None,
             home=HOME_SHARE):
     """Every employee OF a campus -- at least `home` of their punches at its
     machines (25 Nov: 84 of 228 through 140-H's machines punch mostly at

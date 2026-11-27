@@ -405,13 +405,13 @@ def signals(e):
     out = []
     closed = [(d, s) for d, s in days if s.get("closed", True)
               and s.get("inside_min")]
-    long_ = {d for d, s in closed if s["inside_min"] >= LONG_DAY_H * 60} | {
-        d for d, s in days if _hour(s.get("last_out")) is not None
-        and _hour(s.get("last_out")) >= LATE_OUT_H}
+    # 27 Nov (Shamroze: "24/7 ka kaam hai, employee marzi se aata, marzi se
+    # jaata -- timing flexible"): a long day is the hours, never the hour
+    # somebody leaves
+    long_ = {d for d, s in closed if s["inside_min"] >= LONG_DAY_H * 60}
     if len(long_) >= 3:
-        out.append(("warn", "Long days: %d of %d over 10&frac12; hours or out "
-                    "after %s &mdash; a burn-out risk" % (
-                        len(long_), len(days), clock(LATE_OUT_H))))
+        out.append(("warn", "Long days: %d of %d over 10&frac12; hours "
+                    "&mdash; a burn-out risk" % (len(long_), len(days))))
     hrs = [s["inside_min"] / 60.0 for _, s in closed]
     if len(hrs) >= 6:
         recent, before = sum(hrs[-3:]) / 3.0, sum(hrs[:-3]) / len(hrs[:-3])
@@ -1249,6 +1249,87 @@ def overview_html(e, day):
 
 
 # ------------------------------------------------ one against another
+
+# ---------------------------------------------------------- ways of working
+#
+# 27 Nov (Shamroze: "Harvard, Oxford, Tesla, Microsoft ... kya miss kar
+# rahe ho"): what Microsoft Viva Insights shows a manager and we did not --
+#   focus hours a week   Viva: blocks of 2 h+ without meetings; people who
+#                        are not managers do best with 12 h+ a week
+#                        (Workplace Patterns report). Ours: time at the
+#                        desk in stretches of an hour or more (the cameras).
+#   meeting hours a week Viva's "collaboration hours" -- here the meeting
+#                        rooms a face put them in (places_day).
+#   hours a week         Viva counts after-hours work against each person's
+#                        set hours; Disrupt's timing is flexible, 24/7
+#                        (Shamroze, 27 Nov), so the hours themselves:
+#                        past 50 a week is Gallup's burn-out line.
+# Shown beside the team, never added to the score (a long day is no
+# credit), and the team's count past 50 h a week is a wellbeing sign for
+# the manager, as Viva's after-hours count is.
+FOCUS_GOOD_H = 12.0
+WEEK_RISK_H = 50.0       # Gallup's burn-out line, as LONG_DAY_H a day
+
+
+def ways(e, hours=(10.0, 20.0)):
+    """{focus_h, meeting_h, week_h} a week (5 working days) or None
+    each where not measured."""
+    out = {"focus_h": None, "meeting_h": None, "week_h": None}
+    p = e.get("board") or {}
+    longs = [float(d.get("long_min") or 0) for d in p.get("days") or []
+             if d.get("first") is not None and d.get("long_min") is not None]
+    if longs:
+        out["focus_h"] = 5.0 * sum(longs) / len(longs) / 60.0
+    pd_ = p.get("places_days") or {}
+    if pd_:
+        out["meeting_h"] = 5.0 * sum(float((v or {}).get("meeting") or 0)
+                                     for v in pd_.values()) / len(pd_) / 60.0
+    # Hours in the building a week, whatever the clock (the timing is
+    # flexible, 24/7: Shamroze, 27 Nov) -- Viva's after-hours count has no
+    # meaning where there are no fixed hours; the hours themselves do.
+    closed = [s for _, s in _work(e) if s.get("closed")
+              and s.get("inside_min")]
+    if closed:
+        out["week_h"] = 5.0 * sum(float(s["inside_min"]) for s in closed) \
+            / len(closed) / 60.0
+    return out
+
+
+def ways_html(e, emps, hours=(10.0, 20.0)):
+    """Their ways of working beside the team's usual (the median)."""
+    me = ways(e, hours)
+    mates = [x for x in emps if x["dept"] == e["dept"] and x["eid"] != e["eid"]]
+    theirs = [ways(x, hours) for x in mates]
+
+    def team(k):
+        vals = [w[k] for w in theirs if w[k] is not None]
+        return median(vals) if vals else None
+    risk = sum(1 for w in theirs + [me] if (w["week_h"] or 0) > WEEK_RISK_H)
+    n_week = sum(1 for w in theirs + [me] if w["week_h"] is not None)
+
+    def h(v):
+        return "&ndash;" if v is None else "%.1f h" % v
+    tiles = [
+        ("Focus time, a week", h(me["focus_h"]),
+         "at the desk in stretches of an hour+ &middot; team %s &middot; "
+         "Microsoft finds 12 h+ best" % h(team("focus_h"))
+         if me["focus_h"] is not None else "no camera reads their desk"),
+        ("Meetings, a week", h(me["meeting_h"]),
+         "in the meeting rooms, by face &middot; team %s"
+         % h(team("meeting_h")) if me["meeting_h"] is not None
+         else "not seen in a meeting room yet"),
+        ("Hours in the building, a week", h(me["week_h"]),
+         "team %s &middot; past 50 h a week is Gallup's burn-out line"
+         % h(team("week_h")) if me["week_h"] is not None
+         else "no whole day yet"),
+        ("In the team, past 50 h a week", "%d of %d" % (risk, n_week)
+         if n_week else "&ndash;",
+         "a wellbeing sign for the manager, as Microsoft Viva shows it")]
+    return ('<div class="ec pr"><div class="ec-h" style="margin-top:14px">'
+            '<span class="t">Ways of working</span><span class="c">as '
+            'Microsoft Viva Insights shows them &middot; beside the team, '
+            'not part of the score</span></div>%s</div>' % prv._kpis(tiles))
+
 
 def team_usual(e, emps):
     """The team as one person -- each factor its median -- to compare with

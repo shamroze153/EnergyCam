@@ -851,7 +851,7 @@ def check_every_desk():
                             first=at("10:00"), last=at("18:00"), part=False,
                             desk_min=300.0, desk_pct=0.6, computer_pct=0.5,
                             phone_min=10.0, talking_min=5.0, focus_min=120.0,
-                            core_pct=0.7, late_min=45.0, after_min=0.0,
+                            core_pct=0.7, late_min=75.0, after_min=0.0,
                             longest_break=30.0)])
     s = dd.summary(df, 7, {"dvr9.1-1": ("Test Person", "09999", "x")})
     check("the desk's usual: who, in, hours, computer, focus, late starts",
@@ -1948,7 +1948,7 @@ def check_board():
     # 25 Nov: a desk score -- time at the desk, long stretches, on time --
     # its parts shown, and where the day stands on the board.
     sp = {"code": "P8", "focus": {
-        "day": "2026-11-24", "first_in": pd.Timestamp("2026-11-24 10:40"),
+        "day": "2026-11-24", "first_in": pd.Timestamp("2026-11-24 11:25"),
         "minutes": {"computer": 120.0},
         "stretches": [{"what": "desk", "minutes": 90.0},
                       {"what": "away", "minutes": 20.0},
@@ -2047,10 +2047,14 @@ def check_board():
     check("gone, said as likely as it is",
           "Probably gone home" in pv.board_row(home, c)[0], True)
     late = person("P6", "desk", 100, 20)
-    late["focus"]["first_in"] = pd.Timestamp("2026-11-24 10:40")
-    check("in at 10:40 with the office from 10:00 is late",
+    # 27 Nov (Shamroze: the timing is flexible -- only in after 11:00 is
+    # late)
+    late["focus"]["first_in"] = pd.Timestamp("2026-11-24 11:10")
+    check("in at 11:10 is late; 10:40 is not",
           "pg-late" in pv.board_row(late, c, start=10.0)[0]
-          and "pg-late" not in pv.board_row(late, c, start=10.5)[0], True)
+          and "pg-late" not in pv.board_row(dict(late, focus=dict(
+              late["focus"], first_in=pd.Timestamp("2026-11-24 10:40"))),
+              c, start=10.0)[0], True)
     blinky = person("P7", "desk", 100, 20)
     blinky["focus"]["stretches"] = [
         {"what": "desk", "minutes": 50}, {"what": "away", "minutes": 4},
@@ -2392,7 +2396,7 @@ def check_attendance():
     pp_ = {"days": [
         {"day": "2026-11-20", "first": T_("2026-11-20 10:00"),
          "desk_min": 300.0, "long_min": 240.0},
-        {"day": "2026-11-21", "first": T_("2026-11-21 10:40"),
+        {"day": "2026-11-21", "first": T_("2026-11-21 11:25"),
          "desk_min": 600.0, "long_min": 600.0},
         {"day": "2026-11-22", "first": None, "desk_min": 0.0}]}
     # 50x.5 + 80x.3 + 100x.2 = 69; 100x.5 + 100x.3 + 80x.2 = 96
@@ -2670,6 +2674,29 @@ def check_report_card():
            "from 140-H left out" in _top, "140-H&#x27;s" in _top,
            "none named here yet" in _top, _e[0]["campus"]),
           (True, True, False, True, "141-C/D"))
+    # 27 Nov: Microsoft Viva's ways of working on the report card -- focus,
+    # meetings, before/after office hours -- beside the team, not scored
+    _w = {"eid": "9", "dept": "Ops", "_cut": None,
+          "days": {"2026-11-24": {"first_in": pd.Timestamp(
+                       "2026-11-24 09:00"), "last_out": pd.Timestamp(
+                       "2026-11-24 21:30"), "closed": True}},
+          "board": {"days": [{"first": 10.0, "long_min": 180.0},
+                             {"first": 10.0, "long_min": 120.0}],
+                    "places_days": {"2026-11-24": {"meeting": 60.0}}}}
+    _w["days"]["2026-11-24"]["inside_min"] = 750.0
+    ww = er.ways(_w, (10.0, 20.0))
+    # (the timing is flexible, 24/7 -- Shamroze, 27 Nov: no "after office
+    # hours"; the hours a week, whatever the clock)
+    check("ways of working: focus 12.5 h, meetings 5 h, 62.5 h a week in "
+          "the building", (round(ww["focus_h"], 1), round(ww["meeting_h"], 1),
+                           round(ww["week_h"], 1)), (12.5, 5.0, 62.5))
+    wh = er.ways_html(_w, [_w, dict(_w, eid="8", board=None)], (10.0, 20.0))
+    check("  drawn beside the team, past 50 h counted, no after-hours, no "
+          "None", ("Ways of working" in wh, "2 of 2" in wh,
+                   "office hours" in wh, "None" in wh,
+                   "no camera reads" in er.ways_html(dict(_w, board=None),
+                                                     [_w])),
+          (True, True, False, False, True))
     import desks_data as _dd
     check("  141-C/D's cameras are read for desks too; never the gym; its "
           "MR rooms are meetings",
