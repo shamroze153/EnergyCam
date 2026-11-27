@@ -2639,6 +2639,11 @@ def check_report_card():
            prv0.missing(unread_), "not told" in er.head_html(noscr_, emps,
                                                              now_)),
           (True, False, "desk activity (not read yet)", True))
+    lowres_ = dict(unread_, board={"recorder": "nvr4", "history": [
+        {"desk_min": 300, "computer_min": None}]})
+    check("  and at a desk whose camera is read at low resolution (nvr4)",
+          (prv0.complete(lowres_), "low resolution" in er.head_html(
+              lowres_, emps, now_)), (True, True))
     # 26 Nov night (Shamroze): the overview first -- where a day went --
     # against a colleague ("X, Y se kyun behtar"), and the workforce apart
     import productivity_view as prv2

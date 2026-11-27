@@ -1588,10 +1588,14 @@ def head_html(e, emps, now=None, hours=(10.0, 20.0), last_day=None,
         measured += " &middot; desk camera, %d day%s" % (
             e.get("desk_days") or 0, "" if e.get("desk_days") == 1 else "s")
     if prv.complete(e):
+        why_not = {"low": " (this desk's camera is read at low resolution, "
+                          "so time on the computer is not told)",
+                   "screen": " (no screen in the camera's view at this "
+                             "desk, so time on the computer is not told)"}
         measured += (' &middot; <b style="color:#d99a00">%s complete</b>: '
                      'every part measured' % prv.STAR) + (
-            " (no screen in the camera's view at this desk, so time on the "
-            "computer is not told)" if e.get("activity") is None else "")
+            why_not.get(prv.activity_untold(e), "")
+            if e.get("activity") is None else "")
     elif prv.missing(e):
         measured += " &middot; not measured yet: %s" % esc(prv.missing(e))
 

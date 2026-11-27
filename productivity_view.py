@@ -481,17 +481,32 @@ def screen_unseen(e, days=ACT_DAYS):
                               for r in recs) <= 0
 
 
+# Recorders the pass reads at 640x360 (rooms.yaml stream "sub"; their AC
+# calibrations are in those pixels): no screen or phone can be made out at
+# their desks -- 27 Nov, every activity row of nvr4's (the Basement's)
+# desks was "desk" or "away".
+LOW_RES = ("nvr1", "nvr4")
+
+
+def activity_untold(e):
+    """Why desk activity cannot be told at their desk: "low" (a camera read
+    at low resolution), "screen" (no screen ever in its view), else ""."""
+    if str((e.get("board") or {}).get("recorder") or "") in LOW_RES:
+        return "low"
+    return "screen" if screen_unseen(e) else ""
+
+
 def complete(e):
     """Every part of an office employee's productivity that the cameras
     can measure, measured -- the attendance machines, their own desk in a
-    camera, and what went on at it (desk activity; where the camera sees
-    no screen at their desk, that part cannot be told and is not waited
-    for). Shamroze, 27 Nov: "jin employees ki productivity poori ho jaye,
-    un ke report card par star"."""
+    camera, and what went on at it (desk activity; where the camera cannot
+    tell it -- no screen in view, or a low-resolution camera -- that part
+    is not waited for). Shamroze, 27 Nov: "jin employees ki productivity
+    poori ho jaye, un ke report card par star"."""
     return (e.get("staff") != "workforce"
             and e.get("attendance") is not None
             and e.get("desk") is not None
-            and (e.get("activity") is not None or screen_unseen(e)))
+            and (e.get("activity") is not None or bool(activity_untold(e))))
 
 
 def missing(e):
