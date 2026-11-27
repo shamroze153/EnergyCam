@@ -2743,6 +2743,11 @@ def check_report_card():
           ("Came in 10:00" in _jh, "first went to <b>At the desk</b>" in _jh,
            "5 min after coming in" in _jh, "2 stops" in _jh),
           (True, True, True, True))
+    _late = dict(_je, days={_jd: dict(_je["days"][_jd],
+                                     first_in=pd.Timestamp(_jd + " 18:55"))})
+    check("  a camera that saw them before the machines' first IN: the "
+          "camera's time", "Came in 10:05 (first seen by camera)"
+          in er.journey_html(_late, _jd), True)
     # 27 Nov: the attendance report's daily CSV in the export's columns
     import attendance_import as _ai
     _rows, _f, _l = _ai.convert([

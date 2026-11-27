@@ -1236,8 +1236,14 @@ def journey_html(e, day):
     came = _hour(s.get("first_in"))
     first = next((x for x in st if x["kind"] not in ("out", "unknown")),
                  st[0])
+    # a camera that saw them in before the machines' first IN (a punch the
+    # report has not got -- 26 Nov's morning -- or a door held open): the
+    # earlier of the two is when they came
+    by_cam = came is None or first["from"] < came
+    if by_cam:
+        came = first["from"]
     after = ("%s after coming in" % span((first["from"] - came) * 60.0)
-             if came is not None and first["from"] >= came else "")
+             if not by_cam and first["from"] >= came else "")
     longest = max(x["min"] for x in st) or 1.0
     rows = "".join(
         '<div class="jy-row"><span class="jy-t">%s&ndash;%s</span>'
@@ -1248,12 +1254,14 @@ def journey_html(e, day):
            esc(x["name"]), max(3.0, 100.0 * x["min"] / longest),
            colour(x["kind"]), span(x["min"])) for x in st)
     return ('<div class="ec-card rc-box jy"><h4>The day, stop by stop &middot; '
-            '%s</h4><p class="jy-first">Came in %s &middot; first went to '
+            '%s</h4><p class="jy-first">Came in %s%s &middot; first went to '
             '<b>%s</b>%s &middot; %d stop%s</p>%s<p class="pr-note">From the '
             'attendance machines, the desk camera and faces on the campus '
             'cameras; "in the building, place not seen" is time inside that '
             'no camera put a name to.</p></div>'
-            % (esc(_day_label(day)), clock(came), esc(first["name"]),
+            % (esc(_day_label(day)), clock(came),
+               " (first seen by camera)" if by_cam else "",
+               esc(first["name"]),
                (" (%s)" % after) if after else "", len(st),
                "" if len(st) == 1 else "s", rows))
 
