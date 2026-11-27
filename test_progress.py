@@ -2697,6 +2697,27 @@ def check_report_card():
                    "no camera reads" in er.ways_html(dict(_w, board=None),
                                                      [_w])),
           (True, True, False, False, True))
+    # 27 Nov (Shamroze: "review pdf tab bhejo jab tum confident na ho"):
+    # a sure face names its desk by itself; a close one goes to the PDF
+    import seat_faces as _sf
+    _rows = [{"seat": "dvr2_9_500_700", "best": "00010", "score": .60,
+              "second_score": .40, "samples": 20, "status": "named"},
+             {"seat": "dvr2_9_900_700", "best": "00011", "score": .42,
+              "second_score": .35, "samples": 12, "status": "unsure"},
+             {"seat": "dvr2_9_100_700", "best": "00012", "score": .30,
+              "second_score": .29, "samples": 12, "status": "unsure"},
+             {"seat": "dvr2_9_300_700", "best": "00013", "score": .70,
+              "second_score": .40, "samples": 30, "status": "named"}]
+    _desks = [{"code": "dvr2.9-%d" % i, "recorder": "dvr2", "channel": 9,
+               "seat": [x, 700]} for i, x in ((1, 505), (2, 890), (3, 100),
+                                              (4, 300))]
+    _sure, _doubt = _sf.name_plan(
+        _rows, _sf.seat_desks(_rows, _desks), {"dvr2.9-4": ("13", "X")},
+        {("dvr2.9-9", "10")}, {"00010", "00011", "00012", "00013"})
+    check("faces: sure named by itself, close ones for the PDF, a named "
+          "desk and a weak match left alone",
+          ([s[:2] for s in _sure], [d[:2] for d in _doubt]),
+          ([("dvr2.9-1", "00010")], [("dvr2.9-2", "00011")]))
     import desks_data as _dd
     check("  141-C/D's cameras are read for desks too; never the gym; its "
           "MR rooms are meetings",

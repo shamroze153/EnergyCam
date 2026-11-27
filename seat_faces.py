@@ -218,9 +218,111 @@ def write_result(rows, roster, path=RESULT):
                         "%.3f" % (r["score"] - r["second_score"])])
 
 
+DOUBT_SAME = 0.38        # below SAME, at least this: worth a look by eye
+DOUBT_MARGIN = 0.05
+
+
+def seat_desks(rows, desks, reach=40.0):
+    """Each match row's desk: the found desk (desk_seats.find_desks) on the
+    same camera whose seat is nearest its seat, within `reach` px.
+    {seat key: desk dict}."""
+    out = {}
+    for r in rows:
+        rec, ch, x, y = r["seat"].rsplit("_", 3)
+        best, bd = None, reach
+        for d in desks:
+            if d["recorder"] != rec or int(d["channel"]) != int(ch):
+                continue
+            dist = ((float(d["seat"][0]) - float(x)) ** 2
+                    + (float(d["seat"][1]) - float(y)) ** 2) ** 0.5
+            if dist <= bd:
+                best, bd = d, dist
+        if best is not None:
+            out[r["seat"]] = best
+    return out
+
+
+def name_plan(rows, desk_of, named, refused, roster_ids):
+    """(sure, doubtful) from match rows (27 Nov, Shamroze: "review pdf tab
+    bhejo jab tum confident na ho"): sure -- status "named" (8+ faces, far
+    above the line and clear of the next), its desk not named yet, the
+    person at no other desk, the pair never refused; doubtful -- the same
+    but "unsure" yet close (DOUBT_SAME, DOUBT_MARGIN), for the review PDF.
+    Each [(desk code, employee_id, score, margin, samples)], one desk per
+    person (the strongest)."""
+    def k(e):                                # "01289" and "1289" alike
+        return str(e or "").strip().lstrip("0") or "0"
+    taken = {k(eid) for eid, _ in named.values()}
+    refused = {(c, k(e)) for c, e in refused}
+    sure, doubt, used = [], [], set()
+    rows = sorted(rows, key=lambda r: -r["score"])
+    for r in rows:
+        d = desk_of.get(r["seat"])
+        eid = str(r.get("best") or "")
+        if not d or not eid or eid not in roster_ids:
+            continue
+        code = d["code"]
+        if code in named or k(eid) in taken or k(eid) in used \
+                or (code, k(eid)) in refused:
+            continue
+        margin = r["score"] - r["second_score"]
+        item = (code, eid, round(r["score"], 3), round(margin, 3),
+                r["samples"])
+        if r["status"] == "named":
+            sure.append(item)
+            used.add(k(eid))
+        elif r["status"] == "unsure" and r["score"] >= DOUBT_SAME \
+                and margin >= DOUBT_MARGIN:
+            doubt.append(item)
+            used.add(k(eid))
+    return sure, doubt
+
+
+def name_desks(days, apply=False, out_csv=None):
+    """Match every seat over `days`, name the sure desks (apply=True writes
+    people/desk_names.csv) and list the doubtful for the review PDF
+    (people/follow/faces_doubtful.csv). Returns (sure, doubtful)."""
+    import csv
+    import desk_match
+    import desk_seats
+    import desks_data
+    import staff_faces
+    ids, vecs = staff_faces.load_faces()
+    roster = {r["employee_id"]: r for r in staff_faces.load_roster()}
+    rows = match(samples(days), ids, vecs)
+    desks = desk_seats.find_desks(max(days), codes=desks_data.CODES)
+    named = desks_data.load_desk_names()
+    refused = desk_match.refused()
+    sure, doubt = name_plan(rows, seat_desks(rows, desks), named, refused,
+                            set(roster))
+    if apply:
+        for code, eid, _, _, _ in sure:
+            desks_data.save_desk_name(code, eid, roster[eid].get("name", ""))
+    out_csv = out_csv or os.path.join("people", "follow",
+                                      "faces_doubtful.csv")
+    os.makedirs(os.path.dirname(out_csv), exist_ok=True)
+    with open(out_csv, "w", newline="", encoding="utf-8") as fh:
+        w = csv.writer(fh)
+        w.writerow(["code", "employee_id", "score", "margin", "samples"])
+        w.writerows(doubt)
+    return sure, doubt
+
+
 def main(argv):
     import staff_faces
     days = argv[2:] or [datetime.now().strftime("%Y-%m-%d")]
+    if len(argv) > 1 and argv[1] == "name":
+        # python seat_faces.py name [--apply] <days...>
+        apply = "--apply" in days
+        days = [d for d in days if d != "--apply"]
+        sure, doubt = name_desks(days, apply)
+        print("sure: %d%s, doubtful (for the PDF): %d" % (
+            len(sure), " named" if apply else " (dry run: add --apply)",
+            len(doubt)))
+        for item in sure:
+            print("  sure", item[0], "score %.3f margin %.3f faces %d"
+                  % item[2:])
+        return
     if len(argv) > 1 and argv[1] == "match":
         ids, vecs = staff_faces.load_faces()
         rows = match(samples(days), ids, vecs)
