@@ -192,7 +192,11 @@ def write(day, row, crop=None, out=None, body=None, face=None):
             os.makedirs(pics, exist_ok=True)
             cv2.imwrite(os.path.join(pics, stem + ".jpg"), crop,
                         [cv2.IMWRITE_JPEG_QUALITY, 85])
-        if body is not None and getattr(body, "size", 0) and row[4]:
+        # 27 Nov night (Shamroze: "aaj ki gate wali picture, kapron se main
+        # match kar lunga"): the clothes of EVERY passage, not only of one
+        # named on the spot -- most are named later by their own punch
+        # (gate_match), and the review sheets need their clothes too
+        if body is not None and getattr(body, "size", 0):
             import cv2
             os.makedirs(pics, exist_ok=True)
             cv2.imwrite(os.path.join(pics, stem + "_body.jpg"), body,

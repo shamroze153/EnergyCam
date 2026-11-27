@@ -455,6 +455,26 @@ def check_ada_sightings():
         shutil.rmtree(folder)
 
 
+def check_gate_clothes():
+    """27 Nov night: the gate keeps the clothes of every passage -- an
+    unnamed face is mostly named later by its own punch, and the review
+    sheets match the same day's clothes at the desk."""
+    import shutil
+    import tempfile
+    import entrance_watch as ew
+    folder = tempfile.mkdtemp()
+    try:
+        pic = np.full((40, 40, 3), 128, np.uint8)
+        body = np.full((120, 60, 3), 90, np.uint8)
+        stem = ew.write(DAY, ("18:01:02", "nvr1", 5, "unknown", "", "", 0.3,
+                              0.0, 60), pic, folder, body=body)
+        check("an unnamed passage keeps its clothes too",
+              os.path.exists(os.path.join(folder, DAY, stem + "_body.jpg")),
+              True)
+    finally:
+        shutil.rmtree(folder)
+
+
 def main():
     check_safetensors()
     check_ada_budget()
@@ -462,6 +482,7 @@ def main():
     check_ada_threads()
     check_scrfd_pieces()
     check_ada_sightings()
+    check_gate_clothes()
     check_backfill()
     check_replay_plan()
     check_crop_paths()
