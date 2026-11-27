@@ -24,7 +24,14 @@ import desk_activity as da
 
 OUT = os.path.join("progress", "desks_activity")
 CROPS = os.path.join("frames", "desks")
-CAMPUS = {"nvr1", "nvr4", "dvr2", "xvr3"}
+# 140-H's recorders and, from 27 Nov, 141-C/D's (desks_data.CAMPUS_141)
+CAMPUS = {"nvr1", "nvr4", "dvr2", "xvr3", "cd_nvr1", "cd_nvr2", "cd_nvr3",
+          "cd_nvr4", "cd_xvr1", "cd_xvr3"}
+
+
+def _watched(room):
+    """Not the 141 gym (desks_data.NOT_DESKS)."""
+    return "gym" not in str(room or "").lower()
 PHONE_EVERY = 3
 HOURS = ("07:30", "22:00")
 KEEP_DAYS = 14
@@ -56,7 +63,7 @@ def observe(room, key, frame, boxes, model=None, now=None, out=None,
 
 
 def _observe(room, key, frame, boxes, model, now, out, crops, finder):
-    if frame is None or key[0] not in CAMPUS:
+    if frame is None or key[0] not in CAMPUS or not _watched(room):
         return 0
     from progress_track import PKT, desk_crop
     now = now or datetime.now(PKT)

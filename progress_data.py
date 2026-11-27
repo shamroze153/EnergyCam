@@ -482,7 +482,8 @@ SEEN_WINDOW = pd.Timedelta(minutes=60)
 # office (their own room if it is their department's).
 PLACES = [
     ("left", ("the gate, going out",)),         # GATE_ROOM
-    ("meeting", ("board room", "meeting room")),
+    # " mr0" / " mr 0": 141's "141-D MR01", "141 MR 01 (1st floor)" (27 Nov)
+    ("meeting", ("board room", "meeting room", " mr0", " mr 0")),
     ("smoking", ("smoking",)),
     ("prayer", ("mosque", "ablution")),
     ("cafe", ("cafe", "pantry", "commons", "gaming")),
@@ -490,7 +491,7 @@ PLACES = [
                  "genset", "ro plant", "emergency", "outdoor", "inverter",
                  "atrium")),
     ("corridor", ("lobby", "stairs", "entry", "entrance", "attendance",
-                  "reception", "sitting area")),
+                  "reception", "sitting area", "corridor")),
 ]
 KINDS = ["computer", "phone", "talking", "desk", "meeting", "own room",
          "office", "cafe", "smoking", "prayer", "corridor", "outside",

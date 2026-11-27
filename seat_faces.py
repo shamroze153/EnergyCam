@@ -28,7 +28,9 @@ import numpy as np
 
 import faces
 
-CAMPUS = {"nvr1", "nvr4", "dvr2", "xvr3"}
+# 140-H's recorders and, from 27 Nov, 141-C/D's (desks_data.CAMPUS_141)
+CAMPUS = {"nvr1", "nvr4", "dvr2", "xvr3", "cd_nvr1", "cd_nvr2", "cd_nvr3",
+          "cd_nvr4", "cd_xvr1", "cd_xvr3"}
 OUT = os.path.join("people", "seat_faces")
 RESULT = os.path.join("people", "seats_identified.csv")
 HOURS = ("08:00", "21:30")
@@ -72,6 +74,9 @@ def observe(room, key, frame, boxes, now=None, spots=None, out=None):
 def _observe(room, key, frame, boxes, now, spots, out):
     if frame is None or key[0] not in CAMPUS or not faces.available():
         return 0
+    import desks_data
+    if not desks_data.watched_room(room):
+        return 0                         # the gym: never (NOT_DESKS)
     from progress_track import PKT, regular_seats
     now = now or datetime.now(PKT)
     if not (HOURS[0] <= now.strftime("%H:%M") <= HOURS[1]):

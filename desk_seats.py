@@ -91,7 +91,8 @@ def find_desks(upto, days=SEAT_DAYS, folder=pdx.SEATS, codes=None):
     before = json.dumps(reg, sort_keys=True)
     desks = []
     for (room, rec, ch), spots in sorted(found.items()):
-        if rec not in desks_data.CAMPUS or pdx.place_of(room) != "office":
+        if rec not in desks_data.CAMPUS or pdx.place_of(room) != "office" \
+                or not desks_data.watched_room(room):
             continue
         cam = "%s.%d" % (rec, int(ch))
         nums = (stable_numbers(cam, [(s[0], s[1]) for s in spots], reg)

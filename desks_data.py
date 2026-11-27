@@ -30,7 +30,23 @@ import pandas as pd
 
 import progress_data as pdx
 
-CAMPUS = {"nvr1", "nvr4", "dvr2", "xvr3"}
+CAMPUS_140 = {"nvr1", "nvr4", "dvr2", "xvr3"}
+# 27 Nov (Shamroze: "141C/D ka banana shru kro ... camera ke through"):
+# 141-C/D's recorders too -- cd_xvr2 waits on its IP conflict.
+CAMPUS_141 = {"cd_nvr1", "cd_nvr2", "cd_nvr3", "cd_nvr4", "cd_xvr1",
+              "cd_xvr3"}
+CAMPUS = CAMPUS_140 | CAMPUS_141
+# Never a desk, never watched for one: the 141 gym (ladies-only 15:00-20:00;
+# the loop does not open it then, and no tool keeps a picture of it).
+NOT_DESKS = ("gym",)
+
+
+def watched_room(room):
+    """False for a room the desk tools leave alone (NOT_DESKS)."""
+    r = str(room or "").lower()
+    return not any(w in r for w in NOT_DESKS)
+
+
 OUT = os.path.join("progress", "desks.csv")         # git-ignored (progress/)
 # The desks themselves are found by desk_seats.find_desks (seat_map, with
 # OpenCV): this module stays pandas-only, so the dashboard can read it.

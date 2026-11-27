@@ -675,11 +675,16 @@ def check_campus_faces():
         check("a seated face is kept as numbers for its seat",
               (n, list(kept), kept["dvr2_15_500_700"].shape),
               (1, ["dvr2_15_500_700"], (1, 128)))
-        check("not at night, not off the campus",
+        # (141-C/D's recorders are watched too since 27 Nov: cd_xvr2, its
+        # IP conflict unresolved, is not; the 141 gym never)
+        check("not at night, not off the campus, never the gym",
               (sfc.observe("R", ("dvr2", 15), frame, [(450, 450, 550, 700)],
                            now=night, spots=spots, out=folder),
-               sfc.observe("R", ("cd_nvr1", 3), frame, [(450, 450, 550, 700)],
-                           now=day, spots=spots, out=folder)), (0, 0))
+               sfc.observe("R", ("cd_xvr2", 3), frame, [(450, 450, 550, 700)],
+                           now=day, spots=spots, out=folder),
+               sfc.observe("141 Gym", ("cd_nvr2", 7), frame,
+                           [(450, 450, 550, 700)], now=day, spots=spots,
+                           out=folder)), (0, 0, 0))
         check("numbers, and one small picture of the seat for the check",
               sorted(os.path.splitext(f)[1] for f in os.listdir(
                   os.path.join(folder, "2026-11-20"))), [".f16", ".jpg"])
@@ -2665,7 +2670,20 @@ def check_report_card():
            "from 140-H left out" in _top, "140-H&#x27;s" in _top,
            "none named here yet" in _top, _e[0]["campus"]),
           (True, True, False, True, "141-C/D"))
+    import desks_data as _dd
+    check("  141-C/D's cameras are read for desks too; never the gym; its "
+          "MR rooms are meetings",
+          ("cd_nvr1" in _dd.CAMPUS and "nvr1" in _dd.CAMPUS,
+           _dd.watched_room("141 Gym"), _dd.watched_room("141 Room 32"),
+           pdx.place_of("141-D MR01 (2nd floor)"),
+           pdx.place_of("141 MR 01 (1st floor)"),
+           pdx.place_of("141 Corridor (2nd floor)"),
+           pdx.place_of("141 Room 7 (ground floor)")),
+          (True, False, True, "meeting", "meeting", "corridor", "office"))
     src_ = open("rooms_dashboard.py", encoding="utf-8").read()
+    check("  each campus's page has only its own desks' people",
+          "show_productivity(mode, ours(board)" in src_
+          and "not_141(people)" in src_, True)
     check("  a Progress tab on 141-C/D behind the same door, the loop sends "
           "its rows", ('"141-C/D": ("141", "140-H")' in src_
                        and "campus in PROGRESS_CAMPUSES" in src_

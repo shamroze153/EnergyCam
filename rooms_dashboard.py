@@ -6572,16 +6572,39 @@ def show_monitor(df, now):
                 unsafe_allow_html=True)
 
 
+def not_141(people):
+    """The board's people but those whose desk is on 141-C/D's cameras
+    (they are on 141-C/D's page, 27 Nov)."""
+    import desks_data
+    return [p for p in people or []
+            if str(p.get("recorder") or "") not in desks_data.CAMPUS_141]
+
+
 def show_campus_progress(mode, here, hosted, now):
     """Another campus's Progress (27 Nov: 141-C/D): its employees by the
     attendance machines, department by department, a report card each --
     140-H's page without its desk cameras, which name nobody here yet.
     Hosted: the rows the office laptop sent ("_attendance_141")."""
+    import desks_data
+    import progress_data
     local = now.tz_convert(PKT)
     prefix = PROGRESS_CAMPUSES[here][0]
+
+    def ours(people):
+        # the board's people whose desk is on this campus's cameras (27
+        # Nov: 141-C/D's desks are found and read too, named one by one)
+        return [p for p in people or []
+                if str(p.get("recorder") or "") in desks_data.CAMPUS_141]
     if not hosted:
-        show_productivity(mode, None, tuple(float(h) for h in work_hours()),
-                          local, here)
+        hours = tuple(float(h) for h in work_hours())
+        today = local.strftime("%Y-%m-%d")
+        review = os.path.join(progress_data.ACTIVITY, "review_%s.csv" % today)
+        with st.spinner("Adding up the desks..."):
+            _, board = cached_progress(
+                today, (os.path.getmtime(progress_data.CONFIG),
+                        os.path.getmtime(review) if os.path.exists(review)
+                        else 0), _to_5min(now).isoformat(), hours)
+        show_productivity(mode, ours(board), hours, local, here)
         return
     stamp = _to_5min(now).isoformat()
     sent = cached_progress_cloud_days(stamp)
@@ -6594,7 +6617,7 @@ def show_campus_progress(mode, here, hosted, now):
                     'laptop\'s next send (every five minutes).</div></div>'
                     % html.escape(here), unsafe_allow_html=True)
         return
-    show_productivity_sent(mode, att, None, got[3], local, here)
+    show_productivity_sent(mode, att, ours(got[1]), got[3], local, here)
 
 
 def show_progress(now):
@@ -6657,7 +6680,7 @@ def show_progress(now):
         cfg, people, made, hours_sent = got
         # each part on its own: one that fails says so and the rest stands
         guarded("Productivity", show_productivity_sent, mode,
-                cfg.get("attendance"), people, hours_sent,
+                cfg.get("attendance"), not_141(people), hours_sent,
                 now.tz_convert(PKT))
         if st.toggle(PROGRESS_MORE, key="progress_more"):
             chosen = pick_progress_day(sent)
@@ -6703,7 +6726,8 @@ def show_progress(now):
                 _to_5min(now).isoformat(), hours)
     day_key = kept[0]
     cfg, people = board_for(day_key)
-    guarded("Productivity", show_productivity, mode, people, hours, local)
+    guarded("Productivity", show_productivity, mode, not_141(people), hours,
+            local)
     more = st.toggle(PROGRESS_MORE, key="progress_more")
     tools = st.toggle(PROGRESS_TOOLS, key="progress_tools")
     if more or tools:

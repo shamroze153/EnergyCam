@@ -28,7 +28,9 @@ import faces
 
 OUT = os.path.join("people", "cctv_faces.npz")
 SIGHTINGS = os.path.join("people", "sightings")
-CAMPUS = {"nvr1", "nvr4", "dvr2", "xvr3"}
+# 140-H's recorders and, from 27 Nov, 141-C/D's (desks_data.CAMPUS_141)
+CAMPUS = {"nvr1", "nvr4", "dvr2", "xvr3", "cd_nvr1", "cd_nvr2", "cd_nvr3",
+          "cd_nvr4", "cd_xvr1", "cd_xvr3"}
 KEEP = 80                # samples kept a person (the newest)
 MIN_SAMPLES = 3          # a person with fewer is not compared
 NEAR = 60.0              # px: a seat-face key this close is the desk's seat
@@ -222,6 +224,8 @@ def observe(room, key, frame, boxes, now=None, spots=None, out=None):
 def _observe(room, key, frame, boxes, now, spots, out):
     if frame is None or key[0] not in CAMPUS or not faces.available():
         return 0
+    if "gym" in str(room or "").lower():
+        return 0                         # the 141 gym: never looked at
     ids, vecs = load()
     if not len(ids):
         return 0
