@@ -2718,6 +2718,21 @@ def check_report_card():
            _ca["days"]["2026-11-25"]["source"],
            _ca["days"]["2026-11-24"]["inside_min"], _ca["camera_days"]),
           (2, 3, 8.5, "camera", 540.0, 1))
+    # 27 Nov: the attendance report's daily CSV in the export's columns
+    import attendance_import as _ai
+    _rows, _f, _l = _ai.convert([
+        {"id": "1", "date_time": "Nov 26, 2026, 10:28:38 AM",
+         "machine_id": "M1", "machine_location": "141-D IN", "pin": "525",
+         "status": "0"},
+        {"id": "2", "date_time": "Nov 26, 2026, 7:05:00 PM",
+         "machine_id": "M2", "machine_location": "140-H OUT", "pin": "68",
+         "status": "1"},
+        {"id": "3", "date_time": "garbage", "pin": "9", "status": "0"}])
+    check("the attendance report's rows read as the export's (pin is the "
+          "code, the time any space), a bad row left out",
+          ([(r["emp_code"], r["date_time"]) for r in _rows], _f, _l),
+          ([("525", "2026-11-26 10:28:38"), ("68", "2026-11-26 19:05:00")],
+           "2026-11-26 10:28:38", "2026-11-26 19:05:00"))
     # 27 Nov (Shamroze: "review pdf tab bhejo jab tum confident na ho"):
     # a sure face names its desk by itself; a close one goes to the PDF
     import seat_faces as _sf
