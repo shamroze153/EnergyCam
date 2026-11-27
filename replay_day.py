@@ -125,6 +125,23 @@ def done_before(day, folder=OUT):
         return {(r["camera"], r["end"][-8:]) for r in csv.DictReader(fh)}
 
 
+def faces_done(day, folder=OUT):
+    """{(camera, HH:MM:SS)} a --faces-only run already read (resumes)."""
+    path = os.path.join(folder, "%s_faces_done.csv" % day)
+    if not os.path.exists(path):
+        return set()
+    with open(path, encoding="utf-8") as fh:
+        return {(r[1], r[0]) for r in csv.reader(fh) if len(r) >= 2}
+
+
+def faces_mark(day, rows, folder=OUT):
+    """[(HH:MM:SS, camera)] read by a --faces-only run."""
+    os.makedirs(folder, exist_ok=True)
+    with open(os.path.join(folder, "%s_faces_done.csv" % day), "a",
+              newline="", encoding="utf-8") as fh:
+        csv.writer(fh).writerows(rows)
+
+
 def plan_days(day_arg, start, end, every=EVERY_MIN, every_moment=False,
               passes_of=None):
     """[(day, moments)] for each of the comma-separated days: a moment every
@@ -158,8 +175,21 @@ def main(argv):
     ap.add_argument("--streams", type=int, default=STREAMS,
                     help="playback sessions open at once, all recorders "
                     "together (at most %d)" % STREAMS)
+    # 27 Nov (Shamroze: "Kal ki recording se kaam shuru krdo, aj ka wait q
+    # kr rahe ho"): 141-C/D's recorders, and the sitters' faces only
+    ap.add_argument("--campus", default="140-H", choices=["140-H", "141"],
+                    help="whose recorders: 140-H's (default) or 141-C/D's")
+    ap.add_argument("--faces-only", action="store_true",
+                    help="no seat notes: each office desk's sitter's face "
+                    "numbers (seat_faces), every moment, for naming the desks")
     args = ap.parse_args(argv[1:])
     args.streams = max(1, min(STREAMS, args.streams))
+    global CAMPUS
+    if args.campus == "141":
+        import desks_data
+        CAMPUS = tuple(sorted(desks_data.CAMPUS_141))
+    if args.faces_only:
+        args.all = True
 
     from dotenv import load_dotenv
     load_dotenv()
@@ -183,9 +213,12 @@ def main(argv):
                   for c in args.cameras.split(",")]
     else:
         # the cameras with desks on them, and the rooms people go to
+        import desks_data
+        kinds = ("office",) if args.faces_only else ("office", "meeting",
+                                                      "own room")
         wanted = sorted(k for k, r in by_key.items()
-                        if pdx.place_of(r.name) in ("office", "meeting",
-                                                    "own room"))
+                        if pdx.place_of(r.name) in kinds
+                        and desks_data.watched_room(r.name))
     wanted = [k for k in wanted if k in by_key]
     plan = plan_days(args.day, args.start, args.end, args.every, args.all,
                      pdx.passes)
@@ -232,10 +265,11 @@ def main(argv):
         return rl.widen(frame) if frame is not None else None
 
     written = 0
+    import seat_faces
     from concurrent.futures import ThreadPoolExecutor
     with ThreadPoolExecutor(max_workers=max(1, args.streams)) as pool:
         for day, times in plan:
-            seen = done_before(day)
+            seen = faces_done(day) if args.faces_only else done_before(day)
             for t in times:
                 batch = [k for k in wanted if k[0] not in refused
                          and ("%s:%d" % k, t.strftime("%H:%M:%S"))
@@ -271,12 +305,23 @@ def main(argv):
                     counted = [b for b in boxes if not rl.ignored(
                         b, room.ignore.get(k),
                         getattr(room, "keep", {}).get(k))]
+                    if args.faces_only:
+                        # numbers only, people/seat_faces/<day> -- never a
+                        # picture kept but the small seat check seat_faces
+                        # keeps for the loop too
+                        seat_faces.observe(room.name, k, frame, counted,
+                                           now=t.replace(tzinfo=rl.PKT))
+                        passes.append([t.strftime("%H:%M:%S"), "%s:%d" % k])
+                        continue
                     notes += note_rows(t, room.name, k, counted, frame.shape)
                     passes.append([(t - timedelta(minutes=args.every))
                                    .strftime("%Y-%m-%d %H:%M:%S"),
                                    t.strftime("%Y-%m-%d %H:%M:%S"),
                                    "%s:%d" % k])
-                append(day, notes, passes)
+                if args.faces_only:
+                    faces_mark(day, passes)
+                else:
+                    append(day, notes, passes)
                 written += len(passes)
                 print(">> %s %s: %d camera(s), %d people" % (
                     day, t.strftime("%H:%M"), len(passes), len(notes)),
