@@ -2628,6 +2628,17 @@ def check_report_card():
            "not measured yet: desk camera" in er.head_html(half_, emps,
                                                            now_)),
           (True, True))
+    # a desk whose camera never sees a screen: activity cannot be told
+    noscr_ = dict(full_, activity=None, board={"history": [
+        {"desk_min": 300, "computer_min": 0.0},
+        {"desk_min": 280, "computer_min": 0.0}]})
+    unread_ = dict(full_, activity=None, board={"history": [
+        {"desk_min": 300, "computer_min": None}]})
+    check("  complete too where no screen is in view; not where unread",
+          (prv0.complete(noscr_), prv0.complete(unread_),
+           prv0.missing(unread_), "not told" in er.head_html(noscr_, emps,
+                                                             now_)),
+          (True, False, "desk activity (not read yet)", True))
     # 26 Nov night (Shamroze): the overview first -- where a day went --
     # against a colleague ("X, Y se kyun behtar"), and the workforce apart
     import productivity_view as prv2

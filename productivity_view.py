@@ -470,14 +470,28 @@ def _kpis(tiles):
 STAR = "&#9733;"
 
 
+def screen_unseen(e, days=ACT_DAYS):
+    """Their desk's activity was read, but no screen was ever seen there
+    (the camera's angle): "on the computer" cannot be told at that desk,
+    so the activity part is as measured as it can be."""
+    recs = [r for r in (e.get("board") or {}).get("history") or []
+            if r.get("computer_min") is not None
+            and (r.get("desk_min") or 0) > 0][-days:]
+    return bool(recs) and sum(float(r.get("computer_min") or 0)
+                              for r in recs) <= 0
+
+
 def complete(e):
-    """Every part of an office employee's productivity measured -- the
-    attendance machines, their own desk in a camera, and what went on at
-    it (desk activity). Shamroze, 27 Nov: "jin employees ki productivity
-    poori ho jaye, un ke report card par star".)"""
+    """Every part of an office employee's productivity that the cameras
+    can measure, measured -- the attendance machines, their own desk in a
+    camera, and what went on at it (desk activity; where the camera sees
+    no screen at their desk, that part cannot be told and is not waited
+    for). Shamroze, 27 Nov: "jin employees ki productivity poori ho jaye,
+    un ke report card par star"."""
     return (e.get("staff") != "workforce"
             and e.get("attendance") is not None
-            and e.get("desk") is not None and e.get("activity") is not None)
+            and e.get("desk") is not None
+            and (e.get("activity") is not None or screen_unseen(e)))
 
 
 def missing(e):
@@ -497,7 +511,7 @@ def missing(e):
 def star_html(e):
     """The gold star beside a complete employee's name, else nothing."""
     return ('<span title="Complete: attendance, desk camera and desk '
-            'activity all measured" aria-label="complete" style="color:'
+            'activity measured" aria-label="complete" style="color:'
             '#d99a00;margin-left:.3em">%s</span>' % STAR) if complete(e) \
         else ""
 

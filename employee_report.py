@@ -1589,7 +1589,9 @@ def head_html(e, emps, now=None, hours=(10.0, 20.0), last_day=None,
             e.get("desk_days") or 0, "" if e.get("desk_days") == 1 else "s")
     if prv.complete(e):
         measured += (' &middot; <b style="color:#d99a00">%s complete</b>: '
-                     'every part measured' % prv.STAR)
+                     'every part measured' % prv.STAR) + (
+            " (no screen in the camera's view at this desk, so time on the "
+            "computer is not told)" if e.get("activity") is None else "")
     elif prv.missing(e):
         measured += " &middot; not measured yet: %s" % esc(prv.missing(e))
 
