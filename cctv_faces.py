@@ -20,6 +20,7 @@ All under people/ (git-ignored, this laptop only). build() is hourly
 import csv
 import glob
 import os
+import time
 from datetime import datetime
 
 import numpy as np
@@ -210,6 +211,65 @@ def best(vec, ids=None, vecs=None, same=SAME, margin=MARGIN):
     return top[0], top[1], top[1] - second
 
 
+# ---------------------------------------------- AdaFace sightings (27 Nov)
+#
+# Shamroze, 27 Nov night: "in the building, place not seen 7 hours -- sab
+# camera se check karo". The SFace galleries named 40-70 sightings a day on
+# both campuses. Each person's AdaFace reference (adaface.py) -- the
+# directory photo and their own gate faces (named there by face or by
+# their OUT punch), people/ada_refs.npz, written by the naming rounds
+# (people/session_handoff/desk_ada.py refs) -- named the right person for
+# 94% of gate looks at 0.45 by 0.10, never with the same day's pictures in
+# the reference (sight_calib.py). A camera's look is harder than the
+# gate's, so that bar is the one used.
+ADA_REFS = os.path.join("people", "ada_refs.npz")
+ADA_SAME = 0.45
+ADA_MARGIN = 0.10
+ADA_BUDGET = 8.0          # s of SCRFD + AdaFace a minute here, at most
+_ada_refs = {"stamp": None, "ids": np.array([]),
+             "vecs": np.zeros((0, 512), np.float32)}
+_ada_clock = {"minute": 0, "spent": 0.0}
+
+
+def ada_refs(path=ADA_REFS):
+    """(ids, unit vectors) of the AdaFace references, read again when the
+    file changes; empty where there is none."""
+    try:
+        stamp = os.path.getmtime(path)
+    except OSError:
+        return np.array([]), np.zeros((0, 512), np.float32)
+    if _ada_refs["stamp"] != stamp:
+        d = np.load(path, allow_pickle=False)
+        v = d["vecs"].astype(np.float32)
+        v /= np.maximum(np.linalg.norm(v, axis=1, keepdims=True), 1e-6)
+        _ada_refs.update(stamp=stamp, ids=d["ids"], vecs=v)
+    return _ada_refs["ids"], _ada_refs["vecs"]
+
+
+def ada_best(vec, ids, vecs, same=ADA_SAME, margin=ADA_MARGIN):
+    """(employee_id, score, margin) when one AdaFace look is clearly one
+    person's reference, else None."""
+    if vec is None or not len(ids):
+        return None
+    v = np.asarray(vec, np.float32)
+    v = v / max(float(np.linalg.norm(v)), 1e-6)
+    s = vecs @ v
+    o = np.argsort(-s)
+    top = float(s[o[0]])
+    second = float(s[o[1]]) if len(o) > 1 else -1.0
+    if top < same or top - second < margin:
+        return None
+    return str(ids[o[0]]), top, top - second
+
+
+def _ada_ok(now_s=None):
+    now_s = time.time() if now_s is None else now_s
+    m = int(now_s // 60)
+    if m != _ada_clock["minute"]:
+        _ada_clock.update(minute=m, spent=0.0)
+    return _ada_clock["spent"] < ADA_BUDGET
+
+
 def observe(room, key, frame, boxes, now=None, spots=None, out=None):
     """A pass's people on one camera who are NOT at a regular seat (the
     cafe, a lobby, a meeting room, the stairs): each clear face against the
@@ -227,7 +287,8 @@ def _observe(room, key, frame, boxes, now, spots, out):
     if "gym" in str(room or "").lower():
         return 0                         # the 141 gym: never looked at
     ids, vecs = load()
-    if not len(ids):
+    a_ids, a_vecs = ada_refs()
+    if not len(ids) and not len(a_ids):
         return 0
     from progress_track import PKT, STAFFED, place_of, regular_seats
     import seat_faces
@@ -248,8 +309,19 @@ def _observe(room, key, frame, boxes, now, spots, out):
     for b in boxes:
         if office and seat_faces.seat_of(b, spots, frame.shape[1]) is not None:
             continue                     # somebody at a seat: seat_faces'
-        v = faces.of_person(frame, b[:4])
-        m = best(v, ids, vecs) if v is not None else None
+        m = None
+        if len(a_ids) and _ada_ok():
+            # SCRFD finds the face, AdaFace reads it (faces.of_person_both)
+            t0 = time.time()
+            got = faces.of_person_both(frame, b[:4])
+            _ada_clock["spent"] += time.time() - t0
+            v = got[0] if got is not None else None
+            if got is not None and got[1] is not None:
+                m = ada_best(got[1], a_ids, a_vecs)
+        else:
+            v = faces.of_person(frame, b[:4])
+        if m is None and v is not None and len(ids):
+            m = best(v, ids, vecs)
         if m is None:
             continue
         eid, score, margin = m

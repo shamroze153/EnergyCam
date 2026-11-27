@@ -402,12 +402,66 @@ def check_scrfd_pieces():
          faces.ada_feature, faces.ada_available, faces.find) = saved
 
 
+def check_ada_sightings():
+    """27 Nov night: away from their desks, one AdaFace look names a person
+    only when it is clearly theirs (0.45, by 0.10); a pass's sighting is
+    written as the SFace galleries' are."""
+    import shutil
+    import tempfile
+    from datetime import datetime as _dt
+    import cctv_faces as cf
+    import faces
+    import progress_track as pt
+    ids = np.array(["00010", "00011"])
+    R = np.zeros((2, 512), np.float32)
+    R[0, 0] = R[1, 1] = 1.0
+    near0 = np.zeros(512, np.float32)
+    near0[0], near0[2] = 0.8, 0.6                  # 0.8 to 00010, 0 to 00011
+    both = np.zeros(512, np.float32)
+    both[0] = both[1] = 1.0                        # 0.71 to each
+    check("a clear AdaFace look is named; one between two is not",
+          (cf.ada_best(near0 * 9.0, ids, R)[0],
+           cf.ada_best(both, ids, R), cf.ada_best(None, ids, R)),
+          ("00010", None, None))
+    saved = (cf.ada_refs, cf.load, faces.of_person_both, faces.available,
+             dict(cf._ada_clock), dict(cf._seen))
+    folder = tempfile.mkdtemp()
+    try:
+        cf.ada_refs = lambda path=None: (ids, R)
+        cf.load = lambda path=None: (np.array([]), np.zeros((0, 128)))
+        faces.available = lambda: True
+        faces.of_person_both = lambda frame, box: (
+            np.ones(128, np.float32) / np.sqrt(128), near0)
+        cf._ada_clock.update(minute=0, spent=0.0)
+        cf._seen.clear()
+        frame = np.zeros((1080, 1920, 3), np.uint8)
+        noon = _dt(2026, 11, 26, 13, 0, tzinfo=pt.PKT)
+        n = cf.observe("140-H Cafe", ("nvr1", 3), frame,
+                       [(100, 100, 200, 400, 0.9)], now=noon, spots=[],
+                       out=folder)
+        rows = open(os.path.join(folder, "2026-11-26.csv")).read()
+        check("a cafe sighting by AdaFace is written", (n, "00010" in rows),
+              (1, True))
+        check("never the 141 gym", cf.observe(
+            "141 Gym", ("cd_nvr2", 7), frame, [(100, 100, 200, 400, 0.9)],
+            now=noon, spots=[], out=folder), 0)
+    finally:
+        (cf.ada_refs, cf.load, faces.of_person_both, faces.available) = \
+            saved[:4]
+        cf._ada_clock.clear()
+        cf._ada_clock.update(saved[4])
+        cf._seen.clear()
+        cf._seen.update(saved[5])
+        shutil.rmtree(folder)
+
+
 def main():
     check_safetensors()
     check_ada_budget()
     check_ada_seat_face()
     check_ada_threads()
     check_scrfd_pieces()
+    check_ada_sightings()
     check_backfill()
     check_replay_plan()
     check_crop_paths()

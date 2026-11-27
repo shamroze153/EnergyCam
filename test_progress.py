@@ -1289,9 +1289,14 @@ def check_cctv_faces():
         check("at the gate the CCTV gallery names somebody their photo "
               "would not", (got[0], got[1]), ("named", "00010"))
         old = faces.of_person, faces.available, cf._cache.copy()
+        old_refs = cf.ada_refs
         try:
             faces.of_person = lambda frame, box: unit(1, .05, 0)
             faces.available = lambda: True
+            # the SFace galleries' path (27 Nov: AdaFace's has its own test,
+            # test_faces.check_ada_sightings)
+            cf.ada_refs = lambda path=None: (np.array([]),
+                                             np.zeros((0, 512), np.float32))
             cf._cache.update(stamp=None)
             cf.OUT_SAVED = out
             frame = np.zeros((1080, 1920, 3), np.uint8)
@@ -1329,6 +1334,7 @@ def check_cctv_faces():
             cf.load = orig_load
         finally:
             faces.of_person, faces.available = old[0], old[1]
+            cf.ada_refs = old_refs
             cf._cache.clear()
             cf._cache.update(old[2])
     finally:
@@ -2613,7 +2619,10 @@ def check_report_card():
     # 27 Nov (Shamroze): a star on the cards of those measured completely
     import productivity_view as prv0
     full_ = dict(by["5"], attendance=80, desk=70, activity=60,
-                 staff="office")
+                 staff="office", board={"history": [
+                     {"desk_pct": 0.6, "desk_min": 300, "computer_min": 200},
+                     {"desk_pct": 0.5, "desk_min": 280,
+                      "computer_min": 150}]})
     half_ = dict(by["5"], attendance=80, desk=None, activity=None,
                  staff="office")
     crew0_ = dict(full_, staff="workforce")
@@ -2630,17 +2639,24 @@ def check_report_card():
           (True, True))
     # a desk whose camera never sees a screen: activity cannot be told
     noscr_ = dict(full_, activity=None, board={"history": [
-        {"desk_min": 300, "computer_min": 0.0},
-        {"desk_min": 280, "computer_min": 0.0}]})
+        {"desk_pct": 0.6, "desk_min": 300, "computer_min": 0.0},
+        {"desk_pct": 0.5, "desk_min": 280, "computer_min": 0.0}]})
     unread_ = dict(full_, activity=None, board={"history": [
-        {"desk_min": 300, "computer_min": None}]})
+        {"desk_pct": 0.6, "desk_min": 300, "computer_min": None}]})
+    # 27 Nov night: a desk showing them 13% of their day -- no star
+    rarely_ = dict(full_, board={"history": [
+        {"desk_pct": 0.13, "desk_min": 74, "computer_min": 48}]})
+    check("  no star where the desk shows them under 30% of their day",
+          (prv0.complete(rarely_), "13%" in prv0.missing(rarely_),
+           "being checked" in er.head_html(rarely_, emps, now_)),
+          (False, True, True))
     check("  complete too where no screen is in view; not where unread",
           (prv0.complete(noscr_), prv0.complete(unread_),
            prv0.missing(unread_), "not told" in er.head_html(noscr_, emps,
                                                              now_)),
           (True, False, "desk activity (not read yet)", True))
     lowres_ = dict(unread_, board={"recorder": "nvr4", "history": [
-        {"desk_min": 300, "computer_min": None}]})
+        {"desk_pct": 0.6, "desk_min": 300, "computer_min": None}]})
     check("  and at a desk whose camera is read at low resolution (nvr4)",
           (prv0.complete(lowres_), "low resolution" in er.head_html(
               lowres_, emps, now_)), (True, True))

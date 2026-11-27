@@ -496,16 +496,35 @@ def activity_untold(e):
     return "screen" if screen_unseen(e) else ""
 
 
+# 27 Nov night (Shamroze, on a starred card with 1 h at the desk and 8 h
+# "in the building, place not seen": "ye result not good"): the desk must
+# show them for this much of their time in the building, on average, for
+# the star -- far less, and the desk named for them is in doubt (on 26 Nov
+# the desk-camera staff were at their desks 55% of it; 9 under 30%).
+DESK_SEEN_MIN = 0.30
+
+
+def desk_seen(e, days=ACT_DAYS):
+    """Their mean share of their time in the building at their own desk,
+    over the last days the board has it (0-1), or None."""
+    vals = [float(r["desk_pct"]) for r in (e.get("board") or {}).get(
+        "history") or [] if r.get("desk_pct") is not None][-days:]
+    return sum(vals) / len(vals) if vals else None
+
+
 def complete(e):
     """Every part of an office employee's productivity that the cameras
     can measure, measured -- the attendance machines, their own desk in a
-    camera, and what went on at it (desk activity; where the camera cannot
-    tell it -- no screen in view, or a low-resolution camera -- that part
-    is not waited for). Shamroze, 27 Nov: "jin employees ki productivity
-    poori ho jaye, un ke report card par star"."""
+    camera (and it shows them for a fair part of their day: DESK_SEEN_MIN),
+    and what went on at it (desk activity; where the camera cannot tell it
+    -- no screen in view, or a low-resolution camera -- that part is not
+    waited for). Shamroze, 27 Nov: "jin employees ki productivity poori ho
+    jaye, un ke report card par star"."""
+    seen = desk_seen(e)
     return (e.get("staff") != "workforce"
             and e.get("attendance") is not None
             and e.get("desk") is not None
+            and seen is not None and seen >= DESK_SEEN_MIN
             and (e.get("activity") is not None or bool(activity_untold(e))))
 
 
@@ -516,8 +535,14 @@ def missing(e):
     out = []
     if e.get("attendance") is None:
         out.append("attendance")
+    seen = desk_seen(e)
     if e.get("desk") is None:
         out.append("desk camera (their desk not named in a camera yet)")
+    elif seen is None or seen < DESK_SEEN_MIN:
+        out.append("most of their day: the desk named for them shows them "
+                   "%s of their time in the building -- being checked" % (
+                       "%d%%" % round(100 * seen) if seen is not None
+                       else "too little"))
     elif e.get("activity") is None:
         out.append("desk activity (not read yet)")
     return ", ".join(out)
