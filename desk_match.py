@@ -110,8 +110,17 @@ def comings(line):
     return arr, dep
 
 
-def scores(pu, day_lines):
-    """{eid: {desk: (z, hits, punches)}} over the days given."""
+# Each campus's own windows. 27 Nov, on its named desks: 141's IN to desk
+# is 8.6 min at the median against 140-H's 6.3 (55% within 14 min against
+# 75%), but a 22-min window named one desk fewer right (15 of 21 against
+# 16): the same windows stand until a measure says otherwise.
+WINDOWS = {"140-H": (ARRIVE, LEAVE), "141": (ARRIVE, LEAVE)}
+
+
+def scores(pu, day_lines, arrive=None, leave=None):
+    """{eid: {desk: (z, hits, punches)}} over the days given. `arrive`,
+    `leave`: the windows (WINDOWS[campus]), ARRIVE and LEAVE by default."""
+    ARRIVE_, LEAVE_ = arrive or ARRIVE, leave or LEAVE
     H = defaultdict(lambda: defaultdict(int))
     n_of, desk_hits, total = defaultdict(int), defaultdict(int), 0
     for day, ls in day_lines.items():
@@ -122,11 +131,11 @@ def scores(pu, day_lines):
             n_of[r["eid"]] += 1
             for c, (arr, dep) in tr.items():
                 if r["kind"] == "in":
-                    hit = any(ARRIVE[0] <= (a - t).total_seconds() / 60.0
-                              <= ARRIVE[1] for a in arr)
+                    hit = any(ARRIVE_[0] <= (a - t).total_seconds() / 60.0
+                              <= ARRIVE_[1] for a in arr)
                 else:
-                    hit = any(LEAVE[0] <= (e - t).total_seconds() / 60.0
-                              <= LEAVE[1] for e in dep)
+                    hit = any(LEAVE_[0] <= (e - t).total_seconds() / 60.0
+                              <= LEAVE_[1] for e in dep)
                 if hit:
                     H[r["eid"]][c] += 1
                     desk_hits[c] += 1
@@ -335,8 +344,9 @@ def nightly(cfg=None, roster=None, line=LOOSE, campus=attendance.CAMPUS,
         roster = {attendance.code(r["employee_id"]): r
                   for r in desks_data.load_roster()}
     named_now = []
-    for eid, c, zz, nxt, h, n in new_names(scores(fpu, by_day),
-                                           scores(pu, by_day), taken,
+    win = WINDOWS.get(campus, (ARRIVE, LEAVE))
+    for eid, c, zz, nxt, h, n in new_names(scores(fpu, by_day, *win),
+                                           scores(pu, by_day, *win), taken,
                                            refused(), line):
         r = roster.get(eid)
         if not r:
