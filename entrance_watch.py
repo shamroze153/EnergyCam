@@ -34,7 +34,10 @@ import numpy as np
 # Entry H only: on 24 Nov's trial Attendance Machine H (ch17) gave no face
 # in 90 s (it looks down on backs), and a second 2560x1440 stream doubled
 # the decoding (179% of a core for the two, ~90% for ch5 alone).
-CAMERAS = [("nvr1", 5)]
+# 27 Nov: and 141's turnstile (cd_nvr2 ch 6, the 141-D machines on it;
+# Shamroze: "capture picture gate ki in ki lo, wo accurate aur saaf hoti
+# hai") -- 1920x1080, lighter than Entry H's stream
+CAMERAS = [("nvr1", 5), ("cd_nvr2", 6)]
 OUT = os.path.join("people", "entrance")
 LOOK = 0.4               # s between looks at the newest frame
 HOURS = ("07:00", "22:30")

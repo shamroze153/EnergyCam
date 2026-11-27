@@ -140,16 +140,20 @@ def read_chunk(rec, channel, start, end, user, password, nets_for, out=None,
 
 
 def run(days, recorders, user, password, channel=5, workers=WORKERS,
-        out=None):
+        out=None, recorder="nvr1"):
     """Every window of every day, WORKERS stretches at a time; a stretch
-    read before (DONE) is not read again. Returns passages written."""
+    read before (DONE) is not read again. Returns passages written.
+    `recorder`, `channel`: the turnstile camera (27 Nov: 141's, cd_nvr2
+    ch 6, beside Entry H's nvr1 ch 5)."""
     import cv2
     import faces
-    rec = recorders["nvr1"]
-    rec.setdefault("name", "nvr1")
+    rec = recorders[recorder]
+    rec.setdefault("name", recorder)
     done = done_before(DONE)
+    # a stretch of another camera than Entry H is marked with its camera
+    tag = "" if recorder == "nvr1" else "%s.%d_" % (recorder, channel)
     todo = [(d, a, b) for d in days for a, b in chunks(d)
-            if "%s_%s" % (d, a.strftime("%H%M")) not in done]
+            if "%s%s_%s" % (tag, d, a.strftime("%H%M")) not in done]
     lock = threading.Lock()
     total = [0]
     opened = threading.Event()        # one stretch has opened: the rest may
@@ -176,7 +180,7 @@ def run(days, recorders, user, password, channel=5, workers=WORKERS,
                     total[0] += n
                     os.makedirs(os.path.dirname(DONE), exist_ok=True)
                     with open(DONE, "a", encoding="utf-8") as fh:
-                        fh.write("%s_%s\n" % (d, a.strftime("%H%M")))
+                        fh.write("%s%s_%s\n" % (tag, d, a.strftime("%H%M")))
                 else:
                     refused.set()     # a refused login is never retried
                 st = STATS.get((d, a.strftime("%H%M")), {})
@@ -203,6 +207,13 @@ def main(argv):
         i = args.index("--workers")
         workers = max(1, min(WORKERS, int(args[i + 1])))
         del args[i:i + 2]
+    recorder, channel = "nvr1", 5
+    if "--camera" in args:
+        # python entrance_backfill.py <days> --camera cd_nvr2:6 (141's gate)
+        i = args.index("--camera")
+        recorder, channel = args[i + 1].split(":")[0], \
+            int(args[i + 1].split(":")[1])
+        del args[i:i + 2]
     days = args
     if not days:
         print(__doc__)
@@ -210,9 +221,10 @@ def main(argv):
     from dotenv import load_dotenv
     load_dotenv()
     import room_loop
-    recorders, _ = room_loop.load_rooms("rooms.yaml", ["nvr1"], None)
-    user, password = room_loop.recorder_login("nvr1", recorders["nvr1"])
-    n = run(days, recorders, user, password, workers=workers)
+    recorders, _ = room_loop.load_rooms("rooms.yaml", [recorder], None)
+    user, password = room_loop.recorder_login(recorder, recorders[recorder])
+    n = run(days, recorders, user, password, channel, workers, None,
+            recorder)
     print(">> backfill done: %d passage(s) written" % n)
 
 

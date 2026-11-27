@@ -232,16 +232,26 @@ def day_faces(day, folder=ENTRANCE, cache=MACHINES, nets=None):
                                                          np.float32))
 
 
-def clock(day, rows, data, near=600.0, least=5):
+# Each turnstile camera and the campus whose machines stand at it (27 Nov:
+# 141's turnstile, cd_nvr2 ch 6, beside 140-H's Entry H)
+GATES = {"nvr1": "140-H", "cd_nvr2": "141"}
+
+
+def gate_campus(recorder):
+    return GATES.get(str(recorder or ""), "140-H")
+
+
+def clock(day, rows, data, near=600.0, least=5, campus=None):
     """(offset s, {hour: False}) -- the gate's clock against the machines'
     (as attendance.clock_offset: the median of the named passages' times
     from their own nearest OUT punch, within `near`), and the hours whose
     own median strays more than DRIFT_S from it (23 Nov's evening playback
     drifted by minutes): no exit is read in those. None when unknown."""
     import attendance
+    campus = campus or attendance.CAMPUS
     named = rows[(rows["status"] == "named") & (rows["employee_id"] != "")]
     outs = data[(data["kind"] == "out")
-                & data["place"].str.startswith(attendance.CAMPUS)
+                & data["place"].str.startswith(campus)
                 & (data["at"].dt.strftime("%Y-%m-%d") == day)]
     by = {e: pd.DatetimeIndex(g["at"]) for e, g in outs.groupby("eid")}
     diffs = []
@@ -283,18 +293,20 @@ def _decide(S, allowed, same, margin):
     return np.where(ok, o[:, 0], -1), top, sec
 
 
-def machine_names(day, rows, X, ids, V, data):
+def machine_names(day, rows, X, ids, V, data, campus=None):
     """Each gate row read with the machines (rec 2's exits, rec 1's
     inside-gating): a DataFrame of the rows named -- time, rule ("exit" /
     "inside"), employee_id (the photo's), score, margin, plus the row's
-    own columns. An exit wins over an inside name."""
+    own columns. An exit wins over an inside name. `campus`: the machines
+    at that gate (gate_campus), 140-H's by default."""
     import attendance
+    campus = campus or attendance.CAMPUS
     cols = ["day", "time", "rule", "employee_id", "score", "margin",
             "status", "live_id", "face_w", "crop", "stem", "live"]
     if not len(rows) or not len(ids) or data is None or not len(data):
         return pd.DataFrame(columns=cols)
-    off, bad = clock(day, rows, data)
-    mine = data[data["place"].str.startswith(attendance.CAMPUS)
+    off, bad = clock(day, rows, data, campus=campus)
+    mine = data[data["place"].str.startswith(campus)
                 & (data["at"].dt.strftime("%Y-%m-%d") == day)]
     if not len(mine):
         return pd.DataFrame(columns=cols)
@@ -317,7 +329,7 @@ def machine_names(day, rows, X, ids, V, data):
             continue
         m = np.zeros(len(rows), bool)
         e = np.zeros(len(rows), bool)
-        for a, b in attendance.inside(eid, day, data=mine):
+        for a, b in attendance.inside(eid, day, campus, data=mine):
             a = np.datetime64(a, "s").astype(np.int64)
             b = np.datetime64(b, "s").astype(np.int64)
             m |= (tm >= a - INSIDE_PAD) & (tm <= b + INSIDE_PAD)
@@ -395,7 +407,17 @@ def nightly_faces(days=None, folder=ENTRANCE, out=MACHINES,
     n_exit = n_in = 0
     for day in days:
         rows, X = day_faces(day, folder, out, nets)
-        named = machine_names(day, rows, X, ids, V, data)
+        # each turnstile with its own campus's machines (27 Nov: 141's too)
+        parts = []
+        gate_of = (rows["recorder"].map(gate_campus) if "recorder" in rows
+                   else pd.Series(["140-H"] * len(rows)))
+        for campus in sorted(set(gate_of)):
+            m = (gate_of == campus).values
+            parts.append(machine_names(
+                day, rows[m].reset_index(drop=True), X[m], ids, V, data,
+                campus))
+        named = pd.concat(parts, ignore_index=True) if parts else \
+            machine_names(day, rows, X, ids, V, data)
         named.to_csv(os.path.join(out, day + ".csv"), index=False)
         n_exit += int((named["rule"] == "exit").sum())
         n_in += int((named["rule"] == "inside").sum())
