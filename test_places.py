@@ -488,8 +488,11 @@ def check_files():
         places, per_day = pl.board(person, "77", ["2026-11-19", DAY], DAY,
                                    cams={}, lines={DAY: line,
                                                    "2026-11-19": line})
-        check("the focus day's places: exactly day, segments, totals",
-              sorted(places), ["day", "segments", "totals"])
+        # (27 Nov: and every day's stops, for the report card's day stop by
+        # stop on any day)
+        check("the focus day's places: day, segments, totals, and by_day",
+              (sorted(places), sorted(places["by_day"])),
+              (["by_day", "day", "segments", "totals"], [DAY]))
         check("segments are (start, end, kind, name), one after another",
               (all(len(s) == 4 for s in places["segments"]),
                all(a[1] == b[0] for a, b in zip(places["segments"],

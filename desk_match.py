@@ -196,7 +196,7 @@ def new_names(z_free, z_all, taken, no=frozenset(), line=LOOSE):
     return out
 
 
-def check(line_by_day, eid, data=None):
+def check(line_by_day, eid, data=None, campus=attendance.CAMPUS):
     """How a desk's occupied time sits with its person's time inside:
     {"desk_min", "inside_min", "share", "days", "verdict"}; verdict
     "verified", "doubt" or "too little" (or "no punches")."""
@@ -204,7 +204,7 @@ def check(line_by_day, eid, data=None):
     days = 0
     any_punch = False
     for day, line in line_by_day.items():
-        win = attendance.inside(eid, day, data=data, pad=PAD)
+        win = attendance.inside(eid, day, campus, data=data, pad=PAD)
         if win:
             any_punch = True
         occ = [(s, e) for s, e, st in line if st == "desk"]
@@ -252,15 +252,19 @@ def days_with_punches(pu):
                   if os.path.exists(os.path.join(pdx.SEATS, d + ".csv")))
 
 
-def check_all(cfg=None, pu=None, days=None, out=CHECKS):
-    """Check every named desk; write people/desk_checks.csv; return rows."""
-    pu = punches() if pu is None else pu
+def check_all(cfg=None, pu=None, days=None, out=CHECKS,
+              campus=attendance.CAMPUS, recorders=None):
+    """Check every named desk (of `recorders`, a campus's: its punches are
+    `campus`'s machines'); write people/desk_checks.csv; return rows."""
+    pu = punches(campus) if pu is None else pu
     days = days_with_punches(pu) if days is None else days
-    nd = named_desks(cfg)
+    nd = [x for x in named_desks(cfg)
+          if recorders is None or x[0]["recorder"] in recorders]
     by_day = {day: lines([d for d, _, _ in nd], day) for day in days}
     rows = []
     for d, eid, how in nd:
-        c = check({day: by_day[day][d["code"]] for day in days}, eid)
+        c = check({day: by_day[day][d["code"]] for day in days}, eid,
+                  campus=campus)
         rows.append(dict(c, code=d["code"], employee_id=eid, how=how))
     _write(out, rows, ["code", "employee_id", "how", "days", "desk_min",
                        "inside_min", "share", "verdict"])
@@ -288,16 +292,28 @@ def load_checks(path=CHECKS):
                         "at": r["at"]} for _, r in d.iterrows()}
 
 
-def nightly(cfg=None, roster=None, line=LOOSE):
+CAMPUSES = (                   # (the machines' prefix, its desks' recorders)
+    ("140-H", desks_data.CAMPUS_140),
+    ("141", desks_data.CAMPUS_141),       # 27 Nov: 141-C/D's desks too
+)
+
+
+def nightly(cfg=None, roster=None, line=LOOSE, campus=attendance.CAMPUS,
+            recorders=None):
     """Check every named desk; take back the machine-only names that fail;
-    name the new pairs over `line` whose own check passes. Returns a short
-    summary."""
+    name the new pairs over `line` whose own check passes. A campus at a
+    time: its machines' punches against its own cameras' desks. Returns a
+    short summary."""
     cfg = pdx.load() if cfg is None else cfg
-    pu = punches()
+    if recorders is None:
+        recorders = dict(CAMPUSES).get(campus)
+    pu = punches(campus)
     days = days_with_punches(pu)
     if not days:
         return "no punches on days with seat notes"
-    rows = check_all(cfg, pu, days)
+    rows = check_all(cfg, pu, days, CHECKS if campus == attendance.CAMPUS
+                     else CHECKS.replace(".csv", "_%s.csv" % campus),
+                     campus, recorders)
     dropped = [r for r in rows if r["how"] == "attendance"
                and r["verdict"] == "doubt"]
     for r in dropped:
@@ -309,7 +325,8 @@ def nightly(cfg=None, roster=None, line=LOOSE):
         attendance.code(p.get("employee_id")) for p in cfg.get("people")
         or [] if p.get("employee_id")}
     free = [d for d in desks_to_score(cfg)
-            if d["code"] not in names and not d.get("eid")]
+            if d["code"] not in names and not d.get("eid")
+            and (recorders is None or d["recorder"] in recorders)]
     fpu = pu[~pu["eid"].isin(taken)]
     by_day = {day: lines(free, day) for day in days}
     if roster is None:
@@ -328,7 +345,8 @@ def nightly(cfg=None, roster=None, line=LOOSE):
                for w in ("janitor", "gate keeper", "security guard",
                          "office boy", "driver")):
             continue                      # passes desks, sits at none
-        ck = check({day: by_day[day][c] for day in days}, eid)
+        ck = check({day: by_day[day][c] for day in days}, eid,
+                   campus=campus)
         if ck["verdict"] != "verified":
             continue
         desks_data.save_desk_name(c, r["employee_id"], r.get("name", ""))
@@ -374,7 +392,8 @@ def gate_faces():
 
 def main(argv):
     if "--nightly" in argv:
-        print(nightly())
+        for campus, recs in CAMPUSES:
+            print(campus, nightly(campus=campus, recorders=recs))
         print(gate_faces())
         return
     for r in sorted(check_all(), key=lambda r: (r["verdict"], r["code"])):

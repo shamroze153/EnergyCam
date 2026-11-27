@@ -2718,6 +2718,31 @@ def check_report_card():
            _ca["days"]["2026-11-25"]["source"],
            _ca["days"]["2026-11-24"]["inside_min"], _ca["camera_days"]),
           (2, 3, 8.5, "camera", 540.0, 1))
+    # 27 Nov (Shamroze: "main aaya to pehle kahan gaya -- desk ya cafe --
+    # kitna time"): the day stop by stop
+    _jd = "2026-11-24"
+    _je = {"days": {_jd: {"first_in": pd.Timestamp(_jd + " 10:00"),
+                          "last_out": pd.Timestamp(_jd + " 13:00"),
+                          "closed": True}},
+           "board": {"places": {"day": _jd, "segments": [
+               (pd.Timestamp(_jd + " 10:05"), pd.Timestamp(_jd + " 11:00"),
+                "desk", "", "desk"),
+               (pd.Timestamp(_jd + " 11:00"), pd.Timestamp(_jd + " 11:01"),
+                "inside", "", "x"),
+               (pd.Timestamp(_jd + " 11:01"), pd.Timestamp(_jd + " 11:30"),
+                "desk", "", "desk"),
+               (pd.Timestamp(_jd + " 11:30"), pd.Timestamp(_jd + " 12:00"),
+                "cafe", "Prompt Cafe", "cctv")]}}}
+    _jy = er.journey(_je, _jd)
+    check("the day stop by stop: a 1-minute blip folded, the desk joined, "
+          "the cafe by name",
+          [(x["kind"], x["name"], round(x["min"])) for x in _jy],
+          [("desk", "At the desk", 85), ("cafe", "Prompt Cafe", 30)])
+    _jh = er.journey_html(_je, _jd)
+    check("  said: came in, first went to the desk 5 min after, 2 stops",
+          ("Came in 10:00" in _jh, "first went to <b>At the desk</b>" in _jh,
+           "5 min after coming in" in _jh, "2 stops" in _jh),
+          (True, True, True, True))
     # 27 Nov: the attendance report's daily CSV in the export's columns
     import attendance_import as _ai
     _rows, _f, _l = _ai.convert([

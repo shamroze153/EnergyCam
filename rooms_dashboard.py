@@ -5661,6 +5661,10 @@ def show_profile(mode, e, emps, key, now=None, hours=(10.0, 20.0),
     if day:
         st.markdown('<div class="ec pr">%s</div>' % er.overview_html(e, day),
                     unsafe_allow_html=True)
+        # 27 Nov (Shamroze: "main aaya to pehle kahan gaya, desk ya cafe,
+        # kitna time"): the day stop by stop
+        st.markdown('<div class="ec pr">%s</div>' % er.journey_html(e, day),
+                    unsafe_allow_html=True)
     other = mates[pick - 1] if pick else er.team_usual(e, emps)
     st.markdown('<div class="ec pr">%s</div>' % er.pair_html(e, other),
                 unsafe_allow_html=True)

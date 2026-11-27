@@ -555,6 +555,17 @@ background:var(--s1)}
 .pr .rc-sig .ic{width:14px;height:14px}
 .pr .rc-box{padding:12px 16px;margin-bottom:10px}
 .pr .rc-box h4{margin:0;font-size:14px}
+.pr .jy-first{font-size:13px;color:var(--t2);margin:6px 0 8px}
+.pr .jy-row{display:grid;grid-template-columns:96px 10px minmax(0,1.2fr) minmax(0,1fr) 78px;
+gap:8px;align-items:center;font-size:13px;padding:3px 0;border-top:1px solid var(--line)}
+.pr .jy-t{color:var(--t3);font-variant-numeric:tabular-nums;white-space:nowrap}
+.pr .jy-d{width:10px;height:10px;border-radius:50%;display:block}
+.pr .jy-n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pr .jy-b{height:8px;background:var(--s2);border-radius:99px;overflow:hidden}
+.pr .jy-b i{display:block;height:100%;border-radius:99px}
+.pr .jy-m{text-align:right;color:var(--t2);white-space:nowrap}
+@media (max-width:640px){.pr .jy-row{grid-template-columns:78px 10px minmax(0,1fr) 62px}
+.pr .jy-b{display:none}}
 .pr .rc-two{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
 gap:12px;margin-bottom:10px}
 .pr .rc-two .ec-card{padding:12px 16px}
@@ -1038,6 +1049,8 @@ def _places_for(e, day):
     totals = ((p.get("places_days") or {}).get(day) or
               (pl.get("totals") if pl.get("day") == day else None))
     segs = pl.get("segments") if pl.get("day") == day else None
+    if not segs:
+        segs = (pl.get("by_day") or {}).get(day)     # every day's (27 Nov)
     return totals, segs
 
 
@@ -1176,6 +1189,73 @@ def day_line(e, day):
         out.append((_hour(start), _hour(last), "inside",
                     PLACE_LABEL["inside"]))
     return out
+
+
+JOURNEY_MIN = 3.0        # a stop shorter than this joins its neighbours
+
+
+def journey(e, day):
+    """The day as stops in order (27 Nov, Shamroze: "main aaya to pehle
+    kahan gaya -- desk par ya cafe mein -- aur wahan kitna time"): [{from,
+    to, kind, name, min}] -- day_line's pieces, the same place running on
+    joined, a blip under JOURNEY_MIN folded into the stop around it."""
+    stops = []
+    for a, b, kind, name in day_line(e, day):
+        m = (b - a) * 60.0
+        if stops and (stops[-1]["kind"] == kind
+                      and stops[-1]["name"] == name
+                      and a - stops[-1]["to"] <= JOURNEY_MIN / 60.0):
+            stops[-1]["to"] = b
+            stops[-1]["min"] = (b - stops[-1]["from"]) * 60.0
+            continue
+        stops.append({"from": a, "to": b, "kind": kind, "name": name,
+                      "min": m})
+    # fold blips into what was before them, then join again
+    out = []
+    for s in stops:
+        if out and s["min"] < JOURNEY_MIN:
+            out[-1]["to"] = max(out[-1]["to"], s["to"])
+            out[-1]["min"] = (out[-1]["to"] - out[-1]["from"]) * 60.0
+            continue
+        if out and out[-1]["kind"] == s["kind"] \
+                and out[-1]["name"] == s["name"]:
+            out[-1]["to"] = s["to"]
+            out[-1]["min"] = (s["to"] - out[-1]["from"]) * 60.0
+            continue
+        out.append(dict(s))
+    return out
+
+
+def journey_html(e, day):
+    """The stops as a list: when, where, how long -- the first place they
+    went after coming in said first, and a line of time for each."""
+    st = journey(e, day)
+    if not st:
+        return ""
+    s = (e.get("days") or {}).get(day) or {}
+    came = _hour(s.get("first_in"))
+    first = next((x for x in st if x["kind"] not in ("out", "unknown")),
+                 st[0])
+    after = ("%s after coming in" % span((first["from"] - came) * 60.0)
+             if came is not None and first["from"] >= came else "")
+    longest = max(x["min"] for x in st) or 1.0
+    rows = "".join(
+        '<div class="jy-row"><span class="jy-t">%s&ndash;%s</span>'
+        '<i class="jy-d" style="background:%s"></i><span class="jy-n">%s'
+        '</span><span class="jy-b"><i style="width:%.0f%%;background:%s">'
+        '</i></span><span class="jy-m">%s</span></div>'
+        % (clock(x["from"]), clock(x["to"]), colour(x["kind"]),
+           esc(x["name"]), max(3.0, 100.0 * x["min"] / longest),
+           colour(x["kind"]), span(x["min"])) for x in st)
+    return ('<div class="ec-card rc-box jy"><h4>The day, stop by stop &middot; '
+            '%s</h4><p class="jy-first">Came in %s &middot; first went to '
+            '<b>%s</b>%s &middot; %d stop%s</p>%s<p class="pr-note">From the '
+            'attendance machines, the desk camera and faces on the campus '
+            'cameras; "in the building, place not seen" is time inside that '
+            'no camera put a name to.</p></div>'
+            % (esc(_day_label(day)), clock(came), esc(first["name"]),
+               (" (%s)" % after) if after else "", len(st),
+               "" if len(st) == 1 else "s", rows))
 
 
 def _day_label(day):

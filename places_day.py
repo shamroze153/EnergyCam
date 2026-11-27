@@ -918,7 +918,7 @@ def board(person, employee_id, days, focus, cache=None, cams=None,
     lines = lines or {}
     cams = _cams() if cams is None else cams
     plan = _plan()
-    places, per_day = None, {}
+    places, per_day, by_day = None, {}, {}
     for day in sorted(set(days or []) | {focus}):
         line = lines.get(day)
         if line is None:
@@ -931,15 +931,21 @@ def board(person, employee_id, days, focus, cache=None, cams=None,
         if r is None or r["span"] is None:
             continue
         per_day[day] = _round(r["totals"])
+        segs = []
+        for a, b, kind, name, _ in r["segments"]:
+            if segs and segs[-1][1] == a and segs[-1][2:] == [kind, name]:
+                segs[-1][1] = b
+            else:
+                segs.append([a, b, kind, name])
+        by_day[day] = [tuple(s) for s in segs]
         if day == focus:
-            segs = []
-            for a, b, kind, name, _ in r["segments"]:
-                if segs and segs[-1][1] == a and segs[-1][2:] == [kind, name]:
-                    segs[-1][1] = b
-                else:
-                    segs.append([a, b, kind, name])
-            places = {"day": day, "segments": [tuple(s) for s in segs],
+            places = {"day": day, "segments": by_day[day],
                       "totals": per_day[day]}
+    # every day's stops too (27 Nov: the report card's day stop by stop
+    # opens on the last whole day, not only the focus day)
+    if by_day:
+        places = dict(places or {"day": None, "segments": None,
+                                 "totals": None}, by_day=by_day)
     return places, per_day
 
 
