@@ -5163,6 +5163,13 @@ def show_numbers(df, cooled, recent, now):
 # khoobsurat sa"); ?theme=dark keeps the dark page.
 mode = st.query_params.get("theme", "light")
 mode = mode if mode in THEMES else "light"
+# The page's own choice, kept for the links: the Management Preview
+# (27 Nov night, the mock-ups' dark navy screen) is always drawn dark, and
+# leaving it by a link goes back to the theme the reader had.
+CHOSEN_MODE = mode
+if "Management Preview" in (st.session_state.get("view"),
+                            st.query_params.get("view")):
+    mode = "dark" if "dark" in THEMES else mode
 use_theme(mode)
 st.markdown(app_chrome(mode), unsafe_allow_html=True)
 
@@ -5206,7 +5213,7 @@ if campus not in campuses:
 LINK_BASE.clear()
 # The theme rides on every link, light or dark, so no view falls back to
 # the other one ("or 'dark'" in the views predates light being the default).
-LINK_BASE.update({"campus": campus, "theme": mode,
+LINK_BASE.update({"campus": campus, "theme": CHOSEN_MODE,
                   # the entry ticket rides on every link (see guard)
                   "k": current_ticket()})
 
@@ -6579,6 +6586,384 @@ def show_monitor(df, now):
                 unsafe_allow_html=True)
 
 
+MANAGEMENT_VIEW = "Management Preview"
+
+
+def _board_people(now):
+    """The desk cameras' board: this laptop's own, or what it sent to the
+    hosted page -- [] where neither is there."""
+    import progress_data
+    if not os.path.exists(progress_data.CONFIG):
+        stamp = _to_5min(now).isoformat()
+        sent = cached_progress_cloud_days(stamp)
+        got = cached_progress_cloud(stamp, sent[0] if sent else None)
+        return list(got[1]) if got and got[1] else []
+    local = now.tz_convert(PKT)
+    today = local.strftime("%Y-%m-%d")
+    review = os.path.join(progress_data.ACTIVITY, "review_%s.csv" % today)
+    _, people = cached_progress(
+        today, (os.path.getmtime(progress_data.CONFIG),
+                os.path.getmtime(review) if os.path.exists(review) else 0),
+        _to_5min(now).isoformat(), tuple(float(h) for h in work_hours()))
+    return list(people or [])
+
+
+def show_management(df, now):
+    """Management Preview (27 Nov night, Shamroze, with ChatGPT's "Office
+    Intelligence" brief and its three mock-ups: "Management Preview ka
+    column pehle add karo ... exact aisa dashboard chahiye"): the campus on
+    one dark screen, management_view drawing it from what the other views
+    already work out. Behind the Progress password (MANAGEMENT_PASSWORD
+    where one is set): it carries the work patterns too."""
+    import streamlit.components.v1 as components
+    import yaml
+    import analysis_view as av
+    import campus_view
+    import energy_rooms as er
+    import floors_view
+    import live_ac
+    import management_view as mv
+    import progress_view
+    mode = "dark"                  # this view is always drawn dark (above)
+    wanted = _setting("MANAGEMENT_PASSWORD") or _setting("PROGRESS_PASSWORD")
+    if not wanted:
+        st.markdown(progress_view.locked(mode, "unset"),
+                    unsafe_allow_html=True)
+        return
+    if not (st.session_state.get("mgmt_in")
+            or st.session_state.get("progress_in")):
+        if password_door(mode, "mgmt_door", MANAGEMENT_VIEW,
+                         "For management: the campus at a glance -- energy, "
+                         "AC, rooms and the teams' work patterns. The "
+                         "Progress password.", wanted):
+            st.session_state["mgmt_in"] = True
+            st.rerun()
+        return
+    local = now.tz_convert(PKT)
+    midnight = local.normalize()
+
+    def _iso(t):
+        return pd.Timestamp(t).tz_convert("UTC").isoformat()
+
+    def room_url(name):
+        return overview.link(LINK_BASE, room=name) if name else ""
+
+    def view_url(target, **extra):
+        return overview.link(dict(LINK_BASE, **extra), view=target)
+    try:
+        today_rows = cached_ledger(_iso(midnight), _iso(_to_5min(local)),
+                                   campus)
+        yday_rows = cached_ledger_past(_iso(midnight - pd.Timedelta(days=1)),
+                                       _iso(midnight), campus)
+        week_rows = cached_ledger_past(_iso(midnight - pd.Timedelta(days=8)),
+                                       _iso(midnight - pd.Timedelta(days=7)),
+                                       campus)
+    except psycopg2.Error:
+        today_rows, yday_rows, week_rows = [], [], []
+    win = av.peak_window(assumptions)
+    hour = local.hour + local.minute / 60.0
+    rate = float(assumptions.get("peak_rs_per_kwh" if win[0] <= hour < win[1]
+                                 else "tariff_rs_per_kwh", 67) or 67)
+    read = campus_view.calibrated_counts()
+    items = live_ac.rows(df, read)
+    running = [r for r in items if r["state"] == "on"]
+    figures = front_figures(campus)
+    try:
+        spaces = (yaml.safe_load(open("seating.yaml", encoding="utf-8"))
+                  or {}).get("spaces") or []
+    except OSError:
+        spaces = []
+    desks = mv.desks_by_room(spaces, campus)
+    waste_rooms = {r["room"] for r in items if r["waste"]}
+    rooms = []
+    for _, r in df.iterrows():
+        people = r.get("people")
+        state = r.get("ac_state")
+        head = str(r.get("headline") or "")
+        rooms.append({
+            "name": r["room"], "short": overview.short(r["room"]),
+            "floor": floors_view.floor_of(r), "zone": r.get("zone"),
+            "status": r.get("status"),
+            "people": int(people) if people is not None and pd.notna(people)
+            else 0,
+            "waste": r["room"] in waste_rooms,
+            "ac_state": state if state in ("on", "off") else None,
+            "units": int(r.get("ac_count") or 1) if r.get("has_unit") else 0,
+            "private": bool(r.get("private_now")),
+            "desks": desks.get(r["room"], 0), "q": room_url(r["room"]),
+            "since": head[:34] if r["room"] in waste_rooms else ""})
+    for it in items:
+        it["since"] = next((x["since"] for x in rooms
+                            if x["name"] == it["room"]), "")
+    # ---- the KPI cards
+    curve = [v for v in (figures.get("curve_in") or [])]
+    now_q = min(len(curve) - 1, int(hour * 4)) if curve else 0
+    seen = [v for v in curve[:now_q + 1] if v is not None]
+    people_now = figures.get("inside_now") or 0
+    hour_ago = next((curve[i] for i in range(max(now_q - 4, 0), -1, -1)
+                     if curve[i] is not None), None) if curve else None
+
+    def delta(now_v, before, good_up=True):
+        if before in (None, 0) or now_v is None:
+            return "", "flat"
+        d = 100.0 * (now_v - before) / before
+        arrow = "&uarr;" if d > 0 else "&darr;" if d < 0 else ""
+        better = (d > 0) == good_up
+        return ("%s%d%%" % (arrow, abs(round(d))),
+                "flat" if round(d) == 0 else ("up" if better else "down"))
+    occ, desk_n = mv.desk_occupancy(rooms)
+    hourly_t, hourly_y = er.hourly(today_rows), er.hourly(yday_rows)
+    h_now = local.hour
+    today_rs = [round(h[0]) if i <= h_now else None
+                for i, h in enumerate(hourly_t)]
+    yday_rs = [round(h[0]) for h in hourly_y]
+    so_far_t = sum(h[0] for h in hourly_t[:h_now + 1])
+    so_far_y = sum(h[0] for h in hourly_y[:h_now + 1])
+    units_on = sum(r["counted"] for r in running)
+    readable = sum(r["seen"] for r in items)
+    all_units = int(df.loc[df["has_unit"], "ac_count"].fillna(1).sum()) \
+        if "ac_count" in df.columns else 0
+    kw = sum(r["kw"] for r in running)
+    floor_mark = "&ge;" if any(not r["exact"] for r in running) else ""
+    d_people = delta(people_now, hour_ago)
+    # Rs an hour now against what that hour cost yesterday
+    d_cost = delta(kw * rate if running else None,
+                   hourly_y[h_now][0] if h_now < 24 else None, good_up=False)
+    kpis = [
+        {"icon": "people", "colour": "#60a5fa", "bg": "rgba(96,165,250,.12)",
+         "label": "Total People in Office", "value": _n(people_now),
+         "delta": d_people[0], "dir": d_people[1], "spark": seen,
+         "note": "the cameras' count now &middot; vs an hour ago"},
+        {"icon": "desk", "colour": "#34d399", "bg": "rgba(52,211,153,.12)",
+         "label": "Desk Occupancy",
+         "value": "%d%%" % round(occ) if occ is not None else "&ndash;",
+         "spark": seen,
+         "note": "people in desk rooms over HR's %d desks" % desk_n
+         if desk_n else "no desk count for this campus"},
+        {"icon": "snow", "colour": "#38bdf8", "bg": "rgba(56,189,248,.12)",
+         "label": "ACs Running",
+         "value": "%s%d / %d" % (floor_mark, units_on, readable),
+         "spark": [h[0] for h in hourly_t[:h_now + 1]],
+         "note": "units a camera reads (%d of %d)" % (readable, all_units)},
+        {"icon": "bolt", "colour": "#fbbf24", "bg": "rgba(251,191,36,.12)",
+         "label": "AC Load Now", "value": "%s%s" % (floor_mark,
+                                                    ("%.1f" % kw).rstrip("0")
+                                                    .rstrip(".")),
+         "unit": "kW", "spark": [h[0] / rate for h in hourly_t[:h_now + 1]],
+         "note": "estimated: running units &times; their rating"},
+        {"icon": "coins", "colour": "#c084fc", "bg": "rgba(192,132,252,.12)",
+         "label": "Estimated Cost / Hr", "value": "Rs %s" % _n(kw * rate),
+         "delta": d_cost[0], "dir": d_cost[1],
+         "spark": [h[0] for h in hourly_t[:h_now + 1]],
+         "note": "AC only, at Rs %.0f a unit%s &middot; vs this hour "
+                 "yesterday" % (rate, " (peak)" if win[0] <= hour < win[1]
+                                else "")},
+    ]
+    # ---- the work pattern and the teams (the board's people, this campus)
+    try:
+        board = _board_people(now)
+    except Exception:                                       # noqa: BLE001
+        board = []
+    depts = _dept_lookup(now)
+    mine = [dict(p, dept=depts.get(_code(p.get("employee_id"))))
+            for p in board
+            if (str(p.get("recorder") or "") in desks_data_campus_141())
+            == (campus != PROGRESS_CAMPUS)]
+    work = mv.work_payload(mine)
+    if work:
+        span = curve[32:88] if len(curve) >= 88 else curve
+        work.update(
+            day_label=pd.Timestamp(work["day"]).strftime("%a %d %b"),
+            curve=[v if v is not None else None for v in span],
+            curve_labels=[(4, "9am"), (16, "12pm"), (28, "3pm"), (40, "6pm"),
+                          (52, "9pm")],
+            note="%d employees whose own desk a camera sees, %s: shares of "
+                 "their time in the building. The line: people in the "
+                 "building today. Team-level -- no one is ranked; phone or "
+                 "talking is not called wasted." % (
+                     work["people"], pd.Timestamp(work["day"])
+                     .strftime("%d %b")))
+    # ---- the AC panel and the money
+    t, y, w7 = er.totals(today_rows), er.totals(yday_rows), \
+        er.totals(week_rows)
+    eff = 100.0 * (t["rs"] - t["waste_rs"]) / t["rs"] if t["rs"] else None
+    y_so_far_waste = sum(h[1] for h in hourly_y[:h_now + 1])
+    silent = [e["name"] for e in (figures.get("silent") or [])]
+    p = {
+        "campus": campus, "live": healthy, "live_text": live_text,
+        "when": "%s\n%s" % (local.strftime("%a, %b %d, %Y"),
+                            local.strftime("%I:%M %p").lstrip("0")),
+        "campuses": [{"name": c, "on": c == campus,
+                      "url": overview.link(dict(LINK_BASE, campus=c),
+                                           view=MANAGEMENT_VIEW)}
+                     for c in campuses],
+        "nav": [
+            {"label": "Dashboard", "icon": "home", "on": True, "url": "#"},
+            {"label": "Energy & AC", "icon": "bolt", "on": False,
+             "url": view_url("Energy")},
+            {"label": "Productivity", "icon": "chart", "on": False,
+             "url": view_url("Progress")},
+            {"label": "Digital Twin", "icon": "cube", "on": False,
+             "url": "#mp-twin"},
+            {"label": "Insights", "icon": "spark", "on": False,
+             "url": "#mp-insights"},
+            {"label": "Reports", "icon": "doc", "on": False,
+             "url": view_url("Savings & peak")},
+            {"label": "Settings", "icon": "gear", "on": False,
+             "url": view_url("Camera health")}],
+        "kpis": kpis,
+        "twin": mv.twin_payload(rooms),
+        "work": work, "teams": mv.team_rows(mine),
+        "energy": {
+            "today": today_rs, "yday": yday_rs, "now_hour": h_now,
+            "vs_yday": (100.0 * (so_far_t - so_far_y) / so_far_y)
+            if so_far_y else None, "diff_rs": so_far_t - so_far_y,
+            "note": "Estimated: the hours each unit ran (read by a camera, or"
+                    " assumed while people were in where no camera reads it)"
+                    " &times; its rating &times; the tariff. Meters are on "
+                    "the Energy page."},
+        "ac": {"efficient": eff, "on": "%s%d" % (floor_mark, units_on),
+               "readable": readable, "all_units": all_units,
+               "waste_rooms": len(waste_rooms),
+               "note": "Ring: today's AC rupees spent in rooms with people "
+                       "in (Rs %s of Rs %s)." % (_n(t["rs"] - t["waste_rs"]),
+                                                 _n(t["rs"]))},
+        "discoveries": mv.discover(items, today_rows, hourly_t, silent, rate,
+                                   room_url, read),
+        "rooms_table": mv.room_rows(rooms, room_url),
+        "savings": {
+            "pairs": [("Today so far vs yesterday", y_so_far_waste,
+                       t["waste_rs"]),
+                      ("Yesterday vs a week before", w7["waste_rs"],
+                       y["waste_rs"])],
+            "note": "Rupees of cooling rooms with nobody in (estimated as on"
+                    " Energy Insights). Lower is better; this is not a "
+                    "verified saving until a test confirms it."},
+        "trust": [
+            (healthy, "The loop", esc_html(live_text)),
+            (not silent, "Cameras", "every watched room answering"
+             if not silent else "%d room%s silent" % (
+                 len(silent), "" if len(silent) == 1 else "s")),
+            (None if readable < all_units else True,
+             "AC units read by a camera", "%d of %d" % (readable,
+                                                        all_units)),
+            (None, "Room temperature", "not measured"),
+            (bool(work), "Desks read",
+             "%d employees, %s" % (work["people"], work["day_label"])
+             if work else "none yet")],
+        "actions": [
+            {"label": "View AC Alerts", "icon": "alert", "colour": "#f87171",
+             "url": overview.link(LINK_BASE, only="walk")},
+            {"label": "Check Room Status", "icon": "camera",
+             "colour": "#60a5fa", "url": view_url("Rooms")},
+            {"label": "Download Report", "icon": "download",
+             "colour": "#34d399", "url": view_url("Savings & peak")},
+            {"label": "AC Timings", "icon": "calendar", "colour": "#c084fc",
+             "url": overview.link(dict(LINK_BASE, campus=None),
+                                  only="actimes")},
+            {"label": "Run Analysis", "icon": "chart", "colour": "#38bdf8",
+             "url": view_url("Energy")}],
+        "silent": silent,
+        "health_text": "all services running smoothly" if healthy and not
+        silent else ("%d camera room%s silent" % (
+            len(silent), "" if len(silent) == 1 else "s") if healthy
+            else live_text),
+    }
+    solar = _solar_month(local) if campus == PROGRESS_CAMPUS else None
+    if solar:
+        p["green"] = {"label": "Solar This Month",
+                      "value": "%s kWh" % _n(solar),
+                      "note": "&asymp; %s kg CO&#8322; avoided (at 0.45 kg a "
+                              "grid kWh, assumed)" % _n(solar * 0.45)}
+    st.markdown(mv.css(), unsafe_allow_html=True)
+    st.markdown(mv.header(p), unsafe_allow_html=True)
+    left, main = st.columns([1, 5.2], gap="small")
+    with left:
+        st.markdown('<div class="mp-hide-sm">%s</div>' % mv.nav(p),
+                    unsafe_allow_html=True)
+    with main:
+        st.markdown(mv.kpis(p), unsafe_allow_html=True)
+        c1, c2 = st.columns([2.05, 1], gap="small")
+        with c1:
+            st.markdown('<a id="mp-twin"></a>' + mv.twin_head(p),
+                        unsafe_allow_html=True)
+            components.html(mv.twin_doc(p, 500), height=506)
+        with c2:
+            st.markdown(mv.work(p), unsafe_allow_html=True)
+        a, b, c, d = st.columns(4, gap="small")
+        a.markdown(mv.energy(p), unsafe_allow_html=True)
+        b.markdown(mv.ac_panel(p), unsafe_allow_html=True)
+        c.markdown('<a id="mp-insights"></a>' + mv.discoveries(p),
+                   unsafe_allow_html=True)
+        d.markdown(mv.teams(p), unsafe_allow_html=True)
+        e, f, g = st.columns([1.25, 1, 1], gap="small")
+        e.markdown(mv.rooms_table(p), unsafe_allow_html=True)
+        f.markdown(mv.savings(p), unsafe_allow_html=True)
+        g.markdown(mv.trust(p), unsafe_allow_html=True)
+        st.markdown(mv.actions(p), unsafe_allow_html=True)
+    if st.button("Lock Management Preview", key="mgmt_lock"):
+        st.session_state["mgmt_in"] = False
+        st.session_state["progress_in"] = False
+        st.rerun()
+
+
+def _n(v):
+    return format(int(round(v or 0)), ",")
+
+
+def _code(eid):
+    return str(eid or "").strip().lstrip("0") or "0"
+
+
+def _dept_lookup(now):
+    """{employee code: department}: the roster on this laptop, else the
+    attendance rows it sent to the hosted page (the board's own
+    "department" is the room)."""
+    try:
+        import desks_data
+        out = {_code(r.get("employee_id")): r.get("department")
+               for r in desks_data.load_roster()}
+        if out:
+            return out
+        stamp = _to_5min(now).isoformat()
+        sent = cached_progress_cloud_days(stamp)
+        got = cached_progress_cloud(stamp, sent[0] if sent else None)
+        cfg = (got[0] if got else None) or {}
+        out = {}
+        for key, val in cfg.items():
+            if str(key).startswith("attendance") and isinstance(val, dict):
+                for r in val.get("rows") or []:
+                    out[_code(r.get("eid") or r.get("employee_id"))] = \
+                        r.get("department")
+        return out
+    except Exception:                                       # noqa: BLE001
+        return {}
+
+
+def esc_html(s):
+    return html.escape(str(s or ""))
+
+
+def desks_data_campus_141():
+    import desks_data
+    return desks_data.CAMPUS_141
+
+
+def _solar_month(local):
+    """kWh the panels made this month (solar_daily), or None."""
+    try:
+        sol = load_solar(45)
+    except Exception:                                       # noqa: BLE001
+        return None
+    if sol is None or not len(sol):
+        return None
+    taken = pd.to_datetime(sol["taken"], utc=True).dt.tz_convert(PKT)
+    month = sol[(taken.dt.year == local.year) &
+                (taken.dt.month == local.month)]
+    kwh = pd.to_numeric(month["kwh"], errors="coerce").dropna()
+    return float(kwh.sum()) if len(kwh) else None
+
+
 def not_141(people):
     """The board's people but those whose desk is on 141-C/D's cameras
     (they are on 141-C/D's page, 27 Nov)."""
@@ -6815,7 +7200,11 @@ PROGRESS_CAMPUSES = {"140-H": ("140-H", "141-D"), "141-C/D": ("141", "140-H")}
 # "Monitor" (27 Nov, Shamroze's picture of a plant-monitoring dashboard):
 # the campus on one screen -- live cards, the AC by the hour, the meters'
 # days, the people through the day, the system's status.
-PRIMARY = (["3D"] if campus == PROGRESS_CAMPUS else []) + [
+# "Management Preview" (27 Nov night, Shamroze: "Management Preview ka
+# column pehle add karo, password wahi"): first in the row on both
+# campuses -- the page still opens on Overview.
+PRIMARY = (["Management Preview"] if campus in PROGRESS_CAMPUSES else []) + (
+    ["3D"] if campus == PROGRESS_CAMPUS else []) + [
     "Monitor", "Overview", "Who comes when", "Rooms", "Desks", "Empty time",
     "Energy", "Savings & peak"] + (
         ["Progress"] if campus in PROGRESS_CAMPUSES else [])
@@ -6998,6 +7387,11 @@ if view == "Desks":
 
 if view == "Monitor":
     guarded("The monitor", show_monitor, df, now)
+    _BOOT.empty()
+    st.stop()
+
+if view == "Management Preview":
+    guarded("The management preview", show_management, df, now)
     _BOOT.empty()
     st.stop()
 

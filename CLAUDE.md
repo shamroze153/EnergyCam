@@ -48,7 +48,21 @@ Tests: `python test_room_loop.py`, `test_overview.py`, `test_energy.py`,
 `test_meters.py`, `test_analysis.py`, `test_alerts.py`, `test_empty.py`,
 `test_live_ac.py`, `test_floors.py`, `test_energy_rooms.py`, `test_seats.py`,
 `test_ac_plan.py`, `test_seating.py`, `test_savings.py`, `test_progress.py`,
-`test_places.py`, `test_faces.py`, `test_follow.py`.
+`test_places.py`, `test_faces.py`, `test_follow.py`, `test_management.py`.
+
+Management Preview (27-28 Nov night, ChatGPT's "Office Intelligence" brief
+and its three mock-ups, Shamroze: "exact aisa dashboard"): the first tab on
+both campuses, behind the Progress password (MANAGEMENT_PASSWORD if ever
+set), always drawn dark (CHOSEN_MODE keeps the reader's theme for links).
+`management_view.py` draws it from what the other views work out -- KPI
+cards, a three.js 3D twin (a schematic: real rooms placed by the system,
+sized by seating.yaml's desks; still until "Explore 3D" so the page
+scrolls), team-level work patterns from the board (departments from the
+roster / the sent attendance rows; never an individual ranking), AC money
+today vs yesterday, explainable discoveries with evidence and confidence,
+the room table, the cooling-empty tracker, evidence & trust. Never a camera
+picture; temperature says "not measured". Experiment Lab and an insights
+table (the brief's days 2-5) are next.
 
 26 Nov night (four background workers, all merged): `places_day.py` --
 where each named person's day went (desk / meeting / cafe / smoking /

@@ -454,9 +454,13 @@ def check_twin():
     check("no picture in it: drawn from numbers alone",
           any(w in html for w in (".jpg", ".png", "data:image")), False)
     dash = open("rooms_dashboard.py", encoding="utf-8").read()
-    check("3D is first in 140-H's row, and the page still opens on Overview",
-          ('PRIMARY = (["3D"] if campus == PROGRESS_CAMPUS else [])' in dash,
-           'st.session_state["view"] = "Overview"' in dash), (True, True))
+    # 27 Nov night: the Management Preview first (both campuses), then 3D
+    check("Management Preview, then 3D, first in 140-H's row, and the page "
+          "still opens on Overview",
+          ('PRIMARY = (["Management Preview"] if campus in PROGRESS_CAMPUSES'
+           in dash, '["3D"] if campus == PROGRESS_CAMPUS else [])' in dash,
+           'st.session_state["view"] = "Overview"' in dash),
+          (True, True, True))
 
 
 def check_night():
