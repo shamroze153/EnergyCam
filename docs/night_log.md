@@ -1684,3 +1684,4 @@ Two or three lines a round; picture file names, never pictures.
   loop restarted 04:36 so it sends 141's rows to the hosted page.
 * 07:05, 27 Nov round: skipped on purpose -- two playback replays (141 faces of 26 Nov, 140-H faces of 20-21 Nov) hold 3 recorder streams; the audit's 86 main streams on top is too much (04:12 round stands). One loop (06:54), last pass 06:58.
 * 08:47, 27 Nov round: skipped -- office hours begin and the 140-H faces replay holds a stream; 04:12's audit stands. One loop, last pass 08:44.
+* 10:45, 27 Nov round: skipped -- office hours and the 141 faces replay (24-25 Nov) holds 2 streams. Since 08:47: 141 faces of 26 Nov and 140-H faces of 20-21 Nov done; 6 desks named at 141 (2 sure, 4 by Shamroze's review); the daily attendance report imported (26 Nov 10:28 to 27 Nov 10:27, attendance_import.py).
