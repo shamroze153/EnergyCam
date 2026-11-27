@@ -65,6 +65,14 @@ def out_of_hours():
 
 
 def main():
+    # 28 Nov 00:45: started with its output to a file, Windows gave stdout
+    # the cp1252 code page, and doctor's first tick (a check mark) stopped
+    # the whole night round. A character the page cannot hold is replaced.
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(errors="replace")
+        except (AttributeError, ValueError):
+            pass
     if not os.path.exists("rooms.yaml"):
         sys.exit("run this from the project folder")
     stamp = datetime.now().strftime("%Y%m%d_%H%M")
