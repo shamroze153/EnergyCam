@@ -1174,7 +1174,15 @@ function size(){const w=wrap.clientWidth,h=wrap.clientHeight;R.setSize(w,h,false
  cam.aspect=w/h;cam.updateProjectionMatrix();if(!ctl.enabled)frame()}
 window.addEventListener('resize',size);size();
 const v=new THREE.Vector3();
-(function loop(){requestAnimationFrame(loop);ctl.update();R.render(S,cam);
+// drawn only when something changed, or while exploring: a still twin
+// costs a phone nothing
+let dirty=3;
+['pointerdown','pointermove','wheel','touchstart'].forEach(e=>canvas.addEventListener(e,()=>{dirty=Math.max(dirty,2)},{passive:true}));
+window.addEventListener('resize',()=>{dirty=3});
+bar.addEventListener('click',()=>{dirty=3});
+(function loop(){requestAnimationFrame(loop);
+ if(!(ctl.enabled||dirty>0))return;dirty=Math.max(0,dirty-1);
+ ctl.update();R.render(S,cam);
  const w=wrap.clientWidth,h=wrap.clientHeight;
  calls.forEach(c=>{v.copy(c.p).project(cam);
   if(v.z>1){c.el.style.display='none';return}
