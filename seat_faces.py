@@ -39,6 +39,9 @@ GRID = 25                 # px: a seat's key, so a day's spots line up
 MIN_SAMPLES = 8
 SAME = 0.45
 MARGIN = 0.10
+# 27 Nov: keep AdaFace's numbers beside SFace's at the seats (faces.py),
+# switched on once face_bench.py showed it names our faces better
+ADA_SEATS = False
 OUTLIER = 0.20            # a sample this unlike the seat's mean is dropped
 
 
@@ -92,13 +95,19 @@ def _observe(room, key, frame, boxes, now, spots, out):
         seat = seat_of(b, spots, frame.shape[1])
         if seat is None:
             continue
-        v = faces.of_person(frame, b[:4])
-        if v is None:
+        got = faces.of_person_both(frame, b[:4]) if ADA_SEATS \
+            else ((faces.of_person(frame, b[:4]), None))
+        if got is None or got[0] is None:
             continue
+        v, a = got
         os.makedirs(folder, exist_ok=True)
         stem = os.path.join(folder, _key(key[0], key[1], *seat))
         with open(stem + ".f16", "ab") as fh:
             fh.write(np.asarray(v, np.float16).tobytes())
+        if a is not None:
+            # AdaFace's 512 beside (27 Nov), the same seat, the same order
+            with open(stem + ".a16", "ab") as fh:
+                fh.write(np.asarray(a, np.float16).tobytes())
         _thumb(frame, b, stem + ".jpg")
         kept += 1
     if kept:
@@ -139,14 +148,15 @@ def _forget_old(base, days=KEEP_DAYS):
             pass
 
 
-def samples(days, base=None):
-    """{seat key: (n, 128) unit vectors} over the given days."""
+def samples(days, base=None, ext=".f16", dim=128):
+    """{seat key: (n, dim) unit vectors} over the given days -- SFace's
+    (.f16, 128) or, with ext=".a16", dim=512, AdaFace's."""
     out = {}
     for day in days:
-        for path in glob.glob(os.path.join(base or OUT, day, "*.f16")):
+        for path in glob.glob(os.path.join(base or OUT, day, "*" + ext)):
             v = np.fromfile(path, np.float16).astype(np.float32)
-            v = v[:len(v) // 128 * 128].reshape(-1, 128)
-            k = os.path.basename(path)[:-4]
+            v = v[:len(v) // dim * dim].reshape(-1, dim)
+            k = os.path.basename(path)[:-len(ext)]
             out[k] = np.vstack([out[k], v]) if k in out else v
     return out
 

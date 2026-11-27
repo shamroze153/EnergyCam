@@ -267,7 +267,38 @@ def check_hook():
         gm.nightly_faces = real
 
 
+def check_safetensors():
+    """27 Nov: AdaFace's weights are read by our own small reader of the
+    safetensors format (no pickle, nothing executed from the file)."""
+    import json
+    import struct
+    import tempfile
+    import adaface
+    a = np.arange(6, dtype="<f4").reshape(2, 3)
+    b = np.array([1.5, -2.0], dtype="<f2")
+    data = a.tobytes() + b.tobytes()
+    head = {"x.weight": {"dtype": "F32", "shape": [2, 3],
+                         "data_offsets": [0, a.nbytes]},
+            "y": {"dtype": "F16", "shape": [2],
+                  "data_offsets": [a.nbytes, a.nbytes + b.nbytes]},
+            "__metadata__": {"format": "pt"}}
+    h = json.dumps(head).encode()
+    d = tempfile.mkdtemp()
+    try:
+        p = os.path.join(d, "t.safetensors")
+        with open(p, "wb") as fh:
+            fh.write(struct.pack("<Q", len(h)) + h + data)
+        got = adaface.read_safetensors(p)
+        check("safetensors: names, shapes and numbers read back",
+              (sorted(got), got["x.weight"].tolist(), got["y"].tolist()),
+              (["x.weight", "y"], a.tolist(), [1.5, -2.0]))
+    finally:
+        import shutil
+        shutil.rmtree(d)
+
+
 def main():
+    check_safetensors()
     check_backfill()
     check_replay_plan()
     check_crop_paths()

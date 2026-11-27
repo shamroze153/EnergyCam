@@ -127,6 +127,58 @@ def of_person(frame, box):
     return feature(*got)
 
 
+# --------------------------------------------------- AdaFace (27 Nov, beside)
+#
+# Shamroze, 27 Nov: "face recognition bahut kamzor hai -- GitHub se koi
+# model lo". AdaFace IR-101 (adaface.py), made for low-quality faces, is
+# run beside SFace on the same aligned face: 512 numbers more. It is used
+# where it was measured to help (people/session_handoff/face_bench.py);
+# SFace's 128 stay what every stored file holds.
+_ada = {"net": None, "failed": False}
+
+
+def ada_available():
+    import adaface
+    return os.path.exists(adaface.WEIGHTS) and not _ada["failed"]
+
+
+def _ada_net():
+    if _ada["net"] is None and not _ada["failed"]:
+        try:
+            import adaface
+            _ada["net"] = adaface.AdaFace(threads=2)
+        except Exception:                                   # noqa: BLE001
+            _ada["failed"] = True
+    return _ada["net"]
+
+
+def aligned(crop, face):
+    """The face aligned to the 112x112 template (SFace's alignCrop)."""
+    _, rec = _load()
+    if rec is None:
+        return None
+    return rec.alignCrop(crop, face)
+
+
+def ada_feature(face112):
+    """AdaFace's 512 numbers for an aligned face, or None."""
+    net = _ada_net() if face112 is not None else None
+    return net.embed(face112) if net is not None else None
+
+
+def of_person_both(frame, box):
+    """(SFace's 128, AdaFace's 512 or None) of a person's face, or None
+    where no good face is seen."""
+    got = find(frame, box)
+    if got is None:
+        return None
+    v = feature(*got)
+    if v is None:
+        return None
+    a = ada_feature(aligned(*got)) if ada_available() else None
+    return v, a
+
+
 def of_photo(img, long_side=640):
     """The face numbers of a portrait (the members directory's photos,
     staff_faces.py): the largest clear face in the whole picture, or
