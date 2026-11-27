@@ -169,6 +169,9 @@ def check_page():
           "Room temperature: not measured" in page, True)
     check("one <style> block, on its own (the Streamlit gotcha)",
           mv.css().count("<style>"), 1)
+    check("the header without the campus links where the page draws its "
+          "own switch", ("mp-camp" in mv.header(p), "mp-camp" in mv.header(
+              p, pills=False)), (True, False))
 
 
 def main():

@@ -6876,7 +6876,25 @@ def show_management(df, now):
                       "note": "&asymp; %s kg CO&#8322; avoided (at 0.45 kg a "
                               "grid kWh, assumed)" % _n(solar * 0.45)}
     st.markdown(mv.css(), unsafe_allow_html=True)
-    st.markdown(mv.header(p), unsafe_allow_html=True)
+    st.markdown(mv.header(p, pills=False), unsafe_allow_html=True)
+    # The campus switch as a control, not a link: a link reloads the page
+    # and the session (with the door's "in") goes with it.
+    labels = ["Campus %s" % c for c in campuses]
+    if st.session_state.get("mgmt_campus") not in labels or \
+            st.session_state.get("mgmt_campus_was") != campus:
+        st.session_state["mgmt_campus"] = "Campus %s" % campus
+    st.session_state["mgmt_campus_was"] = campus
+
+    def _switch():
+        picked = st.session_state.get("mgmt_campus")
+        if picked:
+            st.query_params["campus"] = picked.replace("Campus ", "", 1)
+    if hasattr(st, "segmented_control"):
+        st.segmented_control("Campus", labels, key="mgmt_campus",
+                             on_change=_switch, label_visibility="collapsed")
+    else:
+        st.radio("Campus", labels, key="mgmt_campus", on_change=_switch,
+                 horizontal=True, label_visibility="collapsed")
     left, main = st.columns([1, 5.2], gap="small")
     with left:
         st.markdown('<div class="mp-hide-sm">%s</div>' % mv.nav(p),

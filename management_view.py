@@ -241,6 +241,18 @@ border:1px solid rgba(74,222,128,.35)}
 .mp-twin-h{margin-bottom:6px}
 [data-testid="stSidebar"],[data-testid="stSidebarCollapsedControl"],
 [data-testid="collapsedControl"]{display:none !important}
+.st-key-mgmt_campus{margin:-4px 0 14px}
+.st-key-mgmt_campus [data-testid="stButtonGroup"]{gap:10px}
+div.st-key-mgmt_campus div[data-testid="stButtonGroup"] button{
+border-radius:999px !important;padding:9px 20px !important;min-height:0 !important;
+font-weight:650 !important;background:rgba(15,30,60,.7) !important;
+border:1px solid #23406e !important;color:#cfe1ff !important}
+div.st-key-mgmt_campus div[data-testid="stButtonGroup"] button p{
+font-size:14.5px !important;font-weight:650 !important}
+div.st-key-mgmt_campus div[data-testid="stButtonGroup"] button[aria-checked="true"]{
+background:linear-gradient(90deg,#1d4ed8,#2563eb) !important;
+border-color:#3b82f6 !important;color:#fff !important;
+box-shadow:0 0 18px rgba(37,99,235,.45) !important}
 @media (max-width:1100px){.mp-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
 .mp-grid4{grid-template-columns:repeat(2,minmax(0,1fr))}
 .mp-grid3{grid-template-columns:1fr}}
@@ -368,11 +380,14 @@ def _short_num(v):
 
 
 # ------------------------------------------------------------------ the page
-def header(p):
+def header(p, pills=True):
+    """pills=False: the campus switch is drawn by the page itself (a
+    Streamlit control, so switching keeps the session -- a link reloads
+    the page and asks for the password again)."""
     camps = "".join(
         '<a class="mp-camp%s" href="%s" target="_self">Campus %s</a>'
         % (" on" if c["on"] else "", esc(c["url"]), esc(c["name"]))
-        for c in p["campuses"])
+        for c in p["campuses"]) if pills else ""
     return ('<div class="mp"><div class="mp-top"><div><div class="mp-title">'
             'EnergyCam &ndash; <span>Office Intelligence Dashboard</span></div>'
             '<div class="mp-sub">Observe<i>&bull;</i>Understand<i>&bull;</i>'
