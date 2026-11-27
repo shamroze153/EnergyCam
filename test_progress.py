@@ -2697,6 +2697,27 @@ def check_report_card():
                    "no camera reads" in er.ways_html(dict(_w, board=None),
                                                      [_w])),
           (True, True, False, False, True))
+    # 27 Nov (Shamroze: "attendance to face se khud pehchane -- ye to bas
+    # train karne ke liye"): after HR's export, a named desk's camera days
+    import productivity_view as _pv2
+    _r = {"eid": "77", "days": {"2026-11-24": {
+        "first_in": pd.Timestamp("2026-11-24 10:00"),
+        "last_out": pd.Timestamp("2026-11-24 19:00"), "inside_min": 540.0,
+        "closed": True, "outings": []}}, "days_in": 1, "of": 1,
+        "usual_in": 10.0, "usual_out": 19.0, "inside_h": 9.0}
+    _b = [{"employee_id": "00077", "history": [
+        {"day": "2026-11-25", "first": pd.Timestamp("2026-11-25 10:30"),
+         "last": pd.Timestamp("2026-11-25 18:30"), "span_min": 480.0},
+        {"day": "2026-11-26", "first": None, "last": None, "span_min": 0.0},
+        {"day": "2026-11-24", "first": pd.Timestamp("2026-11-24 11:00"),
+         "last": pd.Timestamp("2026-11-24 12:00"), "span_min": 60.0}]}]
+    _ca = _pv2.camera_attendance([_r], _b, pd.Timestamp("2026-11-27 09:00"))[0]
+    check("after the export, the desk camera carries the days on: a day in, "
+          "a day watched and not seen, the export's own day untouched",
+          (_ca["days_in"], _ca["of"], round(_ca["inside_h"], 1),
+           _ca["days"]["2026-11-25"]["source"],
+           _ca["days"]["2026-11-24"]["inside_min"], _ca["camera_days"]),
+          (2, 3, 8.5, "camera", 540.0, 1))
     # 27 Nov (Shamroze: "review pdf tab bhejo jab tum confident na ho"):
     # a sure face names its desk by itself; a close one goes to the PDF
     import seat_faces as _sf

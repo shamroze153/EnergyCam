@@ -91,11 +91,72 @@ def productivity(att, desk, act):
     return int(round(sum(v * w for v, w in got) / sum(w for _, w in got)))
 
 
+def camera_attendance(rows, people, now=None):
+    """The machines' rows carried on by the cameras (27 Nov, Shamroze:
+    "attendance to face se khud pehchane na -- ye to bas data train karne
+    ke liye"): HR's export ends on a day (25 Nov, 12:21); after it, an
+    employee whose desk is named is still seen -- the desk camera's first
+    and last sight of them each day (the board's history) stands in for
+    the first IN and last OUT. Days the export has are never touched; a
+    camera day says so (`source: "camera"`). Returns new rows."""
+    import pandas as pd
+    end = max((d for r in rows or [] for d in (r.get("days") or {})),
+              default=None)
+    if end is None:
+        return rows
+    today = (now.strftime("%Y-%m-%d") if now is not None
+             else datetime.now().strftime("%Y-%m-%d"))
+    board = {_key(p.get("employee_id")): p for p in people or []
+             if p.get("employee_id")}
+    watched = sorted({h["day"] for p in board.values()
+                      for h in p.get("history") or []
+                      if end < h["day"] < today
+                      and pd.Timestamp(h["day"]).dayofweek < 5})
+    out = []
+    for r in rows or []:
+        p = board.get(_key(r["eid"]))
+        extra = {}
+        for h in (p or {}).get("history") or []:
+            if h["day"] in watched and h.get("first") is not None \
+                    and h.get("last") is not None:
+                extra[h["day"]] = {
+                    "first_in": pd.Timestamp(h["first"]),
+                    "last_out": pd.Timestamp(h["last"]),
+                    "inside_min": float(h.get("span_min") or 0.0),
+                    "closed": True, "outings": [], "source": "camera"}
+        if not p:
+            out.append(r)
+            continue
+        # a named desk the cameras watched on a day and never saw them at:
+        # a day out (counted in `of`, not in days_in)
+        days = dict(r.get("days") or {}, **extra)
+        work = [s for d, s in days.items() if pd.Timestamp(d).dayofweek < 5
+                and s.get("first_in") is not None]
+        ins = sorted(s["first_in"].hour + s["first_in"].minute / 60.0
+                     for s in work)
+        outs = sorted(s["last_out"].hour + s["last_out"].minute / 60.0
+                      for s in work if s.get("last_out") is not None)
+        closed = [s for s in work if s.get("closed", True)
+                  and s.get("inside_min")]
+        out.append(dict(
+            r, days=days, days_in=(r.get("days_in") or 0) + len(extra),
+            of=(r.get("of") or 0) + len(watched),
+            usual_in=ins[len(ins) // 2] if ins else r.get("usual_in"),
+            usual_out=outs[len(outs) // 2] if outs else r.get("usual_out"),
+            inside_h=(sum(s["inside_min"] for s in closed) / 60.0
+                      / len(closed)) if closed else r.get("inside_h"),
+            camera_days=len(extra)))
+    return out
+
+
 def employees(rows, roster, people=None, hours=(10.0, 20.0), now=None,
               photos=None, campus="140-H"):
     """One dict per employee: every attendance row of the directory, and
     any board employee with a desk score the machines never saw. `campus`
-    is the campus they belong to (27 Nov: 141-C/D too), carried on each."""
+    is the campus they belong to (27 Nov: 141-C/D too), carried on each.
+    After HR's export ends, a named desk's camera carries their days on
+    (camera_attendance)."""
+    rows = camera_attendance(rows, people, now)
     board = {}
     for p in people or []:
         eid = p.get("employee_id")
@@ -138,8 +199,12 @@ def employees(rows, roster, people=None, hours=(10.0, 20.0), now=None,
             "usual_in": r["usual_in"] if r else None,
             "usual_out": r["usual_out"] if r else None,
             "hours": r["inside_h"] if r else None,
-            "measured": ("desk camera + activity" if ac is not None else
-                         "desk camera" if ds is not None else "machines")
+            "measured": (("desk camera + activity" if ac is not None else
+                          "desk camera" if ds is not None else "machines")
+                         + (", %d day%s by camera after the export" % (
+                             r["camera_days"],
+                             "" if r["camera_days"] == 1 else "s")
+                            if r.get("camera_days") else ""))
             if r else "desk camera only"}
     for r in rows or []:
         eid = _key(r["eid"])
