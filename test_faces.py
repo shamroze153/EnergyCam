@@ -316,9 +316,34 @@ def check_ada_budget():
         sf._ada_clock.update(saved)
 
 
+def check_ada_seat_face():
+    """27 Nov: a seat's many AdaFace samples are weighted by AdaFace's own
+    quality (the length of its numbers): the clear faces lead, the blurred
+    ones -- seen from above, turned away -- hardly count."""
+    import seat_faces as sf
+    rng = np.random.default_rng(7)
+    good = np.zeros((6, 512), np.float32)
+    good[:, 0] = 1.0
+    good += rng.normal(0, 0.05, good.shape).astype(np.float32)
+    good = good / np.linalg.norm(good, axis=1, keepdims=True) * 25.0
+    poor = rng.normal(0, 1, (8, 512)).astype(np.float32)
+    poor = poor / np.linalg.norm(poor, axis=1, keepdims=True) * 6.0
+    m, n = sf.ada_seat_face(np.vstack([poor, good]))
+    check("the clear faces lead the seat's face",
+          (round(float(m[0]), 1) >= 0.9, round(float(np.linalg.norm(m)), 3)),
+          (True, 1.0))
+    old = good / 25.0                      # kept at unit length before 16:00
+    m2, _ = sf.ada_seat_face(np.vstack([old, good]))
+    check("unit-length samples from before still count",
+          round(float(m2[0]), 1) >= 0.9, True)
+    check("no samples, no face", sf.ada_seat_face(np.zeros((0, 512))),
+          (None, 0))
+
+
 def main():
     check_safetensors()
     check_ada_budget()
+    check_ada_seat_face()
     check_backfill()
     check_replay_plan()
     check_crop_paths()

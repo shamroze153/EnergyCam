@@ -131,7 +131,8 @@ def _observe(room, key, frame, boxes, now, spots, out):
             fh.write(np.asarray(v, np.float16).tobytes())
         if a is not None:
             # AdaFace's 512 beside (27 Nov), the same seat -- for the faces
-            # read while under ADA_BUDGET, so not row for row with .f16
+            # read while under ADA_BUDGET, so not row for row with .f16;
+            # kept at the network's own length (its quality of the face)
             with open(stem + ".a16", "ab") as fh:
                 fh.write(np.asarray(a, np.float16).tobytes())
         _thumb(frame, b, stem + ".jpg")
@@ -175,8 +176,10 @@ def _forget_old(base, days=KEEP_DAYS):
 
 
 def samples(days, base=None, ext=".f16", dim=128):
-    """{seat key: (n, dim) unit vectors} over the given days -- SFace's
-    (.f16, 128) or, with ext=".a16", dim=512, AdaFace's."""
+    """{seat key: (n, dim) vectors} over the given days -- SFace's (.f16,
+    128, unit length) or, with ext=".a16", dim=512, AdaFace's (each at the
+    length the network gave it: its quality of the face -- see
+    ada_seat_face)."""
     out = {}
     for day in days:
         for path in glob.glob(os.path.join(base or OUT, day, "*" + ext)):
@@ -185,6 +188,33 @@ def samples(days, base=None, ext=".f16", dim=128):
             k = os.path.basename(path)[:-len(ext)]
             out[k] = np.vstack([out[k], v]) if k in out else v
     return out
+
+
+def ada_seat_face(vecs, keep_share=0.5):
+    """A seat's AdaFace face from its many samples: the better-quality
+    half (by AdaFace's own feature length; a sample of unit length -- kept
+    before 27 Nov 16:00 -- counts as middling), normalised, averaged with
+    each weighted by its quality, unlike ones left out. (unit vector,
+    samples used)."""
+    v = np.asarray(vecs, np.float32)
+    if not len(v):
+        return None, 0
+    q = np.linalg.norm(v, axis=1)
+    raw = np.abs(q - 1.0) > 1e-2
+    if raw.any():
+        q = np.where(raw, q, np.median(q[raw]))
+    u = v / np.maximum(np.linalg.norm(v, axis=1, keepdims=True), 1e-6)
+    if len(u) >= 4:
+        top = q >= np.quantile(q, 1.0 - keep_share)
+        u, q = u[top], q[top]
+    m = (u * q[:, None]).sum(0)
+    m /= max(np.linalg.norm(m), 1e-6)
+    near = u @ m >= OUTLIER
+    if near.sum() >= max(2, len(u) // 2):
+        u, q = u[near], q[near]
+        m = (u * q[:, None]).sum(0)
+        m /= max(np.linalg.norm(m), 1e-6)
+    return m, len(u)
 
 
 def seat_face(vecs):

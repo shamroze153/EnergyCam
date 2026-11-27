@@ -167,12 +167,14 @@ def aligned(crop, face):
 
 
 def ada_feature(face112):
-    """AdaFace's 512 numbers for an aligned face, or None."""
+    """AdaFace's 512 numbers for an aligned face, or None -- NOT of unit
+    length: their length is AdaFace's quality of the face (adaface.py), so
+    a seat's many faces can be weighted by it. Normalise before comparing."""
     net = _ada_net() if face112 is not None else None
     if net is None:
         return None
     with _ada_lock:
-        return net.embed(face112)
+        return net.embed(face112, unit=False)
 
 
 def of_person_both(frame, box):

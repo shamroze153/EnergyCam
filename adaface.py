@@ -176,8 +176,12 @@ class AdaFace:
         except Exception:                                   # noqa: BLE001
             return None
 
-    def embed_many(self, faces_bgr):
-        """[aligned 112x112 BGR] -> (n, 512) unit rows."""
+    def embed_many(self, faces_bgr, unit=True):
+        """[aligned 112x112 BGR] -> (n, 512) rows, of unit length -- or,
+        with unit=False, as the network gives them: their length is
+        AdaFace's own measure of the face's quality (short for a blurred,
+        dark or turned face; the paper's "feature norm"), for weighting
+        many faces of one seat."""
         torch = self.torch
         if not len(faces_bgr):
             return np.zeros((0, 512), np.float32)
@@ -189,9 +193,11 @@ class AdaFace:
         else:
             with torch.no_grad():
                 v = self.net(torch.from_numpy(x)).numpy()
+        if not unit:
+            return v.astype(np.float32)
         return v / (np.linalg.norm(v, axis=1, keepdims=True) + 1e-9)
 
-    def embed(self, face_bgr):
+    def embed(self, face_bgr, unit=True):
         if face_bgr is None:
             return None
-        return self.embed_many([face_bgr])[0]
+        return self.embed_many([face_bgr], unit=unit)[0]

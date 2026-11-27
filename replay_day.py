@@ -125,9 +125,17 @@ def done_before(day, folder=OUT):
         return {(r["camera"], r["end"][-8:]) for r in csv.DictReader(fh)}
 
 
+def _faces_file(day, folder):
+    """The --faces-only run's resume file: its own for AdaFace (27 Nov),
+    so moments read for SFace alone before are read again for it."""
+    import seat_faces
+    kind = "ada" if seat_faces.ADA_SEATS else "faces"
+    return os.path.join(folder, "%s_%s_done.csv" % (day, kind))
+
+
 def faces_done(day, folder=OUT):
     """{(camera, HH:MM:SS)} a --faces-only run already read (resumes)."""
-    path = os.path.join(folder, "%s_faces_done.csv" % day)
+    path = _faces_file(day, folder)
     if not os.path.exists(path):
         return set()
     with open(path, encoding="utf-8") as fh:
@@ -137,7 +145,7 @@ def faces_done(day, folder=OUT):
 def faces_mark(day, rows, folder=OUT):
     """[(HH:MM:SS, camera)] read by a --faces-only run."""
     os.makedirs(folder, exist_ok=True)
-    with open(os.path.join(folder, "%s_faces_done.csv" % day), "a",
+    with open(_faces_file(day, folder), "a",
               newline="", encoding="utf-8") as fh:
         csv.writer(fh).writerows(rows)
 
@@ -185,7 +193,12 @@ def main(argv):
     ap.add_argument("--skip", default="",
                     help="recorders to leave alone, comma-separated -- one "
                     "that refused in an earlier run is never tried again")
+    ap.add_argument("--ada-budget", type=float, default=30.0,
+                    help="seconds of AdaFace a minute at the seats (the "
+                    "loop's own is seat_faces.ADA_BUDGET)")
     args = ap.parse_args(argv[1:])
+    import seat_faces
+    seat_faces.ADA_BUDGET = args.ada_budget
     args.streams = max(1, min(STREAMS, args.streams))
     global CAMPUS
     if args.campus == "141":
