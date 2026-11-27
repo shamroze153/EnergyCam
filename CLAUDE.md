@@ -48,7 +48,7 @@ Tests: `python test_room_loop.py`, `test_overview.py`, `test_energy.py`,
 `test_meters.py`, `test_analysis.py`, `test_alerts.py`, `test_empty.py`,
 `test_live_ac.py`, `test_floors.py`, `test_energy_rooms.py`, `test_seats.py`,
 `test_ac_plan.py`, `test_seating.py`, `test_savings.py`, `test_progress.py`,
-`test_places.py`, `test_faces.py`.
+`test_places.py`, `test_faces.py`, `test_follow.py`.
 
 26 Nov night (four background workers, all merged): `places_day.py` --
 where each named person's day went (desk / meeting / cafe / smoking /
