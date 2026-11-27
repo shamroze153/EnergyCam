@@ -1683,3 +1683,4 @@ Two or three lines a round; picture file names, never pictures.
   so no ignore box -- for Shamroze. Progress for 141-C/D pushed (6339419);
   loop restarted 04:36 so it sends 141's rows to the hosted page.
 * 07:05, 27 Nov round: skipped on purpose -- two playback replays (141 faces of 26 Nov, 140-H faces of 20-21 Nov) hold 3 recorder streams; the audit's 86 main streams on top is too much (04:12 round stands). One loop (06:54), last pass 06:58.
+* 08:47, 27 Nov round: skipped -- office hours begin and the 140-H faces replay holds a stream; 04:12's audit stands. One loop, last pass 08:44.
