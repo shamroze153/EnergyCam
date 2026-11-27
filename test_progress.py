@@ -1103,8 +1103,12 @@ def check_entrance():
               att.clock_offset(DAY, gd, data=outs.iloc[:3]), None)
     finally:
         shutil.rmtree(gd)
-    check("Entry H only (the building door's camera sees backs)",
-          ew.CAMERAS, [("nvr1", 5)])
+    # 27 Nov: and 141's turnstile (cd_nvr2 ch 6); never 140-H's building
+    # door camera, which sees backs
+    from gate_match import gate_campus as gm_campus
+    check("Entry H and 141's turnstile, each named by its own campus's "
+          "machines", (ew.CAMERAS, gm_campus("cd_nvr2"), gm_campus("nvr1")),
+          ([("nvr1", 5), ("cd_nvr2", 6)], "141", "140-H"))
     import gate_match as gm
     import entrance_backfill as eb
     check("the recording read in windows: lunch and evening, 50-min stretches",
