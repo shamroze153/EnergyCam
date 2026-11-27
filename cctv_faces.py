@@ -13,9 +13,11 @@ the other cameras (observe(), below) compare with first.
 
     people/cctv_faces.npz   ids, vecs: up to KEEP samples a person
     people/sightings/<date>.csv   a named person seen off their own seat
+    people/sightings/<date>/      a small picture of each (PIC_DAYS)
 
 All under people/ (git-ignored, this laptop only). build() is hourly
-(desk_watch.rebuild); observe() runs in room_loop.examine.
+(desk_watch.rebuild); observe() runs in room_loop.examine and on
+face_sweep's full-size frames.
 """
 import csv
 import glob
@@ -270,6 +272,94 @@ def _ada_ok(now_s=None):
     return _ada_clock["spent"] < ADA_BUDGET
 
 
+# ------------------------------------- what a sighting keeps (27 Nov night)
+#
+# Shamroze, 27 Nov night: every starred employee's whole day -- the cafe,
+# the meeting rooms, prayer, the other campus. The rows say which
+# recogniser named them (places_day holds each to its own bar: AdaFace's
+# 0.45 is not SFace's 0.50), how tall the person was in the picture (a
+# face's size follows it) and AdaFace's quality of the face (the length of
+# its numbers, adaface.py) -- so the bars can be checked against what was
+# right. Files from before have the first seven columns only.
+COLUMNS = ["time", "employee_id", "room", "recorder", "channel", "score",
+           "margin", "model", "box_h", "quality"]
+# A face is looked for only in a person at least this tall in the picture,
+# the tallest first. At 640x360 the pass's people are 40-120 px and their
+# faces a handful of pixels (seats/2026-11-27.csv: the sub streams' median
+# 44-117 px): AdaFace's seconds went on faces nobody could know.
+MIN_BOX_H = 150
+# Each sighting keeps a small picture of the person, people/sightings/
+# <day>/<HHMMSS>_<recorder>_<channel>_<employee id>.jpg -- this laptop
+# only (people/ is git-ignored), for checking the sightings by eye; a day's
+# pictures are let go after PIC_DAYS. Never a picture of the 141 gym (no
+# sighting is ever made there).
+PIC_DAYS = 7
+PIC_H = 240
+_swept = {"day": None}
+
+
+def _box_h(b):
+    try:
+        return float(b[3]) - float(b[1])
+    except (TypeError, ValueError, IndexError):
+        return 0.0
+
+
+def picture_path(day, hms, key, eid, out=None):
+    """Where a sighting's small picture is kept."""
+    return os.path.join(out or SIGHTINGS, day, "%s_%s_%d_%s.jpg" % (
+        str(hms).replace(":", ""), key[0], int(key[1]), eid))
+
+
+def keep_picture(day, hms, key, eid, frame, box, out=None):
+    """The person's box (a little round it), PIC_H px tall at most, as a
+    small JPEG for checking by eye. Never raises; the path or None."""
+    try:
+        import cv2
+        H, W = frame.shape[:2]
+        x1, y1, x2, y2 = (float(v) for v in box[:4])
+        pw, ph = 0.15 * (x2 - x1), 0.08 * (y2 - y1)
+        X1, Y1 = int(max(0, x1 - pw)), int(max(0, y1 - ph))
+        X2, Y2 = int(min(W, x2 + pw)), int(min(H, y2 + ph))
+        crop = frame[Y1:Y2, X1:X2]
+        if crop.size == 0:
+            return None
+        if crop.shape[0] > PIC_H:
+            s = PIC_H / float(crop.shape[0])
+            crop = cv2.resize(crop, (max(1, int(crop.shape[1] * s)), PIC_H),
+                              interpolation=cv2.INTER_AREA)
+        path = picture_path(day, hms, key, eid, out)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        cv2.imwrite(path, crop, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
+        _let_go(day, out)
+        return path
+    except Exception:                                       # noqa: BLE001
+        return None
+
+
+def _let_go(day, out=None):
+    """Once a day: the day folders of pictures older than PIC_DAYS."""
+    if _swept["day"] == day:
+        return
+    _swept["day"] = day
+    import shutil
+    folder = out or SIGHTINGS
+    try:
+        cut = (datetime.strptime(day, "%Y-%m-%d").toordinal() - PIC_DAYS)
+        for name in os.listdir(folder):
+            path = os.path.join(folder, name)
+            if not os.path.isdir(path):
+                continue
+            try:
+                old = datetime.strptime(name, "%Y-%m-%d").toordinal() < cut
+            except ValueError:
+                continue                    # not a day's folder: left alone
+            if old:
+                shutil.rmtree(path, ignore_errors=True)
+    except OSError:
+        pass
+
+
 def observe(room, key, frame, boxes, now=None, spots=None, out=None):
     """A pass's people on one camera who are NOT at a regular seat (the
     cafe, a lobby, a meeting room, the stairs): each clear face against the
@@ -306,10 +396,13 @@ def _observe(room, key, frame, boxes, now, spots, out):
     # progress_track.candidates.
     office = place_of(room) == "office" or room in STAFFED
     n = 0
-    for b in boxes:
+    # the tallest first: the clearest faces get AdaFace's seconds
+    for b in sorted(boxes, key=lambda b: -_box_h(b)):
+        if _box_h(b) < MIN_BOX_H:
+            break                        # the rest are smaller still
         if office and seat_faces.seat_of(b, spots, frame.shape[1]) is not None:
             continue                     # somebody at a seat: seat_faces'
-        m = None
+        m, model, quality = None, "", None
         if len(a_ids) and _ada_ok():
             # SCRFD finds the face, AdaFace reads it (faces.of_person_both)
             t0 = time.time()
@@ -317,11 +410,14 @@ def _observe(room, key, frame, boxes, now, spots, out):
             _ada_clock["spent"] += time.time() - t0
             v = got[0] if got is not None else None
             if got is not None and got[1] is not None:
+                quality = float(np.linalg.norm(got[1]))
                 m = ada_best(got[1], a_ids, a_vecs)
+                model = "ada" if m is not None else ""
         else:
             v = faces.of_person(frame, b[:4])
         if m is None and v is not None and len(ids):
             m = best(v, ids, vecs)
+            model = "sface" if m is not None else ""
         if m is None:
             continue
         eid, score, margin = m
@@ -330,10 +426,43 @@ def _observe(room, key, frame, boxes, now, spots, out):
         if t - _seen.get(k, 0.0) < REPEAT:
             continue
         _seen[k] = t
-        write(day, (now.strftime("%H:%M:%S"), eid, room, key[0], int(key[1]),
-                    score, margin), out)
+        hms = now.strftime("%H:%M:%S")
+        write(day, (hms, eid, room, key[0], int(key[1]), score, margin,
+                    model, _box_h(b), quality), out)
+        keep_picture(day, hms, key, eid, frame, b, out)
         n += 1
     return n
+
+
+def _row(row):
+    """A sighting as the file's columns (COLUMNS); a seven-part row (the
+    old shape) leaves the rest empty."""
+    out = list(row[:5]) + ["%.3f" % row[5], "%.3f" % row[6]]
+    extra = list(row[7:10]) + [None] * (3 - len(row[7:10]))
+    model, box_h, quality = extra
+    out.append(model or "")
+    out.append("" if box_h in (None, "") else "%.0f" % float(box_h))
+    out.append("" if quality in (None, "") else "%.1f" % float(quality))
+    return out
+
+
+def _upgrade(path):
+    """A day's file begun with the old seven columns gets the new header
+    (its old rows keep their seven: readers fill the rest in empty)."""
+    try:
+        with open(path, encoding="utf-8", newline="") as fh:
+            head = fh.readline().strip()
+            if head == ",".join(COLUMNS) or not head:
+                return
+            if not ",".join(COLUMNS).startswith(head):
+                return                       # not ours: left as it is
+            rest = fh.read()
+        tmp = path + ".tmp"
+        with open(tmp, "w", newline="", encoding="utf-8") as fh:
+            fh.write(",".join(COLUMNS) + "\r\n" + rest)
+        os.replace(tmp, path)
+    except OSError:
+        pass
 
 
 def write(day, row, out=None):
@@ -341,9 +470,10 @@ def write(day, row, out=None):
     os.makedirs(folder, exist_ok=True)
     path = os.path.join(folder, day + ".csv")
     new = not os.path.exists(path)
+    if not new:
+        _upgrade(path)
     with open(path, "a", newline="", encoding="utf-8") as fh:
         w = csv.writer(fh)
         if new:
-            w.writerow(["time", "employee_id", "room", "recorder", "channel",
-                        "score", "margin"])
-        w.writerow(list(row[:5]) + ["%.3f" % row[5], "%.3f" % row[6]])
+            w.writerow(COLUMNS)
+        w.writerow(_row(row))

@@ -10,10 +10,19 @@ else). So, between batches, a few of those cameras at a time are read from
 the main stream (2560x1440 / 1920x1080) and handed to cctv_faces: a named
 person seen off their seat is a sighting, the same as from the pass.
 
+27 Nov night (Shamroze: every starred employee's whole day -- the cafes of
+both campuses, the meeting rooms, prayer, the other campus): 141-C/D's
+sub-stream recorders too (the 141-C cafe, its meeting rooms, the ablution
+area, its lobbies), and the meeting rooms among the places looked at
+first. A room the pass found empty is read again at full size only after
+EMPTY_EVERY -- nobody's face is in it -- so the minutes go to the rooms
+with people in them.
+
 Everything goes through room_loop.fetch (the recorders' gates and every
-room's private hours) and only in office hours. The pass's zones and
-seats are in the pass's own pixels, so they are scaled to the bigger
-picture (PASS_SIZE, which examine() fills).
+room's private hours) and only in office hours; the 141 gym is never
+chosen (it is no place people go, and its private hours stand). The
+pass's zones and seats are in the pass's own pixels, so they are scaled to
+the bigger picture (PASS_SIZE, which examine() fills).
 
     step(rooms, grab_main, look) -- from room_loop's pulse(), never raises.
 """
@@ -22,27 +31,37 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import nullcontext
 from datetime import datetime
 
-CAMPUS = {"nvr1", "nvr4"}            # the 140-H recorders read at sub stream
-PLACES = ("cafe", "smoking", "prayer", "corridor", "outside")
-FIRST = ("cafe", "smoking", "prayer")  # where people go, looked at twice as often
+# the recorders the pass reads at sub stream: 140-H's two and, from 27 Nov
+# night, 141-C/D's four (cd_xvr1 and cd_xvr3 are read at main already)
+CAMPUS = {"nvr1", "nvr4", "cd_nvr1", "cd_nvr2", "cd_nvr3", "cd_nvr4"}
+PLACES = ("cafe", "meeting", "smoking", "prayer", "corridor", "outside")
+# where people go, looked at twice as often
+FIRST = ("cafe", "meeting", "smoking", "prayer")
 EVERY = 60.0             # s between steps
 PER_STEP = 3             # cameras a step
 BUDGET = 15.0            # s: a slower step makes the next ones wait longer
 HOURS = ("08:30", "21:30")
+# A room the pass last counted empty is read at full size at most this
+# often (s): it is passed over in the round until then.
+EMPTY_EVERY = 20 * 60.0
+NEVER = ("gym",)         # never chosen, whatever its kind (141's gym)
 PASS_SIZE = {}           # (recorder, channel): (h, w) of the pass's frame
 _state = {"at": 0.0, "i": 0, "slow": 1.0}
+_read = {}               # (recorder, channel): when last read at full size
 
 
 def cameras(rooms, is_main=None):
-    """[(room, key)] to read at full size: 140-H's rooms the pass reads at
-    sub stream that are places people go, the cafe, smoking and prayer
-    twice in the round. is_main(room, recorder name): room_loop.wants_main,
-    the one place that decides a stream."""
+    """[(room, key)] to read at full size: the rooms the pass reads at sub
+    stream that are places people go, the cafe, meeting rooms, smoking and
+    prayer twice in the round. is_main(room, recorder name):
+    room_loop.wants_main, the one place that decides a stream."""
     import progress_data as pdx
     is_main = is_main or (lambda room, rec: getattr(room, "stream", None)
                           == "main")
     first, rest = [], []
     for room in rooms:
+        if any(w in str(room.name).lower() for w in NEVER):
+            continue
         kind = pdx.place_of(room.name)
         if kind not in PLACES:
             continue
@@ -52,6 +71,30 @@ def cameras(rooms, is_main=None):
                 continue
             (first if kind in FIRST else rest).append((room, key))
     return first + rest + first
+
+
+def empty_lately(room, key, t):
+    """True while the pass's last count of the room was nobody and the
+    camera was read at full size less than EMPTY_EVERY ago."""
+    return (getattr(room, "people", None) == 0
+            and t - _read.get(key, -1e18) < EMPTY_EVERY)
+
+
+def pick(cams, start, t, count=PER_STEP):
+    """The next `count` cameras of the round from `start`, passing over
+    rooms empty lately and a camera already picked: ([(room, key)], where
+    the round goes on from)."""
+    out, keys, j = [], set(), start
+    for _ in range(len(cams)):
+        if len(out) >= count:
+            break
+        room, key = cams[j % len(cams)]
+        j += 1
+        if key in keys or empty_lately(room, key, t):
+            continue
+        out.append((room, key))
+        keys.add(key)
+    return out, j % len(cams)
 
 
 def step(rooms, is_main, grab_main, look, now=None, clock=time.time,
@@ -77,9 +120,11 @@ def _step(rooms, is_main, grab_main, look, now, clock, muffle):
     cams = cameras(rooms, is_main)
     if not cams:
         return 0
-    i = _state["i"] % len(cams)
-    batch = (cams + cams)[i:i + PER_STEP]
-    _state["i"] = i + PER_STEP
+    batch, _state["i"] = pick(cams, _state["i"] % len(cams), t)
+    if not batch:
+        return 0
+    for _, key in batch:
+        _read[key] = t
     seen = 0
     with (muffle() if muffle else nullcontext()):
         with ThreadPoolExecutor(max_workers=len(batch)) as pool:

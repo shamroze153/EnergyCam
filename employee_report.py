@@ -676,15 +676,22 @@ border-radius:99px;padding:1px 8px;margin-left:6px;vertical-align:1px}
 # palette's categorical slots; "in the building" and "not known" grey.
 PLACES = (("desk", "At the desk"), ("meeting", "Meeting rooms"),
           ("cafe", "Cafe and pantry"), ("smoking", "Smoking area"),
-          ("prayer", "Prayer"), ("inside", "In the building, place not seen"),
+          ("prayer", "Prayer"), ("office", "Other rooms"),
+          ("corridor", "Corridors and lobbies"), ("campus", "Other campus"),
+          ("inside", "In the building, place not seen"),
           ("out", "Out of the building"), ("unknown", "Not known"))
 PLACE_LABEL = dict(PLACES)
+# (27 Nov night: places_day's other campus, other rooms and corridors --
+# the palette's teal, brown and slate slots, apart from the desk's blue
+# and the greys of "not seen")
 PLACE_COLOUR = {
     "light": {"desk": "#2a78d6", "meeting": "#1baf7a", "cafe": "#eb6834",
-              "smoking": "#e87ba4", "prayer": "#6250d6", "out": "#eda100",
+              "smoking": "#e87ba4", "prayer": "#6250d6", "office": "#9a6b3f",
+              "corridor": "#7d8ca3", "campus": "#0e9aa7", "out": "#eda100",
               "inside": "#bdbcb6", "unknown": "#e3e2dd"},
     "dark": {"desk": "#3987e5", "meeting": "#199e70", "cafe": "#d95926",
-             "smoking": "#d55181", "prayer": "#9085e9", "out": "#c98500",
+             "smoking": "#d55181", "prayer": "#9085e9", "office": "#b4875a",
+             "corridor": "#8c9cb4", "campus": "#22b5c2", "out": "#c98500",
              "inside": "#5f5e5a", "unknown": "#383835"}}
 _MODE = {"m": "light"}
 
@@ -1086,14 +1093,17 @@ def allocation(e, day):
     """Where one day went, in minutes, from what measured it: the machines
     (in the building, out of it, first in, last out), the desk camera (at
     the desk, of it on the computer / phone / talking) and places_day
-    (meeting rooms, cafe, smoking, prayer) where they are known."""
+    (meeting rooms, cafe, smoking, prayer, the other campus) where they are
+    known -- "cafe" and "campus" (27 Nov night) the day's minutes in the
+    cafe and at the other campus, None where places_day has not the day."""
     s = (e.get("days") or {}).get(day) or {}
     a = {"day": day, "first": _hour(s.get("first_in")),
          "last": _hour(s.get("last_out")) if s.get("closed") else None,
          "in": s["inside_min"] if s.get("closed") and s.get("inside_min")
          else None, "out": _out_min(s) if s else None,
          "desk": None, "computer": None, "phone": None, "talking": None,
-         "places": None, "partial": day == e.get("_cut")}
+         "places": None, "cafe": None, "campus": None,
+         "partial": day == e.get("_cut")}
     p = e.get("board") or {}
     h = next((r for r in p.get("history") or [] if r.get("day") == day),
              None)
@@ -1108,16 +1118,22 @@ def allocation(e, day):
         if a["in"] is None and h.get("in_min"):
             a["in_cam"] = h.get("in_min")
     a["places"], _ = _places_for(e, day)
+    if a["places"]:
+        a["cafe"] = float(a["places"].get("cafe") or 0.0)
+        a["campus"] = float(a["places"].get("campus") or 0.0)
     return a
 
 
 def shares(a):
     """[(kind, minutes)] for the allocation bar: the day in the building
     split by place -- at the desk, the places seen, the rest "in the
-    building, place not seen" -- then out of the building."""
+    building, place not seen" -- then the other campus and out of the
+    building. The other campus's minutes (27 Nov night) come out of the
+    machines' time out first (out through their own campus's machine on
+    the way there) and the rest out of their time in (no OUT punch)."""
     total = a.get("in") or a.get("in_cam")
     out = []
-    used = 0.0
+    used = campus = 0.0
     if a.get("places"):
         for kind, _ in PLACES:
             if kind in ("inside", "out", "unknown"):
@@ -1125,18 +1141,24 @@ def shares(a):
             m = float(a["places"].get(kind) or 0.0)
             if kind == "desk" and not m and a.get("desk"):
                 m = float(a["desk"])
+            if kind == "campus":
+                campus = m
+                continue
             if m > 0:
                 out.append((kind, m))
                 used += m
     elif a.get("desk"):
         out.append(("desk", float(a["desk"])))
         used = float(a["desk"])
+    away = float(a.get("out") or 0.0)
     if total:
-        rest = max(0.0, float(total) - used)
+        rest = max(0.0, float(total) - used - max(0.0, campus - away))
         if rest > 0:
             out.append(("inside", rest))
-    if a.get("out"):
-        out.append(("out", float(a["out"])))
+    if campus > 0:
+        out.append(("campus", campus))
+    if away - campus > 0:
+        out.append(("out", away - campus))
     return [(k, round(m, 1)) for k, m in out]
 
 
@@ -1257,9 +1279,11 @@ def journey_html(e, day):
     return ('<div class="ec-card rc-box jy"><h4>The day, stop by stop &middot; '
             '%s</h4><p class="jy-first">Came in %s%s &middot; first went to '
             '<b>%s</b>%s &middot; %d stop%s</p>%s<p class="pr-note">From the '
-            'attendance machines, the desk camera and faces on the campus '
-            'cameras; "in the building, place not seen" is time inside that '
-            'no camera put a name to.</p></div>'
+            'attendance machines (the other campus\'s too), the desk camera '
+            'and faces on both campuses\' cameras; a face seen in a place '
+            'stands for the time round it, on to the desk when the desk is '
+            'near. "In the building, place not seen" is time inside that no '
+            'camera put a name to.</p></div>'
             % (esc(_day_label(day)), clock(came),
                " (first seen by camera)" if by_cam else "",
                esc(first["name"]),
@@ -1283,6 +1307,7 @@ def overview_html(e, day):
     parts = shares(a)
     line = day_line(e, day)
     total = sum(m for _, m in parts) or 1.0
+    away = dict(parts).get("out")
     head = [("First in", clock(a["first"])),
             ("Last out", clock(a["last"]) if a["last"] is not None else
              ("partial day" if a["partial"] else "&ndash;")),
@@ -1291,8 +1316,12 @@ def overview_html(e, day):
               else "&ndash;")),
             ("At the desk", span(a["desk"]) if a.get("desk") else
              ("not seen" if not e.get("board") else "&ndash;")),
-            ("Out of the building", span(a["out"]) if a.get("out")
-             else "&ndash;")]
+            # 27 Nov night (Shamroze: the whole day -- the cafe, the other
+            # campus): their minutes, where places_day has the day
+            ("Cafe", span(a["cafe"]) if a.get("cafe") else "&ndash;"),
+            ("Other campus", span(a["campus"]) if a.get("campus")
+             else "&ndash;"),
+            ("Out of the building", span(away) if away else "&ndash;")]
     bar = "".join('<i style="width:%.2f%%;background:%s" title="%s: %s"></i>'
                   % (100.0 * m / total, colour(k), PLACE_LABEL[k], span(m))
                   for k, m in parts if m > 0)
@@ -1321,7 +1350,8 @@ def overview_html(e, day):
     if e.get("board"):
         src += " and the desk camera"
     if a.get("places"):
-        src += ", and the cameras around the building for the places"
+        src += (", and faces on both campuses' cameras for the places (the "
+                "other campus also by its machines)")
     return ('<div class="ec-card rc-box"><h4>Where the day went &middot; %s%s'
             '</h4><div class="ov-head">%s</div>%s%s<div class="ov-line" '
             'role="img" aria-label="The day in one line">%s</div><div class='

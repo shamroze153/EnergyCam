@@ -455,6 +455,149 @@ def check_ada_sightings():
         shutil.rmtree(folder)
 
 
+def check_sighting_rows():
+    """27 Nov night (every starred employee's whole day): a sighting row
+    says which recogniser named it, the person's height in the picture and
+    AdaFace's quality, and keeps a small picture for checking by eye (this
+    laptop only); faces are looked for in tall enough people only, the
+    tallest first; an old day's file gets the new header."""
+    import shutil
+    import tempfile
+    from datetime import datetime as _dt
+    import cctv_faces as cf
+    import faces
+    import progress_track as pt
+    ids = np.array(["00010", "00011"])
+    R = np.zeros((2, 512), np.float32)
+    R[0, 0] = R[1, 1] = 1.0
+    near0 = np.zeros(512, np.float32)
+    near0[0], near0[2] = 0.8, 0.6
+    saved = (cf.ada_refs, cf.load, faces.of_person_both, faces.available,
+             dict(cf._ada_clock), dict(cf._seen))
+    folder = tempfile.mkdtemp()
+    asked = []
+    try:
+        cf.ada_refs = lambda path=None: (ids, R)
+        cf.load = lambda path=None: (np.array([]), np.zeros((0, 128)))
+        faces.available = lambda: True
+
+        def both(frame, box):
+            asked.append(round(box[3] - box[1]))
+            return np.ones(128, np.float32) / np.sqrt(128), near0 * 20.0
+        faces.of_person_both = both
+        cf._ada_clock.update(minute=0, spent=0.0)
+        cf._seen.clear()
+        frame = np.full((1080, 1920, 3), 60, np.uint8)
+        noon = _dt(2026, 11, 26, 13, 0, 5, tzinfo=pt.PKT)
+        n = cf.observe("Prompt Cafe", ("nvr4", 14), frame,
+                       [(10, 10, 60, 100, 0.9),         # 90 px: too small
+                        (100, 100, 200, 300, 0.9),      # 200 px
+                        (300, 100, 420, 420, 0.9)],     # 320 px: first
+                       now=noon, spots=[], out=folder)
+        d = pd.read_csv(os.path.join(folder, "2026-11-26.csv"), dtype=str)
+        check("faces only in people tall enough, the tallest first",
+              (asked, n), ([320, 200], 1))
+        check("the row says AdaFace named it, the person's height, the "
+              "face's quality",
+              d[["model", "box_h", "quality"]].values.tolist(),
+              [["ada", "320", "20.0"]])
+        pic = cf.picture_path("2026-11-26", "13:00:05", ("nvr4", 14),
+                              "00010", folder)
+        check("a small picture of the sighting is kept, at most PIC_H tall",
+              (os.path.exists(pic), cv2_height(pic) <= cf.PIC_H),
+              (True, True))
+        old = os.path.join(folder, "2026-11-25.csv")
+        with open(old, "w", newline="", encoding="utf-8") as fh:
+            fh.write("time,employee_id,room,recorder,channel,score,margin\r\n"
+                     "12:00:00,00011,Pantry,nvr4,16,0.600,0.300\r\n")
+        cf.write("2026-11-25", ("12:10:00", "00010", "Mosque", "nvr4", 6,
+                                0.5, 0.2, "ada", 250.0, 21.04), folder)
+        d = pd.read_csv(old, dtype=str, keep_default_na=False)
+        check("a day begun with seven columns gets the new header; its old "
+              "row keeps its own",
+              (list(d.columns) == cf.COLUMNS, d["model"].tolist(),
+               d["quality"].tolist()), (True, ["", "ada"], ["", "21.0"]))
+        os.makedirs(os.path.join(folder, "2026-11-10"))
+        os.makedirs(os.path.join(folder, "notes"))
+        cf._swept["day"] = None
+        cf._let_go("2026-11-26", folder)
+        check("pictures older than PIC_DAYS are let go; nothing else",
+              (os.path.isdir(os.path.join(folder, "2026-11-10")),
+               os.path.isdir(os.path.join(folder, "notes")),
+               os.path.isdir(os.path.join(folder, "2026-11-26"))),
+              (False, True, True))
+    finally:
+        (cf.ada_refs, cf.load, faces.of_person_both, faces.available) = \
+            saved[:4]
+        cf._ada_clock.clear()
+        cf._ada_clock.update(saved[4])
+        cf._seen.clear()
+        cf._seen.update(saved[5])
+        cf._swept["day"] = None
+        shutil.rmtree(folder)
+
+
+def cv2_height(path):
+    import cv2
+    img = cv2.imread(path)
+    return img.shape[0] if img is not None else 10 ** 6
+
+
+def check_face_sweep():
+    """27 Nov night: the full-size sweep reads 141-C/D's sub-stream places
+    too and the meeting rooms among the first; a room the pass found empty
+    waits EMPTY_EVERY; the gym is never chosen."""
+    from types import SimpleNamespace as NS
+    import face_sweep as fs
+    import places_replay as pr
+    rooms = [NS(name="141-C Cafe", cameras=[("cd_nvr1", 14)], stream=None),
+             NS(name="141 MR 01 (1st floor)", cameras=[("cd_nvr1", 9)],
+                stream=None),
+             NS(name="141 Gym", cameras=[("cd_nvr2", 7)], stream=None),
+             NS(name="141 Lobby & Stairs (1st floor)",
+                cameras=[("cd_nvr1", 4)], stream=None),
+             NS(name="Prompt Cafe Gate", cameras=[("nvr4", 30)], stream=None,
+                people=0)]
+    cams = [(r.name, k) for r, k in fs.cameras(rooms)]
+    check("141's cafe and meeting room first (twice a round), its lobby; "
+          "never the gym",
+          cams, [("141-C Cafe", ("cd_nvr1", 14)),
+                 ("141 MR 01 (1st floor)", ("cd_nvr1", 9)),
+                 ("Prompt Cafe Gate", ("nvr4", 30)),
+                 ("141 Lobby & Stairs (1st floor)", ("cd_nvr1", 4)),
+                 ("141-C Cafe", ("cd_nvr1", 14)),
+                 ("141 MR 01 (1st floor)", ("cd_nvr1", 9)),
+                 ("Prompt Cafe Gate", ("nvr4", 30))])
+    saved = dict(fs._read)
+    try:
+        fs._read.clear()
+        got, nxt = fs.pick(fs.cameras(rooms), 0, 1000.0)
+        check("a room counted empty is read when not read lately ...",
+              [k for _, k in got], [("cd_nvr1", 14), ("cd_nvr1", 9),
+                                    ("nvr4", 30)])
+        fs._read[("nvr4", 30)] = 1000.0
+        got, nxt = fs.pick(fs.cameras(rooms), 0, 1100.0)
+        check("... and passed over while it is, the next one taken; a "
+              "camera once a step", [k for _, k in got],
+              [("cd_nvr1", 14), ("cd_nvr1", 9), ("cd_nvr1", 4)])
+    finally:
+        fs._read.clear()
+        fs._read.update(saved)
+    rooms_ = [NS(name="Prompt Cafe", cameras=[("nvr4", 14)], stream="main"),
+              NS(name="Marketing", cameras=[("dvr2", 3)], stream=None),
+              NS(name="Lobby", cameras=[("dvr2", 6)], stream=None),
+              NS(name="141 Room 21 (1st floor)", cameras=[("cd_nvr1", 20)],
+                 stream=None),
+              NS(name="141 Gym", cameras=[("cd_nvr2", 7)], stream=None),
+              NS(name="H Street", cameras=[("nvr1", 30)], stream=None)]
+    main_ = {"dvr2", "nvr4"}
+    got = pr.cameras(rooms_, {"nvr4", "dvr2", "cd_nvr1", "cd_nvr2", "nvr1"},
+                     lambda room, rec: rec in main_ or room.stream == "main")
+    check("the replay reads the places and the offices read at full size "
+          "(their seats in those pixels); never the gym, not the street",
+          [k for k, _ in got], [("nvr4", 14), ("dvr2", 3), ("dvr2", 6)])
+
+
 def check_gate_clothes():
     """27 Nov night: the gate keeps the clothes of every passage -- an
     unnamed face is mostly named later by its own punch, and the review
@@ -482,6 +625,8 @@ def main():
     check_ada_threads()
     check_scrfd_pieces()
     check_ada_sightings()
+    check_sighting_rows()
+    check_face_sweep()
     check_gate_clothes()
     check_backfill()
     check_replay_plan()

@@ -1,11 +1,17 @@
 """Where an employee's day went: the desk, meeting rooms, the cafe, smoking,
-prayer, elsewhere in the building, out of it -- or not known.
+prayer, the other campus, elsewhere in the building, out of it -- or not
+known.
 
 Shamroze, 26 Nov 2026: not only at the desk / in / out, but how long in the
 cafe or pantry, the smoking area, meeting rooms, prayer, the rest of the
 building and out of it -- as an overview ("8.1 h in the building: 5.2 h at
 the desk, 0.9 h meeting rooms, 0.6 h cafe, ...") and as the day in one
 line, "from 13:05 to 13:40 in the cafe", the way a room's AC is drawn.
+27 Nov night ("poora din track karo"): the other campus too -- a 140-H
+employee at 141-C/D, or the other way round, by the other campus's
+machines and by its cameras -- each employee read against their OWN
+campus's machines (a 141 employee's day was 140-H's before: no punch, no
+machines).
 
 Nothing here opens a camera or writes a file: it reads what the loop and
 the attendance machines have already recorded on this laptop. pandas and
@@ -28,20 +34,28 @@ yaml only -- the dashboard's side imports it.
 
 Kinds (KINDS): desk; meeting (board and meeting rooms); cafe (the cafe,
 pantry, commons, gaming area); smoking; prayer (the mosque, ablution);
-inside -- in the building, the place not seen, or seen somewhere that is
-none of these (a lobby, the reception, another office: then its name);
-out -- out of the building; unknown. A segment's name is the room it was
-seen in ("141-D" at the other campus's machines), "" when nobody saw
-where; `how` says what placed it: desk (the seat notes), face (a face on
-the cameras), seen (a body match or a picture a person confirmed),
-machines (attendance), gate, none (watched, nothing to say where),
-unwatched (a hole in the passes).
+campus -- at the other campus (by its machines or its cameras); office --
+seen in another room of their own campus (another office, their own room
+away from the desk); corridor -- seen in a lobby, on the stairs, at the
+reception; inside -- in the building, the place not seen; out -- out of
+the building; unknown. A segment's name is the room it was
+seen in ("141-D" / "140-H" at the other campus's machines), "" when
+nobody saw where; `how` says what placed it: desk (the seat notes), face
+(a face on the cameras), seen (a body match or a picture a person
+confirmed), machines (attendance), gate, none (watched, nothing to say
+where), unwatched (a hole in the passes).
+
+An employee's campus (home_of): 141-C/D's for a desk on its cameras, else
+140-H's -- the machines read are their own campus's ("141..." / "140-H"
+punches), the other campus's are the other campus; every minute there is
+"campus", its cafe and meeting rooms too (the room names the stop).
 
 The rules, in order -- each speaks only where those above it said nothing:
 
  1. The day runs from the first of (the first pass at the desk ending after
-    08:00, the first IN punch from 06:00) to the last of (the last pass at
-    the desk, the last OUT punch); a sighting inside the building up to an
+    08:00, the first IN punch from 06:00, the first punch at the other
+    campus) to the last of (the last pass at the desk, the last OUT punch,
+    the last at the other campus); a sighting inside either campus up to an
     hour before or after widens it (one outside does not: after the last
     OUT it is the way home). Before and after is not drawn. Neither a pass
     at the desk nor a punch: no day.
@@ -51,27 +65,38 @@ The rules, in order -- each speaks only where those above it said nothing:
     of up to HOLE_FILL between two passes alike. Nothing below overrides
     the desk.
  3. A sighting off the desk -- a face on the campus cameras (people/
-    sightings at progress_data's CCTV_MIN / CCTV_MARGIN), a listed
-    employee's face row or a body match confirmed on the tab (progress/
-    <day>.csv; a "no" wins), a picture a person named (people/
-    sighting_names.csv) -- covers SIGHT_HALF either side of it, cut to the
-    time away from the desk it falls in; two of the same room in one such
-    stretch (no pass at the desk between) up to SIGHT_JOIN apart are one
-    stay, the gap between filled; where two rooms' windows meet, the
-    nearer sighting has it. A sighting while the desk shows them sitting
-    is not used (a conflict, counted) -- and when UNSURE_LEAST or more of
-    one source's sightings of somebody in a day, and UNSURE_SHARE of them,
-    fall while the desk shows them sitting, none of that source's that
-    day is used (`unsure`): its face is being found on somebody else, or
-    somebody else sits at the desk (24-25 Nov: two people's camera faces,
-    ten of them a day in the cafe and the parking while their desks were
-    taken).
- 4. Out through the attendance machine and in again (an outing,
-    attendance.py), or at the other campus's machines (141-D: "out", named
-    so, from its first punch to the next one at 140-H), is "out" -- certain
-    -- except where a sighting at a place outside the building (the
-    smoking area, the street, a parking: building.yaml's `outside: true`)
-    names where they were; a sighting at a place inside during it is not
+    sightings, and people/sightings/replay from the recordings: SFace's
+    rows at progress_data's CCTV_MIN / CCTV_MARGIN, AdaFace's at ADA_MIN /
+    ADA_MARGIN), a listed employee's face row or a body match confirmed on
+    the tab (progress/<day>.csv; a "no" wins), a picture a person named
+    (people/sighting_names.csv) -- covers a window round it, cut to the
+    time away from the desk it falls in (a "stretch"):
+      * a place people stay -- a meeting room, the cafe, prayer, smoking,
+        another office, the other campus -- STAY_HALF either side, and on
+        to the desk (the stretch's edge) where that is within STAY_EDGE:
+        they walked there from the desk and back to it (27 Nov night: a
+        cafe face at 13:12 between the desk at 13:00 and 13:40 was ten
+        minutes of cafe and thirty "place not seen");
+      * a way through -- a lobby, the stairs, the reception, the street,
+        a parking -- PASS_HALF either side only.
+    Two of the same room in one stretch up to STAY_JOIN (a way through:
+    PASS_JOIN) apart are one stay, the gap between filled; where two
+    rooms' windows meet, the nearer sighting has it. A sighting while the
+    desk shows them sitting is not used (a conflict, counted) -- and when
+    UNSURE_LEAST or more of one source's sightings of somebody in a day,
+    and UNSURE_SHARE of them, fall while the desk shows them sitting, none
+    of that source's that day is used (`unsure`): its face is being found
+    on somebody else, or somebody else sits at the desk (24-25 Nov: two
+    people's camera faces, ten of them a day in the cafe and the parking
+    while their desks were taken).
+ 4. At the other campus's machines -- from the first punch there to the
+    next one at their own campus -- is "campus", certain, named by the
+    machines ("141-D"); a sighting on the other campus's cameras names
+    the room. Out through their own campus's machine and in again (an
+    outing, attendance.py) is "out" -- certain -- except where a sighting
+    outside the building (the smoking area, the street, a parking:
+    building.yaml's `outside: true`) or at the other campus names where
+    they were; a sighting inside their own campus during either is not
     used (a conflict).
  5. A face named at the gate (Entry H sees faces on the way out) is "out"
     from then until the next sighting inside, the desk or the next IN
@@ -100,18 +125,36 @@ import pandas as pd
 
 import progress_data as pdx
 
-KINDS = ("desk", "meeting", "cafe", "smoking", "prayer", "inside", "out",
-         "unknown")
-# A sighting stands for this long either side of it: the loop sees each
-# camera every four to five minutes, and a named face on one camera is
-# written at most every five (cctv_faces.REPEAT) -- so a stay is a run of
-# sightings about ten minutes apart, and one look is about ten minutes.
-SIGHT_HALF = pd.Timedelta(minutes=5)
+KINDS = ("desk", "meeting", "cafe", "smoking", "prayer", "campus", "office",
+         "corridor", "inside", "out", "unknown")
+# A sighting at a place people stay stands for this long either side of it
+# (rule 3): the loop sees each camera every ten minutes or so (cycles.csv,
+# 27 Nov: passes of 9-13 min) and a named face on one camera is written at
+# most every five (cctv_faces.REPEAT) -- one look is about a pass.
+STAY_HALF = pd.Timedelta(minutes=10)
+# ... and reaches on to the desk where the desk is this near: the walk
+# there and back, and the pass that had not yet seen them go.
+STAY_EDGE = pd.Timedelta(minutes=15)
+# A way through (a lobby, the stairs, the reception, the street): a moment.
+PASS_HALF = pd.Timedelta(minutes=3)
 # Two sightings of the same room this close, with no pass at the desk
 # between them, are one stay. 24 Nov, a listed employee in the Basement
 # Meeting Room from 13:15 to 14:21, by face 13 times: once 21 minutes went
-# by without one (the face turned away).
-SIGHT_JOIN = pd.Timedelta(minutes=30)
+# by without one (the face turned away); a meeting's faces are seen in
+# some passes only (27 Nov night: 40 min).
+STAY_JOIN = pd.Timedelta(minutes=40)
+PASS_JOIN = pd.Timedelta(minutes=10)
+# (the names before 27 Nov night)
+SIGHT_HALF, SIGHT_JOIN = STAY_HALF, STAY_JOIN
+# AdaFace's sightings (cctv_faces, model "ada", 27 Nov night) on its own
+# scale: 0.45 clear of the next person by 0.10 named the right person on
+# 94% of gate looks the punch machines confirm (people/session_handoff/
+# sight_calib.py). SFace's rows keep progress_data's CCTV_MIN/CCTV_MARGIN.
+ADA_MIN = 0.45
+ADA_MARGIN = 0.10
+# The kinds of room a sighting is a way through, not a stay
+# (progress_data.place_of's words).
+TRANSIT = ("corridor", "outside", "left")
 # A sighting inside the building this near the day widens it --
 # progress_data.SEEN_WINDOW, the same hour. One outside (the street, the
 # gate) does not: after the last OUT punch it is the way home.
@@ -136,33 +179,69 @@ UNSURE_SHARE = 0.25
 # The kinds of place a sighting's room can be (progress_data.place_of).
 NAMED_KINDS = ("meeting", "cafe", "smoking", "prayer")
 OUTSIDE_KINDS = ("out", "smoking")
+# Sightings that may name where somebody was while their own campus's
+# machines say they were out of it (an outing, the other campus's punches).
+AWAY_KINDS = OUTSIDE_KINDS + ("campus",)
 
 SIGHTINGS = pdx.CCTV_SIGHTINGS          # people/sightings/<day>.csv
+REPLAY = "replay"                       # ... and its replay/<day>.csv
 GATE = pdx.GATE                         # people/entrance/<day>.csv
 ACTIVITY = pdx.ACTIVITY                 # progress/<day>.csv (the listed)
 NAMED = pdx.SIGHTING_NAMES              # people/sighting_names.csv
 
 # Which claim wins where two say something of the same minutes.
-_DESK, _SEEN_OUTSIDE, _OUTING, _SEEN, _GATE, _INSIDE, _NONE = \
-    6, 5, 4, 3, 2, 1, 0
+_DESK, _CAMPUS_SEEN, _CAMPUS, _SEEN_OUTSIDE, _OUTING, _SEEN, _GATE, \
+    _INSIDE, _NONE = 8, 7, 6, 5, 4, 3, 2, 1, 0
 
 LABEL = {"desk": "at the desk", "meeting": "in a meeting room",
          "cafe": "in the cafe", "smoking": "in the smoking area",
-         "prayer": "at prayer", "inside": "in the building, place not seen",
+         "prayer": "at prayer", "campus": "at the other campus",
+         "office": "in another room", "corridor": "in a corridor or lobby",
+         "inside": "in the building, place not seen",
          "out": "out of the building", "unknown": "not known"}
 SHORT = {"desk": "at the desk", "meeting": "meeting rooms", "cafe": "cafe",
          "smoking": "smoking", "prayer": "prayer",
+         "campus": "at the other campus", "office": "other rooms",
+         "corridor": "corridors and lobbies",
          "inside": "elsewhere in the building", "out": "out",
          "unknown": "not known"}
+# An employee's campus as the machines' places start ("140-H IN", "141-D
+# OUT", "141-D GCR IN") and as the page names it.
+HOME_140, HOME_141 = "140-H", "141"
+CAMPUS_NAME = {HOME_140: "140-H", HOME_141: "141-C/D"}
 
 
 # ------------------------------------------------------------ the kinds
 
-def kind_of(room, own=None, plan=None):
+def campus_of(recorder):
+    """The campus a recorder is at: "141" for 141-C/D's, else "140-H"."""
+    try:
+        import desks_data
+        return HOME_141 if str(recorder or "") in desks_data.CAMPUS_141 \
+            else HOME_140
+    except Exception:                                       # noqa: BLE001
+        return HOME_141 if str(recorder or "").startswith("cd_") \
+            else HOME_140
+
+
+def home_of(person):
+    """An employee's own campus: 141-C/D's ("141") for a desk on its
+    cameras, else 140-H's."""
+    return campus_of((person or {}).get("recorder"))
+
+
+def kind_of(room, own=None, plan=None, away=False):
     """The kind of place a sighting's room is: meeting, cafe, smoking,
     prayer; "out" outside the building (building.yaml's `outside: true`,
-    a street, a parking, the gate); else "inside" -- a lobby, the
-    reception, another office, their own room away from the desk."""
+    a street, a parking, the gate); "corridor" a lobby, the stairs, the
+    reception; else "office" -- another office, their own room away from
+    the desk (27 Nov night: both were "inside" with the room's name, and
+    the card counted them as place not seen). `away`: the room is at the
+    other campus -- "campus", whatever room (its cafe and meeting rooms
+    too: the time at the other campus is one figure on the card, the room
+    names the stop)."""
+    if away:
+        return "campus"
     k = pdx.place_of(room, own)
     if k in NAMED_KINDS:
         return k
@@ -170,7 +249,14 @@ def kind_of(room, own=None, plan=None):
         return "out"
     if ((((plan or {}).get("places") or {}).get(room)) or {}).get("outside"):
         return "out"
-    return "inside"
+    return "corridor" if k == "corridor" else "office"
+
+
+def stays(room):
+    """True where people stay (rule 3): a meeting room, the cafe, prayer,
+    smoking, an office (either campus's) -- not a way through (a lobby, the
+    stairs, the reception, the street, a parking, the gate)."""
+    return pdx.place_of(room) not in TRANSIT
 
 
 # ------------------------------------------------------------ the core
@@ -220,6 +306,10 @@ def _span(day, runs, machines, marks):
         hi.append(last_out.value)
         if not lo:
             lo.append(last_out.value)
+    # the other campus's punches are the day too (27 Nov night)
+    for a, b, _ in machines.get("campus") or []:
+        lo.append(a.value)
+        hi.append(b.value)
     if not lo:
         return None
     a, z = min(lo), max(hi)
@@ -382,10 +472,11 @@ def day_places(day, line, sightings=(), exits=(), machines=None):
     outings = _cut(_ns_spans(m.get("outings")), lo, hi)
     claims += [_claim(a, b, _OUTING, "out", "", "machines")
                for a, b in outings]
-    # at the other campus by its machines (141-D's punches): out of 140-H
+    # rule 4: at the other campus by its machines (27 Nov night: its own
+    # kind, above an outing through their own campus's machine)
     for a, b, where in m.get("campus") or []:
         for s, e in _cut([(a.value, b.value)], lo, hi):
-            claims.append(_claim(s, e, _OUTING, "out", where, "machines"))
+            claims.append(_claim(s, e, _CAMPUS, "campus", where, "machines"))
             outings.append((s, e))
     # rule 6: inside by the machines, while away and watched
     for a, b in _cut(_ns_spans(m.get("inside")), lo, hi):
@@ -415,13 +506,31 @@ def day_places(day, line, sightings=(), exits=(), machines=None):
         st = next((x for x in stretches if x[0] <= t <= x[1]), None)
         if st is None:
             continue
-        if g["kind"] not in OUTSIDE_KINDS and any(a <= t <= b
-                                                  for a, b in outings):
+        if g["kind"] not in AWAY_KINDS and any(a <= t <= b
+                                               for a, b in outings):
             conflicts["outing"] += 1
             continue
         groups.setdefault((st, g["kind"], g["room"]), []).append((t, g))
-    half, join = SIGHT_HALF.value, SIGHT_JOIN.value
+    edge = STAY_EDGE.value
+    # each stretch's sightings, any place: a window stops at the next
+    # sighting of somewhere else (the halfway cut does the rest)
+    marks_in = {}
     for (st, kind, room), gs in groups.items():
+        marks_in.setdefault(st, []).extend((t, (kind, room)) for t, _ in gs)
+    # the machines' stretches: a window stays inside the one its sighting
+    # is in -- out (an outing, the other campus) or in (27 Nov night: a
+    # smoke seen at 12:20 in an outing from 12:10 is not smoking from the
+    # desk at 12:00)
+    zones = sorted(outings + _cut(_ns_spans(m.get("inside")), lo, hi))
+
+    def zone_of(t):
+        return next(((a, b) for a, b in zones if a <= t <= b), None)
+    for (st, kind, room), gs in groups.items():
+        stay_here = stays(room)
+        half = (STAY_HALF if stay_here else PASS_HALF).value
+        join = (STAY_JOIN if stay_here else PASS_JOIN).value
+        prio = (_CAMPUS_SEEN if kind == "campus" else
+                _SEEN_OUTSIDE if kind in OUTSIDE_KINDS else _SEEN)
         stay = [gs[0]]
         for item in gs[1:] + [None]:
             if item is not None and item[0] - stay[-1][0] <= join:
@@ -430,10 +539,27 @@ def day_places(day, line, sightings=(), exits=(), machines=None):
             t0, tn = stay[0][0], stay[-1][0]
             how = "face" if any(g["how"] == "face" for _, g in stay) \
                 else "seen"
+            s, e = max(t0 - half, st[0]), min(tn + half, st[1])
+            if stay_here:
+                # on to the desk, where the desk is near (the walk there
+                # and back, and the pass that had not yet seen them go)
+                s = st[0] if s - st[0] <= edge else s
+                e = st[1] if st[1] - e <= edge else e
+            others = [t for t, k in marks_in.get(st, ())
+                      if k != (kind, room)]
+            s = max([s] + [t for t in others if t < t0])
+            e = min([e] + [t for t in others if t > tn])
+            z0, zn = zone_of(t0), zone_of(tn)
+            if z0 is not None:
+                s = max(s, z0[0])
+            if zn is not None:
+                e = min(e, zn[1])
+            if e <= s:
+                stay = [item] if item is not None else []
+                continue
             claims.append(_claim(
-                max(t0 - half, st[0]), min(tn + half, st[1]),
-                _SEEN_OUTSIDE if kind in OUTSIDE_KINDS else _SEEN, kind,
-                room, how, (t0, tn), [g.get("camera", "") for _, g in stay]))
+                s, e, prio, kind, room, how, (t0, tn),
+                [g.get("camera", "") for _, g in stay]))
             stay = [item] if item is not None else []
     # rule 5: out through the gate, until seen inside, the desk, or an IN
     if "gate" not in unsure:
@@ -570,12 +696,15 @@ def _num(x):
 
 def _cctv_rows(d):
     """people/sightings: {employee_id: [(time, room, recorder, channel,
-    score, margin)]}."""
+    score, margin, model)]} -- model "ada" / "sface", "" in the files from
+    before 27 Nov night (SFace's)."""
     out = {}
+    model = d["model"] if "model" in d else [""] * len(d)
     for row in zip(d["employee_id"], d["time"], d["room"], d["recorder"],
-                   d["channel"], d["score"], d["margin"]):
+                   d["channel"], d["score"], d["margin"], model):
         out.setdefault(row[0], []).append(
-            row[1:5] + (_num(row[5]), _num(row[6])))
+            row[1:5] + (_num(row[5]), _num(row[6]),
+                        row[7] if isinstance(row[7], str) else ""))
     return out
 
 
@@ -601,11 +730,13 @@ def _named_rows(d):
 
 
 def _gate_rows(d):
-    """people/entrance: {employee_id: [time]} of the named passages."""
+    """people/entrance: {employee_id: [(time, recorder)]} of the named
+    passages (Entry H's, and 141's turnstile's since 27 Nov)."""
     d = d[d["status"] == "named"]
     out = {}
-    for eid, t in zip(d["employee_id"], d["time"]):
-        out.setdefault(eid, []).append(t)
+    rec = d["recorder"] if "recorder" in d else [""] * len(d)
+    for eid, t, r in zip(d["employee_id"], d["time"], rec):
+        out.setdefault(eid, []).append((t, str(r or "")))
     return out
 
 
@@ -622,7 +753,8 @@ def _at(day, hms):
 _kinds = {}
 
 
-def _sighting(day, hms, room, recorder, channel, how, src, cams, own, plan):
+def _sighting(day, hms, room, recorder, channel, how, src, cams, own, plan,
+              home=None):
     t = _at(day, hms)
     if t is None:
         return None
@@ -631,46 +763,65 @@ def _sighting(day, hms, room, recorder, channel, how, src, cams, own, plan):
     except (TypeError, ValueError):
         ch = None
     room = str((cams or {}).get((recorder, ch), room) or room)
-    key = (room, own, id(plan))
+    # on the other campus's cameras: at the other campus (27 Nov night)
+    away = bool(home) and campus_of(recorder) != home
+    key = (room, own, id(plan), away)
     if key not in _kinds:
         if len(_kinds) > 4096:
             _kinds.clear()
-        _kinds[key] = kind_of(room, own, plan)
+        _kinds[key] = kind_of(room, own, plan, away)
     return {"t": t, "room": room, "kind": _kinds[key], "how": how,
             "src": src, "camera": "%s:%s" % (recorder, ch)}
 
 
+def cctv_files(day):
+    """The day's sightings files: the loop's, and those read again from the
+    recordings (places_replay.py) -- people/sightings[/replay]/<day>.csv."""
+    return [os.path.join(SIGHTINGS, day + ".csv"),
+            os.path.join(SIGHTINGS, REPLAY, day + ".csv")]
+
+
 def sightings_for(code, day, employee_id="", cams=None, plan=None, own=None,
-                  reviews=None, least=None, margin=None, possible=False):
+                  reviews=None, least=None, margin=None, possible=False,
+                  home=None, ada_least=None, ada_margin=None):
     """[{"t", "room", "kind", "how", "src", "camera"}], oldest first: where
     the employee was seen off the desk that day --
 
-      * src "cctv": a face on the campus cameras (people/sightings,
-        cctv_faces), at least `least` and clear of the next person by
-        `margin` (progress_data.CCTV_MIN, CCTV_MARGIN);
+      * src "cctv": a face on the campus cameras (people/sightings and its
+        replay/, cctv_faces), SFace's at least `least` and clear of the
+        next person by `margin` (progress_data.CCTV_MIN, CCTV_MARGIN),
+        AdaFace's at `ada_least` by `ada_margin` (ADA_MIN, ADA_MARGIN);
       * src "listed": their own rows (progress/<day>.csv, the listed
         employees): a face counts unless somebody said no on the tab; a
         body match only once somebody said yes (and at progress_data.
         SEEN_MIN) -- every "possible" with `possible` (for measuring only);
       * src "named": a sighting's picture a person said is them (people/
         sighting_names.csv).
-    cams: {(recorder, channel): room} (building.cameras) names the room."""
+    cams: {(recorder, channel): room} (building.cameras) names the room;
+    home: the employee's campus (home_of) -- a sighting on the other
+    campus's cameras is kind "campus"."""
     least = pdx.CCTV_MIN if least is None else least
     margin = pdx.CCTV_MARGIN if margin is None else margin
+    ada_least = ADA_MIN if ada_least is None else ada_least
+    ada_margin = ADA_MARGIN if ada_margin is None else ada_margin
     eid = str(employee_id or "")
     out = []
 
     def add(hms, room, recorder, channel, how, src):
         g = _sighting(day, hms, room, recorder, channel, how, src, cams,
-                      own, plan)
+                      own, plan, home)
         if g is not None:
             out.append(g)
     if eid:
-        rows = _indexed(os.path.join(SIGHTINGS, day + ".csv"), "cctv",
-                        _cctv_rows).get(eid) or []
-        for hms, room, rec, ch, score, mg in rows:
-            if score >= least and mg >= margin:
-                add(hms, room, rec, ch, "face", "cctv")
+        seen_at = set()
+        for path in cctv_files(day):
+            rows = _indexed(path, "cctv", _cctv_rows).get(eid) or []
+            for hms, room, rec, ch, score, mg, model in rows:
+                ok = (score >= ada_least and mg >= ada_margin) \
+                    if model == "ada" else (score >= least and mg >= margin)
+                if ok and (hms, rec, ch) not in seen_at:
+                    seen_at.add((hms, rec, ch))
+                    add(hms, room, rec, ch, "face", "cctv")
     if code:
         rows = _indexed(os.path.join(ACTIVITY, day + ".csv"), "listed",
                         _listed_rows).get(str(code)) or []
@@ -692,15 +843,39 @@ def sightings_for(code, day, employee_id="", cams=None, plan=None, own=None,
     return sorted(out, key=lambda g: g["t"])
 
 
-def exits_for(employee_id, day):
-    """[Timestamp]: the gate (entrance_watch, Entry H) named them on the way
-    out that day, oldest first."""
+def exits_for(employee_id, day, home=None):
+    """[Timestamp]: a gate (entrance_watch: Entry H, 141's turnstile) named
+    them on the way out that day, oldest first -- with `home`, their own
+    campus's gate only (the other's is a sighting there: gate_sightings)."""
     eid = str(employee_id or "")
     if not eid:
         return []
-    times = _indexed(os.path.join(GATE, day + ".csv"), "gate",
-                     _gate_rows).get(eid) or []
-    return sorted(t for t in (_at(day, x) for x in times) if t is not None)
+    rows = _indexed(os.path.join(GATE, day + ".csv"), "gate",
+                    _gate_rows).get(eid) or []
+    return sorted(t for t in (_at(day, x) for x, rec in rows
+                              if not home or campus_of(rec) == home)
+                  if t is not None)
+
+
+def gate_sightings(employee_id, day, home):
+    """The other campus's gate naming them (27 Nov night: 141's turnstile
+    for a 140-H employee, Entry H for a 141 one): sightings at the other
+    campus, a way through -- [{"t", "room", "kind": "campus", ...}]."""
+    eid = str(employee_id or "")
+    if not eid or not home:
+        return []
+    out = []
+    for x, rec in _indexed(os.path.join(GATE, day + ".csv"), "gate",
+                           _gate_rows).get(eid) or []:
+        t = _at(day, x)
+        if t is None or campus_of(rec) == home:
+            continue
+        # "entrance": a way through (place_of's words), a moment there
+        out.append({"t": t,
+                    "room": "%s entrance" % CAMPUS_NAME[campus_of(rec)],
+                    "kind": "campus", "how": "face", "src": "gate_away",
+                    "camera": "%s:gate" % rec})
+    return out
 
 
 _machines = {"data": None, "index": {}, "offsets": {}, "last": None,
@@ -798,21 +973,24 @@ def _other_campus(rows, campus):
     return [v for v in out if v[1] > v[0]]
 
 
-def machines_for(employee_id, day, data=None):
-    """What the attendance machines say of the employee's day at 140-H, on
-    the laptop's clock: {"first_in", "last_out", "inside": [(in, out)],
-    "outings": [(out, back)], "campus": [(from, to, "141-D")] (at the
-    other campus's machines), "ins": [IN punches], "known_until",
-    "offset_s"} -- None with no employee ID, no export, no punch that day,
-    or anything wrong (the page never stops for it). Punches before
-    MACHINE_FROM are the night's and left out; inside is cut where they
-    punched at the other campus, and at the export's last punch: after it
-    the machines say nothing."""
+def machines_for(employee_id, day, data=None, campus=None):
+    """What the attendance machines say of the employee's day at their own
+    campus (`campus`: the machines' place prefix, "140-H" -- the default,
+    attendance.CAMPUS -- or "141"), on the laptop's clock: {"first_in",
+    "last_out", "inside": [(in, out)], "outings": [(out, back)], "campus":
+    [(from, to, "141-D")] (at the other campus's machines), "ins": [IN
+    punches], "known_until", "offset_s"} -- None with no employee ID, no
+    export, no punch that day, or anything wrong (the page never stops for
+    it). Punches before MACHINE_FROM are the night's and left out; inside
+    is cut where they punched at the other campus, and at the export's last
+    punch: after it the machines say nothing. A day only at the other
+    campus's machines has its "campus" and nothing else."""
     eid = str(employee_id or "")
     if not eid:
         return None
     try:
         import attendance
+        here = campus or attendance.CAMPUS
         data = _export() if data is None else data
         if data is None or not len(data):
             return None
@@ -823,14 +1001,14 @@ def machines_for(employee_id, day, data=None):
             return None
         end = pd.Timestamp(day) + pd.Timedelta(days=1)
         first_in, last_out, inside, outings = punch_day(
-            rows, attendance.CAMPUS, attendance.BLIP, end)
-        if first_in is None and last_out is None:
-            return None
+            rows, here, attendance.BLIP, end)
         shift = pd.Timedelta(seconds=_offset(day, data))
+        away = [(a + shift, b + shift, where) for a, b, where
+                in _other_campus(rows, here)]
+        if first_in is None and last_out is None and not away:
+            return None
         last = _machines["last"]
         known = (end if last >= end else last) + shift
-        away = [(a + shift, b + shift, where) for a, b, where
-                in _other_campus(rows, attendance.CAMPUS)]
         cut = []
         for a, b in inside:
             a, b = a + shift, min(b + shift, known)
@@ -842,7 +1020,7 @@ def machines_for(employee_id, day, data=None):
                 "outings": [(a + shift, b + shift) for a, b in outings],
                 "campus": away,
                 "ins": [t + shift for t, k, p in rows if k == "in"
-                        and str(p).startswith(attendance.CAMPUS)],
+                        and str(p).startswith(here)],
                 "known_until": known,
                 "offset_s": shift.total_seconds()}
     except Exception:                                       # noqa: BLE001
@@ -892,13 +1070,16 @@ def for_person(person, day, employee_id=None, notes=None, passes=None,
         line = pdx.timeline(person, n, p)
     eid = str(employee_id or person.get("employee_id") or "")
     own = person.get("department")
+    home = home_of(person)
     cams = _cams() if cams is None else cams
     plan = _plan() if plan is None else plan
     sightings = sightings_for(person.get("code"), day, eid, cams, plan, own,
-                              **seen)
-    exits = [] if own in pdx.GATE_BLIND else exits_for(eid, day)
+                              home=home, **seen)
+    sightings += gate_sightings(eid, day, home)
+    exits = [] if own in pdx.GATE_BLIND else exits_for(eid, day, home)
     return day_places(day, line, sightings, exits,
-                      machines_for(eid, day) if machines else None)
+                      machines_for(eid, day, campus=home) if machines
+                      else None)
 
 
 def _round(totals):
@@ -958,17 +1139,19 @@ def _h(minutes):
 def overview(totals, least=3.0):
     """"8.1 h in the building: 5.2 h at the desk, 0.9 h meeting rooms, 0.6 h
     cafe, 1.4 h elsewhere in the building; 0.4 h out" -- in the building is
-    every kind but out and unknown; a kind under `least` minutes is left
-    out of the words, not of the sums."""
+    every kind but the other campus, out and unknown; a kind under `least`
+    minutes is left out of the words, not of the sums."""
     t = totals or {}
-    inside = ("desk", "meeting", "cafe", "smoking", "prayer", "inside")
+    inside = ("desk", "meeting", "cafe", "smoking", "prayer", "office",
+              "corridor", "inside")
     total = sum(float(t.get(k) or 0.0) for k in inside)
     parts = ["%s %s" % (_h(t.get(k)), SHORT[k]) for k in inside
              if float(t.get(k) or 0.0) >= least]
     text = "%s in the building" % _h(total)
     if parts:
         text += ": " + ", ".join(parts)
-    rest = ["%s %s" % (_h(t.get(k)), SHORT[k]) for k in ("out", "unknown")
+    rest = ["%s %s" % (_h(t.get(k)), SHORT[k])
+            for k in ("campus", "out", "unknown")
             if float(t.get(k) or 0.0) >= least]
     return text + ("; " + ", ".join(rest) if rest else "")
 
@@ -978,8 +1161,8 @@ def describe(segment):
     a, b, kind, name = segment[:4]
     where = LABEL.get(kind, kind)
     if name:
-        where = "in %s" % name if kind == "inside" else "%s (%s)" % (where,
-                                                                     name)
+        where = "in %s" % name if kind in ("inside", "office", "corridor") \
+            else "%s (%s)" % (where, name)
     return "from %s to %s %s" % (pd.Timestamp(a).strftime("%H:%M"),
                                  pd.Timestamp(b).strftime("%H:%M"), where)
 

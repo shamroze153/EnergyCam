@@ -88,13 +88,29 @@ def check_kinds():
                                               "Entry H (the gate, going out)",
                                               "140-H Entry Area")],
           ["out"] * 4)
-    check("a lobby, another office, their own room: inside, by name",
+    check("a lobby is a corridor; another office, their own room: another "
+          "room -- each by name, not 'place not seen'",
           [pl.kind_of(r, own="Wellows", plan=PLAN)
            for r in ("H Ground Floor Lobby", "Marketing", "Wellows")],
-          ["inside"] * 3)
+          ["corridor", "office", "office"])
     check("the kinds the report card draws, in its order", pl.KINDS,
-          ("desk", "meeting", "cafe", "smoking", "prayer", "inside", "out",
-           "unknown"))
+          ("desk", "meeting", "cafe", "smoking", "prayer", "campus",
+           "office", "corridor", "inside", "out", "unknown"))
+    # 27 Nov night: the other campus, whatever room of it
+    check("a room at the other campus is the other campus, its cafe too",
+          [pl.kind_of(r, plan=PLAN, away=True)
+           for r in ("141 Room 32 (2nd floor)", "141-C Cafe", "141-D Street")],
+          ["campus"] * 3)
+    check("each employee's campus by their desk's recorder",
+          (pl.home_of({"recorder": "cd_xvr1"}), pl.home_of({"recorder": "dvr2"}),
+           pl.campus_of("cd_nvr2"), pl.campus_of("nvr1")),
+          ("141", "140-H", "141", "140-H"))
+    check("where people stay, and the ways through",
+          [pl.stays(r) for r in ("Prompt Cafe", "Basement Meeting Room",
+                                 "Mosque", "Marketing", "H Ground Floor Lobby",
+                                 "140-H Reception", "H Street",
+                                 "141-C/D entrance")],
+          [True, True, True, True, False, False, False, False])
 
 
 def check_runs():
@@ -151,47 +167,80 @@ def check_day():
     check("away 80 minutes, none placed by a camera",
           (round(r["away_min"]), r["seen_min"]), (80, 0.0))
 
-    # one sighting in the cafe: five minutes either side
+    # one sighting in the cafe: ten minutes either side
     r = pl.day_places(DAY, line, [seen("12:30", "Prompt Cafe")],
                       machines=inside("09:50", "18:10"))
-    check("a sighting stands for five minutes either side of it",
-          kinds(r)[2:5], [("12:00", "12:25", "inside", ""),
-                          ("12:25", "12:35", "cafe", "Prompt Cafe"),
-                          ("12:35", "13:00", "inside", "")])
+    check("a sighting where people stay stands for ten minutes either side",
+          kinds(r)[2:5], [("12:00", "12:20", "inside", ""),
+                          ("12:20", "12:40", "cafe", "Prompt Cafe"),
+                          ("12:40", "13:00", "inside", "")])
     check("and the segment says what placed it",
           r["segments"][3][4], "face")
+    # 27 Nov night: on to the desk when the desk is near -- the walk there
+    # and back, and the pass that had not seen them go
+    r = pl.day_places(DAY, line, [seen("12:12", "Prompt Cafe")],
+                      machines=inside("09:50", "18:10"))
+    check("a stay reaches back to the desk when it is within 15 minutes",
+          kinds(r)[2:4], [("12:00", "12:22", "cafe", "Prompt Cafe"),
+                          ("12:22", "13:00", "inside", "")])
+    r = pl.day_places(DAY, line, [seen("12:15", "Prompt Cafe"),
+                                  seen("12:40", "Prompt Cafe")],
+                      machines=inside("09:50", "18:10"))
+    check("... and on to it: the whole time away is the cafe",
+          kinds(r)[2:4], [("12:00", "13:00", "cafe", "Prompt Cafe"),
+                          ("13:00", "18:00", "desk", "")])
+    r = pl.day_places(DAY, line, [seen("12:30", "H Ground Floor Lobby")],
+                      machines=inside("09:50", "18:10"))
+    check("a way through (a lobby) is a moment, three minutes either side",
+          kinds(r)[3], ("12:27", "12:33", "corridor", "H Ground Floor Lobby"))
     # a sighting near the desk is cut at the desk
     r = pl.day_places(DAY, line, [seen("12:02", "Pantry")],
                       machines=inside("09:50", "18:10"))
     check("a window is cut to the time away from the desk",
-          kinds(r)[2], ("12:00", "12:07", "cafe", "Pantry"))
+          kinds(r)[2], ("12:00", "12:12", "cafe", "Pantry"))
     # two sightings of one room 25 minutes apart, no desk between: one stay
-    r = pl.day_places(DAY, line, [seen("12:10", "Basement Meeting Room"),
-                                  seen("12:35", "Basement Meeting Room")],
+    long_ = watched(*(passes("10:00", "12:00")
+                      + passes("12:00", "14:00", "away")
+                      + passes("14:00", "18:00")))
+    r = pl.day_places(DAY, long_, [seen("12:40", "Basement Meeting Room"),
+                                   seen("13:05", "Basement Meeting Room")],
                       machines=inside("09:50", "18:10"))
-    check("two of one room up to half an hour apart are one stay",
-          kinds(r)[2:4], [("12:00", "12:05", "inside", ""),
-                          ("12:05", "12:40", "meeting",
+    check("two of one room up to 40 minutes apart are one stay",
+          kinds(r)[2:5], [("12:00", "12:30", "inside", ""),
+                          ("12:30", "13:15", "meeting",
+                           "Basement Meeting Room"),
+                          ("13:15", "14:00", "inside", "")])
+    r = pl.day_places(DAY, line, [seen("12:05", "Basement Meeting Room"),
+                                  seen("12:55", "Basement Meeting Room")],
+                      machines=inside("09:50", "18:10"))
+    check("50 minutes apart: two stays, the hour between not seen",
+          kinds(r)[2:5], [("12:00", "12:15", "meeting",
+                           "Basement Meeting Room"),
+                          ("12:15", "12:45", "inside", ""),
+                          ("12:45", "13:00", "meeting",
                            "Basement Meeting Room")])
     # but not across a pass at the desk
-    line2 = passes("10:00", "12:00") + passes("12:00", "12:20", "away") \
-        + passes("12:20", "12:30") + passes("12:30", "13:00", "away") \
-        + passes("13:00", "18:00")
+    line2 = passes("10:00", "12:00") + passes("12:00", "12:30", "away") \
+        + passes("12:30", "12:40") + passes("12:40", "13:30", "away") \
+        + passes("13:30", "18:00")
     r = pl.day_places(DAY, line2, [seen("12:10", "Basement Meeting Room"),
-                                   seen("12:40", "Basement Meeting Room")],
+                                   seen("13:15", "Basement Meeting Room")],
                       machines=inside("09:50", "18:10"))
     check("not across a pass at the desk between them",
           [k for k in kinds(r) if k[2] == "meeting"],
-          [("12:05", "12:15", "meeting", "Basement Meeting Room"),
-           ("12:35", "12:45", "meeting", "Basement Meeting Room")])
-    # two rooms whose windows meet: the nearer sighting has each minute
+          [("12:00", "12:30", "meeting", "Basement Meeting Room"),
+           ("13:05", "13:30", "meeting", "Basement Meeting Room")])
+    # two rooms whose windows meet: the nearer sighting has each minute,
+    # and a window stops at the next place seen
     r = pl.day_places(DAY, line, [seen("12:20", "Prompt Cafe"),
                                   seen("12:26", "H Ground Floor Lobby")],
                       machines=inside("09:50", "18:10"))
-    check("two rooms' windows meet halfway between their sightings",
-          kinds(r)[3:5], [("12:15", "12:23", "cafe", "Prompt Cafe"),
-                          ("12:23", "12:31", "inside",
-                           "H Ground Floor Lobby")])
+    check("two rooms' windows meet halfway between their sightings; the "
+          "cafe's stops where the lobby saw them",
+          kinds(r)[2:5], [("12:00", "12:23", "cafe", "Prompt Cafe"),
+                          ("12:23", "12:29", "corridor",
+                           "H Ground Floor Lobby"),
+                          ("12:29", "13:00", "inside", "")])
     # a sighting while the desk shows them sitting is not used
     r = pl.day_places(DAY, line, [seen("11:00", "Prompt Cafe")],
                       machines=inside("09:50", "18:10"))
@@ -212,21 +261,40 @@ def check_out():
                       machines=m)
     got = kinds(r)
     check("out through the machine and back: out, certain",
-          ("12:25", "13:00", "out", "") in got, True)
-    check("a sighting outside the building names where in the outing",
-          ("12:15", "12:25", "smoking", "H Smoking Area") in got, True)
+          ("12:30", "13:00", "out", "") in got, True)
+    check("a sighting outside the building names where in the outing -- "
+          "within the outing (not from the desk: the machine says inside)",
+          ("12:10", "12:30", "smoking", "H Smoking Area") in got, True)
     check("one inside during the outing is not used, and is counted",
           (r["totals"]["cafe"], r["conflicts"]["outing"]), (0.0, 1))
     check("before and after the outing, inside by the machines",
-          (got[2], got[6]), (("12:00", "12:10", "inside", ""),
+          (got[2], got[5]), (("12:00", "12:10", "inside", ""),
                              ("13:00", "13:30", "inside", "")))
-    # the other campus's machines
+    # the other campus's machines (27 Nov night: their own kind)
     m = inside("09:55", "18:05")
     m["campus"] = [(at("12:15"), at("12:50"), "141-D")]
     m["inside"] = [(at("09:55"), at("12:15")), (at("12:50"), at("18:05"))]
     r = pl.day_places(DAY, line, machines=m)
-    check("punches at 141-D are out of 140-H, named so",
-          ("12:15", "12:50", "out", "141-D") in kinds(r), True)
+    check("punches at 141-D are the other campus, named so",
+          ("12:15", "12:50", "campus", "141-D") in kinds(r), True)
+    m["outings"] = [(at("12:05"), at("12:55"))]       # out through 140-H too
+    r = pl.day_places(DAY, line, [seen("12:30", "141-C Cafe", kind="campus",
+                                       camera="cd_nvr1:14")], machines=m)
+    check("the other campus over the outing it is part of; its camera "
+          "names the room",
+          [k for k in kinds(r) if "12:00" <= k[0] < "13:00"],
+          [("12:00", "12:05", "inside", ""), ("12:05", "12:15", "out", ""),
+           ("12:15", "12:20", "campus", "141-D"),
+           ("12:20", "12:40", "campus", "141-C Cafe"),
+           ("12:40", "12:50", "campus", "141-D"),
+           ("12:50", "12:55", "out", ""), ("12:55", "13:30", "inside", "")])
+    r = pl.day_places(DAY, line, [seen("12:30", "141 Room 32 (2nd floor)",
+                                       kind="campus", camera="cd_nvr1:25")],
+                      machines=inside("09:55", "18:05"))
+    check("seen at the other campus with no punch there: the other campus, "
+          "a stay",
+          [k for k in kinds(r) if k[2] == "campus"],
+          [("12:20", "12:40", "campus", "141 Room 32 (2nd floor)")])
     # the gate: out from the passage until the next IN punch
     m = inside("09:55", "18:05")
     m["ins"] = [at("09:55"), at("12:50")]
@@ -239,8 +307,8 @@ def check_out():
                       exits=[at("12:05")], machines=inside("09:55", "18:05"))
     check("... or until seen inside again",
           [k for k in kinds(r) if k[2] in ("out", "cafe")],
-          [("12:05", "12:25", "out", ""),
-           ("12:25", "12:35", "cafe", "Prompt Cafe")])
+          [("12:05", "12:20", "out", ""),
+           ("12:20", "12:40", "cafe", "Prompt Cafe")])
     r = pl.day_places(DAY, line, exits=[at("12:05")])
     check("... or until back at the desk", [k for k in kinds(r)
                                              if k[2] == "out"],
@@ -282,8 +350,14 @@ def check_span():
     line = passes("10:00", "17:00")
     r = pl.day_places(DAY, line, [seen("09:30", "Prompt Cafe")])
     check("a sighting inside within an hour before the desk widens the day "
-          "to it", kinds(r)[:2], [("09:30", "09:35", "cafe", "Prompt Cafe"),
-                                  ("09:35", "10:00", "unknown", "")])
+          "to it", kinds(r)[:2], [("09:30", "09:40", "cafe", "Prompt Cafe"),
+                                  ("09:40", "10:00", "unknown", "")])
+    m = inside("11:00", "17:05")
+    m["campus"] = [(at("09:00"), at("10:55"), "141-D")]
+    r = pl.day_places(DAY, line, machines=m)
+    check("a morning at the other campus's machines starts the day",
+          kinds(r)[:2], [("09:00", "10:00", "campus", "141-D"),
+                         ("10:00", "17:00", "desk", "")])
     r = pl.day_places(DAY, line, [seen("17:40", "H Street")],
                       machines=inside("09:58", "17:05"))
     check("one outside after the last OUT does not: the way home",
@@ -321,11 +395,11 @@ def check_unsure():
     other = [dict(g, src="listed") for g in many[:1]] + many[3:]
     r = pl.day_places(DAY, line, other, machines=inside("09:55", "18:05"))
     check("one at the desk is a slip, the rest stand",
-          (r["unsure"], round(r["totals"]["cafe"])), ([], 10))
+          (r["unsure"], round(r["totals"]["cafe"])), ([], 20))
     named = [dict(g, src="named", how="seen") for g in many]
     r = pl.day_places(DAY, line, named, machines=inside("09:55", "18:05"))
     check("a picture a person named is never set aside",
-          (r["unsure"], round(r["totals"]["cafe"])), ([], 10))
+          (r["unsure"], round(r["totals"]["cafe"])), ([], 20))
     gate = [at("10:30"), at("11:00"), at("11:30"), at("12:10")]
     r = pl.day_places(DAY, line, exits=gate,
                       machines=inside("09:55", "18:05"))
@@ -374,6 +448,32 @@ def check_machines():
     check("an out-and-in within two minutes is the turnstile, no outing",
           [(a.strftime("%H:%M"), b.strftime("%H:%M")) for a, b in m["outings"]],
           [("12:02", "13:02")])
+    # 27 Nov night: a 141-C/D employee's own campus is 141's machines
+    pl._offset = lambda day, data: 120.0
+    try:
+        m = pl.machines_for("77", DAY, data=data, campus="141")
+    finally:
+        pl._offset = old
+    check("for a 141 employee the same punches read the other way round: "
+          "141-D's are theirs, 140-H's the other campus",
+          (m["first_in"].strftime("%H:%M"), m["last_out"].strftime("%H:%M"),
+           [(a.strftime("%H:%M"), b.strftime("%H:%M"), w)
+            for a, b, w in m["campus"]]),
+          ("12:12", "12:42", [("09:52", "12:12", "140-H"),
+                              ("13:02", "18:02", "140-H")]))
+    only = data[data["place"].str.startswith("141")]
+    pl._offset = lambda day, data: 0.0
+    pl._machines.update(data=None)
+    try:
+        m = pl.machines_for("77", DAY, data=only)
+    finally:
+        pl._offset = old
+        pl._machines.update(data=None)
+    check("a day only at the other campus's machines is that, nothing else",
+          (m["first_in"], m["inside"], [(a.strftime("%H:%M"),
+                                         b.strftime("%H:%M"), w)
+                                        for a, b, w in m["campus"]]),
+          (None, [], [("12:10", "12:40", "141-D")]))
     late = data[data["at"] <= at("12:30")]          # the export stops 12:30
     old = pl._offset
     pl._offset = lambda day, data: 0.0
@@ -440,7 +540,24 @@ def check_files():
                 "best", "score", "margin", "face_w"],
                [["13:10:00", "nvr1", 5, "named", "77", "77", 0.6, 0.2, 80],
                 ["13:20:00", "nvr1", 5, "unknown", "", "77", 0.4, 0.0, 80],
-                ["13:30:00", "nvr1", 5, "named", "88", "88", 0.6, 0.2, 80]])
+                ["13:30:00", "nvr1", 5, "named", "88", "88", 0.6, 0.2, 80],
+                ["13:40:00", "cd_nvr2", 6, "named", "77", "77", 0.6, 0.2,
+                 80]])
+        # 27 Nov night: AdaFace's rows (their own bar), and the sightings
+        # read again from the recordings (people/sightings/replay)
+        _write(os.path.join(pl.SIGHTINGS, "replay", DAY + ".csv"),
+               ["time", "employee_id", "room", "recorder", "channel",
+                "score", "margin", "model", "box_h", "quality"],
+               [["11:00:00", "99", "Prompt Cafe", "nvr4", 14, 0.47, 0.12,
+                 "ada", 300, 22.0],
+                ["11:05:00", "99", "Pantry", "nvr4", 16, 0.47, 0.12,
+                 "sface", 300, ""],
+                ["11:10:00", "99", "141-C Cafe", "cd_nvr1", 14, 0.60, 0.20,
+                 "ada", 300, 25.0],
+                ["11:15:00", "99", "Mosque", "nvr4", 6, 0.44, 0.30, "ada",
+                 300, 20.0]])
+        with open(os.path.join(pl.SIGHTINGS, DAY + ".csv"), "a") as fh:
+            fh.write("11:00:00,99,Prompt Cafe,nvr4,14,0.62,0.30\n")
         said = {("12:15:00", "P9", "Prompt Cafe"): "yes",
                 ("12:25:00", "P9", "Mosque"): "no"}
         g = pl.sightings_for("P9", DAY, "77", cams={("nvr4", 16): "Pantry"},
@@ -460,9 +577,27 @@ def check_files():
         check("for measuring, every possible body match",
               len(pl.sightings_for("P9", DAY, "77", plan=PLAN, reviews={},
                                    possible=True)), 6)
-        check("the gate: their named passages only",
-              [t.strftime("%H:%M") for t in pl.exits_for("77", DAY)],
+        check("the gate: their named passages only, their own campus's",
+              [t.strftime("%H:%M") for t in pl.exits_for("77", DAY,
+                                                         "140-H")],
               ["13:10"])
+        g = pl.gate_sightings("77", DAY, "140-H")
+        check("the other campus's turnstile naming them: a moment there",
+              [(x["t"].strftime("%H:%M"), x["room"], x["kind"],
+                pl.stays(x["room"])) for x in g],
+              [("13:40", "141-C/D entrance", "campus", False)])
+        g = pl.sightings_for(None, DAY, "99", cams={}, plan=PLAN, reviews={},
+                             home="140-H")
+        check("AdaFace's rows at its own bar (0.45 by 0.10), SFace's at "
+              "theirs; the replay's read too, the same look once; 141's "
+              "cameras are the other campus",
+              [(x["t"].strftime("%H:%M"), x["room"], x["kind"]) for x in g],
+              [("11:00", "Prompt Cafe", "cafe"),
+               ("11:10", "141-C Cafe", "campus")])
+        g = pl.sightings_for(None, DAY, "99", cams={}, plan=PLAN, reviews={},
+                             home="141")
+        check("for a 141 employee 141's cafe is the cafe, 140-H's the other "
+              "campus", [x["kind"] for x in g], ["campus", "cafe"])
         check("no employee ID, no faces and no gate -- their own rows only",
               ([x["src"] for x in pl.sightings_for("P9", DAY, "", plan=PLAN,
                                                    reviews={})],
@@ -506,8 +641,8 @@ def check_files():
         check("the meeting room, prayer, the cafe and the gate are in the "
               "day, in order",
               [s[2] for s in places["segments"]],
-              ["inside", "desk", "meeting", "inside", "prayer", "cafe",
-               "inside", "out", "desk", "inside"])
+              ["inside", "desk", "meeting", "prayer", "cafe", "inside",
+               "out", "desk", "inside"])
         check("where two rooms' windows meet, halfway between the sightings",
               [s[1].strftime("%H:%M:%S") for s in places["segments"]
                if s[2] == "prayer"], ["12:27:30"])
@@ -533,14 +668,75 @@ def check_words():
           pl.overview(t), "8.1 h in the building: 5.2 h at the desk, 0.9 h "
           "meeting rooms, 0.6 h cafe, 0.3 h smoking, 1.1 h elsewhere in the "
           "building; 0.4 h out")
+    check("the other campus, beside out",
+          pl.overview(dict(t, campus=54.0)).split("; ")[1],
+          "0.9 h at the other campus, 0.4 h out")
     check("a stretch in words",
           pl.describe((at("13:05"), at("13:40"), "cafe", "Prompt Cafe")),
           "from 13:05 to 13:40 in the cafe (Prompt Cafe)")
+    check("... at the other campus",
+          pl.describe((at("13:05"), at("13:40"), "campus", "141-D")),
+          "from 13:05 to 13:40 at the other campus (141-D)")
     check("inside, by name or not",
           (pl.describe((at("13:05"), at("13:40"), "inside", "Marketing")),
            pl.describe((at("13:05"), at("13:40"), "inside", ""))),
           ("from 13:05 to 13:40 in Marketing",
            "from 13:05 to 13:40 in the building, place not seen"))
+
+
+def check_report():
+    print("-- the report card's day: the cafe and the other campus")
+    import employee_report as er
+    day = "2026-11-24"
+    s = {"first_in": pd.Timestamp(day + " 10:00"),
+         "last_out": pd.Timestamp(day + " 19:00"), "inside_min": 480.0,
+         "closed": True,
+         "outings": [(pd.Timestamp(day + " 13:00"),
+                      pd.Timestamp(day + " 14:00"))]}
+    segs = [(pd.Timestamp(day + " 10:00"), pd.Timestamp(day + " 13:00"),
+             "desk", ""),
+            (pd.Timestamp(day + " 13:00"), pd.Timestamp(day + " 13:10"),
+             "out", ""),
+            (pd.Timestamp(day + " 13:10"), pd.Timestamp(day + " 14:00"),
+             "campus", "141-C Cafe"),
+            (pd.Timestamp(day + " 14:00"), pd.Timestamp(day + " 14:30"),
+             "cafe", "Prompt Cafe"),
+            (pd.Timestamp(day + " 14:30"), pd.Timestamp(day + " 14:40"),
+             "corridor", "H Ground Floor Lobby"),
+            (pd.Timestamp(day + " 14:40"), pd.Timestamp(day + " 19:00"),
+             "desk", "")]
+    tot = {"desk": 440.0, "cafe": 30.0, "campus": 50.0, "corridor": 10.0,
+           "out": 10.0}
+    e = {"eid": "77", "days": {day: s},
+         "board": {"history": [{"day": day, "desk_min": 440.0}],
+                   "places": {"day": day, "segments": segs, "totals": tot},
+                   "places_days": {day: tot}}}
+    a = er.allocation(e, day)
+    check("the day's cafe and other campus minutes", (a["cafe"], a["campus"]),
+          (30.0, 50.0))
+    check("the bar: the building by place, then the other campus out of "
+          "the hour out, the rest of it out",
+          er.shares(a), [("desk", 440.0), ("cafe", 30.0), ("corridor", 10.0),
+                         ("campus", 50.0), ("out", 10.0)])
+    a2 = dict(a, out=0.0)
+    check("no OUT punch on the way: the other campus comes out of the time "
+          "in", er.shares(a2), [("desk", 440.0), ("cafe", 30.0),
+                                ("corridor", 10.0), ("campus", 50.0)])
+    html = er.overview_html(e, day)
+    check("the card's figures: the cafe and the other campus, no 'None'",
+          ("<span>Cafe</span><b>30 min</b>" in html,
+           "<span>Other campus</span><b>50 min</b>" in html,
+           "<span>Out of the building</span><b>10 min</b>" in html,
+           "None" in html), (True, True, True, False))
+    stops = er.journey(e, day)
+    check("the day stop by stop names the other campus's room",
+          [(x["kind"], x["name"]) for x in stops][1:4],
+          [("out", "Out of the building"), ("campus", "141-C Cafe"),
+           ("cafe", "Prompt Cafe")])
+    check("every kind places_day gives has words and a colour on the card",
+          [k for k in pl.KINDS if k not in er.PLACE_LABEL
+           or k not in er.PLACE_COLOUR["light"]
+           or k not in er.PLACE_COLOUR["dark"]], [])
 
 
 def check_guarded():
@@ -588,6 +784,7 @@ def main():
     check_machines()
     check_files()
     check_words()
+    check_report()
     check_guarded()
     print()
     if FAILURES:
