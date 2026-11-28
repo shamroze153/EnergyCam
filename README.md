@@ -1,4 +1,9 @@
-# HFM Energy Saving Detection
+# HFM Energy Saving Detection (EnergyCam)
+
+> **Start here: [HANDOFF.md](HANDOFF.md) (28 Nov 2026).** It covers what EnergyCam is now (two
+> campuses, energy and AC, desks, presence, the Management Preview and 3D), what runs where, the numbers,
+> the known limits, what to do next, and a copy-paste prompt for the next Claude session. The rest of
+> this README describes the original October single-room system.
 
 Uses an existing office CCTV camera to spot a meeting room that is **empty while
 the AC is still on**. It emails an alert with a privacy-blurred snapshot and logs

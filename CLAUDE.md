@@ -4,6 +4,13 @@ Existing CCTV, used to see which rooms are empty while their air
 conditioners run, on two Disrupt campuses in Karachi. Owner: Shamroze.
 **Talk to him in short Roman Urdu, step by step, one command at a time.**
 
+**28 Nov 2026: a new session starts with `HANDOFF.md`.** It holds the state, the numbers, the next work
+in order and the prompt to continue. Then read `people/session_handoff/night_plan.md` (local) for what is
+approved and open. On 28 Nov the pages were renamed "Presence", not "Productivity", and the star became
+"fully observed". Each card now shows coverage minutes and why the rest was not seen
+(`productivity_view.coverage` / `not_seen`). The real 3D twin waits on Shamroze's Scaniverse scans and
+fire-exit plan photos in `twin_scans/` (git-ignored).
+
 ## What runs where
 
 * **The loop** — `room_loop.py`, started with `run_rooms.bat --evidence` in an
