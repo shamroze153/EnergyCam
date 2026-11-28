@@ -533,9 +533,17 @@ def day_shares(e, days=ACT_DAYS, minutes=False):
     their last days in the building by the machines -- whole days the board
     has a desk record for and the machines closed (every IN met an OUT).
     `minutes`: [(desk, placed, in the building)] in minutes instead."""
+    return [(desk, seen, inside) if minutes else
+            (desk / inside, seen / inside)
+            for _, desk, seen, inside, _ in _day_minutes(e, days)]
+
+
+def _day_minutes(e, days=ACT_DAYS):
+    """Each of their last whole machine days (see day_shares) as (day,
+    at the desk, placed by a camera, in the building, places_day's totals
+    or {}) in minutes."""
     p = e.get("board") or {}
     placed = p.get("places_days") or {}
-    out = []
     for h in [r for r in p.get("history") or []
               if r.get("desk_min") is not None][-days:]:
         day = h.get("day")
@@ -549,10 +557,44 @@ def day_shares(e, days=ACT_DAYS, minutes=False):
         other = sum(float(v or 0.0) for k, v in pl.items()
                     if k not in _NOT_PLACED)
         campus = max(0.0, float(pl.get("campus") or 0.0) - outside_min(s))
-        seen = min(inside, desk + other + campus)
-        out.append((min(inside, desk), seen, inside) if minutes else
-                   (min(1.0, desk / inside), seen / inside))
-    return out
+        yield (day, min(inside, desk), min(inside, desk + other + campus),
+               inside, pl)
+
+
+# Why the rest of their time in the building was not seen (28 Nov, the
+# master brief: "every not-seen case has a state/reason"), from what
+# places_day already tells apart -- in this order, each capped by what is
+# left: their desk camera watching an empty seat while the machines say
+# inside and no camera named them anywhere ("inside": a corridor, a
+# restroom, a room without a camera that reads faces); no watching at all
+# ("unknown": the desk camera or the loop down, or between passes); and
+# what no record covers.
+NOT_SEEN = (("desk_empty", "their desk seen empty and no other camera named "
+                           "them"),
+            ("unwatched", "not watched (the desk camera or the loop was "
+                          "down)"),
+            ("untracked", "on days before places were tracked (the desk "
+                          "only)"),
+            ("no_record", "no camera record of the time"))
+
+
+def not_seen(e, days=ACT_DAYS):
+    """The minutes of their time in the building that no camera placed, by
+    reason (NOT_SEEN), over the same days as coverage(): {reason:
+    minutes}, or None without a whole machine day."""
+    out, any_day = {k: 0.0 for k, _ in NOT_SEEN}, False
+    for _, _, seen, inside, pl in _day_minutes(e, days):
+        any_day = True
+        rest = max(0.0, inside - seen)
+        if not pl:                   # places_day had not the day (26 Nov on)
+            out["untracked"] += rest
+            continue
+        empty = min(rest, float(pl.get("inside") or 0.0))
+        unwatched = min(rest - empty, float(pl.get("unknown") or 0.0))
+        out["desk_empty"] += empty
+        out["unwatched"] += unwatched
+        out["no_record"] += rest - empty - unwatched
+    return out if any_day else None
 
 
 def desk_seen(e, days=ACT_DAYS):

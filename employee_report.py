@@ -1639,6 +1639,11 @@ def head_html(e, emps, now=None, hours=(10.0, 20.0), last_day=None,
                          span(cov["seen"]), span(cov["inside"]),
                          round(100.0 * cov["seen"] / cov["inside"]),
                          cov["days"], "" if cov["days"] == 1 else "s"))
+        reasons = prv.not_seen(e) or {}
+        parts = ["%s %s" % (span(reasons[k]), words)
+                 for k, words in prv.NOT_SEEN if reasons.get(k, 0) >= 1]
+        if parts:
+            measured += " &middot; not seen, why: %s" % "; ".join(parts)
 
     def tile(k, v, s):
         return ('<div class="ec-card ec-kpi"><div class="k">%s</div><div '

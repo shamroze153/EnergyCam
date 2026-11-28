@@ -2650,6 +2650,18 @@ def check_report_card():
           ("observed 9 h 40 min of 16 h in the building (60%, last 2 days)"
            in er.head_html(full_, emps, now_), prv0.coverage(half_)),
           (True, None))
+    # ... and why the rest was not seen, from places_day's kinds
+    why_ = dict(full_, board=dict(full_["board"], places_days={
+        d2_: {"desk": 280.0, "inside": 150.0, "unknown": 30.0}}))
+    check("  not seen, why: the desk seen empty, not watched, no record -- "
+          "adding up to the rest",
+          (prv0.not_seen(why_), "not seen, why: 2 h 30 min their desk seen "
+           "empty and no other camera named them; 30 min not watched"
+           in er.head_html(why_, emps, now_)),
+          # 20 Nov: 180 min, a day places_day had not; 24 Nov: 200 left,
+          # 150 desk empty, 30 not watched, 20 no record
+          ({"desk_empty": 150.0, "unwatched": 30.0, "untracked": 180.0,
+            "no_record": 20.0}, True))
     # a desk whose camera never sees a screen: activity cannot be told
     noscr_ = dict(full_, activity=None, board={"history": [
         {"day": d1_, "desk_pct": 0.6, "desk_min": 300, "computer_min": 0.0},
