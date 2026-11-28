@@ -22,6 +22,7 @@ face_sweep's full-size frames.
 import csv
 import glob
 import os
+import threading
 import time
 from datetime import datetime
 
@@ -251,17 +252,119 @@ def ada_refs(path=ADA_REFS):
 def ada_best(vec, ids, vecs, same=ADA_SAME, margin=ADA_MARGIN):
     """(employee_id, score, margin) when one AdaFace look is clearly one
     person's reference, else None."""
+    got = _ada_top(vec, ids, vecs)
+    if got is None:
+        return None
+    eid, top, second = got
+    if top < same or top - second < margin:
+        return None
+    return eid, top, top - second
+
+
+def ada_why(vec, ids, vecs, same=ADA_SAME, margin=ADA_MARGIN):
+    """Why an AdaFace look named nobody: "below_bar" (nobody's reference
+    near enough) or "ambiguous" (near enough, but too close to a second
+    person) -- for the face funnel; None where it would name somebody."""
+    got = _ada_top(vec, ids, vecs)
+    if got is None:
+        return "below_bar"
+    _, top, second = got
+    if top < same:
+        return "below_bar"
+    return "ambiguous" if top - second < margin else None
+
+
+def _ada_top(vec, ids, vecs):
     if vec is None or not len(ids):
         return None
     v = np.asarray(vec, np.float32)
     v = v / max(float(np.linalg.norm(v)), 1e-6)
     s = vecs @ v
     o = np.argsort(-s)
-    top = float(s[o[0]])
-    second = float(s[o[1]]) if len(o) > 1 else -1.0
-    if top < same or top - second < margin:
-        return None
-    return str(ids[o[0]]), top, top - second
+    return (str(ids[o[0]]), float(s[o[0]]),
+            float(s[o[1]]) if len(o) > 1 else -1.0)
+
+
+# ------------------------------------------------ the face funnel (28 Nov)
+#
+# ChatGPT's master brief, picked by Shamroze ("instrument every stage, find
+# exactly where observations disappear"): at 140-H about nine tenths of the
+# time nobody placed is a desk seen empty with no face named anywhere else,
+# and on 26-27 Nov the whole campus made 63-74 sightings a day. Each
+# camera's people away from a desk, counted at every step -- in the picture,
+# too small for a face, at a seat (seat_faces' job), no AdaFace seconds
+# left, no face found, nobody near enough, two too close, named, the same
+# person again within REPEAT, written -- as counts only (no picture, no
+# name, no face numbers): progress/face_funnel/<day>.csv, this laptop.
+FUNNEL = os.path.join("progress", "face_funnel")
+STAGES = ("people", "too_small", "at_seat", "no_budget", "no_face",
+          "below_bar", "ambiguous", "named", "repeat", "written")
+FLUSH_EVERY = 600.0       # s between writes of the day's file
+_funnel = {"day": None, "counts": {}, "flushed": 0.0, "folder": None}
+_funnel_lock = threading.Lock()
+
+
+def _funnel_file(day, folder=None):
+    return os.path.join(folder or _funnel["folder"] or FUNNEL, day + ".csv")
+
+
+def count(day, key, stage, n=1, folder=None):
+    """Add n to a camera's count of a funnel stage for the day (the day's
+    file read back first after a restart). Never raises."""
+    if n <= 0 or stage not in STAGES:
+        return
+    try:
+        with _funnel_lock:
+            if folder is not None:
+                _funnel["folder"] = folder
+            if _funnel["day"] != day:
+                _write_funnel()
+                _funnel.update(day=day, counts=_read_funnel(day))
+            c = _funnel["counts"].setdefault((str(key[0]), int(key[1])),
+                                             dict.fromkeys(STAGES, 0))
+            c[stage] += int(n)
+    except Exception:                                       # noqa: BLE001
+        pass
+
+
+def flush(force=False, now_s=None):
+    """Write the day's funnel file, at most every FLUSH_EVERY seconds
+    unless forced. Never raises."""
+    now_s = time.time() if now_s is None else now_s
+    try:
+        with _funnel_lock:
+            if force or now_s - _funnel["flushed"] >= FLUSH_EVERY:
+                _funnel["flushed"] = now_s
+                _write_funnel()
+    except Exception:                                       # noqa: BLE001
+        pass
+
+
+def _read_funnel(day):
+    out = {}
+    try:
+        with open(_funnel_file(day), newline="") as fh:
+            for r in csv.DictReader(fh):
+                out[(r["recorder"], int(r["channel"]))] = {
+                    s: int(r.get(s) or 0) for s in STAGES}
+    except (OSError, KeyError, ValueError):
+        pass
+    return out
+
+
+def _write_funnel():
+    day = _funnel["day"]
+    if not day or not _funnel["counts"]:
+        return
+    path = _funnel_file(day)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w", newline="") as fh:
+        w = csv.writer(fh)
+        w.writerow(("recorder", "channel") + STAGES)
+        for (rec, ch), c in sorted(_funnel["counts"].items()):
+            w.writerow((rec, ch) + tuple(c[s] for s in STAGES))
+    os.replace(tmp, path)
 
 
 def _ada_ok(now_s=None):
@@ -396,13 +499,21 @@ def _observe(room, key, frame, boxes, now, spots, out):
     # progress_track.candidates.
     office = place_of(room) == "office" or room in STAFFED
     n = 0
+    funnel = os.path.join(out, "face_funnel") if out else FUNNEL
+
+    def tally(stage, k=1):
+        count(day, key, stage, k, folder=funnel)
+    tall = sorted(boxes, key=lambda b: -_box_h(b))
+    tally("people", len(tall))
     # the tallest first: the clearest faces get AdaFace's seconds
-    for b in sorted(boxes, key=lambda b: -_box_h(b)):
+    for i, b in enumerate(tall):
         if _box_h(b) < MIN_BOX_H:
+            tally("too_small", len(tall) - i)
             break                        # the rest are smaller still
         if office and seat_faces.seat_of(b, spots, frame.shape[1]) is not None:
+            tally("at_seat")
             continue                     # somebody at a seat: seat_faces'
-        m, model, quality = None, "", None
+        m, model, quality, ada_vec = None, "", None, None
         if len(a_ids) and _ada_ok():
             # SCRFD finds the face, AdaFace reads it (faces.of_person_both)
             t0 = time.time()
@@ -410,27 +521,37 @@ def _observe(room, key, frame, boxes, now, spots, out):
             _ada_clock["spent"] += time.time() - t0
             v = got[0] if got is not None else None
             if got is not None and got[1] is not None:
+                ada_vec = got[1]
                 quality = float(np.linalg.norm(got[1]))
                 m = ada_best(got[1], a_ids, a_vecs)
                 model = "ada" if m is not None else ""
         else:
+            if len(a_ids):
+                tally("no_budget")
             v = faces.of_person(frame, b[:4])
         if m is None and v is not None and len(ids):
             m = best(v, ids, vecs)
             model = "sface" if m is not None else ""
         if m is None:
+            tally("no_face" if v is None and ada_vec is None else
+                  (ada_why(ada_vec, a_ids, a_vecs) or "below_bar")
+                  if ada_vec is not None else "below_bar")
             continue
+        tally("named")
         eid, score, margin = m
         k = (eid, key[0], int(key[1]))
         t = now.timestamp()
         if t - _seen.get(k, 0.0) < REPEAT:
+            tally("repeat")
             continue
         _seen[k] = t
         hms = now.strftime("%H:%M:%S")
         write(day, (hms, eid, room, key[0], int(key[1]), score, margin,
                     model, _box_h(b), quality), out)
         keep_picture(day, hms, key, eid, frame, b, out)
+        tally("written")
         n += 1
+    flush()
     return n
 
 

@@ -445,7 +445,28 @@ def check_ada_sightings():
         check("never the 141 gym", cf.observe(
             "141 Gym", ("cd_nvr2", 7), frame, [(100, 100, 200, 400, 0.9)],
             now=noon, spots=[], out=folder), 0)
+        # 28 Nov: the face funnel -- where each camera's faces are lost,
+        # counts only, in its own folder beside the sightings
+        faces.of_person_both = lambda frame, box: (
+            np.ones(128, np.float32) / np.sqrt(128), both)
+        cf.observe("140-H Cafe", ("nvr1", 3), frame,
+                   [(100, 100, 200, 400, 0.9), (300, 100, 330, 150, 0.8)],
+                   now=noon, spots=[], out=folder)
+        cf.flush(force=True)
+        import csv as _csv
+        with open(os.path.join(folder, "face_funnel", "2026-11-26.csv"),
+                  newline="") as fh:
+            row = [r for r in _csv.DictReader(fh)
+                   if (r["recorder"], r["channel"]) == ("nvr1", "3")][0]
+        check("the face funnel: 3 people, 1 too small, 1 two-way, 1 named "
+              "and written; the gym never counted",
+              tuple(int(row[s]) for s in ("people", "too_small", "ambiguous",
+                                          "named", "written")) + (
+                  "cd_nvr2" in open(os.path.join(
+                      folder, "face_funnel", "2026-11-26.csv")).read(),),
+              (3, 1, 1, 1, 1, False))
     finally:
+        cf._funnel.update(day=None, counts={}, flushed=0.0, folder=None)
         (cf.ada_refs, cf.load, faces.of_person_both, faces.available) = \
             saved[:4]
         cf._ada_clock.clear()
