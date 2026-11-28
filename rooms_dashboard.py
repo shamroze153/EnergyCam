@@ -6869,6 +6869,27 @@ def show_management(df, now):
             len(silent), "" if len(silent) == 1 else "s") if healthy
             else live_text),
     }
+    # The Experiment Lab: each room discovery's pilot, its baseline from
+    # the last seven days' ledgers (finished days: cached six hours)
+    history = {}
+    for back in range(1, 8):
+        start = midnight - pd.Timedelta(days=back)
+        try:
+            rows_d = cached_ledger_past(_iso(start),
+                                        _iso(start + pd.Timedelta(days=1)),
+                                        campus)
+        except psycopg2.Error:
+            rows_d = []
+        for r in rows_d:
+            history.setdefault(r.get("room"), []).append(
+                float(r.get("waste_rs") or 0.0))
+    nxt = local + pd.Timedelta(days=1)
+    if nxt.weekday() == 6:                    # not a Sunday
+        nxt += pd.Timedelta(days=1)
+    p["plans"] = mv.experiment_plans(
+        p["discoveries"], history,
+        {r["room"]: r.get("zone") for _, r in df.iterrows()},
+        nxt.strftime("%a %d %b"))
     solar = _solar_month(local) if campus == PROGRESS_CAMPUS else None
     if solar:
         p["green"] = {"label": "Solar This Month",
@@ -6918,6 +6939,7 @@ def show_management(df, now):
         e.markdown(mv.rooms_table(p), unsafe_allow_html=True)
         f.markdown(mv.savings(p), unsafe_allow_html=True)
         g.markdown(mv.trust(p), unsafe_allow_html=True)
+        st.markdown(mv.lab(p), unsafe_allow_html=True)
         st.markdown(mv.actions(p), unsafe_allow_html=True)
     if st.button("Lock Management Preview", key="mgmt_lock"):
         st.session_state["mgmt_in"] = False

@@ -115,6 +115,29 @@ def check_rules():
           ("waste", False))
 
 
+def check_lab():
+    print("-- the experiment lab: a pilot per room discovery, measured fairly")
+    ds = mv.discover([{"room": "140-H Meeting Room", "waste": True,
+                       "kw": 1.5, "counted": 1}], [], [], [], 67.0, str, {})
+    history = {"140-H Meeting Room": [300, 280, 320],
+               "140-H Board Room": [290, 310, 300],
+               "140-H Cafe": [50, 40, 60]}
+    zones = {"140-H Meeting Room": "Offices", "140-H Board Room": "Offices",
+             "140-H Cafe": "Cafe"}
+    plans = mv.experiment_plans(ds, history, zones, "Mon 30 Nov")
+    x = plans[0]
+    check("the room, its baseline, the nearest comparable room as control",
+          (x["room"], round(x["base"]), x["control"]),
+          ("140-H Meeting Room", 300, "140-H Board Room"))
+    page = mv.lab({"plans": plans})
+    check("hypothesis, guardrails, nothing switched automatically, no "
+          "stray %", ("Hypothesis" in page, "Guardrails" in page,
+                      "Nothing is switched automatically" in page,
+                      "%%" in page), (True, True, True, False))
+    check("no room discovery, no pilot -- said so",
+          "No room has cooled empty" in mv.lab({"plans": []}), True)
+
+
 def check_work():
     print("-- work patterns: team-level shares, no one ranked")
     hist = [{"day": "2026-11-26", "in_min": 480, "desk_min": 300,
@@ -177,6 +200,7 @@ def check_page():
 def main():
     check_twin()
     check_rules()
+    check_lab()
     check_work()
     check_page()
     print()

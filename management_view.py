@@ -532,11 +532,13 @@ def discoveries(p):
              '<span class="mp-tag%s">%s Impact</span></div><p>%s</p>'
              '<div class="sg">Suggestion:</div><p style="margin-top:2px">%s</p>'
              '<div class="ev">Evidence: %s &middot; confidence %s</div>'
-             '<a class="mp-btn" href="%s" target="_self">Inspect Evidence '
-             '&rarr;</a></div>'
+             '%s<a class="mp-btn ghost" href="%s" target="_self">Inspect '
+             'Evidence</a></div>'
              % (icon("bulb", "#fbbf24", 18), d["n"], tag, d["impact"],
                 d["text"], d["action"], d["evidence"], d["confidence"],
-                esc(d["url"])))
+                '<a class="mp-btn" href="#mp-lab" target="_self">Run Experiment'
+                ' &rarr;</a>' if d["kind"] in ("waste_now", "waste_today")
+                else "", esc(d["url"])))
     more = "".join(
         '<a class="mp-mini" href="%s" target="_self">%s<div><b>%s</b>%s</div>'
         '</a>' % (esc(x["url"]), icon(x.get("icon", "spark"), "#a78bfa", 18),
@@ -964,6 +966,99 @@ def team_rows(people, days=5, least=5):
     rows = [(k, 100.0 * v[0] / v[1], v[2]) for k, v in by.items()
             if v[2] >= least and v[1] > 0]
     return sorted(rows, key=lambda r: -r[1])
+
+
+# ---------------------------------------------------------- experiment lab
+def experiment_plans(discoveries, history, zone_of, start_label, most=2):
+    """A pilot for each of the top room discoveries (the brief's Experiment
+    Lab): the hypothesis, the room, its baseline from the last days'
+    ledger, a comparable room as a control (the same kind of zone, the
+    nearest baseline), the change, the guardrails, how it is measured, and
+    when it would count as a success. history: {room: [Rs a day of
+    cooling it empty, the last days]}. Nothing is switched by the system:
+    a person approves and does it."""
+    plans = []
+    rooms = [d for d in discoveries if d["kind"] in ("waste_now",
+                                                     "waste_today")]
+    seen = set()
+    for d in rooms:
+        room = d["title"].split(": ", 1)[-1]
+        if room in seen or len(plans) >= most:
+            continue
+        seen.add(room)
+        days = [v for v in history.get(room, []) if v is not None]
+        base = sum(days) / len(days) if days else None
+        others = [(r, sum(v for v in vs if v is not None) /
+                   max(1, len([v for v in vs if v is not None])))
+                  for r, vs in history.items()
+                  if r != room and any(v for v in vs if v)
+                  and zone_of.get(r) == zone_of.get(room)]
+        if not others:
+            others = [(r, sum(v for v in vs if v is not None) /
+                       max(1, len([v for v in vs if v is not None])))
+                      for r, vs in history.items()
+                      if r != room and any(v for v in vs if v)]
+        control = min(others, key=lambda o: abs(o[1] - (base or 0)))[0] \
+            if others and base else None
+        plans.append({
+            "n": d["n"], "room": room, "base": base, "days": len(days),
+            "control": control, "start": start_label,
+            "hypothesis": "Switching %s's AC off within 15 minutes of the "
+                          "room emptying cuts its cooling of an empty room by"
+                          " at least 40%%, with no comfort complaints."
+                          % esc(room),
+            "change": "The person nearest switches the unit off when the "
+                      "room empties (the page's AC alert says when); on at "
+                      "arrival as now.",
+            "measure": "Rs a day of cooling it empty, the pilot's 7 working "
+                       "days against its last %d days (baseline)%s -- the "
+                       "control's change taken out (difference-in-"
+                       "differences)." % (len(days), (" and against %s over "
+                                                      "the same days"
+                                                      % esc(control))
+                                          if control else ""),
+            "success": "Down 40% or more against the baseline while the "
+                       "control moves less than 15%; otherwise not proven.",
+            "guard": "Stop at the first complaint of heat, or if the room is "
+                     "booked while its unit is off. Nothing is switched "
+                     "automatically.",
+            "status": "suggested"})
+    return plans
+
+
+def lab(p):
+    plans = p.get("plans") or []
+    if not plans:
+        body = ('<div class="mp-note">No room has cooled empty enough today to '
+                'test a change on. A pilot is proposed here when one does.'
+                '</div>')
+    else:
+        body = "".join(
+            '<div class="mp-mini" style="flex-direction:column;align-items:'
+            'stretch;gap:6px"><div style="display:flex;justify-content:'
+            'space-between;gap:8px"><b>Pilot for Discovery #%03d: %s</b>'
+            '<span class="mp-tag med">%s</span></div><div><b style="color:'
+            '#7dd3fc">Hypothesis</b> %s</div><div><b style="color:#7dd3fc">'
+            'Baseline</b> %s</div><div><b style="color:#7dd3fc">Control</b> '
+            '%s</div><div><b style="color:#7dd3fc">Change</b> %s</div><div><b '
+            'style="color:#7dd3fc">Measured</b> %s</div><div><b style="color:'
+            '#7dd3fc">Success</b> %s</div><div><b style="color:#fbbf24">'
+            'Guardrails</b> %s</div><div class="mp-note" style="margin-top:2px">'
+            'Pilot: 7 working days from %s, once management approves.</div>'
+            '</div>'
+            % (x["n"], esc(x["room"]), x["status"].title(), x["hypothesis"],
+               ("&asymp; Rs %s a day of cooling it empty, the last %d days "
+                "(estimated as on Energy Insights)" % (_fmt(x["base"]),
+                                                       x["days"]))
+               if x["base"] is not None else "not enough days yet",
+               esc(x["control"]) if x["control"] else
+               "no comparable room yet (the room against its own baseline)",
+               x["change"], x["measure"], x["success"], x["guard"],
+               esc(x["start"])) for x in plans)
+    return ('<div class="mp"><div class="mp-card" id="mp-lab"><div class="mp-h">'
+            '<div class="t">%sExperiment Lab</div><span class="s">a test '
+            'before a saving is called real</span></div><div class="mp-more">'
+            '%s</div></div></div>' % (icon("chart", "#a78bfa", 22), body))
 
 
 # -------------------------------------------------------------- the 3D twin
