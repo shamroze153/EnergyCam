@@ -275,14 +275,19 @@ def ada_why(vec, ids, vecs, same=ADA_SAME, margin=ADA_MARGIN):
 
 
 def _ada_top(vec, ids, vecs):
+    """(best person, their score, the next PERSON's score). A person may
+    have several references (28 Nov: the directory photo and gate faces,
+    and their own desk's camera faces) -- they score by the best of them,
+    and the margin is to somebody else, never to their own other one."""
     if vec is None or not len(ids):
         return None
     v = np.asarray(vec, np.float32)
     v = v / max(float(np.linalg.norm(v)), 1e-6)
     s = vecs @ v
     o = np.argsort(-s)
-    return (str(ids[o[0]]), float(s[o[0]]),
-            float(s[o[1]]) if len(o) > 1 else -1.0)
+    top = str(ids[o[0]])
+    second = next((float(s[j]) for j in o[1:] if str(ids[j]) != top), -1.0)
+    return top, float(s[o[0]]), second
 
 
 # ------------------------------------------------ the face funnel (28 Nov)

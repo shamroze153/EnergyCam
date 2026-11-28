@@ -423,6 +423,18 @@ def check_ada_sightings():
           (cf.ada_best(near0 * 9.0, ids, R)[0],
            cf.ada_best(both, ids, R), cf.ada_best(None, ids, R)),
           ("00010", None, None))
+    # 28 Nov: a person may have several references (photo + gate, and their
+    # desk's camera faces): the best of them counts, and the margin is to
+    # the next PERSON, never to their own other reference
+    ids2 = np.array(["00010", "00010", "00011"])
+    R2 = np.zeros((3, 512), np.float32)
+    R2[0, 0] = R2[1, 2] = R2[2, 1] = 1.0
+    cam = np.zeros(512, np.float32)
+    cam[2], cam[1] = 0.9, 0.3                    # their desk face, not photo
+    check("several references a person: the best counts, the margin is to "
+          "somebody else", (cf.ada_best(cam, ids2, R2)[0],
+                            round(cf.ada_best(cam, ids2, R2)[2], 2)),
+          ("00010", 0.63))
     saved = (cf.ada_refs, cf.load, faces.of_person_both, faces.available,
              dict(cf._ada_clock), dict(cf._seen))
     folder = tempfile.mkdtemp()
