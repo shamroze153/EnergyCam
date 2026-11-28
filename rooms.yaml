@@ -1653,6 +1653,11 @@ rooms:
         - [252, 92, 292, 192]
       30:
         - [385, 10, 415, 60]
+      # 28 Nov 10:47 and 12:47 audits, GHOST both times: a blue tarp on the
+      # ledge beside the blue water tanks, top left, 0.54 every pass, 25x19
+      # px; a person standing there is taller than this box, still counted
+      32:
+        - [34, 118, 70, 147]
     note: >
       Five cameras on the roof. Nothing to switch off, but a person on the roof
       is a cleaning visit, and the date and time of one is a fact nobody
