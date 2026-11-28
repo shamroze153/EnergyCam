@@ -1410,7 +1410,7 @@ def locked(mode, why):
                   "line PROGRESS_PASSWORD=... in .env on the office laptop "
                   "(and in the app's secrets where it is hosted)."),
         "ask": ("Progress", "Private: the employees' time at their desks, "
-                "for the productivity project. Enter its own password."),
+                "for the presence project. Enter its own password."),
         "none": ("Progress has not reached this page yet.", "The office "
                  "laptop sends its numbers (never a name or a picture) every "
                  "five minutes, once an administrator has run "

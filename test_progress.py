@@ -2499,7 +2499,7 @@ def check_attendance():
     top_ = prv.summary_html("light", em_, ["2026-11-20", "2026-11-21"])
     tab2_ = prv.table_html("light", em_)
     check("  the page: figures, departments, the table, no camera picture",
-          ("Productivity &middot; 140-H" in top_, "Other One" in tab2_,
+          ("Presence &middot; 140-H" in top_, "Other One" in tab2_,
            "frames" in top_ + tab2_, "%%" in top_ + tab2_),
           (True, True, False, False))
     # 25 Nov night (Shamroze: "chhota banao"): four figures, then a flash
@@ -2640,10 +2640,16 @@ def check_report_card():
            prv0.STAR in er.emp_card(half_, 70.0)),
           (True, False, False, True, False))
     check("  the report card says complete, or what is not measured yet",
-          ("complete</b>" in er.head_html(full_, emps, now_),
+          ("fully observed</b>" in er.head_html(full_, emps, now_),
            "not measured yet: desk camera" in er.head_html(half_, emps,
                                                            now_)),
           (True, True))
+    # 28 Nov (the master brief): coverage with what it is of, neutral
+    check("  coverage on the card: minutes observed of the machines' "
+          "minutes, the window, the rest neutral",
+          ("observed 9 h 40 min of 16 h in the building (60%, last 2 days)"
+           in er.head_html(full_, emps, now_), prv0.coverage(half_)),
+          (True, None))
     # a desk whose camera never sees a screen: activity cannot be told
     noscr_ = dict(full_, activity=None, board={"history": [
         {"day": d1_, "desk_pct": 0.6, "desk_min": 300, "computer_min": 0.0},
@@ -2762,7 +2768,7 @@ def check_report_card():
     _top = _pv.top_html("light", _e, ["2026-11-24"], "now", 3, 0,
                         "141-C/D", "140-H")
     check("  its page says 141-C/D, its visitors from 140-H, no desk camera",
-          ("Productivity &middot; 141-C/D" in _top,
+          ("Presence &middot; 141-C/D" in _top,
            "from 140-H left out" in _top, "140-H&#x27;s" in _top,
            "none named here yet" in _top, _e[0]["campus"]),
           (True, True, False, True, "141-C/D"))
@@ -3005,8 +3011,8 @@ def check_report_card():
           "list to forget; each part of Progress drawn on its own",
           (src.index("\n_fresh_modules()") < src.index("\nimport overview"),
            "order = (" in fns["_fresh_modules"],
-           'guarded("Productivity", show_productivity_sent' in src,
-           'guarded("Productivity", show_productivity,' in src),
+           'guarded("Presence", show_productivity_sent' in src,
+           'guarded("Presence", show_productivity,' in src),
           (True, False, True, True))
     # the hosted page's own path: what the laptop sends, through JSON and
     # back (timestamps as text, tuples as lists), drawn part by part

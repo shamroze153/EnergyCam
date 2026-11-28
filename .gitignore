@@ -56,6 +56,14 @@ field_audit_*/
 field_audit_*.zip
 frames/*.zip
 
+# Phone scans of the campus for the 3D twin (Scaniverse etc., 28 Nov) and the
+# fire-exit plan photos: the inside of the offices, kept on this laptop only.
+twin_scans/
+*.ply
+*.spz
+*.glb
+*.splat
+
 # collect_pack.py output and the loop's pass log -- the pack holds unblurred
 # frames, and cycles.csv is this machine's own record.
 pack_*/

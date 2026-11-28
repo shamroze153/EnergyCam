@@ -732,7 +732,7 @@ def emp_card(e, avg, state=None):
             % (prv._photo(e), esc(e["name"]), prv.star_html(e),
                esc(e["role"] or e["dept"]),
                "%d" % p if p is not None else "-",
-               "workforce score" if crew else "productivity",
+               "workforce score" if crew else "presence",
                "group" if crew else "dept",
                "%d" % round(avg) if avg is not None else "-",
                p if p is not None else "-",
@@ -1622,12 +1622,23 @@ def head_html(e, emps, now=None, hours=(10.0, 20.0), last_day=None,
                           "so time on the computer is not told)",
                    "screen": " (no screen in the camera's view at this "
                              "desk, so time on the computer is not told)"}
-        measured += (' &middot; <b style="color:#d99a00">%s complete</b>: '
-                     'every part measured' % prv.STAR) + (
+        measured += (' &middot; <b style="color:#d99a00">%s fully observed'
+                     '</b>: every part measured' % prv.STAR) + (
             why_not.get(prv.activity_untold(e), "")
             if e.get("activity") is None else "")
     elif prv.missing(e):
         measured += " &middot; not measured yet: %s" % esc(prv.missing(e))
+    # 28 Nov (the master brief): coverage as a number with what it is of --
+    # minutes a camera placed them, of the machines' minutes in the
+    # building; the rest is "place not seen", neutral, never counted against
+    cov = prv.coverage(e)
+    if cov:
+        measured += (" &middot; observed %s of %s in the building (%d%%, "
+                     "last %d day%s); the rest is place not seen, which "
+                     "counts neither for nor against" % (
+                         span(cov["seen"]), span(cov["inside"]),
+                         round(100.0 * cov["seen"] / cov["inside"]),
+                         cov["days"], "" if cov["days"] == 1 else "s"))
 
     def tile(k, v, s):
         return ('<div class="ec-card ec-kpi"><div class="k">%s</div><div '
@@ -1640,7 +1651,7 @@ def head_html(e, emps, now=None, hours=(10.0, 20.0), last_day=None,
                                        e.get("of") or "-"),
              "working days")
     p = e.get("productivity")
-    word = "workforce score" if crew else "productivity"
+    word = "workforce score" if crew else "presence"
     return "".join([
         '<div class="ec pr">',
         '<div class="ec-card rc-head">%s<div><h3>%s%s</h3><p>%s</p>'

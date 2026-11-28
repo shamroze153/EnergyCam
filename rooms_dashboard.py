@@ -5827,7 +5827,7 @@ def productivity_section(mode, emps, days, made, visitors=0, now=None,
              "Staff": "workforce (%s)" % e["dept"]
              if e.get("staff") == "workforce" else "office",
              "Business unit": e["bu"],
-             "Productivity": e["productivity"], "Attendance": e["attendance"],
+             "Presence": e["productivity"], "Attendance": e["attendance"],
              "Desk": e["desk"], "Activity": e["activity"],
              "On the computer, % of desk time": round(e["act"]["computer"])
              if e["act"] else None,
@@ -5845,7 +5845,7 @@ def productivity_section(mode, emps, days, made, visitors=0, now=None,
             for e in sorted(emps, key=lambda e: (e["dept"],
                                                  -(e["productivity"] or 0)))]
     st.download_button(
-        "Download every employee's productivity (CSV)",
+        "Download every employee's presence (CSV)",
         pd.DataFrame(rows).to_csv(index=False).encode("utf-8-sig"),
         file_name="%s_productivity_%s_to_%s.csv" % (
             campus.replace("/", ""), days[0], days[-1])
@@ -6801,7 +6801,7 @@ def show_management(df, now):
             {"label": "Dashboard", "icon": "home", "on": True, "url": "#"},
             {"label": "Energy & AC", "icon": "bolt", "on": False,
              "url": view_url("Energy")},
-            {"label": "Productivity", "icon": "chart", "on": False,
+            {"label": "Presence", "icon": "chart", "on": False,
              "url": view_url("Progress")},
             {"label": "Digital Twin", "icon": "cube", "on": False,
              "url": "#mp-twin"},
@@ -7087,7 +7087,7 @@ def show_progress(now):
             del st.session_state[k]
         st.session_state["prod_campus"] = here
     if here != PROGRESS_CAMPUS:
-        guarded("Productivity", show_campus_progress, mode, here, hosted, now)
+        guarded("Presence", show_campus_progress, mode, here, hosted, now)
         if st.button("Lock Progress", key="progress_lock"):
             st.session_state["progress_in"] = False
             st.rerun()
@@ -7111,7 +7111,7 @@ def show_progress(now):
             return
         cfg, people, made, hours_sent = got
         # each part on its own: one that fails says so and the rest stands
-        guarded("Productivity", show_productivity_sent, mode,
+        guarded("Presence", show_productivity_sent, mode,
                 cfg.get("attendance"), not_141(people), hours_sent,
                 now.tz_convert(PKT))
         if st.toggle(PROGRESS_MORE, key="progress_more"):
@@ -7158,7 +7158,7 @@ def show_progress(now):
                 _to_5min(now).isoformat(), hours)
     day_key = kept[0]
     cfg, people = board_for(day_key)
-    guarded("Productivity", show_productivity, mode, not_141(people), hours,
+    guarded("Presence", show_productivity, mode, not_141(people), hours,
             local)
     more = st.toggle(PROGRESS_MORE, key="progress_more")
     tools = st.toggle(PROGRESS_TOOLS, key="progress_tools")

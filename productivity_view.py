@@ -388,7 +388,7 @@ def summary_html(mode, emps, days, made="", visitors=0):
         ("Employees scored", "%d" % n, "100%% of 140-H's employees%s" % (
             " &middot; %d from 141-D left out" % visitors if visitors
             else "")),
-        ("Productivity, average", "%d" % round(_mean(prod)) if prod else "-",
+        ("Presence, average", "%d" % round(_mean(prod)) if prod else "-",
          "of 100 &middot; attendance, desk, activity"),
         ("In the building, a day", "%.1f h" % (_mean([e["hours"] for e in emps])
                                                 or 0),
@@ -418,7 +418,7 @@ def summary_html(mode, emps, days, made="", visitors=0):
     top = sorted(with_desk, key=lambda e: -e["productivity"])[:8]
     return "".join([
         _styles(mode), '<div class="ec pr">',
-        '<div class="pr-hero"><div><h2>Productivity &middot; 140-H</h2><p>'
+        '<div class="pr-hero"><div><h2>Presence &middot; 140-H</h2><p>'
         'Every 140-H employee (most of their punches at its machines), %s to '
         '%s: time in the building from the attendance machines, and where a '
         'camera sees their own desk, the time at it and what went on there.'
@@ -430,7 +430,7 @@ def summary_html(mode, emps, days, made="", visitors=0):
             '<div class="ec-card ec-kpi"><div class="k">%s</div><div class="v">'
             '%s</div><div class="s">%s</div></div>' % (k, v, s)
             for k, v, s in tiles),
-        '<div class="pr-two"><div class="ec-card"><h4>Productivity score, '
+        '<div class="pr-two"><div class="ec-card"><h4>Presence score, '
         'every employee</h4><div class="pr-sub">employees per band of 10 '
         'points</div>%s</div>' % _bars(bins, ["%d" % (10 * i)
                                                for i in range(10)]),
@@ -448,15 +448,15 @@ def summary_html(mode, emps, days, made="", visitors=0):
                     '</span>' % (c, "1" if i == 0 else ".55" if i == 1
                                  else "1", lab, k)
                     for i, (c, k, lab) in enumerate(cov))),
-        '<div class="ec-h"><span class="t">Highest productivity, measured at '
+        '<div class="ec-h"><span class="t">Highest presence, measured at '
         'the desk too</span></div><div class="pr-top">%s</div>' % "".join(
             '<div class="ec-card">%s<div><b>%s</b><span>%s</span></div><em>%d'
             '</em></div>' % (_photo(e), esc(e["name"]), esc(e["dept"]),
                              e["productivity"]) for e in top),
-        (_group_table("Business units", "productivity averaged over each "
+        (_group_table("Business units", "presence averaged over each "
                       "business unit's employees", "Business unit", units)
          if len(units) > 1 else ""),
-        _group_table("Departments", "productivity averaged over each "
+        _group_table("Departments", "presence averaged over each "
                      "department's employees", "Department", dept),
         '</div>'])
 
@@ -528,10 +528,11 @@ def outside_min(s):
     return tot
 
 
-def day_shares(e, days=ACT_DAYS):
+def day_shares(e, days=ACT_DAYS, minutes=False):
     """[(at the desk, placed by a camera)] as shares (0-1) of each of
     their last days in the building by the machines -- whole days the board
-    has a desk record for and the machines closed (every IN met an OUT)."""
+    has a desk record for and the machines closed (every IN met an OUT).
+    `minutes`: [(desk, placed, in the building)] in minutes instead."""
     p = e.get("board") or {}
     placed = p.get("places_days") or {}
     out = []
@@ -548,8 +549,9 @@ def day_shares(e, days=ACT_DAYS):
         other = sum(float(v or 0.0) for k, v in pl.items()
                     if k not in _NOT_PLACED)
         campus = max(0.0, float(pl.get("campus") or 0.0) - outside_min(s))
-        out.append((min(1.0, desk / inside),
-                    min(1.0, (desk + other + campus) / inside)))
+        seen = min(inside, desk + other + campus)
+        out.append((min(inside, desk), seen, inside) if minutes else
+                   (min(1.0, desk / inside), seen / inside))
     return out
 
 
@@ -571,6 +573,17 @@ def day_seen(e, days=ACT_DAYS):
     over their last days (0-1), or None without a whole machine day."""
     sh = day_shares(e, days)
     return sum(b for _, b in sh) / len(sh) if sh else None
+
+
+def coverage(e, days=ACT_DAYS):
+    """Observation coverage over their last whole machine days, as
+    minutes (28 Nov, the master brief: "display numerator, denominator,
+    time window"): {"seen", "inside", "days"} or None."""
+    sh = day_shares(e, days, minutes=True)
+    if not sh:
+        return None
+    return {"seen": sum(s for _, s, _ in sh),
+            "inside": sum(i for _, _, i in sh), "days": len(sh)}
 
 
 def complete(e):
@@ -620,7 +633,7 @@ def missing(e):
 
 def star_html(e):
     """The gold star beside a complete employee's name, else nothing."""
-    return ('<span title="Complete: attendance, desk camera and desk '
+    return ('<span title="Fully observed: attendance, desk camera and desk '
             'activity measured, and the cameras placed them for at least '
             'half of their time in the building" aria-label="complete" '
             'style="color:'
@@ -644,7 +657,7 @@ def top_html(mode, emps, days, made="", visitors=0, crew=0, campus="140-H",
     c = esc(campus)
     return "".join([
         _styles(mode), '<div class="ec pr">',
-        '<div class="pr-hero sm"><div><h2>Productivity &middot; %s</h2>'
+        '<div class="pr-hero sm"><div><h2>Presence &middot; %s</h2>'
         '<p><b>Open a department, then a person, for their report card.'
         '</b> %s to %s &middot; %s</p></div><span class="pr-badge">'
         '%s</span></div>' % (
@@ -662,7 +675,7 @@ def top_html(mode, emps, days, made="", visitors=0, crew=0, campus="140-H",
                 " &middot; %d visitors from %s left out" % (visitors,
                                                             esc(other))
                 if visitors else "")),
-            ("Productivity, average", "%d" % round(prod) if prod is not None
+            ("Presence, average", "%d" % round(prod) if prod is not None
              else "-", "of 100"),
             ("Departments", "%d" % n_dept, "open one for its people"),
             ("Desks seen by camera", "%d" % n_desk,
@@ -684,7 +697,7 @@ def dept_cards(emps):
         out.append((name, es,
                     '<div class="ec pr"><div class="ec-card pr-dc"><div '
                     'class="nm" title="%s">%s</div><div class="row"><b>%s</b>'
-                    '<span>productivity</span></div><div class="bar"><i '
+                    '<span>presence</span></div><div class="bar"><i '
                     'style="width:%d%%"></i></div><div class="ct"><b>%d</b> '
                     'employee%s monitored &middot; %d desk%s by camera</div>'
                     '</div></div>'
@@ -707,11 +720,11 @@ def dept_head_html(mode, name, es, emps):
     return "".join([
         _styles(mode), '<div class="ec pr">',
         '<div class="pr-hero sm"><div><h2>%s</h2><p>%d employee%s monitored'
-        ' &middot; highest productivity first &middot; click a person for '
+        ' &middot; highest presence first &middot; click a person for '
         'their profile</p></div></div>' % (esc(name), len(es),
                                            "" if len(es) == 1 else "s"),
         _kpis([
-            ("Productivity", "%d" % round(p) if p is not None else "-",
+            ("Presence", "%d" % round(p) if p is not None else "-",
              "%s average %s" % (esc((es[0].get("campus") if es else None)
                                     or "140-H"),
                                 "%d" % round(allp) if allp is not None
@@ -754,10 +767,10 @@ def dept_table_html(mode, es):
     return "".join([
         _styles(mode), '<div class="ec pr"><div class="ec-card pr-wrap '
         'pr-dt"><table><thead><tr><th>#</th><th></th><th class="l">Employee'
-        '</th><th class="l">Productivity</th><th>Attendance</th><th>Desk</th>'
+        '</th><th class="l">Presence</th><th>Attendance</th><th>Desk</th>'
         '<th>Activity</th><th>Days in</th><th>Usual in&ndash;out</th><th>'
         'In the building</th></tr></thead><tbody>%s</tbody></table></div>'
-        '<div class="pr-note">Productivity = attendance 40%%, desk 40%%, '
+        '<div class="pr-note">Presence = attendance 40%%, desk 40%%, '
         'desk activity 20%%; &ndash; where a part is not measured (its '
         'weight goes to the others).</div></div>' % "".join(rows)])
 
@@ -791,7 +804,7 @@ def group_rows(emps, key):
 def _group_table(title, sub, first, rows):
     return ('<div class="ec-h"><span class="t">%s</span><span class="c">%s'
             '</span></div><div class="ec-card"><table><thead><tr><th class="l">'
-            '%s</th><th>Employees</th><th class="l">Productivity</th>'
+            '%s</th><th>Employees</th><th class="l">Presence</th>'
             '<th>Attendance</th><th>Desk</th><th>In the building</th>'
             '<th>Desk in a camera</th></tr></thead><tbody>%s</tbody></table>'
             '</div>' % (title, sub, first, "".join(r for _, _, r in rows)))
@@ -865,7 +878,7 @@ def profile_html(mode, e, emps):
         _styles(mode, _PF_CSS), '<div class="ec pr">',
         '<div class="ec-card pf-head">%s<div><h3>%s</h3><p>%s</p><p class="m">'
         '%s &middot; %s &middot; ID %s</p></div><div class="pf-big"><b>%s</b>'
-        '<span>productivity</span></div></div>'
+        '<span>presence</span></div></div>'
         % (_photo(e), esc(e["name"]), esc(e["role"]), esc(e["dept"]),
            esc(e["bu"]), esc(str(e["id"])), e["productivity"]
            if e["productivity"] is not None else "-"),
@@ -882,7 +895,7 @@ def profile_html(mode, e, emps):
                esc(e.get("campus") or "140-H"),
                "%d" % round(all_avg) if all_avg is not None else "-")),
         '<div class="pr-two"><div class="ec-card"><h4>%s with colleagues in '
-        '%s</h4><div class="pr-sub">productivity, highest first &mdash; '
+        '%s</h4><div class="pr-sub">presence, highest first &mdash; '
         'theirs marked</div><div class="pf-bars">%s</div></div>'
         % (esc(e["name"].split(" ")[0]), esc(e["dept"]), "".join(bars)),
         '<div class="ec-card"><h4>Every day by the attendance machines</h4>'
@@ -963,10 +976,10 @@ def table_html(mode, emps, dept=None):
     return "".join([
         _styles(mode), '<div class="ec pr"><div class="ec-card pr-wrap">'
         '<table><thead><tr><th></th><th class="l">Employee</th><th class="l">'
-        'Productivity</th><th>Attendance</th><th>Desk</th><th>Activity</th>'
+        'Presence</th><th>Attendance</th><th>Desk</th><th>Activity</th>'
         '<th>Days in</th><th>Usual in&ndash;out</th><th class="l">Measured by'
         '</th></tr></thead><tbody>%s</tbody></table></div>' % "".join(body),
-        '<div class="pr-note"><b>Productivity</b> = attendance 40%, desk '
+        '<div class="pr-note"><b>Presence</b> = attendance 40%, desk '
         '40%, desk activity 20%; a part not measured gives its weight to '
         'the others &mdash; a desk no camera sees leaves the attendance score '
         'alone. <b>Attendance</b> (the machines): hours in the building of a '
