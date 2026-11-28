@@ -245,6 +245,42 @@ def main():
               and 'href="?campus=Test"' in page)
         check("%s: nothing reads None or nan" % theme,
               not re.search(r">\s*(None|nan|NaT)\s*<", page))
+        # 28 Nov: the staff in by the attendance machines, by department
+        import productivity_view as _prv
+        T_ = pd.Timestamp
+        rows_ = [
+            {"eid": "1", "designation": "Engineer", "department": "Tech",
+             "days": {"2026-11-27": {"first_in": T_("2026-11-27 10:00"),
+                                     "closed": False, "outings": []}}},
+            {"eid": "2", "designation": "Janitorial Staff",
+             "department": "Admin",
+             "days": {"2026-11-27": {"first_in": T_("2026-11-27 12:00"),
+                                     "closed": False}}},
+            {"eid": "3", "designation": "Analyst", "department": "Finance",
+             "days": {"2026-11-27": {"first_in": T_("2026-11-27 09:30"),
+                                     "last_out": T_("2026-11-27 13:00"),
+                                     "closed": True}}},
+            # in at 10, usual out 18:00, no OUT: gone by 21:00's punch
+            {"eid": "4", "designation": "Engineer", "department": "Tech",
+             "usual_out": 18.0,
+             "days": {"2026-11-27": {"first_in": T_("2026-11-27 10:00"),
+                                     "closed": False}}},
+            {"eid": "5", "designation": "Guard", "department": "Admin",
+             "days": {"2026-11-27": {"first_in": T_("2026-11-27 20:00"),
+                                     "last_out": T_("2026-11-27 21:00"),
+                                     "closed": True}}}]
+        pres = _prv.present_now(rows_, "2026-11-27")
+        check("%s: present by the machines -- an open IN, the workforce "
+              "apart, never one who has punched out" % theme,
+              (pres["in"], pres["workforce"], pres["depts"])
+              == (2, 1, [("Tech", 1)]), pres)
+        page2 = ov.welcome([s], theme, "<svg></svg>", "live", True,
+                           "Wednesday", base, presence={"Test": dict(
+                               pres, in_=0)})
+        check("%s: the campus card says the staff in by department, "
+              "workforce apart" % theme,
+              "By the attendance machines" in page2 and "Tech <b>1</b>"
+              in page2 and "workforce <b>1</b>" in page2)
         body = ov.campus_body(s, theme, {"campus": "Test", "theme": None})
         check("%s: a room chip opens that room on this campus" % theme,
               'href="?campus=Test&amp;room=SW+Room+1#roomdetail"' in body

@@ -5305,6 +5305,50 @@ def front_figures(name):
         stake_note=stake_caveat(list(paid["room"])), live=healthy)
 
 
+@st.cache_data(ttl=300, show_spinner=False)
+def cached_presence(bucket, day):
+    """{campus name: productivity_view.present_now(...)} -- the staff in by
+    the attendance machines, workforce apart and by department, for the
+    front door (28 Nov, Shamroze: "kaun se department mein kitne log office
+    mein maujood hain"). Counts only. The laptop reads its own export; the
+    hosted page the rows the laptop sent (progress_days "_attendance" and
+    "_attendance_141"). {} when there are none; never raises."""
+    import json as _json
+    import productivity_view as prv
+    import progress_data
+    try:
+        if os.path.exists(progress_data.CONFIG):
+            import attendance
+            import desks_data
+            roster = {attendance.code(r["employee_id"]): r
+                      for r in desks_data.load_roster()}
+            return {name: prv.present_now(attendance.summary(prefix), day,
+                                          roster)
+                    for name, prefix in (("140-H", "140-H"),
+                                         ("141-C/D", "141"))}
+        conn = psycopg2.connect(DATABASE_URL, sslmode=DB_SSLMODE,
+                                connect_timeout=10)
+        try:
+            cur = conn.cursor()
+            cur.execute("SELECT code, payload FROM progress_days WHERE day ="
+                        " (SELECT max(day) FROM progress_days) AND code IN"
+                        " ('_attendance', '_attendance_141')")
+            got = dict(cur.fetchall())
+            cur.close()
+        finally:
+            conn.close()
+        out = {}
+        for name, code in (("140-H", "_attendance"),
+                           ("141-C/D", "_attendance_141")):
+            p = got.get(code)
+            if isinstance(p, str):
+                p = _json.loads(p)
+            out[name] = prv.present_now((p or {}).get("rows"), day)
+        return out
+    except Exception:                                       # noqa: BLE001
+        return {}
+
+
 if campus is None:
     if st.query_params.get("only") == "actimes":
         # ---- one click from the front door: every room's AC timings -------
@@ -5319,9 +5363,14 @@ if campus is None:
     # ---- the front door: both campuses, each a way in --------------------
     # st.markdown, not st.html: st.html sanitises every SVG away, which
     # took the charts, the strips and the company mark with it.
+    _pk = now.tz_convert(PKT)
     st.markdown(overview.welcome([front_figures(c) for c in campuses], mode,
                                  wordmark(mode), live_text, healthy, when,
-                                 dict(LINK_BASE, campus=None)),
+                                 dict(LINK_BASE, campus=None),
+                                 presence=cached_presence(
+                                     _pk.strftime("%Y-%m-%d %H:")
+                                     + "%02d" % (_pk.minute // 5 * 5),
+                                     _pk.strftime("%Y-%m-%d"))),
                 unsafe_allow_html=True)
     # Under the people and the campuses (Shamroze, 13 Nov).
     st.markdown(ac_timings_button(mode), unsafe_allow_html=True)

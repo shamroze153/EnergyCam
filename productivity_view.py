@@ -673,6 +673,76 @@ def missing(e):
     return ", ".join(out)
 
 
+def _when(x):
+    """A punch time as a datetime (a pandas Timestamp is one), or None."""
+    if x is None or x != x:
+        return None
+    if isinstance(x, str):
+        try:
+            return datetime.fromisoformat(x)
+        except ValueError:
+            return None
+    return x if isinstance(x, datetime) else None
+
+
+STILL_IN_H = 2.0          # hours past their usual day an open IN still counts
+
+
+def present_now(rows, day, roster=None):
+    """Who is in the building now by the attendance machines -- an IN
+    today with no OUT after it -- counted, never named (28 Nov, Shamroze:
+    on the front door, of the people in, "itne workforce staff ... itne is
+    department ke"): {"in", "workforce", "office", "depts": [(department,
+    n)] most first, "as_of": the day's latest punch} or None without a
+    punch that day. rows: attendance.summary's (or the hosted copy, which
+    carries designation and department itself); roster: {eid: directory
+    row} where the rows do not."""
+    roster = roster or {}
+    depts, n, crew, last = defaultdict(int), 0, 0, None
+    for r in rows or []:
+        s = (r.get("days") or {}).get(day) or {}
+        for k in ("first_in", "last_out"):
+            t = _when(s.get(k))
+            if t is not None and (last is None or t > last):
+                last = t
+    for r in rows or []:
+        s = (r.get("days") or {}).get(day) or {}
+        if s.get("first_in") is None or s.get("closed", True):
+            continue
+        # Many never punch OUT on the way home, often after punching back
+        # IN from a break (27 Nov, 141: 92 "still in" at 23:57, the last
+        # IN at 21:22 or 22:49). At the machines' latest punch an open IN
+        # counts while their usual leaving time (and an hour) has not
+        # passed, or while it is under STILL_IN_H old; without a usual
+        # leaving time, while under a day (9 h) and STILL_IN_H old.
+        back = [_when(o[1]) for o in s.get("outings") or [] if len(o) > 1]
+        ins = [t for t in back + [_when(s.get("first_in"))] if t is not None]
+        if last is not None and ins:
+            age_h = (last - max(ins)).total_seconds() / 3600.0
+            try:
+                usual_out = float(r.get("usual_out"))
+            except (TypeError, ValueError):
+                usual_out = None
+            if usual_out is not None and usual_out == usual_out:
+                keep = (last.hour + last.minute / 60.0 <= usual_out + 1.0
+                        or age_h <= STILL_IN_H)
+            else:
+                keep = age_h <= 9.0 + STILL_IN_H
+            if not keep:
+                continue
+        who = roster.get(r.get("eid")) or r
+        n += 1
+        if crew_group(who.get("designation")):
+            crew += 1
+        else:
+            depts[who.get("department") or "Other"] += 1
+    if last is None:
+        return None
+    return {"in": n, "workforce": crew, "office": n - crew,
+            "depts": sorted(depts.items(), key=lambda kv: (-kv[1], kv[0])),
+            "as_of": last}
+
+
 def star_html(e):
     """The gold star beside a complete employee's name, else nothing."""
     return ('<span title="Fully observed: attendance, desk camera and desk '

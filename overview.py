@@ -794,8 +794,32 @@ def greeting(now):
             else "Good evening" if 17 <= h < 21 else "Good night")
 
 
-def welcome(summaries, theme, mark, live_text, healthy, when, base):
-    """Both campuses, side by side, each a door into its own page."""
+def presence_line(p, most=6):
+    """A campus's staff in now by the attendance machines, in one line:
+    workforce apart, then each department's count (counts only, never a
+    name), and how fresh the machines' figures are. "" without them."""
+    if not p:
+        return ""
+    depts = p.get("depts") or []
+    shown = ["%s <b>%d</b>" % (esc(d), k) for d, k in depts[:most]]
+    if len(depts) > most:
+        shown.append("+%d more" % sum(k for _, k in depts[most:]))
+    as_of = p.get("as_of")
+    when = ("last punch %s" % clock(as_of)) if as_of is not None else ""
+    return ('<div style="font-size:.86em;color:var(--t2);margin:6px 0 2px;'
+            'line-height:1.5">By the attendance machines%s: <b>%d</b> staff in'
+            ' &middot; workforce <b>%d</b> &middot; office <b>%d</b>%s</div>'
+            % (" (%s)" % when if when else "", p.get("in", 0),
+               p.get("workforce", 0), p.get("office", 0),
+               ("<br>" + " &middot; ".join(shown)) if shown else ""))
+
+
+def welcome(summaries, theme, mark, live_text, healthy, when, base,
+            presence=None):
+    """Both campuses, side by side, each a door into its own page.
+    presence: {campus name: productivity_view.present_now(...)} -- the
+    staff in by the attendance machines, by department (28 Nov)."""
+    presence = presence or {}
     t = TOKENS[theme]
     everyone = sum(s["inside_now"] for s in summaries)
     busy = sum(s["rooms_busy"] for s in summaries)
@@ -828,7 +852,7 @@ def welcome(summaries, theme, mark, live_text, healthy, when, base):
             '</span></div>'
             '<div class="ec-big"><span class="n">%d</span><span class="l">in '
             'the office</span><span class="o">%d outside · not counted'
-            '</span></div>%s'
+            '</span></div>%s%s'
             '<div class="ec-stats">'
             '<div class="ec-stat"><div class="k">First in</div><div class="v">'
             '%s</div><div class="s">%s</div></div>'
@@ -841,7 +865,7 @@ def welcome(summaries, theme, mark, live_text, healthy, when, base):
             '<div class="ec-foot">%s<span class="sp"></span><span>%s at stake '
             'today</span></div></a>'
             % (link(base, campus=s["name"]), esc(s["name"]), s["inside_now"],
-               s["outside_now"],
+               s["outside_now"], presence_line(presence.get(s["name"])),
                area_chart(s, t, height=74, compact=True, outside=False,
                           tariff=None),
                clock(s["first_in"]), esc(s["first_who"] or "nobody yet"),
