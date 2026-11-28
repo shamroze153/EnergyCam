@@ -1234,6 +1234,7 @@ def check_cctv_faces():
                  ("H Smoking Area", ("nvr1", 12))])
     grabbed, looked = [], []
     fs._state.update(at=0.0, i=0, slow=1.0)
+    fs._yield.update(at=float("inf"), got={})   # no replays: kinds decide
     when = _dt(2026, 11, 24, 13, 0, tzinfo=pt.PKT)
     n1 = fs.step(rooms_, None, lambda r, k: grabbed.append(k) or 1,
                  lambda r, k, f: looked.append(k), now=when, clock=lambda: 100.0)

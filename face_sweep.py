@@ -26,7 +26,10 @@ the bigger picture (PASS_SIZE, which examine() fills).
 
     step(rooms, grab_main, look) -- from room_loop's pulse(), never raises.
 """
+import csv
+import os
 import time
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import nullcontext
 from datetime import datetime
@@ -50,15 +53,76 @@ _state = {"at": 0.0, "i": 0, "slow": 1.0}
 _read = {}               # (recorder, channel): when last read at full size
 
 
-def cameras(rooms, is_main=None):
+# 28 Nov (a holiday: Shamroze, "kal parso ki recording dekh kar kaam karo"):
+# the full-size replays of the recordings (places_replay.py) say how often
+# each camera gives a named face. On 26 Nov, 70 looks each: the Basement
+# Meeting Room 69, the 140-H Entry Area 22, the Prompt Cafe 13-20 a camera
+# -- and 34 of 97 cameras none at all. The round gave every camera the same
+# minutes (the cafe/meeting kinds twice), so a third went on cameras that
+# never name anybody. Where the replays have looked at a camera enough
+# (YIELD_MIN_LOOKS), its sightings a look decide how often the round reads
+# it: three times from YIELD_HIGH, twice from YIELD_SOME, else once; where
+# they have not, its kind does, as before. The same cameras, the same
+# seconds -- only their order and repeats change.
+REPLAY = os.path.join("people", "sightings", "replay")
+YIELD_DAYS = 7
+YIELD_MIN_LOOKS = 30
+YIELD_HIGH = 0.25
+YIELD_SOME = 0.10
+_yield = {"at": -1e18, "got": {}}
+
+
+def yields(folder=REPLAY, now_s=None, every=3600.0):
+    """{(recorder, channel): (sightings, looks)} over the last YIELD_DAYS
+    days of full-size replays (places_replay's <day>.csv and
+    <day>_done.csv), read again hourly; {} where there are none."""
+    now_s = time.time() if now_s is None else now_s
+    if now_s - _yield["at"] < every:
+        return _yield["got"]
+    _yield["at"] = now_s
+    looks, hits = Counter(), Counter()
+    try:
+        days = sorted(f[:10] for f in os.listdir(folder)
+                      if f.endswith("_done.csv"))[-YIELD_DAYS:]
+        for d in days:
+            with open(os.path.join(folder, d + "_done.csv"),
+                      newline="") as fh:
+                for r in csv.reader(fh):
+                    if len(r) >= 2 and ":" in r[1]:
+                        rec, ch = r[1].rsplit(":", 1)
+                        looks[(rec, int(ch))] += 1
+            path = os.path.join(folder, d + ".csv")
+            if os.path.exists(path):
+                with open(path, newline="") as fh:
+                    for r in csv.DictReader(fh):
+                        hits[(r["recorder"], int(r["channel"]))] += 1
+    except (OSError, ValueError, KeyError):
+        pass
+    _yield["got"] = {k: (hits[k], n) for k, n in looks.items()}
+    return _yield["got"]
+
+
+def weight(key, kind, seen):
+    """How many times a round reads the camera: by its replays' sightings
+    a look where they have looked enough, else by its kind."""
+    h, n = (seen or {}).get(key, (0, 0))
+    if n >= YIELD_MIN_LOOKS:
+        y = h / float(n)
+        return 3 if y >= YIELD_HIGH else 2 if y >= YIELD_SOME else 1
+    return 2 if kind in FIRST else 1
+
+
+def cameras(rooms, is_main=None, seen=None):
     """[(room, key)] to read at full size: the rooms the pass reads at sub
     stream that are places people go, the cafe, meeting rooms, smoking and
-    prayer twice in the round. is_main(room, recorder name):
-    room_loop.wants_main, the one place that decides a stream."""
+    prayer twice in the round -- or, with `seen` (yields()), each camera
+    as often as weight() says, the most giving first. is_main(room,
+    recorder name): room_loop.wants_main, the one place that decides a
+    stream."""
     import progress_data as pdx
     is_main = is_main or (lambda room, rec: getattr(room, "stream", None)
                           == "main")
-    first, rest = [], []
+    first, rest, kinds = [], [], {}
     for room in rooms:
         if any(w in str(room.name).lower() for w in NEVER):
             continue
@@ -70,7 +134,13 @@ def cameras(rooms, is_main=None):
             if key[0] not in CAMPUS or is_main(room, key[0]):
                 continue
             (first if kind in FIRST else rest).append((room, key))
-    return first + rest + first
+            kinds[key] = kind
+    if not seen:
+        return first + rest + first
+    w = {key: weight(key, kinds[key], seen) for _, key in first + rest}
+    order = sorted(first + rest, key=lambda rk: -w[rk[1]])
+    return (order + [rk for rk in order if w[rk[1]] >= 2]
+            + [rk for rk in order if w[rk[1]] >= 3])
 
 
 def empty_lately(room, key, t):
@@ -117,7 +187,7 @@ def _step(rooms, is_main, grab_main, look, now, clock, muffle):
     if t - _state["at"] < EVERY * _state["slow"]:
         return 0
     _state["at"] = t
-    cams = cameras(rooms, is_main)
+    cams = cameras(rooms, is_main, seen=yields())
     if not cams:
         return 0
     batch, _state["i"] = pick(cams, _state["i"] % len(cams), t)

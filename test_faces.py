@@ -589,6 +589,32 @@ def check_face_sweep():
                  ("141-C Cafe", ("cd_nvr1", 14)),
                  ("141 MR 01 (1st floor)", ("cd_nvr1", 9)),
                  ("Prompt Cafe Gate", ("nvr4", 30))])
+    # 28 Nov: where the replays have looked enough, a camera's sightings a
+    # look decide how often the round reads it; elsewhere its kind does
+    seen = {("nvr4", 30): (25, 70),        # 0.36 a look: three times
+            ("cd_nvr1", 14): (0, 70),      # a cafe that never names: once
+            ("cd_nvr1", 4): (8, 70)}       # 0.11: twice; MR 01 unknown: kind
+    cams = [k for _, k in fs.cameras(rooms, seen=seen)]
+    check("the replays' yield orders the round: the giving camera three "
+          "times, a silent cafe once, the unread meeting room by its kind",
+          (cams.count(("nvr4", 30)), cams.count(("cd_nvr1", 14)),
+           cams.count(("cd_nvr1", 4)), cams.count(("cd_nvr1", 9)), cams[0],
+           ("cd_nvr2", 7) in cams), (3, 1, 2, 2, ("nvr4", 30), False))
+    import shutil as _sh
+    import tempfile as _tf
+    rp = _tf.mkdtemp()
+    try:
+        with open(os.path.join(rp, "2026-11-26_done.csv"), "w") as fh:
+            fh.write("09:30:00,nvr4:30\n09:35:00,nvr4:30\n09:35:00,nvr1:5\n")
+        with open(os.path.join(rp, "2026-11-26.csv"), "w") as fh:
+            fh.write("time,employee_id,room,recorder,channel\n"
+                     "09:30:00,00010,Prompt Cafe Gate,nvr4,30\n")
+        check("yields() counts each camera's looks and sightings from the "
+              "replay files", fs.yields(rp, now_s=5e9),
+              {("nvr4", 30): (1, 2), ("nvr1", 5): (0, 1)})
+    finally:
+        fs._yield.update(at=-1e18, got={})
+        _sh.rmtree(rp)
     saved = dict(fs._read)
     try:
         fs._read.clear()
