@@ -267,6 +267,16 @@ def units_needed(people, per, count):
         p = max(0, int(people or 0))
     except (TypeError, ValueError):
         p = 0
+    # 28 Nov (the hosted One room page, opened from the Management Preview's
+    # "Inspect evidence": "ValueError" -- a room's people-per-unit came as
+    # NaN, and round(NaN) cannot be an int): no usable figure, no claim --
+    # the room is taken to need every unit it has, so nothing is "over".
+    try:
+        per = float(per)
+    except (TypeError, ValueError):
+        per = float("nan")
+    if per != per or per <= 0 or per == float("inf"):
+        return count
     return min(count, -(-p // int(max(1, round(per)))) + 1)
 
 

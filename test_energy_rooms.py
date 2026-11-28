@@ -137,6 +137,12 @@ def main():
     check("units_needed: never more than the room has, one spare",
           (er.units_needed(0, 5, 6), er.units_needed(13, 5, 6),
            er.units_needed(40, 5, 6)), (1, 4, 6))
+    # 28 Nov: the hosted One room page broke on a NaN people-per-unit
+    check("  no usable people-per-unit (NaN, None, 0, text): every unit "
+          "needed, never an error",
+          (er.units_needed(13, float("nan"), 6), er.units_needed(13, None, 6),
+           er.units_needed(13, 0, 6), er.units_needed(13, "x", 6),
+           er.units_needed(float("nan"), 5, 6)), (6, 6, 6, 6, 1))
     check("rooms_week: nothing to show is empty", er.rooms_week("light", []),
           "")
 
