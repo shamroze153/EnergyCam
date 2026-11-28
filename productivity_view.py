@@ -678,6 +678,8 @@ def _when(x):
     if x is None or x != x:
         return None
     if isinstance(x, str):
+        if x.startswith("ts:"):      # the hosted copy (progress_data._jsonable)
+            x = x[3:]
         try:
             return datetime.fromisoformat(x)
         except ValueError:

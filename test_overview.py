@@ -274,6 +274,13 @@ def main():
               "apart, never one who has punched out" % theme,
               (pres["in"], pres["workforce"], pres["depts"])
               == (2, 1, [("Tech", 1)]), pres)
+        # the hosted copy carries times as "ts:<iso>" (28 Nov: the phone's
+        # front door showed no line -- every time read as None)
+        import progress_data as _pdx
+        sent_ = _pdx._jsonable(rows_)
+        check("%s: the hosted copy (times as ts:...) counts the same" % theme,
+              _prv.present_now(sent_, "2026-11-27") == pres,
+              _prv.present_now(sent_, "2026-11-27"))
         page2 = ov.welcome([s], theme, "<svg></svg>", "live", True,
                            "Wednesday", base, presence={"Test": dict(
                                pres, in_=0)})
