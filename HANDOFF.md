@@ -162,6 +162,13 @@ These are in full in `CLAUDE.md`.
 
    Measure before and after with `productivity_view.not_seen` summed over each campus. Never lower the
    face thresholds just to cut "not seen".
+
+   Since 28 Nov 14:12 the loop writes a **face funnel**, `progress/face_funnel/<day>.csv` (local). Per
+   camera it counts the people away from desks lost at each step: too small, at a seat, no face, below
+   the bar, two people too close, named, written. In the first 11 minutes, on a Saturday, 110 people gave
+   51 too small, 21 no face, 12 below the bar and 1 named. On a weekday, sum it per camera. Where "too
+   small" leads on the 640x360 sub-stream cameras (nvr1, nvr4), move those cameras into `face_sweep`'s
+   main-stream rotation, then compare sightings written per day.
 2. **Real 3D twin, one floor first: the 140-H ground floor.** Shamroze will bring:
    * photos of the fire-exit plans, every floor;
    * **Scaniverse** scans (Android, processed on the phone), taken with the office empty;
