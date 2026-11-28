@@ -2622,10 +2622,13 @@ def check_report_card():
           (True, True, True, True, True, False, False, False, True))
     # 27 Nov (Shamroze): a star on the cards of those measured completely
     import productivity_view as prv0
+    # (by["5"] is in the building 11:30-19:30 by the machines: 480 min)
+    d1_, d2_ = "2026-11-20", "2026-11-24"
     full_ = dict(by["5"], attendance=80, desk=70, activity=60,
                  staff="office", board={"history": [
-                     {"desk_pct": 0.6, "desk_min": 300, "computer_min": 200},
-                     {"desk_pct": 0.5, "desk_min": 280,
+                     {"day": d1_, "desk_pct": 0.6, "desk_min": 300,
+                      "computer_min": 200},
+                     {"day": d2_, "desk_pct": 0.5, "desk_min": 280,
                       "computer_min": 150}]})
     half_ = dict(by["5"], attendance=80, desk=None, activity=None,
                  staff="office")
@@ -2643,24 +2646,46 @@ def check_report_card():
           (True, True))
     # a desk whose camera never sees a screen: activity cannot be told
     noscr_ = dict(full_, activity=None, board={"history": [
-        {"desk_pct": 0.6, "desk_min": 300, "computer_min": 0.0},
-        {"desk_pct": 0.5, "desk_min": 280, "computer_min": 0.0}]})
+        {"day": d1_, "desk_pct": 0.6, "desk_min": 300, "computer_min": 0.0},
+        {"day": d2_, "desk_pct": 0.5, "desk_min": 280,
+         "computer_min": 0.0}]})
     unread_ = dict(full_, activity=None, board={"history": [
-        {"desk_pct": 0.6, "desk_min": 300, "computer_min": None}]})
+        {"day": d2_, "desk_pct": 0.6, "desk_min": 300,
+         "computer_min": None}]})
     # 27 Nov night: a desk showing them 13% of their day -- no star
     rarely_ = dict(full_, board={"history": [
-        {"desk_pct": 0.13, "desk_min": 74, "computer_min": 48}]})
+        {"day": d2_, "desk_pct": 0.13, "desk_min": 62, "computer_min": 48}]})
     check("  no star where the desk shows them under 30% of their day",
           (prv0.complete(rarely_), "13%" in prv0.missing(rarely_),
            "being checked" in er.head_html(rarely_, emps, now_)),
           (False, True, True))
+    # 28 Nov ("8 hour nazar hi nahi aya ... bs 1 hour"): the shares are of
+    # the machines' time in the building, not the camera's first-to-last
+    # sighting -- seen 12:00-13:00 only was "100% at the desk"
+    hour_ = dict(full_, board={"history": [
+        {"day": d2_, "desk_pct": 1.0, "desk_min": 60, "computer_min": 40}]})
+    check("  1 hour at the desk of 8 in the building: no star, whatever "
+          "the camera's own first-to-last says",
+          (prv0.complete(hour_), round(100 * prv0.desk_seen(hour_))),
+          (False, 12))
+    # ... and the cameras must place them for half of it
+    half_seen_ = dict(full_, board={"history": [
+        {"day": d2_, "desk_pct": 0.9, "desk_min": 200, "computer_min": 150}]})
+    met_ = dict(half_seen_, board=dict(half_seen_["board"], places_days={
+        d2_: {"desk": 200.0, "meeting": 60.0, "inside": 220.0}}))
+    check("  placed under half their day: no star, said; a meeting room "
+          "seen makes it up",
+          (prv0.complete(half_seen_), "placed them for 42%" in prv0.missing(
+              half_seen_), round(100 * prv0.day_seen(met_)),
+           prv0.complete(met_)), (False, True, 54, True))
     check("  complete too where no screen is in view; not where unread",
           (prv0.complete(noscr_), prv0.complete(unread_),
            prv0.missing(unread_), "not told" in er.head_html(noscr_, emps,
                                                              now_)),
           (True, False, "desk activity (not read yet)", True))
     lowres_ = dict(unread_, board={"recorder": "nvr4", "history": [
-        {"desk_pct": 0.6, "desk_min": 300, "computer_min": None}]})
+        {"day": d2_, "desk_pct": 0.6, "desk_min": 300,
+         "computer_min": None}]})
     check("  and at a desk whose camera is read at low resolution (nvr4)",
           (prv0.complete(lowres_), "low resolution" in er.head_html(
               lowres_, emps, now_)), (True, True))

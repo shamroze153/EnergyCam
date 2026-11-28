@@ -479,6 +479,10 @@ rooms:
     ignore:
       5:
         - [685, 90, 940, 530]      # through the doorway, the next room
+        # 28 Nov 09:07 audit GHOST: an orange plastic chair stored in the
+        # bottom corner with a gold balloon and a ladder, read as a person
+        # at 0.47-0.48 every pass; nobody sits in the battery room
+        - [1030, 900, 1240, 1080]
     note: >
       Battery life falls off sharply with temperature. Cooling here is not
       discretionary.

@@ -502,29 +502,92 @@ def activity_untold(e):
 # the star -- far less, and the desk named for them is in doubt (on 26 Nov
 # the desk-camera staff were at their desks 55% of it; 9 under 30%).
 DESK_SEEN_MIN = 0.30
+# 28 Nov (Shamroze, again on a starred card: "8 hour nazar hi nahi aya ...
+# bs 1 hour"): both shares are now of their time in the building BY THE
+# MACHINES. The board's desk_pct is of the camera's own first-to-last
+# sighting, so somebody seen at their desk only from 12:00 to 13:00 was
+# "100% at the desk". And the cameras must place them -- the desk, meeting
+# rooms, the cafe, the other campus ... -- for at least half that time.
+# On 28 Nov this kept 38 of 70 stars at 140-H and 11 of 32 at 141-C/D.
+SEEN_MIN = 0.50
+DAY_MIN = 120.0           # a day shorter than this in the building: skipped
+_NOT_PLACED = ("inside", "out", "unknown", "campus", "desk")
+
+
+def outside_min(s):
+    """Minutes out of the building between a day's first IN and last OUT
+    (the machines' outings)."""
+    tot = 0.0
+    for o in s.get("outings") or []:
+        try:
+            a, b = (datetime.fromisoformat(x) if isinstance(x, str) else x
+                    for x in o[:2])
+            tot += max(0.0, (b - a).total_seconds() / 60.0)
+        except (TypeError, ValueError, AttributeError):
+            continue
+    return tot
+
+
+def day_shares(e, days=ACT_DAYS):
+    """[(at the desk, placed by a camera)] as shares (0-1) of each of
+    their last days in the building by the machines -- whole days the board
+    has a desk record for and the machines closed (every IN met an OUT)."""
+    p = e.get("board") or {}
+    placed = p.get("places_days") or {}
+    out = []
+    for h in [r for r in p.get("history") or []
+              if r.get("desk_min") is not None][-days:]:
+        day = h.get("day")
+        s = (e.get("days") or {}).get(day) or {}
+        inside = float(s.get("inside_min") or 0.0)
+        if day == e.get("_cut") or not s.get("closed", True) \
+                or inside < DAY_MIN:
+            continue
+        pl = placed.get(day) or {}
+        desk = max(float(h["desk_min"]), float(pl.get("desk") or 0.0))
+        other = sum(float(v or 0.0) for k, v in pl.items()
+                    if k not in _NOT_PLACED)
+        campus = max(0.0, float(pl.get("campus") or 0.0) - outside_min(s))
+        out.append((min(1.0, desk / inside),
+                    min(1.0, (desk + other + campus) / inside)))
+    return out
 
 
 def desk_seen(e, days=ACT_DAYS):
     """Their mean share of their time in the building at their own desk,
-    over the last days the board has it (0-1), or None."""
+    over their last days (0-1), or None: of the machines' time where they
+    have it, else of the camera's own first-to-last sighting."""
+    sh = day_shares(e, days)
+    if sh:
+        return sum(a for a, _ in sh) / len(sh)
     vals = [float(r["desk_pct"]) for r in (e.get("board") or {}).get(
         "history") or [] if r.get("desk_pct") is not None][-days:]
     return sum(vals) / len(vals) if vals else None
+
+
+def day_seen(e, days=ACT_DAYS):
+    """Their mean share of their time in the building (by the machines)
+    that a camera placed them somewhere -- the desk or a known place --
+    over their last days (0-1), or None without a whole machine day."""
+    sh = day_shares(e, days)
+    return sum(b for _, b in sh) / len(sh) if sh else None
 
 
 def complete(e):
     """Every part of an office employee's productivity that the cameras
     can measure, measured -- the attendance machines, their own desk in a
     camera (and it shows them for a fair part of their day: DESK_SEEN_MIN),
-    and what went on at it (desk activity; where the camera cannot tell it
-    -- no screen in view, or a low-resolution camera -- that part is not
-    waited for). Shamroze, 27 Nov: "jin employees ki productivity poori ho
-    jaye, un ke report card par star"."""
-    seen = desk_seen(e)
+    the cameras placing them for most of it (SEEN_MIN), and what went on
+    at the desk (desk activity; where the camera cannot tell it -- no
+    screen in view, or a low-resolution camera -- that part is not waited
+    for). Shamroze, 27 Nov: "jin employees ki productivity poori ho jaye,
+    un ke report card par star"."""
+    seen, placed = desk_seen(e), day_seen(e)
     return (e.get("staff") != "workforce"
             and e.get("attendance") is not None
             and e.get("desk") is not None
             and seen is not None and seen >= DESK_SEEN_MIN
+            and placed is not None and placed >= SEEN_MIN
             and (e.get("activity") is not None or bool(activity_untold(e))))
 
 
@@ -535,7 +598,7 @@ def missing(e):
     out = []
     if e.get("attendance") is None:
         out.append("attendance")
-    seen = desk_seen(e)
+    seen, placed = desk_seen(e), day_seen(e)
     if e.get("desk") is None:
         out.append("desk camera (their desk not named in a camera yet)")
     elif seen is None or seen < DESK_SEEN_MIN:
@@ -543,6 +606,13 @@ def missing(e):
                    "%s of their time in the building -- being checked" % (
                        "%d%%" % round(100 * seen) if seen is not None
                        else "too little"))
+    elif placed is None:
+        out.append("a whole day by the machines (no day with every IN "
+                   "matched by an OUT yet)")
+    elif placed < SEEN_MIN:
+        out.append("most of their day: the cameras placed them for %d%% of "
+                   "their time in the building, under half -- the rest is "
+                   "\"place not seen\"" % round(100 * placed))
     elif e.get("activity") is None:
         out.append("desk activity (not read yet)")
     return ", ".join(out)
@@ -551,7 +621,9 @@ def missing(e):
 def star_html(e):
     """The gold star beside a complete employee's name, else nothing."""
     return ('<span title="Complete: attendance, desk camera and desk '
-            'activity measured" aria-label="complete" style="color:'
+            'activity measured, and the cameras placed them for at least '
+            'half of their time in the building" aria-label="complete" '
+            'style="color:'
             '#d99a00;margin-left:.3em">%s</span>' % STAR) if complete(e) \
         else ""
 
