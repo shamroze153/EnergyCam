@@ -2591,6 +2591,11 @@ rooms:
     ignore:
       15:
         - [455, 0, 530, 110]     # the next office's desk, beyond the glass
+        # 28 Nov, GHOST at 01:03, 12:47 and 20:48: the next office's people
+        # are right of that box too, through the glass wall (x 540-640, top
+        # 160 px). This room's nearest chair starts below y 165, against
+        # the glass, so nobody in this room is ever up there.
+        - [535, 0, 640, 160]
 
   - name: 141-D MR02 (2nd floor)
     dept: Meeting rooms
